@@ -21,6 +21,8 @@ use Amtgard\IdP\Auth\Repositories\ClientRepository;
 use Amtgard\IdP\Auth\Repositories\RefreshTokenRepository;
 use Amtgard\IdP\Auth\Repositories\ScopeRepository;
 use Amtgard\IdP\Auth\Repositories\UserRepository;
+use Twig\Environment as TwigEnvironment;
+use Twig\Loader\FilesystemLoader;
 
 return [
     // Logger
@@ -139,6 +141,15 @@ return [
             'clientSecret' => $_ENV['FACEBOOK_CLIENT_SECRET'],
             'redirectUri'  => $_ENV['FACEBOOK_REDIRECT_URI'],
             'graphApiVersion' => 'v12.0',
+        ]);
+    },
+
+    // Twig Environment
+    TwigEnvironment::class => function () {
+        $loader = new FilesystemLoader(__DIR__ . '/../templates');
+        return new TwigEnvironment($loader, [
+            'cache' => __DIR__ . '/../var/cache/twig',
+            'auto_reload' => true,
         ]);
     },
 ];

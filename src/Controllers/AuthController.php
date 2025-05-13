@@ -13,6 +13,7 @@ use Slim\Routing\RouteContext;
 use Amtgard\IdP\Entity\User;
 use DateTime;
 use Ramsey\Uuid\Uuid;
+use Twig\Environment as TwigEnvironment;
 
 class AuthController
 {
@@ -20,18 +21,21 @@ class AuthController
     private LoggerInterface $logger;
     private Google $googleProvider;
     private Facebook $facebookProvider;
+    private TwigEnvironment $twig;
 
     public function __construct(
         EntityManager   $entityManager,
         LoggerInterface $logger,
         Google          $googleProvider,
-        Facebook        $facebookProvider
+        Facebook        $facebookProvider,
+        TwigEnvironment $twig
     )
     {
         $this->entityManager = $entityManager;
         $this->logger = $logger;
         $this->googleProvider = $googleProvider;
         $this->facebookProvider = $facebookProvider;
+        $this->twig = $twig;
     }
 
     /**
@@ -43,115 +47,7 @@ class AuthController
      */
     public function loginForm(Request $request, Response $response): Response
     {
-        $response->getBody()->write('
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Login - Amtgard Identity Provider</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        line-height: 1.6;
-                        margin: 0;
-                        padding: 20px;
-                        color: #333;
-                        font-size: 12pt;
-                    }
-                    .container {
-                        max-width: 500px;
-                        margin: 0 auto;
-                        padding: 20px;
-                        border: 1px solid #ddd;
-                        border-radius: 5px;
-                    }
-                    h1 {
-                        color: #2c3e50;
-                        text-align: center;
-                    }
-                    .form-group {
-                        margin-bottom: 15px;
-                    }
-                    label {
-                        display: block;
-                        margin-bottom: 5px;
-                    }
-                    input[type="email"],
-                    input[type="password"] {
-                        width: 100%;
-                        padding: 8px 0px;
-                        border: 1px solid #ddd;
-                        border-radius: 4px;
-                    }
-                    button {
-                        background: #3498db;
-                        color: #fff;
-                        padding: 10px 15px;
-                        border: none;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 12pt;
-                        width: 100%;
-                    }
-                    button:hover {
-                        background: #2980b9;
-                    }
-                    .social-login {
-                        margin-top: 20px;
-                        text-align: center;
-                    }
-                    .social-btn {
-                        display: inline-block;
-                        width: 100%;
-                        padding: 10px 0px;
-                        margin: 5px 0;
-                        border-radius: 4px;
-                        text-decoration: none;
-                        color: white;
-                        text-align: center;
-                    }
-                    .google-btn {
-                        background-color: #DB4437;
-                    }
-                    .facebook-btn {
-                        background-color: #4267B2;
-                    }
-                    .register-link {
-                        text-align: center;
-                        margin-top: 15px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>Login</h1>
-                    <form action="/auth/login" method="post">
-                        <div class="form-group">
-                            <label for="email">Email:</label>
-                            <input type="email" id="email" name="email" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="password">Password:</label>
-                            <input type="password" id="password" name="password" required>
-                        </div>
-                        <button type="submit">Login</button>
-                    </form>
-                    
-                    <div class="social-login">
-                        <p>Or login with:</p>
-                        <a href="/auth/google" class="social-btn google-btn">Google</a>
-                        <a href="/auth/facebook" class="social-btn facebook-btn">Facebook</a>
-                    </div>
-                    
-                    <div class="register-link">
-                        <p>Don\'t have an account? <a href="/auth/register">Register</a></p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        ');
-
+        $response->getBody()->write($this->twig->render('login_form.twig'));
         return $response;
     }
 
@@ -206,128 +102,7 @@ class AuthController
      */
     public function registerForm(Request $request, Response $response): Response
     {
-        $response->getBody()->write('
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Register - Amtgard Identity Provider</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        font-size: 12pt;
-                        line-height: 1.6;
-                        margin: 0;
-                        padding: 20px;
-                        color: #333;
-                    }
-                    .container {
-                        max-width: 500px;
-                        margin: 0 auto;
-                        padding: 20px;
-                        border: 1px solid #ddd;
-                        border-radius: 5px;
-                    }
-                    h1 {
-                        color: #2c3e50;
-                        text-align: center;
-                    }
-                    .form-group {
-                        margin-bottom: 15px;
-                    }
-                    label {
-                        display: block;
-                        margin-bottom: 5px;
-                    }
-                    input[type="text"],
-                    input[type="email"],
-                    input[type="password"] {
-                        width: 100%;
-                        padding: 8px 0px;
-                        border: 1px solid #ddd;
-                        border-radius: 4px;
-                    }
-                    button {
-                        background: #3498db;
-                        color: #fff;
-                        padding: 10px 15px;
-                        border: none;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        width: 100%;
-                        font-size: 12pt;
-                    }
-                    button:hover {
-                        background: #2980b9;
-                    }
-                    .social-login {
-                        margin-top: 20px;
-                        text-align: center;
-                    }
-                    .social-btn {
-                        display: inline-block;
-                        width: 100%;
-                        padding: 10px 0px;
-                        margin: 5px 0;
-                        border-radius: 4px;
-                        text-decoration: none;
-                        color: white;
-                        text-align: center;
-                    }
-                    .google-btn {
-                        background-color: #DB4437;
-                    }
-                    .facebook-btn {
-                        background-color: #4267B2;
-                    }
-                    .login-link {
-                        text-align: center;
-                        margin-top: 15px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>Register</h1>
-                    <form action="/auth/register" method="post">
-                        <div class="form-group">
-                            <label for="firstName">First Name:</label>
-                            <input type="text" id="firstName" name="firstName" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="lastName">Last Name:</label>
-                            <input type="text" id="lastName" name="lastName" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="email">Email:</label>
-                            <input type="email" id="email" name="email" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="password">Password:</label>
-                            <input type="password" id="password" name="password" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="confirmPassword">Confirm Password:</label>
-                            <input type="password" id="confirmPassword" name="confirmPassword" required>
-                        </div>
-                        <button type="submit">Register</button>
-                    </form>
-                    
-                    <div class="social-login">
-                        <p>Or register with:</p>
-                        <a href="/auth/google" class="social-btn google-btn">Google</a>
-                        <a href="/auth/facebook" class="social-btn facebook-btn">Facebook</a>
-                    </div>
-                    
-                    <div class="login-link">
-                        <p>Already have an account? <a href="/auth/login">Login</a></p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        ');
-
+        $response->getBody()->write($this->twig->render('register_form.twig'));
         return $response;
     }
 
