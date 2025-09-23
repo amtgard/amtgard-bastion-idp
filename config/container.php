@@ -148,7 +148,7 @@ return [
     TwigEnvironment::class => function () {
         $loader = new FilesystemLoader(__DIR__ . '/../templates');
         return new TwigEnvironment($loader, [
-            'cache' => __DIR__ . '/../var/cache/twig',
+            'cache' => __DIR__ . '/cache/twig',
             'auto_reload' => true,
         ]);
     },
