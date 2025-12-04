@@ -1,0 +1,12 @@
+.env
+.idea
+.phpunit.cache
+logs/
+vendor/
+.DS_Store
+devfile.yaml
+.cursorrules
+.cursorignore
+.cursorignorerules
+cache/
+dev-keys/

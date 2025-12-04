@@ -1,0 +1,30 @@
+FROM ubuntu:24.04
+
+RUN apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install tzdata
+RUN apt-get update && apt-get install -y less gzip wget nginx nginx-extras zip unzip git nano mysql-client memcached redis
+RUN apt-get update && apt-get install --no-install-recommends -y php8.3
+RUN apt-get update && apt-get install -y php8.3-fpm php8.3-cli php8.3-common php8.3-mysql php8.3-mbstring php8.3-curl php8.3-xml php8.3-memcached php8.3-redis php8.3-gd
+RUN apt-get update && apt-get install php8.3-xdebug
+
+RUN sed -i 's/;\s*clear_env = no/clear_env = no/g' /etc/php/8.3/fpm/pool.d/www.conf
+RUN echo "env[ENVIRONMENT] = DEV" >> /etc/php/8.3/fpm/pool.d/www.conf
+RUN sed -i 's/memory_limit = 128M/memory_limit = 32M/g' /etc/php/8.3/fpm/php.ini
+
+RUN mkdir -p /var/www/idp.amtgard.com
+
+COPY nginx.idp.config /etc/nginx/sites-available/idp.amtgard.com
+RUN rm /etc/nginx/sites-enabled/*
+RUN ln -s /etc/nginx/sites-available/idp.amtgard.com /etc/nginx/sites-enabled/idp.amtgard.com
+COPY xdebug.dev.ini /etc/php/8.3/mods-available/xdebug.ini
+COPY etc.memcached /etc/memcached.conf
+
+COPY --from=composer /usr/bin/composer /var/www/idp.amtgard.com/composer.phar
+RUN mv /var/www/idp.amtgard.com/composer.phar /usr/local/bin/composer
+
+WORKDIR /var/www
+
+COPY heartbeat.sh /var/www/heartbeat.sh
+RUN chmod +x heartbeat.sh
+
+CMD ./heartbeat.sh
