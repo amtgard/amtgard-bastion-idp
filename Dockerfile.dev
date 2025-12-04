@@ -13,7 +13,7 @@ RUN sed -i 's/memory_limit = 128M/memory_limit = 32M/g' /etc/php/8.3/fpm/php.ini
 
 RUN mkdir -p /var/www/idp.amtgard.com
 
-COPY idp.amtgard.com /etc/nginx/sites-available/idp.amtgard.com
+COPY nginx.idp.config /etc/nginx/sites-available/idp.amtgard.com
 RUN rm /etc/nginx/sites-enabled/*
 RUN ln -s /etc/nginx/sites-available/idp.amtgard.com /etc/nginx/sites-enabled/idp.amtgard.com
 COPY xdebug.dev.ini /etc/php/8.3/mods-available/xdebug.ini

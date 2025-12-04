@@ -3,13 +3,13 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Auth\Repositories;
 
+use Amtgard\IdP\Auth\Entities\ScopeEntity as OAuthScopeEntity;
+use Amtgard\IdP\AuthClient\Repositories\Client as ClientEntity;
+use Amtgard\IdP\AuthClient\Repositories\Scope as ScopeEntity;
 use Doctrine\ORM\EntityManager;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Entities\ScopeEntityInterface;
 use League\OAuth2\Server\Repositories\ScopeRepositoryInterface;
-use Amtgard\IdP\Entity\Scope as ScopeEntity;
-use Amtgard\IdP\Entity\Client as ClientEntity;
-use Amtgard\IdP\Auth\Entities\ScopeEntity as OAuthScopeEntity;
 
 class ScopeRepository implements ScopeRepositoryInterface
 {

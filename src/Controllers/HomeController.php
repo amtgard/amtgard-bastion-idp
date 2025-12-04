@@ -17,6 +17,8 @@ class HomeController
      */
     public function index(Request $request, Response $response): Response
     {
+        $loginMessage = isset($_SESSION['user_id']) ? "<h2>UserRepository Status</h2> You are currently logged in." : "";
+
         $response->getBody()->write('
             <!DOCTYPE html>
             <html>
@@ -57,8 +59,11 @@ class HomeController
                 <div class="container">
                     <h1>Amtgard Identity Provider</h1>
                     <p>Welcome to the Amtgard Identity Provider service. This service allows users to authenticate and authorize applications to access their Amtgard data.</p>
-                    
-                    <h2>User Actions</h2>
+                    '
+
+. $loginMessage .
+
+'                    <h2>UserRepository Actions</h2>
                     <p>
                         <a href="/auth/login" class="btn">Login</a>
                         <a href="/auth/register" class="btn">Register</a>

@@ -2,10 +2,10 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__, '.phinx.env');
 $dotenv->load();
 
-return [
+$config = [
     'paths' => [
         'migrations' => 'db/migrations',
         'seeds' => 'db/seeds',
@@ -32,4 +32,6 @@ return [
             'charset' => 'utf8mb4',
         ],
     ],
-]; 
+];
+
+return $config;

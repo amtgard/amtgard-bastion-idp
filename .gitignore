@@ -9,3 +9,4 @@ devfile.yaml
 .cursorignore
 .cursorignorerules
 cache/
+dev-keys/

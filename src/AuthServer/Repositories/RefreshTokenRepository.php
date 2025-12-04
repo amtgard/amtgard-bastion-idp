@@ -3,13 +3,13 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Auth\Repositories;
 
+use Amtgard\IdP\Auth\Entities\RefreshTokenEntity as OAuthRefreshTokenEntity;
+use Amtgard\IdP\AuthClient\Repositories\AccessToken as AccessTokenEntity;
+use Amtgard\IdP\AuthClient\Repositories\RefreshToken as RefreshTokenEntity;
 use DateTime;
 use Doctrine\ORM\EntityManager;
 use League\OAuth2\Server\Entities\RefreshTokenEntityInterface;
 use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
-use Amtgard\IdP\Entity\RefreshToken as RefreshTokenEntity;
-use Amtgard\IdP\Entity\AccessToken as AccessTokenEntity;
-use Amtgard\IdP\Auth\Entities\RefreshTokenEntity as OAuthRefreshTokenEntity;
 
 class RefreshTokenRepository implements RefreshTokenRepositoryInterface
 {

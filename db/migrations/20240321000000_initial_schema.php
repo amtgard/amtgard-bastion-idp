@@ -36,7 +36,7 @@ class InitialSchema extends AbstractMigration
             ->addIndex(['client_id'], ['unique' => true])
             ->create();
 
-        // OAuth Auth Codes table
+        // OAuth AuthServer Codes table
         $this->table('oauth_auth_codes')
             ->addColumn('identifier', 'string', ['limit' => 100])
             ->addColumn('client_id', 'string', ['limit' => 36])

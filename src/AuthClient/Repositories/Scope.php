@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace Amtgard\IdP\Entity;
+namespace Amtgard\IdP\AuthClient\Repositories;
 
+use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 use Ramsey\Uuid\Uuid;
-use DateTime;
 
 /**
  * @ORM\Entity

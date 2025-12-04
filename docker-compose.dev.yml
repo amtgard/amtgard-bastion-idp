@@ -5,7 +5,7 @@ services:
       context: ./
       dockerfile: Dockerfile.dev
     ports:
-      - 41080:80
+      - 37080:80
       - 41093:9003
     working_dir: /var/www
     volumes:
@@ -16,6 +16,7 @@ services:
     container_name: amtgard-idp
     networks:
       - amtgard-idp-net
+    hostname: amtgard-idp-app
 
   amtgardidpdb:
     image: mariadb:latest
@@ -40,6 +41,7 @@ services:
     container_name: amtgard-idp-db
     networks:
       - amtgard-idp-net
+    hostname: amtgard-idp-db
 
 volumes:
   data-db: {}

@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Controllers;
 
-use Amtgard\IdP\Controllers\AuthController;
-use Amtgard\IdP\Entity\User;
+use Amtgard\IdP\AuthClient\Repositories\UserRepository;
+use Amtgard\IdP\Controllers\Client\AuthController;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityRepository;
 use League\OAuth2\Client\Provider\Facebook;
@@ -170,7 +170,7 @@ class AuthControllerTest extends TestCase
         $_SESSION['oauth2state'] = 'correct_state';
         $queryParams = ['state' => 'correct_state', 'code' => 'authorization_code'];
         $accessToken = $this->createMock(AccessToken::class);
-        $user = new User();
+        $user = new UserRepository();
         $user->setFirstName('John');
         $user->setLastName('Doe');
         $user->setEmail('john.doe@example.com');
@@ -206,7 +206,7 @@ class AuthControllerTest extends TestCase
 
         $this->entityManager->expects($this->exactly(2))
             ->method('getRepository')
-            ->with(User::class)
+            ->with(UserRepository::class)
             ->willReturn($this->userRepository);
 
         $this->userRepository->expects($this->exactly(2))
@@ -281,7 +281,7 @@ class AuthControllerTest extends TestCase
 
         $this->entityManager->expects($this->exactly(2))
             ->method('getRepository')
-            ->with(User::class)
+            ->with(UserRepository::class)
             ->willReturn($this->userRepository);
 
         $this->userRepository->expects($this->exactly(2))
@@ -295,7 +295,7 @@ class AuthControllerTest extends TestCase
         $this->entityManager->expects($this->once())
             ->method('persist')
             ->with($this->callback(function ($user) {
-                return $user instanceof User
+                return $user instanceof UserRepository
                     && $user->getFirstName() === 'John'
                     && $user->getLastName() === 'Doe'
                     && $user->getEmail() === 'john.doe@example.com'

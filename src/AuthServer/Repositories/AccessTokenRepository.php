@@ -3,15 +3,15 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Auth\Repositories;
 
+use Amtgard\IdP\Auth\Entities\AccessTokenEntity as OAuthAccessTokenEntity;
+use Amtgard\IdP\AuthClient\Repositories\AccessToken as AccessTokenEntity;
+use Amtgard\IdP\AuthClient\Repositories\Client as ClientEntity;
+use Amtgard\IdP\AuthClient\Repositories\UserRepository as UserEntity;
 use DateTime;
 use Doctrine\ORM\EntityManager;
 use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
-use Amtgard\IdP\Entity\AccessToken as AccessTokenEntity;
-use Amtgard\IdP\Entity\Client as ClientEntity;
-use Amtgard\IdP\Entity\User as UserEntity;
-use Amtgard\IdP\Auth\Entities\AccessTokenEntity as OAuthAccessTokenEntity;
 
 class AccessTokenRepository implements AccessTokenRepositoryInterface
 {
@@ -68,7 +68,7 @@ class AccessTokenRepository implements AccessTokenRepositoryInterface
             $user = $userRepo->find($accessTokenEntity->getUserIdentifier());
             
             if ($user === null) {
-                throw new \RuntimeException('User not found');
+                throw new \RuntimeException('UserRepository not found');
             }
         }
         

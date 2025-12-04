@@ -1,17 +1,16 @@
 <?php
 declare(strict_types=1);
 
-namespace Amtgard\IdP\Entity;
+namespace Amtgard\IdP\AuthClient\Repositories;
 
-use Doctrine\ORM\Mapping as ORM;
-use Ramsey\Uuid\Uuid;
 use DateTime;
+use Ramsey\Uuid\Uuid;
 
 /**
  * @ORM\Entity
- * @ORM\Table(name="oauth_auth_codes")
+ * @ORM\Table(name="oauth_access_tokens")
  */
-class AuthCode
+class AccessToken
 {
     /**
      * @ORM\Id
@@ -31,10 +30,10 @@ class AuthCode
     private Client $client;
 
     /**
-     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\ManyToOne(targetEntity="UserRepository")
      * @ORM\JoinColumn(nullable=true)
      */
-    private ?User $user = null;
+    private ?UserRepository $user = null;
 
     /**
      * @ORM\Column(type="array")
@@ -55,11 +54,6 @@ class AuthCode
      * @ORM\Column(type="datetime")
      */
     private DateTime $createdAt;
-
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
-    private string $redirectUri;
 
     public function __construct()
     {
@@ -94,12 +88,12 @@ class AuthCode
         return $this;
     }
 
-    public function getUser(): ?User
+    public function getUser(): ?UserRepository
     {
         return $this->user;
     }
 
-    public function setUser(?User $user): self
+    public function setUser(?UserRepository $user): self
     {
         $this->user = $user;
         return $this;
@@ -141,17 +135,6 @@ class AuthCode
     public function getCreatedAt(): DateTime
     {
         return $this->createdAt;
-    }
-
-    public function getRedirectUri(): string
-    {
-        return $this->redirectUri;
-    }
-
-    public function setRedirectUri(string $redirectUri): self
-    {
-        $this->redirectUri = $redirectUri;
-        return $this;
     }
 
     public function isExpired(): bool

@@ -1,17 +1,17 @@
 <?php
 declare(strict_types=1);
 
-namespace Amtgard\IdP\Entity;
+namespace Amtgard\IdP\AuthClient\Repositories;
 
+use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 use Ramsey\Uuid\Uuid;
-use DateTime;
 
 /**
  * @ORM\Entity
- * @ORM\Table(name="oauth_access_tokens")
+ * @ORM\Table(name="oauth_refresh_tokens")
  */
-class AccessToken
+class RefreshToken
 {
     /**
      * @ORM\Id
@@ -25,21 +25,10 @@ class AccessToken
     private string $identifier;
 
     /**
-     * @ORM\ManyToOne(targetEntity="Client")
-     * @ORM\JoinColumn(nullable=false)
+     * @ORM\ManyToOne(targetEntity="AccessToken")
+     * @ORM\JoinColumn(nullable=false, onDelete="CASCADE")
      */
-    private Client $client;
-
-    /**
-     * @ORM\ManyToOne(targetEntity="User")
-     * @ORM\JoinColumn(nullable=true)
-     */
-    private ?User $user = null;
-
-    /**
-     * @ORM\Column(type="array")
-     */
-    private array $scopes = [];
+    private AccessToken $accessToken;
 
     /**
      * @ORM\Column(type="boolean")
@@ -78,36 +67,14 @@ class AccessToken
         return $this;
     }
 
-    public function getClient(): Client
+    public function getAccessToken(): AccessToken
     {
-        return $this->client;
+        return $this->accessToken;
     }
 
-    public function setClient(Client $client): self
+    public function setAccessToken(AccessToken $accessToken): self
     {
-        $this->client = $client;
-        return $this;
-    }
-
-    public function getUser(): ?User
-    {
-        return $this->user;
-    }
-
-    public function setUser(?User $user): self
-    {
-        $this->user = $user;
-        return $this;
-    }
-
-    public function getScopes(): array
-    {
-        return $this->scopes;
-    }
-
-    public function setScopes(array $scopes): self
-    {
-        $this->scopes = $scopes;
+        $this->accessToken = $accessToken;
         return $this;
     }
 

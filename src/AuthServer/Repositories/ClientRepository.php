@@ -3,15 +3,13 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Auth\Repositories;
 
-use Doctrine\ORM\EntityManager;
-use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
-use League\OAuth2\Server\Entities\ClientEntityInterface;
-use Amtgard\IdP\Entity\Client as ClientEntity;
 use Amtgard\IdP\Auth\Entities\ClientEntity as OAuthClientEntity;
+use Amtgard\IdP\AuthClient\Repositories\Client as ClientEntity;
+use League\OAuth2\Server\Entities\ClientEntityInterface;
+use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 
 class ClientRepository implements ClientRepositoryInterface
 {
-    private EntityManager $entityManager;
 
     public function __construct(EntityManager $entityManager)
     {
@@ -76,5 +74,10 @@ class ClientRepository implements ClientRepositoryInterface
         }
         
         return hash_equals($client->getClientSecret(), $clientSecret);
+    }
+
+    public function validateClient($clientIdentifier, $clientSecret, $grantType)
+    {
+        // TODO: Implement validateClient() method.
     }
 }

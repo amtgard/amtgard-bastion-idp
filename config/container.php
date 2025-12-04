@@ -1,9 +1,14 @@
 <?php
 declare(strict_types=1);
 
-use Doctrine\DBAL\DriverManager;
-use Doctrine\ORM\EntityManager;
-use Doctrine\ORM\ORMSetup;
+use Amtgard\ActiveRecordOrm\Configuration\DataAccessPolicy\UncachedDataAccessPolicy;
+use Amtgard\ActiveRecordOrm\Configuration\Repository\DatabaseConfiguration;
+use Amtgard\ActiveRecordOrm\Configuration\Repository\MysqlPdoProvider;
+use Amtgard\ActiveRecordOrm\Entity\Policy\RepositoryPolicy;
+use Amtgard\ActiveRecordOrm\Entity\Policy\UncachedPolicy;
+use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
+use Amtgard\ActiveRecordOrm\Repository\Database;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use League\OAuth2\Server\AuthorizationServer;
@@ -20,7 +25,6 @@ use Amtgard\IdP\Auth\Repositories\AuthCodeRepository;
 use Amtgard\IdP\Auth\Repositories\ClientRepository;
 use Amtgard\IdP\Auth\Repositories\RefreshTokenRepository;
 use Amtgard\IdP\Auth\Repositories\ScopeRepository;
-use Amtgard\IdP\Auth\Repositories\UserRepository;
 use Twig\Environment as TwigEnvironment;
 use Twig\Loader\FilesystemLoader;
 
@@ -32,32 +36,38 @@ return [
         return $logger;
     },
 
-    // Database connection
-    'db.connection' => function () {
-        return DriverManager::getConnection([
-            'driver' => $_ENV['DB_DRIVER'],
-            'host' => $_ENV['DB_HOST'],
-            'port' => $_ENV['DB_PORT'],
-            'dbname' => $_ENV['DB_NAME'],
-            'user' => $_ENV['DB_USER'],
-            'password' => $_ENV['DB_PASS'],
-            'charset' => 'utf8mb4'
-        ]);
+    Database::class => function (ContainerInterface $container) {
+        $config = DatabaseConfiguration::fromEnvironment();
+        $provider = MysqlPdoProvider::fromConfiguration($config);
+        return Database::fromProvider($provider);
     },
 
-    // Entity Manager
+    DataAccessPolicy::class  => function (ContainerInterface $container) {
+        $database = $container->get(Database::class);
+        return UncachedDataAccessPolicy::builder()->database($database)->build();
+    },
+
+    UncachedDataAccessPolicy::class  => function (ContainerInterface $container) {
+        $database = $container->get(Database::class);
+        return UncachedDataAccessPolicy::builder()->database($database)->build();
+    },
+
+    RepositoryPolicy::class => function (ContainerInterface $container) {
+        return UncachedPolicy::builder()->build();
+    },
+
     EntityManager::class => function (ContainerInterface $container) {
-        $config = ORMSetup::createAttributeMetadataConfiguration(
-            [__DIR__ . '/../src/Entity'],
-            $_ENV['APP_DEBUG'] == 'true',
-            null,
-            null
-        );
-        
-        return EntityManager::create(
-            $container->get('db.connection'),
-            $config
-        );
+        $em = EntityManager::builder()
+            ->database($container->get(Database::class))
+            ->dataAccessPolicy($container->get(DataAccessPolicy::class))
+            ->repositoryPolicy($container->get(RepositoryPolicy::class))
+            ->build();
+        EntityManager::configure($em);
+        return $em;
+    },
+
+    \Amtgard\IdP\AuthClient\Repositories\UserRepository::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(\Amtgard\IdP\AuthClient\Repositories\UserRepository::class);
     },
 
     // OAuth2 Authorization Server
@@ -82,7 +92,7 @@ return [
             $accessTokenRepository,
             $scopeRepository,
             $privateKey,
-            $_ENV['OAUTH_ENCRYPTION_KEY']
+            $_ENV['AUTH_SERVER_DEFUSE_KEY']
         );
 
         // Enable the authentication code grant on the server with a token TTL of 1 hour

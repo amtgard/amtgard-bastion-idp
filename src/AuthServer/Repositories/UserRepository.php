@@ -3,20 +3,24 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Auth\Repositories;
 
-use Doctrine\ORM\EntityManager;
+use Amtgard\ActiveRecordOrm\Configuration\DataAccessPolicy\UncachedDataAccessPolicy;
+use Amtgard\ActiveRecordOrm\Entity\EntityMapper;
+use Amtgard\ActiveRecordOrm\Repository\Database;
+use Amtgard\ActiveRecordOrm\TableFactory;
+use Amtgard\IdP\Auth\Entities\UserEntity as OAuthUserEntity;
+use Amtgard\IdP\AuthClient\Repositories\UserRepository as UserEntity;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Entities\UserEntityInterface;
 use League\OAuth2\Server\Repositories\UserRepositoryInterface;
-use Amtgard\IdP\Entity\User as UserEntity;
-use Amtgard\IdP\Auth\Entities\UserEntity as OAuthUserEntity;
 
 class UserRepository implements UserRepositoryInterface
 {
-    private EntityManager $entityManager;
+    public EntityMapper $userRepo;
 
-    public function __construct(EntityManager $entityManager)
-    {
-        $this->entityManager = $entityManager;
+    public function __construct(Database $database, UncachedDataAccessPolicy $tablePolicy) {
+        $this->userRepo = EntityMapper::builder()
+            ->table(TableFactory::build($database, $tablePolicy, 'users'))
+            ->build();
     }
 
     /**
@@ -31,13 +35,11 @@ class UserRepository implements UserRepositoryInterface
      */
     public function getUserEntityByUserCredentials($username, $password, $grantType, ClientEntityInterface $clientEntity)
     {
-        $userRepo = $this->entityManager->getRepository(UserEntity::class);
-        
         /** @var UserEntity|null $user */
-        $user = $userRepo->findOneBy(['email' => $username]);
+        $user = $this->userRepo->fetchBy('email', $username);
         
         // Check if user exists and password is valid
-        if ($user === null || $user->getPassword() === null || !password_verify($password, $user->getPassword())) {
+        if ($user === null || $user->password === null || !password_verify($password, $user->password)) {
             return null;
         }
         
