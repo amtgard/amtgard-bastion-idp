@@ -1,12 +1,11 @@
 <?php
-declare(strict_types=1);
 
-namespace Amtgard\IdP\Controllers;
+namespace Amtgard\IdP\Controllers\Settings;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
-class HomeController
+class SettingsController
 {
     /**
      * Display the home page.
@@ -15,21 +14,7 @@ class HomeController
      * @param Response $response
      * @return Response
      */
-    public function index(Request $request, Response $response): Response
-    {
-        $actionMessage = isset($_SESSION['user_id']) ?
-            '<h2>UserRepository Status</h2> You are currently logged in.
-                <p>
-                    <a href="/settings" class="btn">User Settings</a>
-                    <a href="/auth/logout" class="btn">Logout</a>
-                </p>' :
-
-            '<h2>UserRepository Actions</h2>
-                    <p>
-                        <a href="/auth/login" class="btn">Login</a>
-                        <a href="/auth/register" class="btn">Register</a>
-                    </p>';
-
+    public function index(Request $request, Response $response): Response {
         $response->getBody()->write('
             <!DOCTYPE html>
             <html>
@@ -69,20 +54,15 @@ class HomeController
             <body>
                 <div class="container">
                     <h1>Amtgard Identity Provider</h1>
-                    <p>Welcome to the Amtgard Identity Provider service. This service allows users to authenticate and authorize applications to access their Amtgard data.</p>
-                    '
-
-. $actionMessage .
-
-'                   
-                    
-                    <h2>About</h2>
-                    <p>This service provides OAuth 2.0 authentication for Amtgard domains. It allows users to create accounts using their Google or Facebook credentials and then authorize applications to access their data.</p>
+                    <h2>Account Settings</h2>
+                    <p>
+                        <a href="/auth/logout" class="btn">Logout</a>
+                    </p>
                 </div>
             </body>
             </html>
         ');
-        
+
         return $response;
     }
 }

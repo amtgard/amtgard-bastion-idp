@@ -33,7 +33,6 @@ class UserRepository extends Repository implements EntityRepositoryInterface
             ->email($email)
             ->firstName($firstName)
             ->lastName($lastName)
-            ->avatarUrl($avatarUrl)
             ->userId(Uuid::uuid4()->toString())
             ->build();
 

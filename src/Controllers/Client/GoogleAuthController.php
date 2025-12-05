@@ -3,6 +3,7 @@
 namespace Amtgard\IdP\Controllers\Client;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\AuthClient\Repositories\UserLoginRepository;
 use Amtgard\IdP\AuthClient\Repositories\UserRepository;
 use Amtgard\IdP\Controllers\AmtgardIdpJwt;
 use League\OAuth2\Client\Provider\Google;
@@ -15,6 +16,7 @@ use Slim\Routing\RouteContext;
 class GoogleAuthController
 {
     private UserRepository $users;
+    private UserLoginRepository $logins;
     private LoggerInterface $logger;
     private Google $googleProvider;
     private AmtgardIdpJwt $amtgardIdpJwt;
@@ -22,12 +24,14 @@ class GoogleAuthController
     public function __construct(
         EntityManager   $entityManager,
         UserRepository  $users,
+        UserLoginRepository $userLoginRepository,
         LoggerInterface $logger,
         Google          $googleProvider,
         AmtgardIdpJwt   $amtgardIdpJwt
     )
     {
         $this->users = $users;
+        $this->logins = $userLoginRepository;
         $this->logger = $logger;
         $this->googleProvider = $googleProvider;
         $this->amtgardIdpJwt = $amtgardIdpJwt;
@@ -100,28 +104,29 @@ class GoogleAuthController
             ]);
 
             // Get user details
-            $user = $this->googleProvider->getResourceOwner($token);
-            $userData = $user->toArray();
+            $googleUser = $this->googleProvider->getResourceOwner($token);
+            $userData = $googleUser->toArray();
 
             $this->logger->info('Google user data: ' . json_encode($userData));
 
-            $user = Optional::ofNullable($this->users->getUserByGoogleId($userData['sub']))
+            $user = Optional::ofNullable($this->users->getUserByEmail($userData['email']))
                 ->orElseGet(function() use ($userData) {
-                    return Optional::ofNullable($this->users->getUserByEmail($userData['email']))
-                        ->map(function($user) use ($userData) {
-                            $user->setGoogleId($userData['id']);
-                            $user->setAvatarUrl($userData['picture']);
-                        })
-                        ->orElseGet(function() use ($userData) {
-                            $user = $this->users->createUserFromGoogleData($userData);
-                            return $this->users->getUserByGoogleId($user->getGoogleId());
-                        });
+                   return $this->users->createUserFromGoogleData($userData);
+                });
+
+            $login = Optional::ofNullable($this->logins->getLoginByGoogleId($userData['sub']))
+                ->map(function($login) use ($user) {
+                    $login->setUser($user);
+                    return $login;
+                })
+                ->orElseGet(function() use ($user, $userData) {
+                    return $this->logins->createLoginFromGoogleData($user, $userData);
                 });
 
             // Set session
-            $_SESSION['user_id'] = $user->getGoogleId();
-            $_SESSION['user_email'] = $user->getEmail();
-            $_SESSION['user_name'] = $user->getFirstName() . ' ' . $user->getLastName();
+            $_SESSION['user_id'] = $login->getGoogleId();
+            $_SESSION['user_email'] = $login->user->getEmail();
+            $_SESSION['user_name'] = $login->user->getFirstName() . ' ' . $login->user->getLastName();
 
             // Redirect to home page
             $routeContext = RouteContext::fromRequest($request);
@@ -129,7 +134,7 @@ class GoogleAuthController
 
             $jwt = $this->amtgardIdpJwt->buildSingleUseJwt($user, $_SESSION['jwtpublickey']);
 
-            $finalizeUrl = empty($_SESSION['redirect']) ? $routeParser->urlFor('home') : ($_SESSION['redirect'] . "?jwt=$jwt");
+            $finalizeUrl = empty($_SESSION['redirect']) ? $routeParser->urlFor('settings') : ($_SESSION['redirect'] . "?jwt=$jwt");
 
             return $response
                 ->withHeader('Location', $finalizeUrl)

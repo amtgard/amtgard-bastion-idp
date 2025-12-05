@@ -9,6 +9,7 @@ use Amtgard\ActiveRecordOrm\Entity\Policy\UncachedPolicy;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Repository\Database;
+use Amtgard\IdP\AuthClient\Repositories\UserLoginRepository;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use League\OAuth2\Server\AuthorizationServer;
@@ -68,6 +69,10 @@ return [
 
     \Amtgard\IdP\AuthClient\Repositories\UserRepository::class => function (ContainerInterface $container) {
         return EntityManager::getManager()->getRepository(\Amtgard\IdP\AuthClient\Repositories\UserRepository::class);
+    },
+
+    UserLoginRepository::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(UserLoginRepository::class);
     },
 
     // OAuth2 Authorization Server

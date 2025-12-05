@@ -6,6 +6,7 @@ use Amtgard\IdP\Controllers\Client\FacebookAuthController;
 use Amtgard\IdP\Controllers\Client\GoogleAuthController;
 use Amtgard\IdP\Controllers\HomeController;
 use Amtgard\IdP\Controllers\OAuth2Controller;
+use Amtgard\IdP\Controllers\Settings\SettingsController;
 use Amtgard\IdP\Controllers\UserController;
 use Amtgard\IdP\Middleware\AuthMiddleware;
 use Slim\App;
@@ -14,6 +15,10 @@ use Slim\Routing\RouteCollectorProxy;
 return function (App $app) {
     // Home page
     $app->get('/', [HomeController::class, 'index'])->setName('home');
+
+    $app->group('/settings', function (RouteCollectorProxy $group) {
+       $group->get('', [SettingsController::class, 'index'])->setName('settings');
+    });
 
     // Authentication routes
     $app->group('/auth', function (RouteCollectorProxy $group) {
