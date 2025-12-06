@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Controllers;
 
-use Amtgard\IdP\AuthClient\Repositories\UserRepository;
 use Amtgard\IdP\Controllers\Client\AuthController;
+use Amtgard\IdP\Persistence\UserRepository;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityRepository;
 use League\OAuth2\Client\Provider\Facebook;

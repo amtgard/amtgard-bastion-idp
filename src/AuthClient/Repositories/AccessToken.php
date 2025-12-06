@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\AuthClient\Repositories;
 
+use Amtgard\IdP\Persistence\UserRepository;
 use DateTime;
 use Ramsey\Uuid\Uuid;
 

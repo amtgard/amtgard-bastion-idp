@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Controllers\Client;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
-use Amtgard\IdP\AuthClient\Repositories\UserRepository;
+use Amtgard\IdP\Persistence\UserRepository;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use Psr\Http\Message\ResponseInterface as Response;

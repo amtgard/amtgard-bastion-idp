@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-namespace Amtgard\IdP\AuthClient\Repositories;
+namespace Amtgard\IdP\Persistence;
 
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
-use Amtgard\IdP\AuthClient\Entities\UserEntity;
+use Amtgard\IdP\Persistence\Entities\UserEntity;
 use Ramsey\Uuid\Uuid;
 
 #[RepositoryOf("users", UserEntity::class)]

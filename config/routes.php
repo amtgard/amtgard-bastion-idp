@@ -55,11 +55,4 @@ return function (App $app) {
             ->add(new AuthMiddleware())
             ->setName('oauth.userinfo');
     });
-
-    // UserRepository management routes (protected)
-    $app->group('/user', function (RouteCollectorProxy $group) {
-        $group->get('', [UserController::class, 'profile'])->setName('user.profile');
-        $group->get('/edit', [UserController::class, 'editForm'])->setName('user.edit');
-        $group->post('/edit', [UserController::class, 'update']);
-    })->add(new AuthMiddleware());
 };

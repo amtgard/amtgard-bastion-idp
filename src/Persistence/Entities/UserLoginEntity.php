@@ -1,13 +1,13 @@
 <?php
 
-namespace Amtgard\IdP\AuthClient\Entities;
+namespace Amtgard\IdP\Persistence\Entities;
 
 use Amtgard\ActiveRecordOrm\Attribute\EntityOf;
 use Amtgard\ActiveRecordOrm\Attribute\Field;
 use Amtgard\ActiveRecordOrm\Attribute\PrimaryKey;
 use Amtgard\ActiveRecordOrm\Entity\Repository\RepositoryEntity;
 use Amtgard\ActiveRecordOrm\Trait\RepositoryEntityTrait;
-use Amtgard\IdP\AuthClient\Repositories\UserLoginRepository;
+use Amtgard\IdP\Persistence\UserLoginRepository;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Data;
 use Amtgard\Traits\Builder\ToBuilder;

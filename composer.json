@@ -19,6 +19,7 @@
         "slim/psr7": "^1.5",
         "slim/slim": "^4.9",
         "symfony/cache": "^5.4",
+        "teampanfu/oauth2-discord": "^1.0",
         "tuupola/slim-jwt-auth": "^3.6",
         "twig/twig": "^3.21",
         "vlucas/phpdotenv": "^5.4"

@@ -9,7 +9,12 @@ use Amtgard\ActiveRecordOrm\Entity\Policy\UncachedPolicy;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Repository\Database;
-use Amtgard\IdP\AuthClient\Repositories\UserLoginRepository;
+use Amtgard\IdP\Auth\Repositories\AccessTokenRepository;
+use Amtgard\IdP\Auth\Repositories\AuthCodeRepository;
+use Amtgard\IdP\Auth\Repositories\ClientRepository;
+use Amtgard\IdP\Auth\Repositories\RefreshTokenRepository;
+use Amtgard\IdP\Auth\Repositories\ScopeRepository;
+use Amtgard\IdP\Persistence\UserLoginRepository;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use League\OAuth2\Server\AuthorizationServer;
@@ -21,11 +26,6 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
-use Amtgard\IdP\Auth\Repositories\AccessTokenRepository;
-use Amtgard\IdP\Auth\Repositories\AuthCodeRepository;
-use Amtgard\IdP\Auth\Repositories\ClientRepository;
-use Amtgard\IdP\Auth\Repositories\RefreshTokenRepository;
-use Amtgard\IdP\Auth\Repositories\ScopeRepository;
 use Twig\Environment as TwigEnvironment;
 use Twig\Loader\FilesystemLoader;
 
@@ -67,8 +67,8 @@ return [
         return $em;
     },
 
-    \Amtgard\IdP\AuthClient\Repositories\UserRepository::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(\Amtgard\IdP\AuthClient\Repositories\UserRepository::class);
+    \Amtgard\IdP\Persistence\UserRepository::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(\Amtgard\IdP\Persistence\UserRepository::class);
     },
 
     UserLoginRepository::class => function (ContainerInterface $container) {
