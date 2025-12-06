@@ -24,11 +24,7 @@ class UserRepository extends Repository implements EntityRepositoryInterface
         return $this->fetchBy('email', $email);
     }
 
-    public function getUserByGoogleId(string $googleId): ?UserEntity {
-        return $this->fetchBy('google_id', $googleId);
-    }
-
-    private function configureNewUser($email, $firstName, $lastName, $avatarUrl): UserEntity {
+    private function configureNewUser($email, $firstName, $lastName): UserEntity {
         $user = UserEntity::builder()
             ->email($email)
             ->firstName($firstName)
@@ -41,10 +37,13 @@ class UserRepository extends Repository implements EntityRepositoryInterface
         return $user;
     }
 
+    public function createLocalUser($email, $firstName, $lastName): UserEntity {
+        return $this->configureNewUser($email, $firstName, $lastName);
+    }
+
     public function createUserFromGoogleData(array $googleData): UserEntity {
-        $user = $this->configureNewUser($googleData['email'], $googleData['firstName'], $googleData['lastName'], $googleData['picture']);
+        $user = $this->configureNewUser($googleData['email'], $googleData['given_name'], $googleData['family_name']);
         $user->setUserId(Uuid::uuid4()->toString());
-        $user->setGoogleId($googleData['sub']);
         EntityManager::getManager()->persist($user);
         return $user;
     }

@@ -1,0 +1,45 @@
+<?php
+
+namespace Amtgard\IdP\Controllers\Client;
+
+use Amtgard\IdP\Controllers\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Entities\UserLoginEntity;
+use Amtgard\IdP\Persistence\Repositories\UserLoginRepository;
+use Amtgard\IdP\Persistence\Repositories\UserRepository;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
+use Slim\Routing\RouteContext;
+
+class BaseAuthController
+{
+    protected LoggerInterface $logger;
+    protected AmtgardIdpJwt $amtgardIdpJwt;
+
+    public function __construct(LoggerInterface $logger, AmtgardIdpJwt $amtgardIdpJwt) {
+        $this->logger = $logger;
+        $this->amtgardIdpJwt = $amtgardIdpJwt;
+    }
+
+    protected function finalizeAuthorization(UserLoginEntity $login, ServerRequestInterface $request, ResponseInterface $response): ResponseInterface {
+        $this->logger->info("User is authenticated; setting session for " . $login->user->getEmail());
+        $_SESSION['user_id'] = $login->user->getUserId();
+        $_SESSION['user_email'] = $login->user->getEmail();
+        $_SESSION['user_name'] = $login->user->getFullName();
+
+        // Redirect to home page
+        $routeContext = RouteContext::fromRequest($request);
+        $routeParser = $routeContext->getRouteParser();
+
+        $this->logger->info("Building JWT for " . $login->user->getEmail());
+        $jwt = $this->amtgardIdpJwt->buildSingleUseJwt($login->user, $_SESSION['jwtpublickey']);
+
+        $finalizeUrl = empty($_SESSION['redirect']) ? $routeParser->urlFor('settings') : ($_SESSION['redirect'] . "?jwt=$jwt");
+
+        $this->logger->info("Redirecting usre for " . $login->user->getEmail());
+        return $response
+            ->withHeader('Location', $finalizeUrl)
+            ->withStatus(302);
+    }
+
+}

@@ -4,19 +4,23 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Controllers\Client;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Controllers\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Entities\UserLoginEntity;
+use Amtgard\IdP\Persistence\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Repositories\UserRepository;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
+use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Slim\Routing\RouteContext;
 use Twig\Environment as TwigEnvironment;
 
-class AuthController
+class AuthController extends BaseAuthController
 {
     private UserRepository $users;
-    private LoggerInterface $logger;
+    private UserLoginRepository $logins;
     private Google $googleProvider;
     private Facebook $facebookProvider;
     private TwigEnvironment $twig;
@@ -24,14 +28,17 @@ class AuthController
     public function __construct(
         EntityManager $entityManager,
         UserRepository $users,
+        UserLoginRepository $logins,
         LoggerInterface $logger,
         Google          $googleProvider,
         Facebook        $facebookProvider,
+        AmtgardIdpJwt   $amtgardIdpJwt,
         TwigEnvironment $twig
     )
     {
+        parent::__construct($logger, $amtgardIdpJwt);
         $this->users = $users;
-        $this->logger = $logger;
+        $this->logins = $logins;
         $this->googleProvider = $googleProvider;
         $this->facebookProvider = $facebookProvider;
         $this->twig = $twig;
@@ -66,11 +73,14 @@ class AuthController
         $email = $data['email'] ?? '';
         $password = $data['password'] ?? '';
 
-        $userRepository = $this->entityManager->getRepository(UserRepository::class);
-        $user = $userRepository->findOneBy(['email' => $email]);
+        $user = $this->users->getUserByEmail($email);
+        $login = Optional::ofNullable($this->users->getUserByEmail($email))
+            ->map(function ($user) {
+                return $this->logins->getLoginByUser($user);
+            })->orElse(null);
 
         // Check if user exists and password is correct
-        if ($user === null || $user->getPassword() === null || !password_verify($password, $user->getPassword())) {
+        if ($login === null || $login->getPassword() === null || !password_verify($password, $login->getPassword())) {
             // Invalid credentials, redirect back to login form
             $response->getBody()->write('
                 <script>
@@ -81,18 +91,8 @@ class AuthController
             return $response;
         }
 
-        // Login successful, set session
-        $_SESSION['user_id'] = $user->getId();
-        $_SESSION['user_email'] = $user->getEmail();
-        $_SESSION['user_name'] = $user->getFullName();
-
-        // Redirect to home page
-        $routeContext = RouteContext::fromRequest($request);
-        $routeParser = $routeContext->getRouteParser();
-
-        return $response
-            ->withHeader('Location', $routeParser->urlFor('home'))
-            ->withStatus(302);
+        // Set session
+        return $this->finalizeAuthorization($login, $request, $response);
     }
 
     /**
@@ -169,27 +169,10 @@ class AuthController
         }
 
         // Create new user
-        $userMapper = $this->users->getMapper();
-        $userMapper->firstName = $firstName;
-        $userMapper->lastName = $lastName;
-        $userMapper->email = $email;
-        $userMapper->password = password_hash($password, PASSWORD_DEFAULT);
+        $user = $this->users->createLocalUser($email, $firstName, $lastName);
+        $login = $this->logins->createLocalLogin($user, $password);
 
-        // Save user to database
-        EntityManager::getManager()->flushMapper('user');
-
-        // Set session
-        $_SESSION['user_id'] = $userMapper->getId();
-        $_SESSION['user_email'] = $userMapper->getEmail();
-        $_SESSION['user_name'] = $userMapper->getFullName();
-
-        // Redirect to home page
-        $routeContext = RouteContext::fromRequest($request);
-        $routeParser = $routeContext->getRouteParser();
-
-        return $response
-            ->withHeader('Location', $routeParser->urlFor('home'))
-            ->withStatus(302);
+        return $this->finalizeAuthorization($login, $request, $response);
     }
 
     /**

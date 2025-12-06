@@ -47,4 +47,8 @@ class UserEntity extends RepositoryEntity
 
     #[Field('user_id')]
     private ?string $userId;
+
+    public function getFullName(): string {
+        return $this->firstName . ' ' . $this->lastName;
+    }
 }

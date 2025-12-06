@@ -14,7 +14,18 @@ use Ramsey\Uuid\Uuid;
 class UserLoginRepository extends Repository implements EntityRepositoryInterface
 {
     public function getLoginByGoogleId(string $googleId): ?UserLoginEntity {
-        return $this->fetchBy('googleId', $googleId);
+        return $this->fetchBy('providerId', $googleId);
+    }
+
+    public function getLoginByUser($user): ?UserLoginEntity {
+        $this->clear();
+        $this->query("select * from user_logins where user_id = :user_id and type = 'local'");
+        $this->user_id = $user->getId();
+        $this->execute();
+        $this->next();
+        $login = UserLoginEntity::toRepositoryEntity($this->getEntity());
+        $login->user = $user;
+        return $login;
     }
 
     private function configureNewLogin($user, $password, $avatarUrl): UserLoginEntity {
@@ -22,6 +33,7 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
             ->user($user)
             ->password(password_hash($password, PASSWORD_DEFAULT))
             ->avatarUrl($avatarUrl)
+            ->type('google')
             ->build();
 
         EntityManager::getManager()->persist($login);
@@ -29,10 +41,26 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
         return $login;
     }
 
+    public function createLocalLogin($user, $password): UserLoginEntity {
+        $login = UserLoginEntity::builder()
+            ->user($user)
+            ->password(password_hash($password, PASSWORD_DEFAULT))
+            ->type('local')
+            ->build();
+
+        EntityManager::getManager()->persist($login);
+
+        $login->user = $user;
+
+        return $login;
+    }
+
     public function createLoginFromGoogleData(UserEntity $user, array $googleData): UserLoginEntity {
         $login = $this->configureNewLogin($user, Uuid::uuid4()->toString(), $googleData['picture']);
-        $login->setGoogleId($googleData['sub']);
+        $login->setProviderId($googleData['sub']);
+        $login->setAvatarUrl($googleData['picture']);
         EntityManager::getManager()->persist($login);
+        $login->user = $user;
         return $login;
     }
 

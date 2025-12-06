@@ -13,13 +13,11 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Slim\Routing\RouteContext;
 
-class GoogleAuthController
+class GoogleAuthController extends BaseAuthController
 {
     private UserRepository $users;
     private UserLoginRepository $logins;
-    private LoggerInterface $logger;
     private Google $googleProvider;
-    private AmtgardIdpJwt $amtgardIdpJwt;
 
     public function __construct(
         EntityManager   $entityManager,
@@ -30,11 +28,10 @@ class GoogleAuthController
         AmtgardIdpJwt   $amtgardIdpJwt
     )
     {
+        parent::__construct($logger, $amtgardIdpJwt);
         $this->users = $users;
         $this->logins = $userLoginRepository;
-        $this->logger = $logger;
         $this->googleProvider = $googleProvider;
-        $this->amtgardIdpJwt = $amtgardIdpJwt;
     }
 
 
@@ -123,23 +120,7 @@ class GoogleAuthController
                     return $this->logins->createLoginFromGoogleData($user, $userData);
                 });
 
-            // Set session
-            $_SESSION['user_id'] = $login->getGoogleId();
-            $_SESSION['user_email'] = $login->user->getEmail();
-            $_SESSION['user_name'] = $login->user->getFirstName() . ' ' . $login->user->getLastName();
-
-            // Redirect to home page
-            $routeContext = RouteContext::fromRequest($request);
-            $routeParser = $routeContext->getRouteParser();
-
-            $jwt = $this->amtgardIdpJwt->buildSingleUseJwt($user, $_SESSION['jwtpublickey']);
-
-            $finalizeUrl = empty($_SESSION['redirect']) ? $routeParser->urlFor('settings') : ($_SESSION['redirect'] . "?jwt=$jwt");
-
-            return $response
-                ->withHeader('Location', $finalizeUrl)
-                ->withStatus(302);
-
+            return $this->finalizeAuthorization($login, $request, $response);
         } catch (\Exception $e) {
             $this->logger->error('Google authentication error: ' . $e->getTraceAsString());
 

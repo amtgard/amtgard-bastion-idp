@@ -27,11 +27,11 @@ class UserLoginEntity extends RepositoryEntity
     #[Field('password')]
     private ?string $password;
 
-    #[Field('google_id')]
-    private ?string $googleId;
+    #[Field('provider_id')]
+    private ?string $providerId;
 
-    #[Field('facebook_id')]
-    private ?string $facebookId;
+    #[Field('type')]
+    private ?string $type;
 
     #[Field('avatar_url')]
     private ?string $avatarUrl;
