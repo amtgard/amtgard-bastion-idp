@@ -6,7 +6,7 @@ namespace Amtgard\IdP\Auth\Repositories;
 use Amtgard\IdP\Auth\Entities\AccessTokenEntity as OAuthAccessTokenEntity;
 use Amtgard\IdP\AuthClient\Repositories\AccessToken as AccessTokenEntity;
 use Amtgard\IdP\AuthClient\Repositories\Client as ClientEntity;
-use Amtgard\IdP\Persistence\UserRepository as UserEntity;
+use Amtgard\IdP\Persistence\Repositories\UserRepository as UserEntity;
 use DateTime;
 use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
 use League\OAuth2\Server\Entities\ClientEntityInterface;

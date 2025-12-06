@@ -6,7 +6,7 @@ use Amtgard\ActiveRecordOrm\Attribute\EntityOf;
 use Amtgard\ActiveRecordOrm\Attribute\Field;
 use Amtgard\ActiveRecordOrm\Attribute\PrimaryKey;
 use Amtgard\ActiveRecordOrm\Entity\Repository\RepositoryEntity;
-use Amtgard\IdP\Persistence\ClientRepository;
+use Amtgard\IdP\Persistence\Repositories\ClientRepository;
 use DateTime;
 
 #[EntityOf(ClientRepository::class)]

@@ -4,8 +4,8 @@ namespace Amtgard\IdP\Controllers\Client;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Controllers\AmtgardIdpJwt;
-use Amtgard\IdP\Persistence\UserLoginRepository;
-use Amtgard\IdP\Persistence\UserRepository;
+use Amtgard\IdP\Persistence\Repositories\UserLoginRepository;
+use Amtgard\IdP\Persistence\Repositories\UserRepository;
 use League\OAuth2\Client\Provider\Google;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;

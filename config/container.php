@@ -14,7 +14,7 @@ use Amtgard\IdP\Auth\Repositories\AuthCodeRepository;
 use Amtgard\IdP\Auth\Repositories\ClientRepository;
 use Amtgard\IdP\Auth\Repositories\RefreshTokenRepository;
 use Amtgard\IdP\Auth\Repositories\ScopeRepository;
-use Amtgard\IdP\Persistence\UserLoginRepository;
+use Amtgard\IdP\Persistence\Repositories\UserLoginRepository;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use League\OAuth2\Server\AuthorizationServer;
@@ -67,8 +67,8 @@ return [
         return $em;
     },
 
-    \Amtgard\IdP\Persistence\UserRepository::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(\Amtgard\IdP\Persistence\UserRepository::class);
+    \Amtgard\IdP\Persistence\Repositories\UserRepository::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(\Amtgard\IdP\Persistence\Repositories\UserRepository::class);
     },
 
     UserLoginRepository::class => function (ContainerInterface $container) {

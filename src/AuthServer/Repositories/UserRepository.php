@@ -8,7 +8,7 @@ use Amtgard\ActiveRecordOrm\Entity\EntityMapper;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\ActiveRecordOrm\TableFactory;
 use Amtgard\IdP\Auth\Entities\UserEntity as OAuthUserEntity;
-use Amtgard\IdP\Persistence\UserRepository as UserEntity;
+use Amtgard\IdP\Persistence\Repositories\UserRepository as UserEntity;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Entities\UserEntityInterface;
 use League\OAuth2\Server\Repositories\UserRepositoryInterface;

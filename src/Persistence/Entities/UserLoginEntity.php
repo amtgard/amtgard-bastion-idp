@@ -7,7 +7,7 @@ use Amtgard\ActiveRecordOrm\Attribute\Field;
 use Amtgard\ActiveRecordOrm\Attribute\PrimaryKey;
 use Amtgard\ActiveRecordOrm\Entity\Repository\RepositoryEntity;
 use Amtgard\ActiveRecordOrm\Trait\RepositoryEntityTrait;
-use Amtgard\IdP\Persistence\UserLoginRepository;
+use Amtgard\IdP\Persistence\Repositories\UserLoginRepository;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Data;
 use Amtgard\Traits\Builder\ToBuilder;

@@ -1,12 +1,11 @@
 <?php
 
-namespace Amtgard\IdP\Persistence;
+namespace Amtgard\IdP\Persistence\Repositories;
 
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
 use Amtgard\IdP\Persistence\Entities\ClientEntity;
-use Amtgard\IdP\Persistence\Entities\UserLoginEntity;
 
 #[RepositoryOf('clients', ClientEntity::class)]
 class ClientRepository extends Repository implements EntityRepositoryInterface

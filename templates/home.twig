@@ -1,0 +1,27 @@
+{% extends "base.twig" %}
+
+{% block title %}Amtgard Identity Provider{% endblock %}
+
+{% block content %}
+    <h1>Amtgard Identity Provider</h1>
+    <p>Welcome to the Amtgard Identity Provider service. This service allows users to authenticate and authorize applications to access their Amtgard data.</p>
+    
+    {% if isLoggedIn %}
+        <h2>User Status</h2>
+        <p>You are currently logged in.</p>
+        <p>
+            <a href="/settings" class="btn">User Settings</a>
+            <a href="/auth/logout" class="btn">Logout</a>
+        </p>
+    {% else %}
+        <h2>User Actions</h2>
+        <p>
+            <a href="/auth/login" class="btn">Login</a>
+            <a href="/auth/register" class="btn">Register</a>
+        </p>
+    {% endif %}
+    
+    <h2>About</h2>
+    <p>This service provides OAuth 2.0 authentication for Amtgard domains. It allows users to create accounts using their Google or Facebook credentials and then authorize applications to access their data.</p>
+{% endblock %}
+
