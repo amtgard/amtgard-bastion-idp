@@ -8,11 +8,18 @@
     
     {% if isLoggedIn %}
         <h2>User Status</h2>
-        <p>You are currently logged in.</p>
-        <p>
-            <a href="/settings" class="btn">User Settings</a>
-            <a href="/auth/logout" class="btn">Logout</a>
-        </p>
+        <div class="user-info">
+            {% if avatarUrl %}
+                <img src="{{ avatarUrl }}" alt="User Avatar" class="avatar">
+            {% endif %}
+            <div>
+                <p>You are currently logged in.</p>
+                <p>
+                    <a href="/settings" class="btn">User Settings</a>
+                    <a href="/auth/logout" class="btn">Logout</a>
+                </p>
+            </div>
+        </div>
     {% else %}
         <h2>User Actions</h2>
         <p>

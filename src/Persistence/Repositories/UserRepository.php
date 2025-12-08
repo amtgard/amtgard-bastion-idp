@@ -48,6 +48,13 @@ class UserRepository extends Repository implements EntityRepositoryInterface
         return $user;
     }
 
+    public function createUserFromFacebookData(array $facebookData): UserEntity {
+        $user = $this->configureNewUser($facebookData['email'], $facebookData['first_name'], $facebookData['last_name']);
+        $user->setUserId(Uuid::uuid4()->toString());
+        EntityManager::getManager()->persist($user);
+        return $user;
+    }
+
     public function findUserByUserId(string $userId): ?UserEntity {
         return $this->fetchBy('user_id', $userId);
     }

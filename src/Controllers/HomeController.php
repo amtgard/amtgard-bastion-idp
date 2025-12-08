@@ -26,9 +26,11 @@ class HomeController
     public function index(Request $request, Response $response): Response
     {
         $isLoggedIn = isset($_SESSION['user_id']);
+        $avatarUrl = $_SESSION['avatar_url'] ?? null;
         
         $response->getBody()->write($this->twig->render('home.twig', [
             'isLoggedIn' => $isLoggedIn,
+            'avatarUrl' => $avatarUrl,
         ]));
         
         return $response;

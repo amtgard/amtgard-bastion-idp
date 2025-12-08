@@ -24,7 +24,11 @@ class SettingsController
      */
     public function index(Request $request, Response $response): Response
     {
-        $response->getBody()->write($this->twig->render('settings.twig'));
+        $avatarUrl = $_SESSION['avatar_url'] ?? null;
+        
+        $response->getBody()->write($this->twig->render('settings.twig', [
+            'avatarUrl' => $avatarUrl,
+        ]));
         
         return $response;
     }

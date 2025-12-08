@@ -13,8 +13,8 @@ use Ramsey\Uuid\Uuid;
 #[RepositoryOf("user_logins", UserLoginEntity::class)]
 class UserLoginRepository extends Repository implements EntityRepositoryInterface
 {
-    public function getLoginByGoogleId(string $googleId): ?UserLoginEntity {
-        return $this->fetchBy('providerId', $googleId);
+    public function getLoginByProviderId(string $providerId): ?UserLoginEntity {
+        return $this->fetchBy('providerId', $providerId);
     }
 
     public function getLoginByUser($user): ?UserLoginEntity {
@@ -28,12 +28,12 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
         return $login;
     }
 
-    private function configureNewLogin($user, $password, $avatarUrl): UserLoginEntity {
+    private function configureNewLogin($provider, $user, $password, $avatarUrl): UserLoginEntity {
         $login = UserLoginEntity::builder()
             ->user($user)
             ->password(password_hash($password, PASSWORD_DEFAULT))
             ->avatarUrl($avatarUrl)
-            ->type('google')
+            ->type($provider)
             ->build();
 
         EntityManager::getManager()->persist($login);
@@ -55,10 +55,17 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
         return $login;
     }
 
+    public function createLoginFromFacebookData(UserEntity $user, array $facebookData): UserLoginEntity {
+        $login = $this->configureNewLogin('facebook', $user, Uuid::uuid4()->toString(), $facebookData['picture_url']);
+        $login->setProviderId($facebookData['id']);
+        EntityManager::getManager()->persist($login);
+        $login->user = $user;
+        return $login;
+    }
+
     public function createLoginFromGoogleData(UserEntity $user, array $googleData): UserLoginEntity {
-        $login = $this->configureNewLogin($user, Uuid::uuid4()->toString(), $googleData['picture']);
+        $login = $this->configureNewLogin('google', $user, Uuid::uuid4()->toString(), $googleData['picture']);
         $login->setProviderId($googleData['sub']);
-        $login->setAvatarUrl($googleData['picture']);
         EntityManager::getManager()->persist($login);
         $login->user = $user;
         return $login;

@@ -11,7 +11,6 @@ use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
-use Slim\Routing\RouteContext;
 
 class GoogleAuthController extends BaseAuthController
 {
@@ -24,8 +23,8 @@ class GoogleAuthController extends BaseAuthController
         UserRepository  $users,
         UserLoginRepository $userLoginRepository,
         LoggerInterface $logger,
-        Google          $googleProvider,
-        AmtgardIdpJwt   $amtgardIdpJwt
+        AmtgardIdpJwt   $amtgardIdpJwt,
+        Google          $googleProvider
     )
     {
         parent::__construct($logger, $amtgardIdpJwt);
@@ -104,14 +103,14 @@ class GoogleAuthController extends BaseAuthController
             $googleUser = $this->googleProvider->getResourceOwner($token);
             $userData = $googleUser->toArray();
 
-            $this->logger->info('Google user data: ' . json_encode($userData));
+            $this->logger->debug('Google user data: ' . json_encode($userData));
 
             $user = Optional::ofNullable($this->users->getUserByEmail($userData['email']))
                 ->orElseGet(function() use ($userData) {
                    return $this->users->createUserFromGoogleData($userData);
                 });
 
-            $login = Optional::ofNullable($this->logins->getLoginByGoogleId($userData['sub']))
+            $login = Optional::ofNullable($this->logins->getLoginByProviderId($userData['sub']))
                 ->map(function($login) use ($user) {
                     $login->setUser($user);
                     return $login;

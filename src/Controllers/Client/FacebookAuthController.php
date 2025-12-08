@@ -4,33 +4,36 @@ namespace Amtgard\IdP\Controllers\Client;
 
 use Amtgard\ActiveRecordOrm\Entity\EntityMapper;
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Controllers\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Repositories\UserRepository;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
+use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Slim\Routing\RouteContext;
 use Twig\Environment as TwigEnvironment;
 
-class FacebookAuthController
+class FacebookAuthController extends BaseAuthController
 {
     private UserRepository $users;
-    private EntityMapper $userMapper;
-    private LoggerInterface $logger;
-    private Google $googleProvider;
+    private UserLoginRepository $logins;
     private Facebook $facebookProvider;
-    private TwigEnvironment $twig;
 
     public function __construct(
         EntityManager   $entityManager,
         UserRepository  $users,
+        UserLoginRepository $userLoginRepository,
         LoggerInterface $logger,
+        AmtgardIdpJwt   $amtgardIdpJwt,
         Facebook        $facebookProvider
     )
     {
+        parent::__construct($logger, $amtgardIdpJwt);
         $this->users = $users;
-        $this->logger = $logger;
+        $this->logins = $userLoginRepository;
         $this->facebookProvider = $facebookProvider;
     }
 
@@ -101,54 +104,23 @@ class FacebookAuthController
             $user = $this->facebookProvider->getResourceOwner($token);
             $userData = $user->toArray();
 
-            // Check if user exists
-            $userRepository = $this->entityManager->getRepository(UserRepository::class);
-            $existingUser = $userRepository->findOneBy(['facebookId' => $userData['id']]);
+            $this->logger->debug('Facebook user data: ' . json_encode($userData));
 
-            if ($existingUser === null) {
-                // Check if email exists
-                $existingUser = $userRepository->findOneBy(['email' => $userData['email']]);
+            $user = Optional::ofNullable($this->users->getUserByEmail($userData['email']))
+                ->orElseGet(function() use ($userData) {
+                    return $this->users->createUserFromFacebookData($userData);
+                });
 
-                if ($existingUser === null) {
-                    // Create new user
-                    $existingUser = new UserRepository();
-                    $existingUser->setFirstName($userData['first_name']);
-                    $existingUser->setLastName($userData['last_name']);
-                    $existingUser->setEmail($userData['email']);
-                    $existingUser->setFacebookId($userData['id']);
+            $login = Optional::ofNullable($this->logins->getLoginByProviderId($userData['id']))
+                ->map(function($login) use ($user) {
+                    $login->setUser($user);
+                    return $login;
+                })
+                ->orElseGet(function() use ($user, $userData) {
+                    return $this->logins->createLoginFromFacebookData($user, $userData);
+                });
 
-                    // Get profile picture if available
-                    if (isset($userData['picture']['data']['url'])) {
-                        $existingUser->setAvatarUrl($userData['picture']['data']['url']);
-                    }
-
-                    $this->entityManager->persist($existingUser);
-                } else {
-                    // Update existing user with Facebook ID
-                    $existingUser->setFacebookId($userData['id']);
-
-                    // Update avatar if available and user doesn't have one
-                    if (isset($userData['picture']['data']['url']) && $existingUser->getAvatarUrl() === null) {
-                        $existingUser->setAvatarUrl($userData['picture']['data']['url']);
-                    }
-                }
-
-                $this->entityManager->flush();
-            }
-
-            // Set session
-            $_SESSION['user_id'] = $existingUser->getId();
-            $_SESSION['user_email'] = $existingUser->getEmail();
-            $_SESSION['user_name'] = $existingUser->getFullName();
-
-            // Redirect to home page
-            $routeContext = RouteContext::fromRequest($request);
-            $routeParser = $routeContext->getRouteParser();
-
-            return $response
-                ->withHeader('Location', $routeParser->urlFor('home'))
-                ->withStatus(302);
-
+            return $this->finalizeAuthorization($login, $request, $response);
         } catch (\Exception $e) {
             $this->logger->error('Facebook authentication error: ' . $e->getMessage());
 

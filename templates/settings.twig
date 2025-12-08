@@ -5,6 +5,11 @@
 {% block content %}
     <h1>Amtgard Identity Provider</h1>
     <h2>Account Settings</h2>
+    {% if avatarUrl %}
+        <div class="user-info">
+            <img src="{{ avatarUrl }}" alt="User Avatar" class="avatar">
+        </div>
+    {% endif %}
     <p>
         <a href="/auth/logout" class="btn">Logout</a>
     </p>
