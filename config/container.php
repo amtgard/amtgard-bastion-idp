@@ -9,18 +9,26 @@ use Amtgard\ActiveRecordOrm\Entity\Policy\UncachedPolicy;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Repository\Database;
-use Amtgard\IdP\Auth\Repositories\AccessTokenRepository;
-use Amtgard\IdP\Auth\Repositories\AuthCodeRepository;
-use Amtgard\IdP\Auth\Repositories\ClientRepository;
-use Amtgard\IdP\Auth\Repositories\RefreshTokenRepository;
-use Amtgard\IdP\Auth\Repositories\ScopeRepository;
-use Amtgard\IdP\Persistence\Repositories\UserLoginRepository;
+use Amtgard\IdP\Models\OAuthServerConfiguration;
+use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
+use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\AccessTokenRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\AuthCodeRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\RefreshTokenRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\ScopeRepository;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\CryptKey;
 use League\OAuth2\Server\Grant\AuthCodeGrant;
 use League\OAuth2\Server\Grant\RefreshTokenGrant;
+use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
+use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
+use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
+use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
+use League\OAuth2\Server\Repositories\ScopeRepositoryInterface;
+use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 use League\OAuth2\Server\ResourceServer;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -67,62 +75,51 @@ return [
         return $em;
     },
 
-    \Amtgard\IdP\Persistence\Repositories\UserRepository::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(\Amtgard\IdP\Persistence\Repositories\UserRepository::class);
+    UserRepository::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(UserRepository::class);
+    },
+
+    UserRepositoryInterface::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(UserRepository::class);
     },
 
     UserLoginRepository::class => function (ContainerInterface $container) {
         return EntityManager::getManager()->getRepository(UserLoginRepository::class);
     },
 
+    ClientRepositoryInterface::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(ClientRepository::class);
+    },
+
+    ScopeRepositoryInterface::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(ScopeRepository::class);
+    },
+
+    AccessTokenRepositoryInterface::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(AccessTokenRepository::class);
+    },
+
+    AuthCodeRepositoryInterface::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(AuthCodeRepository::class);
+    },
+
+    RefreshTokenRepositoryInterface::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(RefreshTokenRepository::class);
+    },
+
+    OAuthServerConfiguration::class => function (ContainerInterface $container) {
+        return OAuthServerConfiguration::builder()
+            ->clientRepository($container->get(ClientRepositoryInterface::class))
+            ->scopeRepository($container->get(ScopeRepositoryInterface::class))
+            ->accessTokenRepository($container->get(AccessTokenRepositoryInterface::class))
+            ->authCodeRepository($container->get(AuthCodeRepositoryInterface::class))
+            ->refreshTokenRepository($container->get(RefreshTokenRepositoryInterface::class))
+            ->build();
+    },
+
     // OAuth2 Authorization Server
     AuthorizationServer::class => function (ContainerInterface $container) {
-        // Init repositories
-        $clientRepository = $container->get(ClientRepository::class);
-        $scopeRepository = $container->get(ScopeRepository::class);
-        $accessTokenRepository = $container->get(AccessTokenRepository::class);
-        $authCodeRepository = $container->get(AuthCodeRepository::class);
-        $refreshTokenRepository = $container->get(RefreshTokenRepository::class);
-
-        // Path to private key
-        $privateKey = new CryptKey(
-            $_ENV['OAUTH_PRIVATE_KEY'],
-            null,
-            false
-        );
-
-        // Setup the authorization server
-        $server = new AuthorizationServer(
-            $clientRepository,
-            $accessTokenRepository,
-            $scopeRepository,
-            $privateKey,
-            $_ENV['AUTH_SERVER_DEFUSE_KEY']
-        );
-
-        // Enable the authentication code grant on the server with a token TTL of 1 hour
-        $authCodeGrant = new AuthCodeGrant(
-            $authCodeRepository,
-            $refreshTokenRepository,
-            new \DateInterval('PT10M') // Authorization codes will expire after 10 minutes
-        );
-        $authCodeGrant->setRefreshTokenTTL(new \DateInterval('P1M')); // Refresh tokens will expire after 1 month
-
-        // Enable the refresh token grant on the server
-        $refreshTokenGrant = new RefreshTokenGrant($refreshTokenRepository);
-        $refreshTokenGrant->setRefreshTokenTTL(new \DateInterval('P1M')); // Refresh tokens will expire after 1 month
-
-        $server->enableGrantType(
-            $authCodeGrant,
-            new \DateInterval('PT1H') // Access tokens will expire after 1 hour
-        );
-
-        $server->enableGrantType(
-            $refreshTokenGrant,
-            new \DateInterval('PT1H') // Access tokens will expire after 1 hour
-        );
-
-        return $server;
+        return $container->get(OAuthServerConfiguration::class)->build();
     },
 
     // OAuth2 Resource Server

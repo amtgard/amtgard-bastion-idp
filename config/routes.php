@@ -6,6 +6,7 @@ use Amtgard\IdP\Controllers\Client\FacebookAuthController;
 use Amtgard\IdP\Controllers\Client\GoogleAuthController;
 use Amtgard\IdP\Controllers\HomeController;
 use Amtgard\IdP\Controllers\OAuth2Controller;
+use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Settings\SettingsController;
 use Amtgard\IdP\Controllers\UserController;
 use Amtgard\IdP\Middleware\AuthMiddleware;
@@ -44,14 +45,17 @@ return function (App $app) {
     // OAuth2 server routes
     $app->group('/oauth', function (RouteCollectorProxy $group) {
         // Authorization endpoint
-        $group->get('/authorize', [OAuth2Controller::class, 'authorize'])->setName('oauth.authorize');
-        $group->post('/authorize', [OAuth2Controller::class, 'authorizePost']);
+        $group->get('/authorize', [OAuth2ServerController::class, 'authorize'])->setName('oauth.authorize');
+        $group->post('/authorize', [OAuth2ServerController::class, 'authorizePost']);
         
         // Token endpoint
-        $group->post('/token', [OAuth2Controller::class, 'token'])->setName('oauth.token');
-        
+        $group->post('/token', [OAuth2ServerController::class, 'token'])->setName('oauth.token');
+
+        // Token endpoint
+        $group->post('/approve', [OAuth2ServerController::class, 'approve'])->setName('oauth.approve');
+
         // UserRepository info endpoint (protected by access token)
-        $group->get('/userinfo', [OAuth2Controller::class, 'userInfo'])
+        $group->get('/userinfo', [OAuth2ServerController::class, 'userInfo'])
             ->add(new AuthMiddleware())
             ->setName('oauth.userinfo');
     });

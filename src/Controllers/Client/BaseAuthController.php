@@ -2,10 +2,8 @@
 
 namespace Amtgard\IdP\Controllers\Client;
 
-use Amtgard\IdP\Controllers\AmtgardIdpJwt;
-use Amtgard\IdP\Persistence\Entities\UserLoginEntity;
-use Amtgard\IdP\Persistence\Repositories\UserLoginRepository;
-use Amtgard\IdP\Persistence\Repositories\UserRepository;
+use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
