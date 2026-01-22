@@ -16,6 +16,9 @@ class SessionMiddleware implements MiddlewareInterface
     public function process(Request $request, RequestHandler $handler): Response
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
+            // Set session timeout to 30 days (2592000 seconds)
+            ini_set('session.gc_maxlifetime', '2592000');
+            ini_set('session.cookie_lifetime', '2592000');
             session_start();
         }
 

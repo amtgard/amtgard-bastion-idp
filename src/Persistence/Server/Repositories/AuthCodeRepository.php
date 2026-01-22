@@ -4,7 +4,9 @@ namespace Amtgard\IdP\Persistence\Server\Repositories;
 
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
+use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAuthCode;
+use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AccessToken;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AuthCode;
 use League\OAuth2\Server\Entities\AuthCodeEntityInterface;
@@ -48,7 +50,10 @@ class AuthCodeRepository extends Repository implements AuthCodeRepositoryInterfa
         $oAuthAuthCode = $authCodeEntity;
         /** @var AuthCode $authCode */
         $authCode = $oAuthAuthCode->getAuthCodeEntity();
-        $authCode->setClient($oAuthAuthCode->getClient());
+        /** @var OAuthClient $oAuthClient */
+        $oAuthClient = $oAuthAuthCode->getClient();
+        $client = EntityManager::getManager()->getRepository(ClientRepository::class)->fetchBy('identifier', $oAuthClient->getIdentifier());
+        $authCode->setClient($client);
         $authCode->setIdentifier($oAuthAuthCode->getIdentifier());
         $authCode->setExpiryDateTime($oAuthAuthCode->getExpiryDateTime());
         $authCode->setUserIdentifier($oAuthAuthCode->getUserIdentifier());

@@ -38,7 +38,7 @@ class RefreshTokenRepository extends Repository implements RefreshTokenRepositor
 
         $oauthRefreshToken = OAuthRefreshToken::builder()
             ->identifier($tokenId)
-            ->refreshTokenEntity($refreshToken)
+            ->refreshToken($refreshToken)
             ->expiryDateTime($expiryDatetime)
             ->build();
 
@@ -50,7 +50,7 @@ class RefreshTokenRepository extends Repository implements RefreshTokenRepositor
         /** @var OAuthRefreshToken $oAuthRefreshToken */
         $oAuthRefreshToken = $refreshTokenEntity;
         /** @var RefreshToken $refreshToken */
-        $refreshToken = $oAuthRefreshToken->getRefreshTokenEntity();
+        $refreshToken = $oAuthRefreshToken->getRefreshToken();
         $refreshToken->setIdentifier($oAuthRefreshToken->getIdentifier());
         $refreshToken->setExpiryDateTime($oAuthRefreshToken->getExpiryDateTime());
         $accessToken = $oAuthRefreshToken->getAccessToken();

@@ -23,7 +23,7 @@ class AccessToken extends RepositoryEntity
     protected string $identifier;
 
     #[Field('expiry_date_time')]
-    protected \DateTime $expiryDateTime;
+    protected \DateTimeInterface $expiryDateTime;
 
     #[Field('user_identifier')]
     protected string $userIdentifier;

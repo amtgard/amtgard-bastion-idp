@@ -34,7 +34,7 @@ class AccessTokenRepository extends Repository implements AccessTokenRepositoryI
         $expiryDatetime = new \DateTimeImmutable('+90 days');
         $accessToken = AccessToken::builder()
             ->identifier($tokenId)
-            ->client($client->getEntity())
+            ->client($client->getClientEntity())
             ->userIdentifier($userIdentifier)
             ->expiryDateTime($expiryDatetime)
             ->build();
@@ -57,7 +57,7 @@ class AccessTokenRepository extends Repository implements AccessTokenRepositoryI
         $oAuthAccessToken = $accessTokenEntity;
         /** @var AccessToken $accessToken */
         $accessToken = $oAuthAccessToken->getAccessTokenEntity();
-        $accessToken->setClient($oAuthAccessToken->getClient());
+        $accessToken->setClient($oAuthAccessToken->getClient()->getClientEntity());
         $accessToken->setIdentifier($oAuthAccessToken->getIdentifier());
         $accessToken->setExpiryDateTime($oAuthAccessToken->getExpiryDateTime());
         $accessToken->setUserIdentifier($oAuthAccessToken->getUserIdentifier());

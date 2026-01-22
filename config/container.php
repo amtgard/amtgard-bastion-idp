@@ -9,6 +9,7 @@ use Amtgard\ActiveRecordOrm\Entity\Policy\UncachedPolicy;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Repository\Database;
+use Amtgard\IdP\Middleware\AuthMiddleware;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
@@ -21,8 +22,6 @@ use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\CryptKey;
-use League\OAuth2\Server\Grant\AuthCodeGrant;
-use League\OAuth2\Server\Grant\RefreshTokenGrant;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -103,6 +102,10 @@ return [
         return EntityManager::getManager()->getRepository(AuthCodeRepository::class);
     },
 
+    AuthMiddleware::class => function (ContainerInterface $container) {
+        return new AuthMiddleware($container->get(EntityManager::class), $container->get(LoggerInterface::class), $container->get(ResourceServer::class));
+    },
+
     RefreshTokenRepositoryInterface::class => function (ContainerInterface $container) {
         return EntityManager::getManager()->getRepository(RefreshTokenRepository::class);
     },
@@ -131,7 +134,7 @@ return [
         );
 
         return new ResourceServer(
-            $container->get(AccessTokenRepository::class),
+            $container->get(AccessTokenRepositoryInterface::class),
             $publicKey
         );
     },

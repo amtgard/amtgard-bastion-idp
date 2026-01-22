@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install php8.3-xdebug
 RUN sed -i 's/;\s*clear_env = no/clear_env = no/g' /etc/php/8.3/fpm/pool.d/www.conf
 RUN echo "env[ENVIRONMENT] = DEV" >> /etc/php/8.3/fpm/pool.d/www.conf
 RUN sed -i 's/memory_limit = 128M/memory_limit = 32M/g' /etc/php/8.3/fpm/php.ini
+RUN sed -i 's/session.gc_maxlifetime = 1440/session.gc_maxlifetime = 2592000/g' /etc/php/8.3/fpm/php.ini
+RUN sed -i 's/session.cookie_lifetime = 0/session.cookie_lifetime = 2592000/g' /etc/php/8.3/fpm/php.ini
 
 RUN mkdir -p /var/www/idp.amtgard.com
 

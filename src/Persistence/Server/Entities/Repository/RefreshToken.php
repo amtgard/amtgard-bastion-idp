@@ -28,6 +28,6 @@ class RefreshToken extends RepositoryEntity
     protected AccessToken $accessToken;
 
     #[Field('expiry_date_time')]
-    protected \DateTime $expiryDateTime;
+    protected \DateTimeInterface $expiryDateTime;
 
 }

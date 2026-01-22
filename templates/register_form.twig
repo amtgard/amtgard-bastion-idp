@@ -1,119 +1,85 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - Amtgard Identity Provider</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 12pt;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-        }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-        }
-        input[type="text"],
-        input[type="email"],
-        input[type="password"] {
-            width: 100%;
-            padding: 8px 0px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            background: #3498db;
-            color: #fff;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 12pt;
-        }
-        button:hover {
-            background: #2980b9;
-        }
-        .social-login {
-            margin-top: 20px;
-            text-align: center;
-        }
-        .social-btn {
-            display: inline-block;
-            width: 100%;
-            padding: 10px 0px;
-            margin: 5px 0;
-            border-radius: 4px;
-            text-decoration: none;
-            color: white;
-            text-align: center;
-        }
-        .google-btn {
-            background-color: #DB4437;
-        }
-        .facebook-btn {
-            background-color: #4267B2;
-        }
-        .login-link {
-            text-align: center;
-            margin-top: 15px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Register with Amtgard</h1>
-        <form action="/auth/register" method="post">
-            <div class="form-group">
-                <label for="firstName">First Name:</label>
-                <input type="text" id="firstName" name="firstName" required>
-            </div>
-            <div class="form-group">
-                <label for="lastName">Last Name:</label>
-                <input type="text" id="lastName" name="lastName" required>
-            </div>
-            <div class="form-group">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" required>
-            </div>
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <div class="form-group">
-                <label for="confirmPassword">Confirm Password:</label>
-                <input type="password" id="confirmPassword" name="confirmPassword" required>
-            </div>
-            <button type="submit">Register</button>
-        </form>
-        
-        <div class="social-login">
-            <p>Or register with:</p>
-            <a href="/auth/google" class="social-btn google-btn">Google</a>
-            <a href="/auth/facebook" class="social-btn facebook-btn">Facebook</a>
+{% extends "base.twig" %}
+
+{% block title %}Register - Amtgard Identity Provider{% endblock %}
+
+{% block content %}
+<div class="max-w-[800px] mx-auto">
+    <div class="md:flex md:gap-8 md:items-start">
+        <!-- Desktop Logo -->
+        <div class="hidden md:block flex-shrink-0">
+             <img src="/images/idp_logo_small.jpeg" alt="Amtgard IDP Logo" class="rounded-lg">
         </div>
-        
-        <div class="login-link">
-            <p>Already have an account? <a href="/auth/login">Login</a></p>
+
+        <div class="flex-grow max-w-[500px]">
+            <h1 class="text-3xl font-serif font-bold text-secondary text-center mb-6">Register with Amtgard</h1>
+            
+            <div class="flex justify-center mb-6 md:hidden">
+                <img src="/images/idp_logo_tiny.jpeg" alt="Amtgard IDP Logo" class="rounded shadow-sm">
+            </div>
+            
+            <div class="text-center mb-6">
+                <div class="space-y-2 mb-4">
+                    <a href="/auth/google" class="block w-full bg-[#DB4437] hover:bg-[#c53929] text-white py-2.5 rounded transition-colors duration-200 decoration-0">Google</a>
+                    <a href="/auth/facebook" class="block w-full bg-[#4267B2] hover:bg-[#365899] text-white py-2.5 rounded transition-colors duration-200 decoration-0">Facebook</a>
+                </div>
+                
+                <button type="button" onclick="toggleRegister()" class="group flex items-center justify-center gap-2 mx-auto text-gray-600 hover:text-gray-800 transition-colors focus:outline-none">
+                    <span>Register with Email</span>
+                    <!-- Default state: Point UP (rotate-180) -->
+                    <svg id="register-chevron" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+            </div>
+
+            <div id="register-form-container" class="max-h-0 overflow-hidden transition-all duration-500 ease-in-out opacity-0">
+                <form action="/auth/register" method="post" class="mb-6">
+                    <div class="mb-4">
+                        <input type="text" id="firstName" name="firstName" required placeholder="First Name" class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div class="mb-4">
+                        <input type="text" id="lastName" name="lastName" required placeholder="Last Name" class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div class="mb-4">
+                        <input type="email" id="email" name="email" required placeholder="Email" class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div class="mb-4">
+                        <input type="password" id="password" name="password" required placeholder="Password" class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div class="mb-6">
+                        <input type="password" id="confirmPassword" name="confirmPassword" required placeholder="Confirm Password" class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <button type="submit" class="w-full bg-primary hover:bg-primary-dark text-white font-medium py-2.5 px-4 rounded transition-colors duration-200">Register</button>
+                </form>
+                
+                <div class="text-center mt-8 pt-4 border-t border-gray-100">
+                    <p class="text-gray-600">Already have an account? <a href="/auth/login" class="text-primary hover:text-primary-dark font-medium hover:underline">Login</a></p>
+                </div>
+            </div>
         </div>
     </div>
-</body>
-</html> 
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleRegister() {
+        const form = document.getElementById('register-form-container');
+        const icon = document.getElementById('register-chevron');
+        
+        if (form.style.maxHeight) {
+            // Collapse
+            form.style.maxHeight = null;
+            form.classList.remove('opacity-100');
+            form.classList.add('opacity-0');
+            icon.classList.add('rotate-180');
+        } else {
+            // Expand
+            form.style.maxHeight = form.scrollHeight + "px";
+            form.classList.remove('opacity-0');
+            form.classList.add('opacity-100');
+            icon.classList.remove('rotate-180');
+        }
+    }
+</script>
+{% endblock %}
