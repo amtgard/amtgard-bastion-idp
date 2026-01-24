@@ -4,57 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Amtgard Identity Provider{% endblock %}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            color: #333;
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Roboto Condensed"', 'sans-serif'],
+                        serif: ['"Instrument Serif"', 'serif'],
+                    },
+                    colors: {
+                        primary: '#3498db',
+                        'primary-dark': '#2980b9',
+                        secondary: '#2c3e50',
+                        tertiary: '#34495e',
+                    }
+                }
+            }
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        h1 {
-            color: #2c3e50;
-        }
-        h2 {
-            color: #34495e;
-        }
-        .btn {
-            display: inline-block;
-            background: #3498db;
-            color: #fff;
-            padding: 10px 20px;
-            margin: 5px 0;
-            border-radius: 5px;
-            text-decoration: none;
-        }
-        .btn:hover {
-            background: #2980b9;
-        }
-        .avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #3498db;
-            margin: 10px 0;
-        }
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin: 20px 0;
-        }
-    </style>
+    </script>
     {% block styles %}{% endblock %}
 </head>
-<body>
-    <div class="container">
+<body class="font-sans leading-relaxed m-0 p-5 text-gray-800 bg-gray-50 min-h-screen">
+    <div class="max-w-[800px] mx-auto bg-white p-6 rounded-lg shadow-sm">
         {% block content %}{% endblock %}
     </div>
+    {% block scripts %}{% endblock %}
 </body>
 </html>
 

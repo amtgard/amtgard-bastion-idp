@@ -2,10 +2,8 @@
 
 namespace Amtgard\IdP\Controllers\Client;
 
-use Amtgard\IdP\Controllers\AmtgardIdpJwt;
-use Amtgard\IdP\Persistence\Entities\UserLoginEntity;
-use Amtgard\IdP\Persistence\Repositories\UserLoginRepository;
-use Amtgard\IdP\Persistence\Repositories\UserRepository;
+use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
@@ -35,9 +33,9 @@ class BaseAuthController
         $this->logger->info("Building JWT for " . $login->user->getEmail());
         $jwt = $this->amtgardIdpJwt->buildSingleUseJwt($login->user, $_SESSION['jwtpublickey']);
 
-        $finalizeUrl = empty($_SESSION['redirect']) ? $routeParser->urlFor('settings') : ($_SESSION['redirect'] . "?jwt=$jwt");
+        $finalizeUrl = empty($_SESSION['redirect']) ? $routeParser->urlFor('resources.settings') : ($_SESSION['redirect'] . "?jwt=$jwt");
 
-        $this->logger->info("Redirecting usre for " . $login->user->getEmail());
+        $this->logger->info("Redirecting user for " . $login->user->getEmail());
         return $response
             ->withHeader('Location', $finalizeUrl)
             ->withStatus(302);

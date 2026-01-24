@@ -1,0 +1,40 @@
+{% extends "base.twig" %}
+
+{% block title %}Approve Access - Amtgard Identity Provider{% endblock %}
+
+{% block content %}
+<div class="max-w-[800px] mx-auto">
+    <div class="md:flex md:gap-6 md:items-start">
+        <!-- Desktop Logo -->
+        <div class="hidden md:block flex-shrink-0">
+             <img src="/images/idp_logo_small.jpeg" alt="Amtgard IDP Logo" class="rounded-lg">
+        </div>
+
+        <div class="flex-grow">
+            <h1 class="text-3xl font-serif font-bold text-secondary text-center md:text-left mb-6">Approve Access</h1>
+
+            <p class="mb-6 text-gray-700">
+                <!-- Mobile Logo -->
+                <img src="/images/idp_logo_tiny.jpeg" alt="Amtgard IDP Logo" class="md:hidden float-left mr-3 mb-1 rounded shadow-sm">
+                <strong>{{ client_name }}</strong> would like to access the following information about you:
+            </p>
+            
+            <ul class="mb-6 bg-gray-50 rounded-lg border border-gray-100 divide-y divide-gray-100 clear-both">
+                {% for scope in scopes %}
+                    <li class="px-4 py-3 text-gray-600">{{ scope }}</li>
+                {% endfor %}
+            </ul>
+
+            <p class="mb-6 text-gray-700">To allow this access, click the "Allow" button below.</p>
+
+            <form method="POST" action="">
+                <input type="hidden" name="callback" value="{{ callback }}">
+                <div class="flex gap-4 justify-center">
+                    <button type="submit" name="action" value="allow" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-4 rounded transition-colors duration-200">Allow</button>
+                    <button type="submit" name="action" value="deny" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-4 rounded transition-colors duration-200">Deny</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

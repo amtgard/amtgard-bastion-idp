@@ -2,19 +2,15 @@
 
 namespace Amtgard\IdP\Controllers\Client;
 
-use Amtgard\ActiveRecordOrm\Entity\EntityMapper;
 use Amtgard\ActiveRecordOrm\EntityManager;
-use Amtgard\IdP\Controllers\AmtgardIdpJwt;
-use Amtgard\IdP\Persistence\Repositories\UserLoginRepository;
-use Amtgard\IdP\Persistence\Repositories\UserRepository;
+use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
+use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use League\OAuth2\Client\Provider\Facebook;
-use League\OAuth2\Client\Provider\Google;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
-use Slim\Routing\RouteContext;
-use Twig\Environment as TwigEnvironment;
 
 class FacebookAuthController extends BaseAuthController
 {
