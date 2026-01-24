@@ -6,7 +6,7 @@
     <div class="md:flex md:gap-6 md:items-start">
         <!-- Desktop Logo -->
         <div class="hidden md:block flex-shrink-0">
-             <img src="/images/idp_logo_small.jpeg" alt="Amtgard IDP Logo" class="rounded-lg">
+             <a href="/"><img src="/images/idp_logo_small.jpeg" alt="Amtgard IDP Logo" class="rounded-lg"></a>
         </div>
 
         <div>
@@ -17,6 +17,20 @@
                     <img src="{{ avatarUrl }}" alt="User Avatar" class="w-20 h-20 rounded-full object-cover border-[3px] border-primary">
                 </div>
             {% endif %}
+
+            {% if authorizations %}
+                <h3 class="text-xl font-serif font-semibold text-tertiary mb-4">Authorized Applications</h3>
+                <div class="space-y-4 mb-8">
+                    {% for client in authorizations %}
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <ul>
+                            <li class="font-bold">{{ client.client_name }}</li>
+                            </ul>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
             <p>
                 <a href="/auth/logout" class="inline-block bg-primary hover:bg-primary-dark text-white py-2 px-5 rounded no-underline transition-colors duration-200">Logout</a>
             </p>

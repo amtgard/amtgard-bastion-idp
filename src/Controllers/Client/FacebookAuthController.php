@@ -19,14 +19,13 @@ class FacebookAuthController extends BaseAuthController
     private Facebook $facebookProvider;
 
     public function __construct(
-        EntityManager   $entityManager,
-        UserRepository  $users,
+        EntityManager $entityManager,
+        UserRepository $users,
         UserLoginRepository $userLoginRepository,
         LoggerInterface $logger,
-        AmtgardIdpJwt   $amtgardIdpJwt,
-        Facebook        $facebookProvider
-    )
-    {
+        AmtgardIdpJwt $amtgardIdpJwt,
+        Facebook $facebookProvider
+    ) {
         parent::__construct($logger, $amtgardIdpJwt);
         $this->users = $users;
         $this->logins = $userLoginRepository;
@@ -96,6 +95,9 @@ class FacebookAuthController extends BaseAuthController
                 'code' => $queryParams['code']
             ]);
 
+            // Exchange for long-lived token
+            $token = $this->facebookProvider->getLongLivedAccessToken($token->getToken());
+
             // Get user details
             $user = $this->facebookProvider->getResourceOwner($token);
             $userData = $user->toArray();
@@ -103,17 +105,17 @@ class FacebookAuthController extends BaseAuthController
             $this->logger->debug('Facebook user data: ' . json_encode($userData));
 
             $user = Optional::ofNullable($this->users->getUserByEmail($userData['email']))
-                ->orElseGet(function() use ($userData) {
+                ->orElseGet(function () use ($userData) {
                     return $this->users->createUserFromFacebookData($userData);
                 });
 
             $login = Optional::ofNullable($this->logins->getLoginByProviderId($userData['id']))
-                ->map(function($login) use ($user) {
+                ->map(function ($login) use ($user, $token) {
                     $login->setUser($user);
-                    return $login;
+                    return $this->logins->updateLoginTokens($login, fn($t) => $t->getToken(), $token);
                 })
-                ->orElseGet(function() use ($user, $userData) {
-                    return $this->logins->createLoginFromFacebookData($user, $userData);
+                ->orElseGet(function () use ($user, $userData, $token) {
+                    return $this->logins->createLoginFromFacebookData($user, $userData, $token);
                 });
 
             return $this->finalizeAuthorization($login, $request, $response);

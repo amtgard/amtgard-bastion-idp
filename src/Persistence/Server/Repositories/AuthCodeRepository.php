@@ -75,4 +75,10 @@ class AuthCodeRepository extends Repository implements AuthCodeRepositoryInterfa
         $authCode = $this->fetchBy('identifier', $codeId);
         return $authCode->getExpiryDateTime() < new \DateTimeImmutable('now');
     }
+
+    public function deleteExpiredAuthCodes()
+    {
+        $this->query("DELETE FROM auth_codes WHERE expiry_date_time < NOW()");
+        $this->execute();
+    }
 }

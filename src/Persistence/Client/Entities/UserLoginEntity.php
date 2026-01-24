@@ -12,6 +12,7 @@ use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Data;
 use Amtgard\Traits\Builder\ToBuilder;
 use DateTime;
+use DateTimeInterface;
 
 #[EntityOf(UserLoginRepository::class)]
 class UserLoginEntity extends RepositoryEntity
@@ -20,8 +21,9 @@ class UserLoginEntity extends RepositoryEntity
     #[PrimaryKey]
     private ?int $id;
 
-    private ?int $userId;
     #[Field('user_id')]
+    private ?int $userId;
+
     #[EntityReference('userId')]
     private ?UserEntity $user;
 
@@ -42,5 +44,11 @@ class UserLoginEntity extends RepositoryEntity
 
     #[Field('updated_at')]
     private ?DateTime $updatedAt;
+
+    #[Field('refresh_token')]
+    private ?string $refreshToken;
+
+    #[Field('expiry_date_time')]
+    private ?DateTimeInterface $expiryDateTime;
 
 }
