@@ -39,6 +39,12 @@ class ScopeRepository extends Repository implements ScopeRepositoryInterface
     protected static $VALID_SCOPES = [ "email", "profile" ];
     public function finalizeScopes(array $scopes, $grantType, ClientEntityInterface $clientEntity, $userIdentifier = null)
     {
-        return array_intersect($scopes, self::$VALID_SCOPES);
+        $validatedScopes = [];
+        foreach ($scopes as $scope) {
+            if (in_array($scope->getIdentifier(), self::$VALID_SCOPES)) {
+                $validatedScopes[] = $scope;
+            }
+        }
+        return $validatedScopes;
     }
 }
