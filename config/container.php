@@ -14,6 +14,8 @@ use Amtgard\IdP\Middleware\ManagementMiddleware;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Services\OrkService;
+use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\AccessTokenRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\AuthCodeRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
@@ -92,6 +94,10 @@ return [
         return EntityManager::getManager()->getRepository(UserLoginRepository::class);
     },
 
+    UserOrkProfileRepository::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(UserOrkProfileRepository::class);
+    },
+
     ClientRepositoryInterface::class => function (ContainerInterface $container) {
         return EntityManager::getManager()->getRepository(ClientRepository::class);
     },
@@ -167,6 +173,10 @@ return [
             'redirectUri' => $_ENV['FACEBOOK_REDIRECT_URI'],
             'graphApiVersion' => 'v12.0',
         ]);
+    },
+
+    OrkService::class => function (ContainerInterface $container) {
+        return new OrkService($container->get(LoggerInterface::class));
     },
 
         // Twig Environment
