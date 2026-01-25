@@ -27,7 +27,7 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
 
     public function findActiveClientsForUser($userId)
     {
-        $this->query("SELECT c.id, c.name
+        $this->query("SELECT c.id, c.name, c.client_id
                       FROM user_client_authorizations uca
                       LEFT JOIN clients c ON uca.client_id = c.id
                       INNER JOIN users u on uca.user_identifier = u.user_id
@@ -41,7 +41,7 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
             /** @var Client $client */
             $client = $this->getEntity();
             $clients[] = [
-                'client_id' => $client->id,
+                'client_id' => $client->client_id,
                 'client_name' => $client->name
             ];
         }
