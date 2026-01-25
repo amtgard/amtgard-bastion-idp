@@ -63,13 +63,13 @@ class ResourcesController
     }
 
     /**
-     * Display the settings page.
+     * Display the profile page.
      *
      * @param Request $request
      * @param Response $response
      * @return Response
      */
-    public function index(Request $request, Response $response): Response
+    public function profile(Request $request, Response $response): Response
     {
         $avatarUrl = $_SESSION['avatar_url'] ?? null;
         $user = Utility::getAuthenticatedUser();
@@ -79,7 +79,7 @@ class ResourcesController
             $clients = $this->clientRepository->findActiveClientsForUser($user->getId());
         }
 
-        $response->getBody()->write($this->twig->render('settings.twig', [
+        $response->getBody()->write($this->twig->render('profile.twig', [
             'avatarUrl' => $avatarUrl,
             'authorizations' => array_values($clients)
         ]));

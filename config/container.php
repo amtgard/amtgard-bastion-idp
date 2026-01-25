@@ -19,6 +19,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\AuthCodeRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\RefreshTokenRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ScopeRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use League\OAuth2\Server\AuthorizationServer;
@@ -63,6 +64,10 @@ return [
 
     RepositoryPolicy::class => function (ContainerInterface $container) {
         return UncachedPolicy::builder()->build();
+    },
+
+    UserClientAuthorizationRepository::class => function (ContainerInterface $container) {
+        return EntityManager::getManager()->getRepository(UserClientAuthorizationRepository::class);
     },
 
     EntityManager::class => function (ContainerInterface $container) {

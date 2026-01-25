@@ -28,11 +28,10 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
     public function findActiveClientsForUser($userId)
     {
         $this->query("SELECT c.id, c.name
-                      FROM access_tokens at
-                      LEFT JOIN clients c ON at.client_id = c.id
-                      INNER JOIN users u on at.user_identifier = u.user_id
+                      FROM user_client_authorizations uca
+                      LEFT JOIN clients c ON uca.client_id = c.id
+                      INNER JOIN users u on uca.user_identifier = u.user_id
                       WHERE u.id = :user_id
-                      AND at.expiry_date_time > NOW()
                       GROUP by c.client_id");
         $this->user_id = $userId;
         $this->execute();
@@ -79,7 +78,8 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
             ->orElse(false);
     }
 
-    private function validateGrant(OAuthClient $client, string $grantType): bool {
+    private function validateGrant(OAuthClient $client, string $grantType): bool
+    {
         return true;
     }
 }

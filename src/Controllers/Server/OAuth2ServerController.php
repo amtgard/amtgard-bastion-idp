@@ -14,6 +14,7 @@ use League\OAuth2\Server\ResourceServer;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Slim\Psr7\Stream;
 use Twig\Environment as TwigEnvironment;
 
@@ -26,6 +27,7 @@ class OAuth2ServerController
     protected TwigEnvironment $view;
     protected LoggerInterface $logger;
     protected ResourceServer $resourceServer;
+    protected UserClientAuthorizationRepository $userClientAuthorizationRepository;
 
     public function __construct(
         LoggerInterface $logger,
@@ -35,7 +37,8 @@ class OAuth2ServerController
         ClientRepositoryInterface $clientRepository,
         ScopeRepositoryInterface $scopeRepository,
         UserRepositoryInterface $userRepository,
-        ResourceServer $resourceServer
+        ResourceServer $resourceServer,
+        UserClientAuthorizationRepository $userClientAuthorizationRepository
     ) {
         $this->logger = $logger;
         $this->view = $view;
@@ -44,6 +47,7 @@ class OAuth2ServerController
         $this->scopeRepository = $scopeRepository;
         $this->userRepository = $userRepository;
         $this->resourceServer = $resourceServer;
+        $this->userClientAuthorizationRepository = $userClientAuthorizationRepository;
     }
 
     public function token(Request $request, Response $response): Response
@@ -75,6 +79,22 @@ class OAuth2ServerController
 
             if ($action === 'allow') {
                 $_SESSION['approved'] = true;
+
+                // Get Client ID from query params or session if possible, but safe to assume we can get it from the stored authRequest in session
+                if (isset($_SESSION['authRequest'])) {
+                    /** @var AuthorizationRequest $authRequest */
+                    $authRequest = unserialize($_SESSION['authRequest']);
+                    $clientId = $authRequest->getClient()->getIdentifier();
+
+                    // We need the internal ID of the client for the DB
+                    /** @var \Amtgard\IdP\Persistence\Server\Entities\Repository\Client $clientEntity */
+                    $clientEntity = $this->clientRepository->fetchBy('identifier', $clientId);
+
+                    if (isset($_SESSION['user_id']) && $clientEntity) {
+                        $this->userClientAuthorizationRepository->authorize($_SESSION['user_id'], $clientEntity->getId());
+                    }
+                }
+
                 return $response
                     ->withStatus(302)
                     ->withHeader('Location', $callback);
@@ -149,7 +169,7 @@ class OAuth2ServerController
                 }
             }
 
-            if (!$this->clientAuthorizationIsApproved()) {
+            if (!$this->clientAuthorizationIsApproved($authRequest)) {
                 return $this->requestUserAuthorizationOfClient($authRequest, $response);
             }
 
@@ -219,9 +239,24 @@ class OAuth2ServerController
         return $response;
     }
 
-    private function clientAuthorizationIsApproved()
+    private function clientAuthorizationIsApproved(?AuthorizationRequest $authRequest = null)
     {
-        return array_key_exists('approved', $_SESSION);
+        if (array_key_exists('approved', $_SESSION)) {
+            return true;
+        }
+
+        if ($authRequest && $authRequest->getUser()) {
+            /** @var \Amtgard\IdP\Persistence\Server\Entities\Repository\Client $clientEntity */
+            $clientEntity = $this->clientRepository->fetchBy('identifier', $authRequest->getClient()->getIdentifier());
+            if ($clientEntity) {
+                return $this->userClientAuthorizationRepository->hasAuthorization(
+                    $authRequest->getUser()->getIdentifier(),
+                    $clientEntity->getId()
+                );
+            }
+        }
+
+        return false;
     }
 
     private function requestUserAuthorizationOfClient(AuthorizationRequest $authRequest, Response $response)
@@ -253,7 +288,12 @@ class OAuth2ServerController
 
         $response = $this->authorizationServer->completeAuthorizationRequest($authRequest, $response);
 
-        session_destroy();
+        if (isset($_SESSION['authRequest'])) {
+            unset($_SESSION['authRequest']);
+        }
+        if (isset($_SESSION['approved'])) {
+            unset($_SESSION['approved']);
+        }
 
         return $response;
     }
