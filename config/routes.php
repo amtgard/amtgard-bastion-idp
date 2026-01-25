@@ -32,6 +32,14 @@ return function (App $app) {
         $group->get('/authorizations', [ResourcesController::class, 'authorizations'])
             ->add(AuthMiddleware::class)
             ->setName('resources.authorizations');
+
+        $group->post('/profile/link-ork', [ResourcesController::class, 'linkOrkAccount'])
+            ->add(AuthMiddleware::class)
+            ->setName('resources.profile.link_ork');
+
+        $group->post('/profile/refresh-ork', [ResourcesController::class, 'refreshOrkAccount'])
+            ->add(AuthMiddleware::class)
+            ->setName('resources.profile.refresh_ork');
     });
 
     // Authentication routes

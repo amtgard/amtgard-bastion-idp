@@ -8,14 +8,30 @@
              <a href="/"><img src="/images/idp_logo_small.jpeg" alt="Amtgard IDP Logo" class="rounded-lg"></a>
         </div>
 
-        <div>
+        <div class="flex-grow">
             <h1 class="text-3xl font-serif font-bold text-secondary mb-2">Amtgard Identity Provider</h1>
             <h2 class="text-2xl font-serif font-semibold text-tertiary mb-6">Profile</h2>
+
+            {% if error == 'ork_auth_failed' %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">ORK Authorization failed. Please check your username and password.</span>
+                </div>
+            {% elseif error == 'ork_player_failed' %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                     <span class="block sm:inline">Failed to retrieve ORK player details.</span>
+                </div>
+            {% elseif success == 'linked' %}
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">Successfully linked ORK account!</span>
+                </div>
+            {% endif %}
+
             {% if avatarUrl %}
                 <div class="flex items-center mb-6">
                     <img src="{{ avatarUrl }}" alt="User Avatar" class="w-20 h-20 rounded-full object-cover border-[3px] border-primary">
                 </div>
             {% endif %}
+
 
             {% if authorizations %}
                 <h3 class="text-xl font-serif font-semibold text-tertiary mb-4">Authorized Applications</h3>
@@ -29,6 +45,97 @@
                     {% endfor %}
                 </div>
             {% endif %}
+
+            <div class="mb-8">
+                <h3 class="text-xl font-serif font-semibold text-tertiary mb-4">ORK Account</h3>
+                {% if orkProfile %}
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 flex items-start space-x-4">
+                        {% if orkProfile.image %}
+                             <img src="{{ orkProfile.image }}" alt="ORK Avatar" class="w-16 h-16 rounded-full object-cover">
+                        {% endif %}
+                        <div class="flex-grow">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="font-bold text-lg">{{ orkProfile.persona }}</div>
+                                    <div class="text-sm text-gray-500">Mundane ID: {{ orkProfile.mundaneId }}</div>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <form action="/resources/profile/refresh-ork" method="POST">
+                                        <button type="submit" title="Refresh Profile" class="text-gray-400 hover:text-primary transition-colors">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                    <button type="button" onclick="document.getElementById('ork-details').classList.toggle('hidden'); document.getElementById('ork-details-chevron').classList.toggle('rotate-180');" class="text-gray-400 hover:text-primary transition-colors">
+                                         <svg id="ork-details-chevron" class="w-5 h-5 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="ork-details" class="hidden mt-4 pt-4 border-t border-gray-200 grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span class="block text-gray-500 text-xs">Username</span>
+                                    <span class="font-medium text-gray-700">{{ orkProfile.username }}</span>
+                                </div>
+                                <div>
+                                    <span class="block text-gray-500 text-xs">Park</span>
+                                    <span class="font-medium text-gray-700">{{ orkProfile.parkName }} ({{ orkProfile.parkId }})</span>
+                                </div>
+                                <div>
+                                    <span class="block text-gray-500 text-xs">Kingdom</span>
+                                    <span class="font-medium text-gray-700">{{ orkProfile.kingdomName }} ({{ orkProfile.kingdomId }})</span>
+                                </div>
+                                
+                                {% if orkProfile.suspended %}
+                                    <div class="col-span-2 bg-red-50 p-2 rounded border border-red-200 mt-2">
+                                        <div class="text-red-700 font-bold flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            SUSPENDED
+                                        </div>
+                                        <div class="text-xs text-red-600 mt-1">
+                                            {% if orkProfile.suspendedUntil %}
+                                                Until: {{ orkProfile.suspendedUntil|date('Y-m-d') }}
+                                            {% else %}
+                                                Indefinitely
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="bg-gray-50 rounded-lg border border-gray-200">
+                         <div class="p-6 cursor-pointer flex justify-between items-center" onclick="const form = document.getElementById('ork-link-form'); const icon = document.getElementById('ork-chevron'); form.classList.toggle('hidden'); icon.classList.toggle('rotate-180');">
+                            <h4 class="font-bold text-lg">Link ORK Account</h4>
+                            <svg id="ork-chevron" class="w-6 h-6 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                         </div>
+                        <div id="ork-link-form" class="hidden px-6 pb-6">
+                            <p class="mb-4 text-sm text-gray-600">Enter your ORK credentials to link your profile.</p>
+                            <form action="/resources/profile/link-ork" method="POST" class="max-w-sm">
+                                 <div class="mb-4">
+                                    <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
+                                        ORK Username
+                                    </label>
+                                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="username" name="username" type="text" required>
+                                 </div>
+                                 <div class="mb-6">
+                                     <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
+                                         ORK Password
+                                     </label>
+                                     <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" id="password" name="password" type="password" required>
+                                 </div>
+                                 <div class="flex items-center justify-between">
+                                    <button class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors duration-200" type="submit">
+                                        Link Account
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
 
             <p>
                 <a href="/auth/logout" class="inline-block bg-primary hover:bg-primary-dark text-white py-2 px-5 rounded no-underline transition-colors duration-200">Logout</a>
