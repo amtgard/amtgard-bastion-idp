@@ -13,19 +13,11 @@ class CorsMiddleware implements MiddlewareInterface
 {
     public function process(Request $request, RequestHandler $handler): Response
     {
-        $response = $handler->handle($request);
-
-        // If it's a preflight request, we can stop here and return 200 with headers
-        // However, Slim's architecture often runs middleware LIFO. 
-        // If we want to short-circuit, we might need to check if we are the only thing running or if we should return early.
-        // But usually, standard middleware passes to handler first.
-        // Wait, for OPTIONS requests, we specifically might NOT want to run the inner app/handler 
-        // if the inner app doesn't know how to handle OPTIONS for that route (405 Method Not Allowed).
-
-        // Let's modify the flow slightly: check for OPTIONS first.
         if ($request->getMethod() === 'OPTIONS') {
             // Return a fresh 200 OK response immediately, bypassing the application
             $response = new SlimResponse();
+        } else {
+            $response = $handler->handle($request);
         }
 
         return $response
