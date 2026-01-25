@@ -13,11 +13,17 @@ return function (App $app) {
     // Add the JSON body parser middleware
     $app->add(new JsonBodyParserMiddleware());
 
+
+
     // Add session middleware
     $app->add(new SessionMiddleware());
 
     // Add method override middleware to support PUT, DELETE, etc. with a form
     $app->add(new MethodOverrideMiddleware());
+
+    // Add CORS middleware
+    // Added last so it runs first (LIFO), handling OPTIONS requests before other middleware/routing
+    $app->add(new \Amtgard\IdP\Middleware\CorsMiddleware());
 
     // Add Error Middleware
     $errorMiddleware = $app->addErrorMiddleware(
