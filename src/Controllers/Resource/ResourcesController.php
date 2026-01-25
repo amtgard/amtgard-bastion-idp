@@ -4,6 +4,7 @@ namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Repository\Database;
+use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Server\Repositories\AccessTokenRepository;
 use Amtgard\IdP\Utility\Utility;
 use Couchbase\User;
@@ -12,6 +13,7 @@ use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Services\OrkService;
 use DateTime;
 use Optional\Optional;
@@ -29,6 +31,7 @@ class ResourcesController
     private Database $database;
     private OrkService $orkService;
     private UserOrkProfileRepository $orkProfileRepository;
+    private UserClientAuthorizationRepository $userClientAuthorizationRepository;
 
 
     public function __construct(
@@ -37,7 +40,8 @@ class ResourcesController
         ClientRepositoryInterface $clientRepository,
         Database $database,
         OrkService $orkService,
-        UserOrkProfileRepository $orkProfileRepository
+        UserOrkProfileRepository $orkProfileRepository,
+        UserClientAuthorizationRepository $userClientAuthorizationRepository
     ) {
         $this->logger = $logger;
         $this->twig = $twig;
@@ -45,6 +49,7 @@ class ResourcesController
         $this->database = $database;
         $this->orkService = $orkService;
         $this->orkProfileRepository = $orkProfileRepository;
+        $this->userClientAuthorizationRepository = $userClientAuthorizationRepository;
     }
 
     public function userinfo(Request $request, Response $response): Response
@@ -168,5 +173,30 @@ class ResourcesController
         $this->orkProfileRepository->saveOrUpdateProfile($playerData, $parkData, $token, $user->getId());
 
         return $response->withHeader('Location', '/resources/profile?success=refreshed')->withStatus(302);
+    }
+
+    public function revokeAuthorization(Request $request, Response $response): Response
+    {
+        /** @var UserEntity $user */
+        $user = Utility::getAuthenticatedUser();
+        if (!$user) {
+            return $response->withHeader('Location', '/auth/login')->withStatus(302);
+        }
+
+        $params = (array) $request->getParsedBody();
+        $clientId = isset($params['client_id']) ? (int) $params['client_id'] : 0;
+
+        if ($clientId <= 0) {
+            return $response->withHeader('Location', '/resources/profile?error=invalid_client')->withStatus(302);
+        }
+
+        // We use the email/username as the identifier for authorization
+        $this->userClientAuthorizationRepository->revokeAuthorization($user->getUserId(), $clientId);
+
+        // Also revoke access tokens for this client/user combo if needed, 
+        // but for now removing the authorization record prevents future token issuance.
+        // Implementing full token revocation would require AccessTokenRepository method.
+
+        return $response->withHeader('Location', '/resources/profile?success=revoked')->withStatus(302);
     }
 }

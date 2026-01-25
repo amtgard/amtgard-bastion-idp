@@ -40,6 +40,10 @@ return function (App $app) {
         $group->post('/profile/refresh-ork', [ResourcesController::class, 'refreshOrkAccount'])
             ->add(AuthMiddleware::class)
             ->setName('resources.profile.refresh_ork');
+
+        $group->post('/profile/revoke', [ResourcesController::class, 'revokeAuthorization'])
+            ->add(AuthMiddleware::class)
+            ->setName('resources.profile.revoke');
     });
 
     // Authentication routes
