@@ -54,15 +54,37 @@ class ResourcesController
 
     public function userinfo(Request $request, Response $response): Response
     {
-        $user = Optional::ofNullable(Utility::getAuthenticatedUser())
-            ->map(fn($u) => [
-                'id' => $u->getUserId(),
-                'email' => $u->getEmail()
-            ])
-            ->orElse(null);
+        $user = Utility::getAuthenticatedUser();
+        if (!$user) {
+            return $response->withStatus(401);
+        }
 
-        $response->getBody()->write(json_encode($user));
-        return $response;
+        $userData = [
+            'id' => $user->getUserId(),
+            'email' => $user->getEmail()
+        ];
+
+        $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
+        if ($orkProfile) {
+            $userData['ork_profile'] = [
+                'mundane_id' => $orkProfile->getMundaneId(),
+                'username' => $orkProfile->getUsername(),
+                'persona' => $orkProfile->getPersona(),
+                'suspended' => (bool) $orkProfile->getSuspended(),
+                'suspended_at' => $orkProfile->getSuspendedAt()?->format('Y-m-d'),
+                'suspended_until' => $orkProfile->getSuspendedUntil()?->format('Y-m-d'),
+                'park_id' => $orkProfile->getParkId(),
+                'park_name' => $orkProfile->getParkName(),
+                'kingdom_id' => $orkProfile->getKingdomId(),
+                'kingdom_name' => $orkProfile->getKingdomName(),
+                'image' => $orkProfile->getImage(),
+                'heraldry' => $orkProfile->getHeraldry(),
+                'dues_through' => $orkProfile->getDuesThrough()?->format('Y-m-d')
+            ];
+        }
+
+        $response->getBody()->write(json_encode($userData));
+        return $response->withHeader('Content-Type', 'application/json');
     }
 
     public function authorizations(Request $request, Response $response): Response
