@@ -20,9 +20,9 @@ return function (App $app) {
     $app->get('/', [HomeController::class, 'index'])->setName('home');
 
     $app->group('/resources', function (RouteCollectorProxy $group) {
-        $group->get('/settings', [ResourcesController::class, 'index'])
+        $group->get('/profile', [ResourcesController::class, 'profile'])
             ->add(AuthMiddleware::class)
-            ->setName('resources.settings');
+            ->setName('resources.profile');
 
         // UserRepository info endpoint (protected by access token)
         $group->get('/userinfo', [ResourcesController::class, 'userInfo'])
