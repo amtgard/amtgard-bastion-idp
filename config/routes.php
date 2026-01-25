@@ -7,9 +7,11 @@ use Amtgard\IdP\Controllers\Client\GoogleAuthController;
 use Amtgard\IdP\Controllers\HomeController;
 use Amtgard\IdP\Controllers\OAuth2Controller;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
+use Amtgard\IdP\Controllers\Management\ManagementController;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
 use Amtgard\IdP\Controllers\UserController;
 use Amtgard\IdP\Middleware\AuthMiddleware;
+use Amtgard\IdP\Middleware\ManagementMiddleware;
 use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
 
@@ -26,6 +28,10 @@ return function (App $app) {
         $group->get('/userinfo', [ResourcesController::class, 'userInfo'])
             ->add(AuthMiddleware::class)
             ->setName('resources.userinfo');
+
+        $group->get('/authorizations', [ResourcesController::class, 'authorizations'])
+            ->add(AuthMiddleware::class)
+            ->setName('resources.authorizations');
     });
 
     // Authentication routes
@@ -47,6 +53,13 @@ return function (App $app) {
 
         $group->get('/facebook', [FacebookAuthController::class, 'redirectToFacebook'])->setName('auth.facebook');
         $group->get('/facebook/callback', [FacebookAuthController::class, 'handleFacebookCallback'])->setName('auth.facebook.callback');
+    });
+
+    // Management routes
+    $app->group('/management', function (RouteCollectorProxy $group) {
+        $group->get('/cleantokens', [ManagementController::class, 'cleanTokens'])
+            ->add(ManagementMiddleware::class)
+            ->setName('management.cleantokens');
     });
 
     // OAuth2 server routes

@@ -19,14 +19,13 @@ class GoogleAuthController extends BaseAuthController
     private Google $googleProvider;
 
     public function __construct(
-        EntityManager   $entityManager,
-        UserRepository  $users,
+        EntityManager $entityManager,
+        UserRepository $users,
         UserLoginRepository $userLoginRepository,
         LoggerInterface $logger,
-        AmtgardIdpJwt   $amtgardIdpJwt,
-        Google          $googleProvider
-    )
-    {
+        AmtgardIdpJwt $amtgardIdpJwt,
+        Google $googleProvider
+    ) {
         parent::__construct($logger, $amtgardIdpJwt);
         $this->users = $users;
         $this->logins = $userLoginRepository;
@@ -45,6 +44,8 @@ class GoogleAuthController extends BaseAuthController
     {
         $authUrl = $this->googleProvider->getAuthorizationUrl([
             'scope' => ['email', 'profile'],
+            'access_type' => 'offline',
+            'prompt' => 'consent'
         ]);
 
         // Store state in session for CSRF protection
@@ -106,17 +107,17 @@ class GoogleAuthController extends BaseAuthController
             $this->logger->debug('Google user data: ' . json_encode($userData));
 
             $user = Optional::ofNullable($this->users->getUserByEmail($userData['email']))
-                ->orElseGet(function() use ($userData) {
-                   return $this->users->createUserFromGoogleData($userData);
+                ->orElseGet(function () use ($userData) {
+                    return $this->users->createUserFromGoogleData($userData);
                 });
 
             $login = Optional::ofNullable($this->logins->getLoginByProviderId($userData['sub']))
-                ->map(function($login) use ($user) {
+                ->map(function ($login) use ($user, $token) {
                     $login->setUser($user);
-                    return $login;
+                    return $this->logins->updateLoginTokens($login, fn($t) => $t->getRefreshToken(), $token);
                 })
-                ->orElseGet(function() use ($user, $userData) {
-                    return $this->logins->createLoginFromGoogleData($user, $userData);
+                ->orElseGet(function () use ($user, $userData, $token) {
+                    return $this->logins->createLoginFromGoogleData($user, $userData, $token);
                 });
 
             return $this->finalizeAuthorization($login, $request, $response);

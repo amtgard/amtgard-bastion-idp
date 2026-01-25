@@ -25,6 +25,30 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
         return Client::class;
     }
 
+    public function findActiveClientsForUser($userId)
+    {
+        $this->query("SELECT c.id, c.name
+                      FROM access_tokens at
+                      LEFT JOIN clients c ON at.client_id = c.id
+                      INNER JOIN users u on at.user_identifier = u.user_id
+                      WHERE u.id = :user_id
+                      AND at.expiry_date_time > NOW()
+                      GROUP by c.client_id");
+        $this->user_id = $userId;
+        $this->execute();
+
+        $clients = [];
+        while ($this->next()) {
+            /** @var Client $client */
+            $client = $this->getEntity();
+            $clients[] = [
+                'client_id' => $client->id,
+                'client_name' => $client->name
+            ];
+        }
+        return $clients;
+    }
+
     public function getClientEntity($clientIdentifier): ?ClientEntityInterface
     {
         /** @var Client $client */

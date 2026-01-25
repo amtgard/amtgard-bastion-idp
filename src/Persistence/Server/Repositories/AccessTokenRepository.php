@@ -78,4 +78,11 @@ class AccessTokenRepository extends Repository implements AccessTokenRepositoryI
         $accessToken = $this->fetchBy('identifier', $tokenId);
         return $accessToken->getExpiryDateTime() < new \DateTimeImmutable('now');
     }
+
+    public function deleteExpiredTokens()
+    {
+        $this->query("DELETE FROM access_tokens WHERE expiry_date_time < NOW()");
+        $this->execute();
+    }
+
 }
