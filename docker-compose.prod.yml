@@ -1,0 +1,21 @@
+version: '2'
+services:
+  amtgardidpapp:
+    build:
+      context: ./
+      dockerfile: Dockerfile.dev
+    ports:
+      - 37080:80
+    working_dir: /var/www
+    volumes:
+      - .:/var/www/idp.amtgard.com
+    env_file: .prod.env
+    environment:
+      - ENVIRONMENT=PROD
+    container_name: amtgard-idp
+    networks:
+      - amtgard-idp-net
+    hostname: amtgard-idp-app
+
+networks:
+  amtgard-idp-net:
