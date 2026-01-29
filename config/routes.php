@@ -65,6 +65,9 @@ return function (App $app) {
 
         $group->get('/facebook', [FacebookAuthController::class, 'redirectToFacebook'])->setName('auth.facebook');
         $group->get('/facebook/callback', [FacebookAuthController::class, 'handleFacebookCallback'])->setName('auth.facebook.callback');
+
+        $group->get('/discord', [\Amtgard\IdP\Controllers\Client\DiscordAuthController::class, 'redirectToDiscord'])->setName('auth.discord');
+        $group->get('/discord/callback', [\Amtgard\IdP\Controllers\Client\DiscordAuthController::class, 'handleDiscordCallback'])->setName('auth.discord.callback');
     });
 
     // Management routes

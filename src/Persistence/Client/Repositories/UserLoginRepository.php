@@ -30,10 +30,29 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
         return $login;
     }
 
+    /**
+     * @param int $userId
+     * @return UserLoginEntity[]
+     */
+    public function getAllLoginsForUser(int $userId): array
+    {
+        $this->clear();
+        $this->query("select * from user_logins where user_id = :user_id");
+        $this->user_id = $userId;
+        $this->execute();
+
+        $logins = [];
+        while ($this->next()) {
+            $logins[] = UserLoginEntity::toRepositoryEntity($this->getEntity());
+        }
+        return $logins;
+    }
+
     private function configureNewLogin($provider, $user, $password, $avatarUrl): UserLoginEntity
     {
         $login = UserLoginEntity::builder()
             ->user($user)
+            ->userId($user->getId())
             ->password(password_hash($password, PASSWORD_DEFAULT))
             ->avatarUrl($avatarUrl)
             ->type($provider)
@@ -73,6 +92,21 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
     {
         $login = $this->configureNewLogin('google', $user, Uuid::uuid4()->toString(), $googleData['picture']);
         $login->setProviderId($googleData['sub']);
+        $this->updateLoginTokens($login, fn($t) => $t->getRefreshToken(), $token);
+        EntityManager::getManager()->persist($login);
+        $login->user = $user;
+        return $login;
+    }
+
+    public function createLoginFromDiscordData(UserEntity $user, array $discordData, $token): UserLoginEntity
+    {
+        $avatarUrl = 'https://cdn.discordapp.com/embed/avatars/0.png';
+        if (!empty($discordData['avatar'])) {
+            $avatarUrl = sprintf('https://cdn.discordapp.com/avatars/%s/%s.png', $discordData['id'], $discordData['avatar']);
+        }
+
+        $login = $this->configureNewLogin('discord', $user, Uuid::uuid4()->toString(), $avatarUrl);
+        $login->setProviderId($discordData['id']);
         $this->updateLoginTokens($login, fn($t) => $t->getRefreshToken(), $token);
         EntityManager::getManager()->persist($login);
         $login->user = $user;
