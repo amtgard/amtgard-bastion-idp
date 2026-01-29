@@ -13,6 +13,7 @@ use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
+use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Services\OrkService;
 use DateTime;
@@ -32,7 +33,7 @@ class ResourcesController
     private OrkService $orkService;
     private UserOrkProfileRepository $orkProfileRepository;
     private UserClientAuthorizationRepository $userClientAuthorizationRepository;
-
+    private UserLoginRepository $userLoginRepository;
 
     public function __construct(
         LoggerInterface $logger,
@@ -41,7 +42,8 @@ class ResourcesController
         Database $database,
         OrkService $orkService,
         UserOrkProfileRepository $orkProfileRepository,
-        UserClientAuthorizationRepository $userClientAuthorizationRepository
+        UserClientAuthorizationRepository $userClientAuthorizationRepository,
+        UserLoginRepository $userLoginRepository
     ) {
         $this->logger = $logger;
         $this->twig = $twig;
@@ -50,6 +52,7 @@ class ResourcesController
         $this->orkService = $orkService;
         $this->orkProfileRepository = $orkProfileRepository;
         $this->userClientAuthorizationRepository = $userClientAuthorizationRepository;
+        $this->userLoginRepository = $userLoginRepository;
     }
 
     public function userinfo(Request $request, Response $response): Response
@@ -117,14 +120,16 @@ class ResourcesController
         $user = Utility::getAuthenticatedUser();
 
         $orkProfile = null;
+        $userLogins = [];
         if ($user) {
             $clients = $this->clientRepository->findActiveClientsForUser($user->getId());
-
             $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
+            $userLogins = $this->userLoginRepository->getAllLoginsForUser($user->getId());
         }
 
         $response->getBody()->write($this->twig->render('profile.twig', [
             'avatarUrl' => $avatarUrl,
+            'userLogins' => $userLogins,
             'authorizations' => array_values($clients ?? []),
             'orkProfile' => $orkProfile,
             'error' => $error,

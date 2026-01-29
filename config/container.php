@@ -175,6 +175,15 @@ return [
         ]);
     },
 
+    // Discord OAuth Provider
+    \Wohali\OAuth2\Client\Provider\Discord::class => function () {
+        return new \Wohali\OAuth2\Client\Provider\Discord([
+            'clientId' => $_ENV['DISCORD_CLIENT_ID'],
+            'clientSecret' => $_ENV['DISCORD_CLIENT_SECRET'],
+            'redirectUri' => $_ENV['DISCORD_REDIRECT_URI'],
+        ]);
+    },
+
     OrkService::class => function (ContainerInterface $container) {
         return new OrkService($container->get(LoggerInterface::class));
     },
