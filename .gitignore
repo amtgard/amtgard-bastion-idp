@@ -1,4 +1,6 @@
 .env
+.prod.env
+.phinx.env
 .idea
 .phpunit.cache
 logs/
@@ -9,4 +11,4 @@ devfile.yaml
 .cursorignore
 .cursorignorerules
 cache/
-dev-keys/
+keys/
