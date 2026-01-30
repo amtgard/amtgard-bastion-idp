@@ -15,6 +15,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Slim\Routing\RouteContext;
 use Twig\Environment as TwigEnvironment;
+use Wohali\OAuth2\Client\Provider\Discord;
 
 class AuthController extends BaseAuthController
 {
@@ -22,6 +23,7 @@ class AuthController extends BaseAuthController
     private UserLoginRepository $logins;
     private Google $googleProvider;
     private Facebook $facebookProvider;
+    private Discord $discordProvider;
     private TwigEnvironment $twig;
 
     public function __construct(
@@ -31,6 +33,7 @@ class AuthController extends BaseAuthController
         LoggerInterface $logger,
         Google          $googleProvider,
         Facebook        $facebookProvider,
+        Discord         $discordProvider,
         AmtgardIdpJwt   $amtgardIdpJwt,
         TwigEnvironment $twig
     )
@@ -40,6 +43,7 @@ class AuthController extends BaseAuthController
         $this->logins = $logins;
         $this->googleProvider = $googleProvider;
         $this->facebookProvider = $facebookProvider;
+        $this->discordProvider = $discordProvider;
         $this->twig = $twig;
     }
 
