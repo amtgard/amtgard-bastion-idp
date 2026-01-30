@@ -37,9 +37,8 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
     public function getAllLoginsForUser(int $userId): array
     {
         $this->clear();
-        $this->query("select * from user_logins where user_id = :user_id");
         $this->user_id = $userId;
-        $this->execute();
+        $this->find();
 
         $logins = [];
         while ($this->next()) {

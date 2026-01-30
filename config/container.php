@@ -39,6 +39,7 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Twig\Environment as TwigEnvironment;
 use Twig\Loader\FilesystemLoader;
+use Wohali\OAuth2\Client\Provider\Discord;
 
 return [
         // Logger
@@ -176,8 +177,8 @@ return [
     },
 
     // Discord OAuth Provider
-    \Wohali\OAuth2\Client\Provider\Discord::class => function () {
-        return new \Wohali\OAuth2\Client\Provider\Discord([
+    Discord::class => function () {
+        return new Discord([
             'clientId' => $_ENV['DISCORD_CLIENT_ID'],
             'clientSecret' => $_ENV['DISCORD_CLIENT_SECRET'],
             'redirectUri' => $_ENV['DISCORD_REDIRECT_URI'],

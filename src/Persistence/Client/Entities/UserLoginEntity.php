@@ -50,24 +50,4 @@ class UserLoginEntity extends RepositoryEntity
 
     #[Field('expiry_date_time')]
     private ?DateTimeInterface $expiryDateTime;
-
-    public function getAvatarUrl(): ?string
-    {
-        return $this->avatarUrl;
-    }
-
-    public function getType(): ?string
-    {
-        return $this->type;
-    }
-
-    public function getProviderId(): ?string
-    {
-        return $this->providerId;
-    }
-
-    public function getUserId(): ?int
-    {
-        return $this->userId;
-    }
 }

@@ -33,13 +33,13 @@
                 <div class="flex flex-wrap gap-4 mb-6">
                     {% for login in userLogins %}
                         <div class="relative inline-block">
-                            <img src="{{ login.avatarUrl }}" onerror="this.onerror=null; this.src='/images/idp_logo_tiny.jpeg';" alt="{{ login.type }} Avatar" class="w-20 h-20 rounded-full object-cover border-[3px] border-primary">
+                            <img src="{{ login.getAvatarUrl() }}" onerror="this.onerror=null; this.src='/images/idp_logo_tiny.jpeg';" alt="{{ login.getType() }} Avatar" class="w-20 h-20 rounded-full object-cover border-[3px] border-primary">
                             <div class="absolute -top-1 -right-1 bg-white rounded-full p-1 shadow-md w-8 h-8 flex items-center justify-center">
-                                {% if login.type == 'google' %}
+                                {% if login.getType() == 'google' %}
                                     <i class="fa-brands fa-google text-[#DB4437] text-lg"></i>
-                                {% elseif login.type == 'facebook' %}
+                                {% elseif login.getType() == 'facebook' %}
                                     <i class="fa-brands fa-facebook text-[#4267B2] text-lg"></i>
-                                {% elseif login.type == 'discord' %}
+                                {% elseif login.getType() == 'discord' %}
                                     <i class="fa-brands fa-discord text-[#5865F2] text-lg"></i>
                                 {% else %}
                                     <i class="fa-solid fa-user text-gray-500 text-lg"></i>
