@@ -2,22 +2,19 @@
 
 namespace Amtgard\IdP\Controllers\Resource;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Utility\CachedValidatedUserEntity;
+use Amtgard\IdP\Utility\PubSubQueueHandle;
+use DI\Annotation\Inject;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
-use Amtgard\IdP\Persistence\Server\Repositories\AccessTokenRepository;
 use Amtgard\IdP\Utility\Utility;
-use Couchbase\User;
-use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
+use Amtgard\SetQueue\PubSubQueue;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
-use League\OAuth2\Server\Repositories\UserRepositoryInterface;
-use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Services\OrkService;
-use DateTime;
-use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -26,19 +23,24 @@ use Twig\Environment as TwigEnvironment;
 class ResourcesController
 {
     private TwigEnvironment $twig;
+
     protected LoggerInterface $logger;
     private ClientRepositoryInterface $clientRepository;
-
-    private Database $database;
+    private PubSubQueue $redisPubSubQueue;
+    private PubSubQueueHandle $pubSubQueueHandle;
     private OrkService $orkService;
     private UserOrkProfileRepository $orkProfileRepository;
     private UserClientAuthorizationRepository $userClientAuthorizationRepository;
     private UserLoginRepository $userLoginRepository;
+    private RedisCacheRepository $redisCacheRepository;
 
     public function __construct(
         LoggerInterface $logger,
         TwigEnvironment $twig,
         ClientRepositoryInterface $clientRepository,
+        PubSubQueue $redisPubSubQueue,
+        PubSubQueueHandle $pubSubQueueHandle,
+        RedisCacheRepository $redisCacheRepository,
         Database $database,
         OrkService $orkService,
         UserOrkProfileRepository $orkProfileRepository,
@@ -49,10 +51,30 @@ class ResourcesController
         $this->twig = $twig;
         $this->clientRepository = $clientRepository;
         $this->database = $database;
+        $this->redisPubSubQueue = $redisPubSubQueue;
+        $this->pubSubQueueHandle = $pubSubQueueHandle;
         $this->orkService = $orkService;
         $this->orkProfileRepository = $orkProfileRepository;
         $this->userClientAuthorizationRepository = $userClientAuthorizationRepository;
         $this->userLoginRepository = $userLoginRepository;
+        $this->redisCacheRepository = $redisCacheRepository;
+    }
+
+    public function validate(Request $request, Response $response): Response
+    {
+        /** @var CachedValidatedUserEntity $user */
+        $user = $this->redisCacheRepository->getUser($_SESSION['user_id']);
+
+        $userData = [
+            'id' => $user->getUserId(),
+            'email' => $user->getEmail()
+        ];
+
+        $handle = $this->pubSubQueueHandle->getHandle();
+        $this->redisPubSubQueue->send($handle, $user->getUserId(), $user->getEmail());
+
+        $response->getBody()->write(json_encode($userData));
+        return $response->withHeader('Content-Type', 'application/json');
     }
 
     public function userinfo(Request $request, Response $response): Response

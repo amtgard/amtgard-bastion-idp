@@ -9,6 +9,7 @@ use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAuthCode;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AccessToken;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AuthCode;
+use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\Entities\AuthCodeEntityInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use Ramsey\Uuid\Uuid;
@@ -30,7 +31,7 @@ class AuthCodeRepository extends Repository implements AuthCodeRepositoryInterfa
     public function getNewAuthCode()
     {
         $tokenId = Uuid::uuid4()->toString();
-        $expiryDatetime = new \DateTimeImmutable('+1 month');
+        $expiryDatetime = Utility::dateFrom(new \DateInterval($_ENV['OAUTH_AUTH_TOKEN_TTL']));
         /** @var AuthCode $authCode */
         $authCode = AuthCode::builder()
             ->expiryDateTime($expiryDatetime)

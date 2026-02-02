@@ -44,22 +44,22 @@ class OAuthServerConfiguration
         $authCodeGrant = new AuthCodeGrant(
             $this->authCodeRepository,
             $this->refreshTokenRepository,
-            new \DateInterval('PT10M') // Authorization codes will expire after 10 minutes
+            new \DateInterval($_ENV['OAUTH_AUTH_TOKEN_TTL']) // Authorization codes will expire after 10 minutes
         );
-        $authCodeGrant->setRefreshTokenTTL(new \DateInterval('P1M')); // Refresh tokens will expire after 1 month
+        $authCodeGrant->setRefreshTokenTTL(new \DateInterval($_ENV['OAUTH_REFRESH_TOKEN_TTL'])); // Refresh tokens will expire after 1 month
 
         // Enable the refresh token grant on the server
         $refreshTokenGrant = new RefreshTokenGrant($this->refreshTokenRepository);
-        $refreshTokenGrant->setRefreshTokenTTL(new \DateInterval('P1M')); // Refresh tokens will expire after 1 month
+        $refreshTokenGrant->setRefreshTokenTTL(new \DateInterval($_ENV['OAUTH_REFRESH_TOKEN_TTL'])); // Refresh tokens will expire after 1 month
 
         $server->enableGrantType(
             $authCodeGrant,
-            new \DateInterval('PT1H') // Access tokens will expire after 1 hour
+            new \DateInterval($_ENV['OAUTH_ACCESS_TOKEN_TTL']) // Access tokens will expire after 1 hour
         );
 
         $server->enableGrantType(
             $refreshTokenGrant,
-            new \DateInterval('PT1H') // Access tokens will expire after 1 hour
+            new \DateInterval($_ENV['OAUTH_ACCESS_TOKEN_TTL']) // Access tokens will expire after 1 hour
         );
 
         return $server;

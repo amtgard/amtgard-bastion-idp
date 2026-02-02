@@ -8,6 +8,7 @@ use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAccessToken;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthRefreshToken;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\RefreshToken;
+use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\Entities\RefreshTokenEntityInterface;
 use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
 use Ramsey\Uuid\Uuid;
@@ -29,7 +30,7 @@ class RefreshTokenRepository extends Repository implements RefreshTokenRepositor
     public function getNewRefreshToken()
     {
         $tokenId = Uuid::uuid4()->toString();
-        $expiryDatetime = new \DateTimeImmutable('+1 month');
+        $expiryDatetime = Utility::dateFrom(new \DateInterval($_ENV['OAUTH_REFRESH_TOKEN_TTL']));
         /** @var RefreshToken $refreshToken */
         $refreshToken = RefreshToken::builder()
             ->identifier($tokenId)

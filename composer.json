@@ -6,6 +6,7 @@
         "php": "^8.3",
         "amtgard/active-record-orm": "^1.0",
         "amtgard/ork-iam": "^1.0",
+        "amtgard/redis-set-queue": "^1.0",
         "firebase/php-jwt": "^5.5",
         "league/oauth2-client": "^2.6",
         "league/oauth2-facebook": "^2.2",
@@ -22,7 +23,8 @@
         "tuupola/slim-jwt-auth": "^3.6",
         "twig/twig": "^3.21",
         "vlucas/phpdotenv": "^5.4",
-        "wohali/oauth2-discord-new": "^1.2"
+        "wohali/oauth2-discord-new": "^1.2",
+        "ext-redis": "*"
     },
     "require-dev": {
         "phpstan/phpstan": "^1.4",

@@ -7,6 +7,7 @@ use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAccessToken;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AccessToken;
+use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
@@ -31,7 +32,7 @@ class AccessTokenRepository extends Repository implements AccessTokenRepositoryI
         /** @var OAuthClient $client */
         $client = $clientEntity;
         $tokenId = Uuid::uuid4()->toString();
-        $expiryDatetime = new \DateTimeImmutable('+90 days');
+        $expiryDatetime = Utility::dateFrom(new \DateInterval($_ENV['OAUTH_ACCESS_TOKEN_TTL']));
         $accessToken = AccessToken::builder()
             ->identifier($tokenId)
             ->client($client->getClientEntity())

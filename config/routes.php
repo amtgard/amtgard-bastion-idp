@@ -12,6 +12,7 @@ use Amtgard\IdP\Controllers\Resource\ResourcesController;
 use Amtgard\IdP\Controllers\UserController;
 use Amtgard\IdP\Middleware\AuthMiddleware;
 use Amtgard\IdP\Middleware\ManagementMiddleware;
+use Amtgard\IdP\Middleware\RedisCacheAuthMiddleware;
 use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
 
@@ -20,6 +21,10 @@ return function (App $app) {
     $app->get('/', [HomeController::class, 'index'])->setName('home');
 
     $app->group('/resources', function (RouteCollectorProxy $group) {
+        $group->get('/validate', [ResourcesController::class, 'validate'])
+            ->add(RedisCacheAuthMiddleware::class)
+            ->setName('resources.validate');
+
         $group->get('/profile', [ResourcesController::class, 'profile'])
             ->add(AuthMiddleware::class)
             ->setName('resources.profile');
