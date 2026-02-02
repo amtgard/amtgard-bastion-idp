@@ -4,6 +4,7 @@ namespace Amtgard\IdP\Controllers\Client;
 
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
+use Amtgard\IdP\Utility\Constants;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
@@ -23,6 +24,7 @@ class BaseAuthController
     protected function finalizeAuthorization(UserLoginEntity $login, ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $this->logger->info("User is authenticated; setting session for " . $login->user->getEmail());
+        $_SESSION['client_id'] = Constants::$AMTGARD_IDP_CLIENT_ID;
         $_SESSION['user_id'] = $login->user->getUserId();
         $_SESSION['user_email'] = $login->user->getEmail();
         $_SESSION['user_name'] = $login->user->getFullName();

@@ -9,7 +9,7 @@ use Amtgard\ActiveRecordOrm\Entity\Policy\UncachedPolicy;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Repository\Database;
-use Amtgard\IdP\Middleware\AuthMiddleware;
+use Amtgard\IdP\Middleware\LocalIdpAuthMiddleware;
 use Amtgard\IdP\Middleware\ManagementMiddleware;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
@@ -22,6 +22,8 @@ use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\RefreshTokenRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ScopeRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
+use Amtgard\IdP\Utility\AuthorizedClients;
+use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisDataStructureConfig;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisHashSetFactory;
@@ -119,10 +121,6 @@ return [
 
     AuthCodeRepositoryInterface::class => function (ContainerInterface $container) {
         return EntityManager::getManager()->getRepository(AuthCodeRepository::class);
-    },
-
-    AuthMiddleware::class => function (ContainerInterface $container) {
-        return new AuthMiddleware($container->get(EntityManager::class), $container->get(LoggerInterface::class), $container->get(ResourceServer::class));
     },
 
     ManagementMiddleware::class => function (ContainerInterface $container) {
@@ -245,6 +243,12 @@ return [
             'cache' => __DIR__ . '/cache/twig',
             'auto_reload' => true,
         ]);
+    },
+
+    AuthorizedClients::class => function (ContainerInterface $container) {
+        return AuthorizedClients::builder()
+            ->clientIds([Constants::$AMTGARD_IDP_CLIENT_ID])
+            ->build();
     },
 
 ];
