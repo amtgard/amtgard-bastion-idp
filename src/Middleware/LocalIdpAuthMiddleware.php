@@ -4,28 +4,35 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Utility\AuthorizedClients;
+use Amtgard\IdP\Utility\Utility;
+use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use Psr\Log\LoggerInterface;
+use Slim\Exception\HttpUnauthorizedException;
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Routing\RouteContext;
 use League\OAuth2\Server\Exception\OAuthServerException;
 use League\OAuth2\Server\ResourceServer;
 
-class AuthMiddleware implements MiddlewareInterface
+class LocalIdpAuthMiddleware implements MiddlewareInterface
 {
     protected ResourceServer $resourceServer;
     protected LoggerInterface $logger;
+    protected AuthorizedClients $authorizedClients;
 
     public function __construct(
         EntityManager $em,
         LoggerInterface $logger,
+        AuthorizedClients $authorizedClients,
         ResourceServer $resourceServer)
     {
         $this->logger = $logger;
         $this->resourceServer = $resourceServer;
+        $this->authorizedClients = $authorizedClients;
     }
 
     /**
@@ -33,7 +40,16 @@ class AuthMiddleware implements MiddlewareInterface
      */
     public function process(Request $request, RequestHandler $handler): Response
     {
+        $authHeader = $request->getHeaderLine('Authorization');
+        if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+            throw new HttpUnauthorizedException($request, "Not authorized.");
+        }
+
         $session = $request->getAttribute('session');
+
+        if (Optional::ofNullable($session['client_id'])->map(fn($clientId) => !in_array($clientId, $this->authorizedClients->getClientIds()))->orElse(false)) {
+            throw new HttpUnauthorizedException($request, "Not authorized.");
+        }
 
         // Check if user is logged in via session
         if (isset($session['user_id'])) {

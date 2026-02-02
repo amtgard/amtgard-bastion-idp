@@ -10,9 +10,10 @@ use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Management\ManagementController;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
 use Amtgard\IdP\Controllers\UserController;
-use Amtgard\IdP\Middleware\AuthMiddleware;
+use Amtgard\IdP\Middleware\LocalIdpAuthMiddleware;
+use Amtgard\IdP\Middleware\ClientRestrictedAuthMiddleware;
 use Amtgard\IdP\Middleware\ManagementMiddleware;
-use Amtgard\IdP\Middleware\RedisCacheAuthMiddleware;
+use Amtgard\IdP\Middleware\CachedJwtLocalIdpAuthMiddleware;
 use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
 
@@ -22,32 +23,32 @@ return function (App $app) {
 
     $app->group('/resources', function (RouteCollectorProxy $group) {
         $group->get('/validate', [ResourcesController::class, 'validate'])
-            ->add(RedisCacheAuthMiddleware::class)
+            ->add(CachedJwtLocalIdpAuthMiddleware::class)
             ->setName('resources.validate');
-
-        $group->get('/profile', [ResourcesController::class, 'profile'])
-            ->add(AuthMiddleware::class)
-            ->setName('resources.profile');
 
         // UserRepository info endpoint (protected by access token)
         $group->get('/userinfo', [ResourcesController::class, 'userInfo'])
-            ->add(AuthMiddleware::class)
+            ->add(CachedJwtLocalIdpAuthMiddleware::class)
             ->setName('resources.userinfo');
 
+        $group->get('/profile', [ResourcesController::class, 'profile'])
+            ->add(LocalIdpAuthMiddleware::class)
+            ->setName('resources.profile');
+
         $group->get('/authorizations', [ResourcesController::class, 'authorizations'])
-            ->add(AuthMiddleware::class)
+            ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.authorizations');
 
         $group->post('/profile/link-ork', [ResourcesController::class, 'linkOrkAccount'])
-            ->add(AuthMiddleware::class)
+            ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.profile.link_ork');
 
         $group->post('/profile/refresh-ork', [ResourcesController::class, 'refreshOrkAccount'])
-            ->add(AuthMiddleware::class)
+            ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.profile.refresh_ork');
 
         $group->post('/profile/revoke', [ResourcesController::class, 'revokeAuthorization'])
-            ->add(AuthMiddleware::class)
+            ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.profile.revoke');
     });
 
@@ -93,10 +94,6 @@ return function (App $app) {
 
         // Token endpoint
         $group->map(['GET', 'POST'], '/approve', [OAuth2ServerController::class, 'approve'])->setName('oauth.approve');
-
-        $group->get('/clear_auth', [OAuth2ServerController::class, 'clearAuthorizationAndApproval'])->setName('oauth.clear_auth');
-
-        $group->get('/clear_user', [OAuth2ServerController::class, 'clearAuthentication'])->setName('oauth.clear_user');
 
     });
 };
