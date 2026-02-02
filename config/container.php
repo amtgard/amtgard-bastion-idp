@@ -22,6 +22,12 @@ use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\RefreshTokenRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ScopeRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
+use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisDataStructureConfig;
+use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisHashSetFactory;
+use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisRedrivableQueueFactory;
+use Amtgard\SetQueue\DataStructure\SetQueue;
+use Amtgard\SetQueue\PubSubQueue;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use League\OAuth2\Server\AuthorizationServer;
@@ -189,6 +195,49 @@ return [
         return new OrkService($container->get(LoggerInterface::class));
     },
 
+    RedisDataStructureConfig::class => function (ContainerInterface $container) {
+        $config = new RedisDataStructureConfig();
+        $config->setConfig([
+            'host' => '127.0.0.1',
+            'port' => 6379,
+        ]);
+        return $config;
+    },
+
+    Redis::class => function (ContainerInterface $container) {
+        $redis = new Redis();
+        $config = $container->get(RedisDataStructureConfig::class);
+        $redis->pconnect($config->getConfig()['host'], $config->getConfig()['port']);
+
+        return $redis;
+    },
+
+    PubSubQueueHandle::class => function (ContainerInterface $container) {
+        $queue = $container->get(SetQueue::class);
+        $pubSub = $container->get(PubSubQueue::class);
+        $handle = $pubSub->addQueue($queue);
+
+        return PubSubQueueHandle::builder()->handle($handle)->build();
+    },
+
+    SetQueue::class => function (ContainerInterface $container) {
+        $hashSetFactory = new RedisHashSetFactory();
+        $redrivableQueueFactory = new RedisRedrivableQueueFactory();
+        $config = $container->get(RedisDataStructureConfig::class);
+        $queue = new SetQueue($_ENV['REDIS_PUBLISHER_NAME'], $config, $hashSetFactory, $redrivableQueueFactory);
+        return $queue;
+    },
+
+    PubSubQueue::class => function (ContainerInterface $container) {
+        $redis = $container->get(Redis::class);
+        if (!$redis->isConnected()) {
+            throw new \Exception("Redis not connected");
+        }
+        $pubSub = new PubSubQueue();
+
+        return $pubSub;
+    },
+
         // Twig Environment
     TwigEnvironment::class => function () {
         $loader = new FilesystemLoader(__DIR__ . '/../templates');
@@ -197,4 +246,5 @@ return [
             'auto_reload' => true,
         ]);
     },
+
 ];

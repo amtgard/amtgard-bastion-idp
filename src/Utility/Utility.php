@@ -14,6 +14,10 @@ class Utility
         return array_key_exists('user_id', $_SESSION);
     }
 
+    public static function dateFrom(\DateInterval $dateInterval): \DateTimeInterface {
+        return (new \DateTimeImmutable())->add($dateInterval);
+    }
+
     public static function getAuthenticatedUser(): ?UserEntity {
         if (!self::userIsAuthenticated()) {
             return null;

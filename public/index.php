@@ -22,6 +22,8 @@ $containerBuilder = new ContainerBuilder();
 // Add container definitions
 $containerBuilder->addDefinitions(__DIR__ . '/../config/container.php');
 
+$containerBuilder->useAutowiring(true);
+
 // Build the container
 $container = $containerBuilder->build();
 
