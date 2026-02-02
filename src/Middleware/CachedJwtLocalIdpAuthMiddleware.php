@@ -4,8 +4,8 @@ namespace Amtgard\IdP\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\CachedValidatedUserEntity;
-use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\ResourceServer;
 use Optional\Optional;
@@ -18,17 +18,19 @@ use Slim\Exception\HttpUnauthorizedException;
 class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
 {
     protected LoggerInterface $logger;
-
     private RedisCacheRepository $redisCacheRepository;
     protected ResourceServer $resourceServer;
+    protected AuthorizedClients $authorizedClients;
 
     public function __construct(EntityManager $em,
                                 LoggerInterface $logger,
                                 RedisCacheRepository $redisCacheRepository,
+                                AuthorizedClients $authorizedClients,
                                 ResourceServer $resourceServer) {
-        parent::__construct($em, $logger, $resourceServer);
+        parent::__construct($em, $logger, $authorizedClients, $resourceServer);
         $this->logger = $logger;
         $this->redisCacheRepository = $redisCacheRepository;
+        $this->authorizedClients = $authorizedClients;
         $this->resourceServer = $resourceServer;
     }
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface

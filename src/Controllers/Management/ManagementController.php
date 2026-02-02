@@ -3,8 +3,6 @@
 namespace Amtgard\IdP\Controllers\Management;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
-use Amtgard\IdP\Persistence\Server\Repositories\AccessTokenRepository;
-use Amtgard\IdP\Persistence\Server\Repositories\RefreshTokenRepository;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;

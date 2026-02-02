@@ -7,7 +7,6 @@ use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
-use Amtgard\IdP\Persistence\Server\Entities\Repository\Grant;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use Optional\Optional;

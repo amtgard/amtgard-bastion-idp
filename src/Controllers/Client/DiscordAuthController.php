@@ -6,11 +6,11 @@ use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
-use Wohali\OAuth2\Client\Provider\Discord;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
+use Wohali\OAuth2\Client\Provider\Discord;
 
 class DiscordAuthController extends BaseAuthController
 {

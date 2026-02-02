@@ -2,19 +2,18 @@
 
 namespace Amtgard\IdP\Controllers\Resource;
 
-use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
-use Amtgard\IdP\Utility\CachedValidatedUserEntity;
-use Amtgard\IdP\Utility\PubSubQueueHandle;
-use DI\Annotation\Inject;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
+use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
+use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
+use Amtgard\IdP\Services\OrkService;
+use Amtgard\IdP\Utility\CachedValidatedUserEntity;
+use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
-use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
-use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
-use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
-use Amtgard\IdP\Services\OrkService;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;

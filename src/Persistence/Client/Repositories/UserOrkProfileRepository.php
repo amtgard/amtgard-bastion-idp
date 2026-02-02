@@ -6,7 +6,6 @@ namespace Amtgard\IdP\Persistence\Client\Repositories;
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
 use DateTime;
 

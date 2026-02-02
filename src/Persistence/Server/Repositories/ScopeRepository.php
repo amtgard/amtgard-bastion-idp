@@ -5,7 +5,6 @@ namespace Amtgard\IdP\Persistence\Server\Repositories;
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthScope;
-use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Scope;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Repositories\ScopeRepositoryInterface;

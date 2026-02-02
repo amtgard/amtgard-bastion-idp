@@ -5,7 +5,8 @@ namespace Amtgard\IdP\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Utility\AuthorizedClients;
-use Amtgard\IdP\Utility\Utility;
+use League\OAuth2\Server\Exception\OAuthServerException;
+use League\OAuth2\Server\ResourceServer;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -15,8 +16,6 @@ use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpUnauthorizedException;
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Routing\RouteContext;
-use League\OAuth2\Server\Exception\OAuthServerException;
-use League\OAuth2\Server\ResourceServer;
 
 class LocalIdpAuthMiddleware implements MiddlewareInterface
 {
