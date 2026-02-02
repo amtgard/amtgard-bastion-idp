@@ -7,7 +7,6 @@ use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAuthCode;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
-use Amtgard\IdP\Persistence\Server\Entities\Repository\AccessToken;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AuthCode;
 use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\Entities\AuthCodeEntityInterface;

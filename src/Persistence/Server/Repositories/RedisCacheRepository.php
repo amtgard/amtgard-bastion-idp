@@ -2,7 +2,6 @@
 
 namespace Amtgard\IdP\Persistence\Server\Repositories;
 
-use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Utility\CachedValidatedUserEntity;
 use Psr\Log\LoggerInterface;
 use Redis;

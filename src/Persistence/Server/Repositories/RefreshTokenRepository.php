@@ -6,7 +6,6 @@ use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAccessToken;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthRefreshToken;
-use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\RefreshToken;
 use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\Entities\RefreshTokenEntityInterface;

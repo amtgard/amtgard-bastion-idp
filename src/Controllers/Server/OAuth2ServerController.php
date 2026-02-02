@@ -3,6 +3,7 @@
 namespace Amtgard\IdP\Controllers\Server;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Exception;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\Exception\OAuthServerException;
@@ -14,7 +15,6 @@ use League\OAuth2\Server\ResourceServer;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
-use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Slim\Psr7\Stream;
 use Twig\Environment as TwigEnvironment;
 
