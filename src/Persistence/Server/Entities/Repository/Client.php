@@ -33,4 +33,7 @@ class Client extends RepositoryEntity
     #[Field('is_confidential', 'int')]
     protected bool $isConfidential = false;
 
+    #[Field('is_dev', 'int')]
+    protected bool $isDev = false;
+
 }
