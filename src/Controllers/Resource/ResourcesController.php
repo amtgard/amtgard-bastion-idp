@@ -11,6 +11,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepositor
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Utility\CachedValidatedUserEntity;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\UserRole;
 use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -142,10 +143,12 @@ class ResourcesController
 
         $orkProfile = null;
         $userLogins = [];
+        $isAdmin = false;
         if ($user) {
             $clients = $this->clientRepository->findActiveClientsForUser($user->getId());
             $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
             $userLogins = $this->userLoginRepository->getAllLoginsForUser($user->getId());
+            $isAdmin = $user->getRole() === UserRole::Admin;
         }
 
         $response->getBody()->write($this->twig->render('profile.twig', [
@@ -154,7 +157,8 @@ class ResourcesController
             'authorizations' => array_values($clients ?? []),
             'orkProfile' => $orkProfile,
             'error' => $error,
-            'success' => $success
+            'success' => $success,
+            'isAdmin' => $isAdmin
         ]));
 
         return $response;

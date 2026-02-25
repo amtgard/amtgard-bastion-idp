@@ -8,6 +8,7 @@ use Amtgard\IdP\Controllers\HomeController;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Management\ManagementController;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
+use Amtgard\IdP\Middleware\LocalAdminUserMiddleware;
 use Amtgard\IdP\Middleware\LocalIdpAuthMiddleware;
 use Amtgard\IdP\Middleware\ClientRestrictedAuthMiddleware;
 use Amtgard\IdP\Middleware\ManagementMiddleware;
@@ -79,6 +80,21 @@ return function (App $app) {
         $group->get('/cleantokens', [ManagementController::class, 'cleanTokens'])
             ->add(ManagementMiddleware::class)
             ->setName('management.cleantokens');
+
+        $group->get('/clients', [ManagementController::class, 'listClients'])
+            ->add(LocalIdpAuthMiddleware::class)
+            ->add(LocalAdminUserMiddleware::class)
+            ->setName('management.clients');
+            
+        $group->post('/clients', [ManagementController::class, 'createClient'])
+            ->add(LocalIdpAuthMiddleware::class)
+            ->add(LocalAdminUserMiddleware::class)
+            ->setName('management.clients.create');
+            
+        $group->post('/clients/{id}', [ManagementController::class, 'updateClient'])
+            ->add(LocalIdpAuthMiddleware::class)
+            ->add(LocalAdminUserMiddleware::class)
+            ->setName('management.clients.update');
     });
 
     // OAuth2 server routes

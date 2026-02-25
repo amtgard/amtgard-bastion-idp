@@ -24,8 +24,20 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
         return Client::class;
     }
 
+    public function getAllClients(): array
+    {
+        $this->clear();
+        $this->find();
+        $clients = [];
+        while ($this->next()) {
+            $clients[] = $this->getCurrent();
+        }
+        return $clients;
+    }
+
     public function findActiveClientsForUser($userId)
     {
+        $this->clear();
         $this->query("SELECT c.id, c.name, c.client_id
                       FROM user_client_authorizations uca
                       LEFT JOIN clients c ON uca.client_id = c.id

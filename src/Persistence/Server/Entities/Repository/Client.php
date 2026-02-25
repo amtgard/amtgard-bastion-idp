@@ -30,10 +30,10 @@ class Client extends RepositoryEntity
     #[Field('redirect_uri')]
     protected string $redirectUri;
 
-    #[Field('is_confidential', 'int')]
-    protected bool $isConfidential = false;
+    #[Field('is_confidential')]
+    private bool $isConfidential;
 
-    #[Field('is_dev', 'int')]
-    protected bool $isDev = false;
+    #[Field('is_dev')]
+    private bool $isDev;
 
 }

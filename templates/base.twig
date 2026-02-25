@@ -31,10 +31,9 @@
     {% block styles %}{% endblock %}
 </head>
 <body class="font-sans leading-relaxed m-0 p-5 text-gray-800 bg-gray-50 min-h-screen">
-    <div class="max-w-[800px] mx-auto bg-white p-6 rounded-lg shadow-sm">
+    <div class="{% block container_class %}max-w-[800px]{% endblock %} mx-auto bg-white p-6 rounded-lg shadow-sm">
         {% block content %}{% endblock %}
     </div>
     {% block scripts %}{% endblock %}
 </body>
 </html>
-
