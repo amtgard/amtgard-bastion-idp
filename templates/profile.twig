@@ -165,10 +165,20 @@
                 {% endif %}
             </div>
 
+            {% if isAdmin %}
+            <div class="mb-8">
+                <h3 class="text-xl font-serif font-semibold text-tertiary mb-4">Administration</h3>
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <a href="/management/clients" class="text-primary hover:text-primary-dark font-bold flex items-center">
+                        <i class="fas fa-users-cog mr-2"></i> Manage Clients
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
             <p>
                 <a href="/auth/logout" class="inline-block bg-primary hover:bg-primary-dark text-white py-2 px-5 rounded no-underline transition-colors duration-200">Logout</a>
             </p>
         </div>
     </div>
 {% endblock %}
-
