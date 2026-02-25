@@ -72,7 +72,12 @@ class ManagementController
             ];
         }, $clients);
         
-        $view = $this->twig->render('management/clients.twig', ['clients' => $clientData]);
+        $newClientSecret = $this->generateClientSecret();
+
+        $view = $this->twig->render('management/clients.twig', [
+            'clients' => $clientData,
+            'newClientSecret' => $newClientSecret
+        ]);
         $response->getBody()->write($view);
         return $response;
     }
@@ -81,9 +86,12 @@ class ManagementController
     {
         $data = $request->getParsedBody();
         
+        // If client_secret is not provided (e.g. from disabled input), generate one
+        $clientSecret = $data['client_secret'] ?? $this->generateClientSecret();
+        
         $client = Client::builder()
             ->identifier($data['client_id'])
-            ->clientSecret($data['client_secret'])
+            ->clientSecret($clientSecret)
             ->name($data['name'])
             ->redirectUri($data['redirect_uri'])
             ->isConfidential(isset($data['is_confidential']))
@@ -116,5 +124,16 @@ class ManagementController
         return $response
             ->withHeader('Location', '/management/clients')
             ->withStatus(302);
+    }
+
+    private function generateClientSecret($length = 32)
+    {
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $charactersLength = strlen($characters);
+        $randomString = '';
+        for ($i = 0; $i < $length; $i++) {
+            $randomString .= $characters[random_int(0, $charactersLength - 1)];
+        }
+        return $randomString;
     }
 }
