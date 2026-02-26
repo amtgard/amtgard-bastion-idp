@@ -24,10 +24,12 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
         $this->query("select * from user_logins where user_id = :user_id and type = 'local'");
         $this->user_id = $user->getId();
         $this->execute();
-        $this->next();
-        $login = UserLoginEntity::toRepositoryEntity($this->getEntity());
-        $login->user = $user;
-        return $login;
+        if ($this->next()) {
+            $login = UserLoginEntity::toRepositoryEntity($this->getEntity());
+            $login->user = $user;
+            return $login;
+        }
+        return null;
     }
 
     /**
@@ -51,7 +53,6 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
     {
         $login = UserLoginEntity::builder()
             ->user($user)
-            ->userId($user->getId())
             ->password(password_hash($password, PASSWORD_DEFAULT))
             ->avatarUrl($avatarUrl)
             ->type($provider)
