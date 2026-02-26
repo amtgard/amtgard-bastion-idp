@@ -21,9 +21,9 @@ class UserLoginEntity extends RepositoryEntity
     #[PrimaryKey]
     private ?int $id;
 
-    #[Field('user_id')]
     private ?int $userId;
 
+    #[Field('user_id')]
     #[EntityReference('userId')]
     private ?UserEntity $user;
 
