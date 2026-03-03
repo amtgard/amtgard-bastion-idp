@@ -3,6 +3,7 @@
 namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\ActiveRecordOrm\Repository\Database;
+use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
@@ -11,6 +12,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepositor
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Utility\CachedValidatedUserEntity;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\UserAuthority;
 use Amtgard\IdP\Utility\UserRole;
 use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
@@ -33,6 +35,9 @@ class ResourcesController
     private UserClientAuthorizationRepository $userClientAuthorizationRepository;
     private UserLoginRepository $userLoginRepository;
     private RedisCacheRepository $redisCacheRepository;
+    private AmtgardIdpJwt $amtgardIdpJwt;
+    private UserAuthority $userAuthority;
+
 
     public function __construct(
         LoggerInterface $logger,
@@ -45,7 +50,9 @@ class ResourcesController
         OrkService $orkService,
         UserOrkProfileRepository $orkProfileRepository,
         UserClientAuthorizationRepository $userClientAuthorizationRepository,
-        UserLoginRepository $userLoginRepository
+        UserLoginRepository $userLoginRepository,
+        AmtgardIdpJwt $amtgardIdpJwt,
+        UserAuthority $userAuthority
     ) {
         $this->logger = $logger;
         $this->twig = $twig;
@@ -58,6 +65,8 @@ class ResourcesController
         $this->userClientAuthorizationRepository = $userClientAuthorizationRepository;
         $this->userLoginRepository = $userLoginRepository;
         $this->redisCacheRepository = $redisCacheRepository;
+        $this->amtgardIdpJwt = $amtgardIdpJwt;
+        $this->userAuthority = $userAuthority;
     }
 
     public function validate(Request $request, Response $response): Response
@@ -67,7 +76,8 @@ class ResourcesController
 
         $userData = [
             'id' => $user->getUserId(),
-            'email' => $user->getEmail()
+            'email' => $user->getEmail(),
+            'jwt' => $user->getJwt()
         ];
 
         $handle = $this->pubSubQueueHandle->getHandle();
@@ -86,7 +96,8 @@ class ResourcesController
 
         $userData = [
             'id' => $user->getUserId(),
-            'email' => $user->getEmail()
+            'email' => $user->getEmail(),
+            'jwt' => $this->amtgardIdpJwt->buildSingleUseJwt($user, $_ENV['JWT_KEY'])
         ];
 
         $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
@@ -143,12 +154,11 @@ class ResourcesController
 
         $orkProfile = null;
         $userLogins = [];
-        $isAdmin = false;
+        $isAdmin = $this->userAuthority->isAdmin($user);
         if ($user) {
             $clients = $this->clientRepository->findActiveClientsForUser($user->getId());
             $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
             $userLogins = $this->userLoginRepository->getAllLoginsForUser($user->getId());
-            $isAdmin = $user->getRole() === UserRole::Admin;
         }
 
         $response->getBody()->write($this->twig->render('profile.twig', [

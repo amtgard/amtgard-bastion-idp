@@ -60,7 +60,10 @@ class ClientRestrictedAuthMiddleware implements MiddlewareInterface
             $_SESSION['user_id'] = $request->getAttribute('oauth_user_id');
             $_SESSION['client_id'] = $clientId;
             $user = Utility::getAuthenticatedUser();
-            $this->redisCacheRepository->setUser(CachedValidatedUserEntity::builder()->userId($user->getUserId())->email($user->getEmail())->build());
+            $this->redisCacheRepository->setUser(CachedValidatedUserEntity::builder()
+                ->userId($user->getUserId())
+                ->email($user->getEmail())
+                ->build());
             return $handler->handle($request);
         }
     }
