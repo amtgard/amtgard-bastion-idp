@@ -42,7 +42,7 @@ class ClientRestrictedAuthMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $jwt = Optional::ofNullable(Utility::validateJwt($request))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
+        $jwt = Optional::ofNullable(Utility::validateJwtSignature($request))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $payload = Optional::ofNullable(value: Utility::parseJwt($jwt))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $oauthUserId = Optional::ofNullable($payload['sub'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $clientId = Optional::ofNullable($payload['aud'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));

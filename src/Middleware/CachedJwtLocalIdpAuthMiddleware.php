@@ -35,7 +35,7 @@ class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
     }
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $jwt = Optional::ofNullable(Utility::validateJwt($request))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
+        $jwt = Optional::ofNullable(Utility::validateJwtRequest($request))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $payload = Optional::ofNullable(value: Utility::parseJwt($jwt))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $oauthUserId = Optional::ofNullable($payload['sub'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $clientId = Optional::ofNullable($payload['aud'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
@@ -52,6 +52,7 @@ class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
             $this->redisCacheRepository->setUser(CachedValidatedUserEntity::builder()
                 ->userId($user->getUserId())
                 ->email($user->getEmail())
+                ->jwt($jwt)
                 ->build());
             return $handler->handle($request);
         }

@@ -22,7 +22,6 @@ return function (App $app) {
 
     $app->group('/resources', function (RouteCollectorProxy $group) {
         $group->get('/validate', [ResourcesController::class, 'validate'])
-            ->add(CachedJwtLocalIdpAuthMiddleware::class)
             ->setName('resources.validate');
 
         // UserRepository info endpoint (protected by access token)
@@ -49,6 +48,10 @@ return function (App $app) {
         $group->post('/profile/revoke', [ResourcesController::class, 'revokeAuthorization'])
             ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.profile.revoke');
+            
+        $group->get('/jwt', [ResourcesController::class, 'getJwt'])
+            ->add(LocalIdpAuthMiddleware::class)
+            ->setName('resources.jwt');
     });
 
     // Authentication routes

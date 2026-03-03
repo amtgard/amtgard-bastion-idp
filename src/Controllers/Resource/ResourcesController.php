@@ -2,6 +2,7 @@
 
 namespace Amtgard\IdP\Controllers\Resource;
 
+use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
@@ -20,6 +21,7 @@ use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
+use Slim\Exception\HttpUnauthorizedException;
 use Twig\Environment as TwigEnvironment;
 
 class ResourcesController
@@ -40,6 +42,7 @@ class ResourcesController
 
 
     public function __construct(
+        EntityManager $em,
         LoggerInterface $logger,
         TwigEnvironment $twig,
         ClientRepositoryInterface $clientRepository,
@@ -69,10 +72,31 @@ class ResourcesController
         $this->userAuthority = $userAuthority;
     }
 
+    public function getJwt(Request $request, Response $response): Response
+    {
+        $user = Utility::getAuthenticatedUser();
+        if (!$user) {
+            return $response->withStatus(401);
+        }
+
+        $jwt = $this->amtgardIdpJwt->buildSingleUseJwt($user);
+        $response->getBody()->write(json_encode(['jwt' => $jwt]));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
     public function validate(Request $request, Response $response): Response
     {
         /** @var CachedValidatedUserEntity $user */
         $user = $this->redisCacheRepository->getUser($_SESSION['user_id']);
+        $challengeJwt = Utility::getBearerJwt($request);
+
+        if (!Utility::validateJwtSignature($challengeJwt)) {
+            throw new HttpUnauthorizedException($request, "Not authorized.");
+        }
+
+        if (!Utility::validateJwtClaims($challengeJwt, $user->getJwt())) {
+            throw new HttpUnauthorizedException($request, "Not authorized.");
+        }
 
         $userData = [
             'id' => $user->getUserId(),
@@ -97,7 +121,7 @@ class ResourcesController
         $userData = [
             'id' => $user->getUserId(),
             'email' => $user->getEmail(),
-            'jwt' => $this->amtgardIdpJwt->buildSingleUseJwt($user, $_ENV['JWT_KEY'])
+            'jwt' => $this->amtgardIdpJwt->buildSingleUseJwt($user)
         ];
 
         $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());

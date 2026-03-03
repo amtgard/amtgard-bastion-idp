@@ -35,7 +35,7 @@ class BaseAuthController
         $routeParser = $routeContext->getRouteParser();
 
         $this->logger->info("Building JWT for " . $login->user->getEmail());
-        $jwt = $this->amtgardIdpJwt->buildSingleUseJwt($login->user, $_SESSION['jwtpublickey']);
+        $jwt = $this->amtgardIdpJwt->buildSingleUseJwt($login->user);
 
         $finalizeUrl = empty($_SESSION['redirect']) ? $routeParser->urlFor('resources.profile') : ($_SESSION['redirect'] . "?jwt=$jwt");
 
