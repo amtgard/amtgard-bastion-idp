@@ -7,7 +7,6 @@ use Amtgard\ActiveRecordOrm\Attribute\Field;
 use Amtgard\ActiveRecordOrm\Attribute\PrimaryKey;
 use Amtgard\ActiveRecordOrm\Entity\Repository\RepositoryEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
-use Amtgard\IdP\Utility\UserRole;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Data;
 use Amtgard\Traits\Builder\ToBuilder;
@@ -45,18 +44,7 @@ class UserEntity extends RepositoryEntity
     #[Field('user_id')]
     private ?string $userId;
 
-    #[Field('role')]
-    private ?string $role = 'user';
-
     public function getFullName(): string {
         return $this->firstName . ' ' . $this->lastName;
-    }
-    
-    public function getRole(): UserRole {
-        return UserRole::from($this->role);
-    }
-    
-    public function setRole(UserRole $role): void {
-        $this->role = $role->value;
     }
 }

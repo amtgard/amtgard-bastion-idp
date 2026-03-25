@@ -10,4 +10,5 @@ class CachedValidatedUserEntity
     use Builder, Getter;
     private string $userId;
     private string $email;
+    private string $jwt;
 }

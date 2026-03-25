@@ -2,7 +2,9 @@
 
 namespace Amtgard\IdP\Controllers\Resource;
 
+use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Repository\Database;
+use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
@@ -11,6 +13,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepositor
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Utility\CachedValidatedUserEntity;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\UserAuthority;
 use Amtgard\IdP\Utility\UserRole;
 use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
@@ -18,6 +21,7 @@ use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
+use Slim\Exception\HttpUnauthorizedException;
 use Twig\Environment as TwigEnvironment;
 
 class ResourcesController
@@ -33,8 +37,12 @@ class ResourcesController
     private UserClientAuthorizationRepository $userClientAuthorizationRepository;
     private UserLoginRepository $userLoginRepository;
     private RedisCacheRepository $redisCacheRepository;
+    private AmtgardIdpJwt $amtgardIdpJwt;
+    private UserAuthority $userAuthority;
+
 
     public function __construct(
+        EntityManager $em,
         LoggerInterface $logger,
         TwigEnvironment $twig,
         ClientRepositoryInterface $clientRepository,
@@ -45,7 +53,9 @@ class ResourcesController
         OrkService $orkService,
         UserOrkProfileRepository $orkProfileRepository,
         UserClientAuthorizationRepository $userClientAuthorizationRepository,
-        UserLoginRepository $userLoginRepository
+        UserLoginRepository $userLoginRepository,
+        AmtgardIdpJwt $amtgardIdpJwt,
+        UserAuthority $userAuthority
     ) {
         $this->logger = $logger;
         $this->twig = $twig;
@@ -58,16 +68,40 @@ class ResourcesController
         $this->userClientAuthorizationRepository = $userClientAuthorizationRepository;
         $this->userLoginRepository = $userLoginRepository;
         $this->redisCacheRepository = $redisCacheRepository;
+        $this->amtgardIdpJwt = $amtgardIdpJwt;
+        $this->userAuthority = $userAuthority;
+    }
+
+    public function getJwt(Request $request, Response $response): Response
+    {
+        $user = Utility::getAuthenticatedUser();
+        if (!$user) {
+            return $response->withStatus(401);
+        }
+
+        $jwt = $this->amtgardIdpJwt->buildSingleUseJwt($user);
+        $response->getBody()->write(json_encode(['jwt' => $jwt]));
+        return $response->withHeader('Content-Type', 'application/json');
     }
 
     public function validate(Request $request, Response $response): Response
     {
         /** @var CachedValidatedUserEntity $user */
         $user = $this->redisCacheRepository->getUser($_SESSION['user_id']);
+        $challengeJwt = Utility::getBearerJwt($request);
+
+        if (!Utility::validateJwtSignature($challengeJwt)) {
+            throw new HttpUnauthorizedException($request, "Not authorized.");
+        }
+
+        if (!Utility::validateJwtClaims($challengeJwt, $user->getJwt())) {
+            throw new HttpUnauthorizedException($request, "Not authorized.");
+        }
 
         $userData = [
             'id' => $user->getUserId(),
-            'email' => $user->getEmail()
+            'email' => $user->getEmail(),
+            'jwt' => $user->getJwt()
         ];
 
         $handle = $this->pubSubQueueHandle->getHandle();
@@ -86,7 +120,8 @@ class ResourcesController
 
         $userData = [
             'id' => $user->getUserId(),
-            'email' => $user->getEmail()
+            'email' => $user->getEmail(),
+            'jwt' => $this->amtgardIdpJwt->buildSingleUseJwt($user)
         ];
 
         $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
@@ -143,12 +178,11 @@ class ResourcesController
 
         $orkProfile = null;
         $userLogins = [];
-        $isAdmin = false;
+        $isAdmin = $this->userAuthority->isAdmin($user);
         if ($user) {
             $clients = $this->clientRepository->findActiveClientsForUser($user->getId());
             $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
             $userLogins = $this->userLoginRepository->getAllLoginsForUser($user->getId());
-            $isAdmin = $user->getRole() === UserRole::Admin;
         }
 
         $response->getBody()->write($this->twig->render('profile.twig', [

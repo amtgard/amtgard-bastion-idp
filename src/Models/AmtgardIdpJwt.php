@@ -17,10 +17,13 @@ class AmtgardIdpJwt
         $this->jwtChallenge = $jwtChallenge;
     }
 
-    public function buildSingleUseJwt(EntityInterface $user, $requesterJwtKey): string {
+    public function buildSingleUseJwt(EntityInterface $user): string {
         $policyJson = $this->userPolicy->getUserPolicy($user)->toJson();
         $challenge = $this->jwtChallenge->createChallenge($user);
+        $privateKey = file_get_contents($_ENV['OAUTH_PRIVATE_KEY']);
+        
         return JWT::encode([
+            'aud' => $_SESSION['client_id'],
             'iat' => time(),
             'sub' => $user->userId,
             'iss' => "https://idp.amtgard.com",
@@ -30,7 +33,7 @@ class AmtgardIdpJwt
             'policy' => $policyJson,
             'challenge' => $challenge,
             'exp' => time() + 120
-        ], empty($requesterJwtKey) ? $_ENV['JWT_KEY'] : $requesterJwtKey, 'HS512');
+        ], $privateKey, 'RS256');
     }
 
     public function validateJwtChallenge(JWT $jwt): bool {

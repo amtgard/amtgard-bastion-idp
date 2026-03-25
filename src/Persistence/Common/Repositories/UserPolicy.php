@@ -9,6 +9,9 @@ use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IAM\Allowance\Policy;
 use Amtgard\IAM\ClaimFactory;
+use Amtgard\IAM\OrkService;
+use Amtgard\IAM\ORN\OrnClassMap;
+use Amtgard\IdP\Models\Orn\IdpClaim;
 
 class UserPolicy
 {
@@ -21,9 +24,10 @@ class UserPolicy
 
     public function getUserPolicy(EntityInterface $user): Policy {
         $this->userClaims->clear();
-        $this->userClaims->user_id = $user->userId;
+        $this->userClaims->user_id = $user->id;
         $policyClaims = [];
         $this->userClaims->find();
+        OrnClassMap::$ORN_CLASS_MAP[OrkService::Idp->value] = IdpClaim::class;
         while ($this->userClaims->next()) {
             $orn = $this->userClaims->service . $this->userClaims->provisos . $this->userClaims->resource;
             $policyClaims[] = ClaimFactory::createOrn($orn);

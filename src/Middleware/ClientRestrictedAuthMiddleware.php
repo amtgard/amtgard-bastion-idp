@@ -42,7 +42,7 @@ class ClientRestrictedAuthMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $jwt = Optional::ofNullable(Utility::validateJwt($request))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
+        $jwt = Optional::ofNullable(Utility::validateJwtSignature($request))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $payload = Optional::ofNullable(value: Utility::parseJwt($jwt))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $oauthUserId = Optional::ofNullable($payload['sub'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $clientId = Optional::ofNullable($payload['aud'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
@@ -60,7 +60,10 @@ class ClientRestrictedAuthMiddleware implements MiddlewareInterface
             $_SESSION['user_id'] = $request->getAttribute('oauth_user_id');
             $_SESSION['client_id'] = $clientId;
             $user = Utility::getAuthenticatedUser();
-            $this->redisCacheRepository->setUser(CachedValidatedUserEntity::builder()->userId($user->getUserId())->email($user->getEmail())->build());
+            $this->redisCacheRepository->setUser(CachedValidatedUserEntity::builder()
+                ->userId($user->getUserId())
+                ->email($user->getEmail())
+                ->build());
             return $handler->handle($request);
         }
     }

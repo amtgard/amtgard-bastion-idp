@@ -165,20 +165,115 @@
                 {% endif %}
             </div>
 
-            {% if isAdmin %}
             <div class="mb-8">
-                <h3 class="text-xl font-serif font-semibold text-tertiary mb-4">Administration</h3>
-                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h3 class="text-xl font-serif font-semibold text-tertiary mb-4">Tools</h3>
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col gap-2">
+                    <button onclick="validateJwt()" class="text-primary hover:text-primary-dark font-bold flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i> Validate JWT
+                    </button>
+                    {% if isAdmin %}
                     <a href="/management/clients" class="text-primary hover:text-primary-dark font-bold flex items-center">
                         <i class="fas fa-users-cog mr-2"></i> Manage Clients
                     </a>
+                    {% endif %}
                 </div>
             </div>
-            {% endif %}
 
             <p>
                 <a href="/auth/logout" class="inline-block bg-primary hover:bg-primary-dark text-white py-2 px-5 rounded no-underline transition-colors duration-200">Logout</a>
             </p>
         </div>
     </div>
+
+    <!-- JWT Validation Modal -->
+    <div id="jwt-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-900">JWT Validation Result</h3>
+                <button onclick="closeJwtModal()" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="mt-2">
+                <pre id="jwt-content" class="bg-gray-100 p-4 rounded overflow-x-auto text-sm font-mono whitespace-pre-wrap break-all"></pre>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function getStoredOrFetchJwt() {
+        let jwt = localStorage.getItem('amtgard_idp_jwt');
+
+        const isExpired = (token) => {
+            if (!token) return true;
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(atob(base64));
+                // Add a small 5-second buffer
+                return payload.exp < (Date.now() / 1000) + 5;
+            } catch (e) {
+                return true;
+            }
+        };
+
+        if (isExpired(jwt)) {
+            const response = await fetch('/resources/jwt');
+            if (!response.ok) {
+                throw new Error('Failed to fetch JWT');
+            }
+            const data = await response.json();
+            jwt = data.jwt;
+            localStorage.setItem('amtgard_idp_jwt', jwt);
+        }
+        return jwt;
+    }
+
+    function validateJwt() {
+        getStoredOrFetchJwt()
+            .then(jwt => {
+                return fetch('/resources/validate', {
+                    headers: {
+                        'Authorization': 'Bearer ' + jwt
+                    }
+                });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP error ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('jwt-content').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('jwt-modal').classList.remove('hidden');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to validate JWT');
+            });
+    }
+
+    function closeJwtModal() {
+        document.getElementById('jwt-modal').classList.add('hidden');
+    }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeJwtModal();
+        }
+    });
+
+    // Close modal when clicking outside
+    document.getElementById('jwt-modal').addEventListener('click', function(event) {
+        if (event.target === this) {
+            closeJwtModal();
+        }
+    });
+</script>
 {% endblock %}
