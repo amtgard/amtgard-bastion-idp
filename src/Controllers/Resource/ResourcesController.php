@@ -84,33 +84,6 @@ class ResourcesController
         return $response->withHeader('Content-Type', 'application/json');
     }
 
-    public function validate(Request $request, Response $response): Response
-    {
-        /** @var CachedValidatedUserEntity $user */
-        $user = $this->redisCacheRepository->getUser($_SESSION['user_id']);
-        $challengeJwt = Utility::getBearerJwt($request);
-
-        if (!Utility::validateJwtSignature($challengeJwt)) {
-            throw new HttpUnauthorizedException($request, "Not authorized.");
-        }
-
-        if (!Utility::validateJwtClaims($challengeJwt, $user->getJwt())) {
-            throw new HttpUnauthorizedException($request, "Not authorized.");
-        }
-
-        $userData = [
-            'id' => $user->getUserId(),
-            'email' => $user->getEmail(),
-            'jwt' => $user->getJwt()
-        ];
-
-        $handle = $this->pubSubQueueHandle->getHandle();
-        $this->redisPubSubQueue->send($handle, $user->getUserId(), $user->getEmail());
-
-        $response->getBody()->write(json_encode($userData));
-        return $response->withHeader('Content-Type', 'application/json');
-    }
-
     public function userinfo(Request $request, Response $response): Response
     {
         $user = Utility::getAuthenticatedUser();
