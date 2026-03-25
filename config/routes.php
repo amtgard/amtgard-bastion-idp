@@ -5,6 +5,7 @@ use Amtgard\IdP\Controllers\Client\AuthController;
 use Amtgard\IdP\Controllers\Client\FacebookAuthController;
 use Amtgard\IdP\Controllers\Client\GoogleAuthController;
 use Amtgard\IdP\Controllers\HomeController;
+use Amtgard\IdP\Controllers\Resource\LowLatencyController;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Management\ManagementController;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
@@ -21,7 +22,7 @@ return function (App $app) {
     $app->get('/', [HomeController::class, 'index'])->setName('home');
 
     $app->group('/resources', function (RouteCollectorProxy $group) {
-        $group->get('/validate', [ResourcesController::class, 'validate'])
+        $group->get('/validate', [LowLatencyController::class, 'validate'])
             ->setName('resources.validate');
 
         // UserRepository info endpoint (protected by access token)
