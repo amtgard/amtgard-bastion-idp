@@ -5,6 +5,7 @@ namespace Amtgard\IdP\Middleware;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\CachedValidatedUserEntity;
+use Amtgard\IdP\Utility\Jwt;
 use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\ResourceServer;
 use Optional\Optional;
@@ -42,8 +43,8 @@ class ClientRestrictedAuthMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $jwt = Optional::ofNullable(Utility::validateJwtSignature($request))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
-        $payload = Optional::ofNullable(value: Utility::parseJwt($jwt))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
+        $jwt = Optional::ofNullable(Jwt::validateJwtSignature($request))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
+        $payload = Optional::ofNullable(value: Jwt::parseJwt($jwt))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $oauthUserId = Optional::ofNullable($payload['sub'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $clientId = Optional::ofNullable($payload['aud'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
 

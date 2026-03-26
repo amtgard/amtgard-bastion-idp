@@ -17,7 +17,7 @@ class AmtgardIdpJwt
         $this->jwtChallenge = $jwtChallenge;
     }
 
-    public function buildSingleUseJwt(EntityInterface $user): string {
+    public function buildAuthorizationJwt(EntityInterface $user): string {
         $policyJson = $this->userPolicy->getUserPolicy($user)->toJson();
         $challenge = $this->jwtChallenge->createChallenge($user);
         $privateKey = file_get_contents($_ENV['OAUTH_PRIVATE_KEY']);
@@ -32,7 +32,7 @@ class AmtgardIdpJwt
             'email' => $user->email,
             'policy' => $policyJson,
             'challenge' => $challenge,
-            'exp' => time() + 120
+            'exp' => time() + 3600
         ], $privateKey, 'RS256');
     }
 

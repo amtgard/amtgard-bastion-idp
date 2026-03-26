@@ -4,6 +4,7 @@ namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\CachedValidatedUserEntity;
+use Amtgard\IdP\Utility\Jwt;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
@@ -36,13 +37,13 @@ class LowLatencyController
             throw new HttpUnauthorizedException($request, "Not authorized.");
         }
 
-        $challengeJwt = Utility::getBearerJwt($request);
+        $challengeJwt = Jwt::getBearerJwt($request);
 
-        if (!$challengeJwt || !Utility::validateJwtSignature($challengeJwt)) {
+        if (!$challengeJwt || !Jwt::validateJwtSignature($challengeJwt)) {
             throw new HttpUnauthorizedException($request, "Not authorized.");
         }
 
-        if (!Utility::validateJwtClaims($challengeJwt, $user->getJwt())) {
+        if (!Jwt::validateJwt($challengeJwt, $user->getJwt())) {
             throw new HttpUnauthorizedException($request, "Not authorized.");
         }
 

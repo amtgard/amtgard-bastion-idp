@@ -11,7 +11,6 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Services\OrkService;
-use Amtgard\IdP\Utility\CachedValidatedUserEntity;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\UserAuthority;
 use Amtgard\IdP\Utility\UserRole;
@@ -21,7 +20,6 @@ use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
-use Slim\Exception\HttpUnauthorizedException;
 use Twig\Environment as TwigEnvironment;
 
 class ResourcesController
@@ -79,7 +77,7 @@ class ResourcesController
             return $response->withStatus(401);
         }
 
-        $jwt = $this->amtgardIdpJwt->buildSingleUseJwt($user);
+        $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($user);
         $response->getBody()->write(json_encode(['jwt' => $jwt]));
         return $response->withHeader('Content-Type', 'application/json');
     }
@@ -94,7 +92,7 @@ class ResourcesController
         $userData = [
             'id' => $user->getUserId(),
             'email' => $user->getEmail(),
-            'jwt' => $this->amtgardIdpJwt->buildSingleUseJwt($user)
+            'jwt' => $this->amtgardIdpJwt->buildAuthorizationJwt($user)
         ];
 
         $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());

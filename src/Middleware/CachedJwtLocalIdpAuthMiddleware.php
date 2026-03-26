@@ -6,6 +6,7 @@ use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\CachedValidatedUserEntity;
+use Amtgard\IdP\Utility\Jwt;
 use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\ResourceServer;
 use Optional\Optional;
@@ -35,8 +36,8 @@ class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
     }
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $jwt = Optional::ofNullable(Utility::validateJwtRequest($request))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
-        $payload = Optional::ofNullable(value: Utility::parseJwt($jwt))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
+        $jwt = Optional::ofNullable(Jwt::validateJwtRequest($request))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
+        $payload = Optional::ofNullable(value: Jwt::parseJwt($jwt))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $oauthUserId = Optional::ofNullable($payload['sub'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $clientId = Optional::ofNullable($payload['aud'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
 
