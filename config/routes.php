@@ -9,6 +9,7 @@ use Amtgard\IdP\Controllers\Resource\LowLatencyController;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Management\ManagementController;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
+use Amtgard\IdP\Controllers\SwaggerController;
 use Amtgard\IdP\Middleware\LocalAdminUserMiddleware;
 use Amtgard\IdP\Middleware\LocalIdpAuthMiddleware;
 use Amtgard\IdP\Middleware\ClientRestrictedAuthMiddleware;
@@ -20,6 +21,10 @@ use Slim\Routing\RouteCollectorProxy;
 return function (App $app) {
     // Home page
     $app->get('/', [HomeController::class, 'index'])->setName('home');
+
+    // Swagger
+    $app->get('/swagger', [SwaggerController::class, 'documentation'])->setName('swagger.documentation');
+    $app->get('/openapi.json', [SwaggerController::class, 'openapi'])->setName('swagger.openapi');
 
     $app->group('/resources', function (RouteCollectorProxy $group) {
         $group->get('/validate', [LowLatencyController::class, 'validate'])

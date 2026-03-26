@@ -17,6 +17,7 @@ use Amtgard\IdP\Utility\UserRole;
 use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
+use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -70,6 +71,27 @@ class ResourcesController
         $this->userAuthority = $userAuthority;
     }
 
+    #[OA\Get(
+        path: '/resources/jwt',
+        operationId: 'getJwt',
+        summary: 'Get a JWT for the authenticated user',
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'JWT response',
+                content: new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        properties: [
+                            new OA\Property(property: 'jwt', type: 'string'),
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     public function getJwt(Request $request, Response $response): Response
     {
         $user = Utility::getAuthenticatedUser();
@@ -82,6 +104,48 @@ class ResourcesController
         return $response->withHeader('Content-Type', 'application/json');
     }
 
+    #[OA\Get(
+        path: '/resources/userinfo',
+        operationId: 'userinfo',
+        summary: 'Get user information',
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'User information response',
+                content: new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        properties: [
+                            new OA\Property(property: 'id', type: 'integer'),
+                            new OA\Property(property: 'email', type: 'string'),
+                            new OA\Property(property: 'jwt', type: 'string'),
+                            new OA\Property(
+                                property: 'ork_profile',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(property: 'mundane_id', type: 'integer'),
+                                    new OA\Property(property: 'username', type: 'string'),
+                                    new OA\Property(property: 'persona', type: 'string'),
+                                    new OA\Property(property: 'suspended', type: 'boolean'),
+                                    new OA\Property(property: 'suspended_at', type: 'string', format: 'date'),
+                                    new OA\Property(property: 'suspended_until', type: 'string', format: 'date'),
+                                    new OA\Property(property: 'park_id', type: 'integer'),
+                                    new OA\Property(property: 'park_name', type: 'string'),
+                                    new OA\Property(property: 'kingdom_id', type: 'integer'),
+                                    new OA\Property(property: 'kingdom_name', type: 'string'),
+                                    new OA\Property(property: 'image', type: 'string'),
+                                    new OA\Property(property: 'heraldry', type: 'string'),
+                                    new OA\Property(property: 'dues_through', type: 'string', format: 'date'),
+                                ]
+                            ),
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     public function userinfo(Request $request, Response $response): Response
     {
         $user = Utility::getAuthenticatedUser();
@@ -118,6 +182,33 @@ class ResourcesController
         return $response->withHeader('Content-Type', 'application/json');
     }
 
+    #[OA\Get(
+        path: '/resources/authorizations',
+        operationId: 'authorizations',
+        summary: 'Get user authorizations',
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'User authorizations response',
+                content: new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        type: 'array',
+                        items: new OA\Items(
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer'),
+                                new OA\Property(property: 'name', type: 'string'),
+                                new OA\Property(property: 'logo', type: 'string'),
+                            ]
+                        )
+                    )
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     public function authorizations(Request $request, Response $response): Response
     {
         $user = Utility::getAuthenticatedUser();
