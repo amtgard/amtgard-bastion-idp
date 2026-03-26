@@ -8,6 +8,7 @@ use Amtgard\IdP\Utility\Jwt;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
+use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Exception\HttpUnauthorizedException;
@@ -28,6 +29,29 @@ class LowLatencyController
         $this->pubSubQueueHandle = $pubSubQueueHandle;
     }
 
+    #[OA\Get(
+        path: '/resources/validate',
+        operationId: 'validate',
+        summary: 'Validate a JWT and get user information',
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'User information response',
+                content: new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        properties: [
+                            new OA\Property(property: 'id', type: 'integer'),
+                            new OA\Property(property: 'email', type: 'string'),
+                            new OA\Property(property: 'jwt', type: 'string'),
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     public function validate(Request $request, Response $response): Response
     {
         /** @var CachedValidatedUserEntity|null $user */

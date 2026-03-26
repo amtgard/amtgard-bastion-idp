@@ -9,6 +9,8 @@ use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
+use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Twig\Environment as TwigEnvironment;
 
@@ -38,7 +40,7 @@ class ManagementController
         $this->clientRepository = $clientRepository;
     }
 
-    public function cleanTokens($request, $response)
+    public function cleanTokens(Request $request, Response $response): Response
     {
         $this->logger->info('Starting token cleanup');
 
@@ -57,7 +59,7 @@ class ManagementController
         }
     }
 
-    public function listClients($request, $response)
+    public function listClients(Request $request, Response $response): Response
     {
         $clients = $this->clientRepository->getAllClients();
         $clientData = array_map(function($client) {
@@ -82,7 +84,7 @@ class ManagementController
         return $response;
     }
 
-    public function createClient($request, $response)
+    public function createClient(Request $request, Response $response): Response
     {
         $data = $request->getParsedBody();
         
@@ -105,7 +107,7 @@ class ManagementController
             ->withStatus(302);
     }
     
-    public function updateClient($request, $response, $id)
+    public function updateClient(Request $request, Response $response, $id): Response
     {
         $data = $request->getParsedBody();
         $client = $this->clientRepository->fetch($id);
