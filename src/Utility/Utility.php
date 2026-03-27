@@ -3,20 +3,21 @@
 namespace Amtgard\IdP\Utility;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IAM\OrkService;
+use Amtgard\IAM\ORN\OrnClassMap;
+use Amtgard\IdP\Models\Orn\IdpClaim;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
-use Lcobucci\Clock\SystemClock;
-use Lcobucci\JWT\Configuration;
-use Lcobucci\JWT\Signer\Key\InMemory;
-use Lcobucci\JWT\Signer\Rsa\Sha256;
-use Lcobucci\JWT\Validation\Constraint\LooseValidAt;
-use Lcobucci\JWT\Validation\Constraint\SignedWith;
 use Optional\Optional;
-use Psr\Http\Message\ServerRequestInterface;
 
 class Utility
 {
+
+    public static $IDP_ORN_CLASS_MAP = [
+        OrkService::Idp->value => IdpClaim::class,
+        ];
+
     public static function userIsAuthenticated() {
         return array_key_exists('user_id', $_SESSION);
     }
@@ -36,5 +37,9 @@ class Utility
         return Optional::ofNullable($user)
             ->map(fn($u) => $u->getUserEntity())
             ->orElse(null);
+    }
+
+    public static function configureIamClasses() {
+        OrnClassMap::$ORN_CLASS_MAP = array_merge(OrnClassMap::$ORN_CLASS_MAP, self::$IDP_ORN_CLASS_MAP);
     }
 }
