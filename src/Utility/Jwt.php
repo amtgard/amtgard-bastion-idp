@@ -2,6 +2,8 @@
 
 namespace Amtgard\IdP\Utility;
 
+use Amtgard\IAM\ClaimFactory;
+use Amtgard\IAM\PolicyFactory;
 use Lcobucci\Clock\SystemClock;
 use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer\Key\InMemory;
@@ -58,19 +60,10 @@ class Jwt
                 return false;
             }
 
-            $challengePolicy = json_decode($challengePolicyJson, true);
-            $userDataPolicy = json_decode($userDataPolicyJson, true);
+            $challengePolicy = PolicyFactory::fromOrn(json_decode($challengePolicyJson, true));
+            $userDataPolicy = PolicyFactory::fromOrn(json_decode($userDataPolicyJson, true));
 
-            // Check if JSON is valid and is an array
-            if (!is_array($challengePolicy) || !is_array($userDataPolicy)) {
-                return false;
-            }
-
-            // Normalize by sorting and compare
-            sort($challengePolicy);
-            sort($userDataPolicy);
-
-            if ($challengePolicy !== $userDataPolicy) {
+            if (!$userDataPolicy->is($challengePolicy)) {
                 return false;
             }
         }

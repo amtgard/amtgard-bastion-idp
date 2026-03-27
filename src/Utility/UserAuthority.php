@@ -17,6 +17,6 @@ class UserAuthority
         $policy = $this->userPolicy->getUserPolicy($user);
         $requirement = new IdpRequirement(OrkService::Idp, "Idp:0::::IDP/EditClient");
 
-        return $policy->grants($requirement);
+        return $policy->isAuthorized($requirement);
     }
 }
