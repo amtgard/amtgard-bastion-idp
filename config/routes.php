@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+use Amtgard\IdP\Controllers\Api\ApiController;
 use Amtgard\IdP\Controllers\Client\AuthController;
 use Amtgard\IdP\Controllers\Client\FacebookAuthController;
 use Amtgard\IdP\Controllers\Client\GoogleAuthController;
@@ -26,11 +27,20 @@ return function (App $app) {
     $app->get('/swagger', [SwaggerController::class, 'documentation'])->setName('swagger.documentation');
     $app->get('/openapi.json', [SwaggerController::class, 'openapi'])->setName('swagger.openapi');
 
+    // Docsify
+    $app->get('/docs[/]', [SwaggerController::class, 'docsify'])->setName('swagger.docsify');
+    $app->get('/docs/readme.md', [SwaggerController::class, 'docsifyContent'])->setName('swagger.docsify_content');
+    $app->get('/docs/README.md', [SwaggerController::class, 'docsifyContent'])->setName('swagger.docsify_content_upper');
+
+    $app->group('/api', function (RouteCollectorProxy $group) {
+        $group->post('/is_authorized', [ApiController::class, 'isAuthorized'])->setName('api.is_authorized');
+    });
+
     $app->group('/resources', function (RouteCollectorProxy $group) {
         $group->get('/validate', [LowLatencyController::class, 'validate'])
             ->setName('resources.validate');
 
-        // UserRepository info endpoint (protected by access token)
+        // UserRepository info endpoint (protected by access access_token)
         $group->get('/userinfo', [ResourcesController::class, 'userInfo'])
             ->add(CachedJwtLocalIdpAuthMiddleware::class)
             ->setName('resources.userinfo');
@@ -112,10 +122,10 @@ return function (App $app) {
         $group->get('/authorize', [OAuth2ServerController::class, 'authorize'])->setName('oauth.authorize');
         $group->post('/authorize', [OAuth2ServerController::class, 'authorizePost']);
 
-        // Token endpoint
+        // access_token endpoint
         $group->post('/token', [OAuth2ServerController::class, 'token'])->setName('oauth.token');
 
-        // Token endpoint
+        // access_token endpoint
         $group->map(['GET', 'POST'], '/approve', [OAuth2ServerController::class, 'approve'])->setName('oauth.approve');
 
     });
