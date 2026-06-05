@@ -5,7 +5,9 @@ namespace Amtgard\IdP\Controllers\Client;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Amtgard\IdP\Utility\Constants;
+use Amtgard\IdP\Utility\Exception\MalformedUserPolicyException;
 use Amtgard\IdP\Utility\Security\RedirectValidator;
+use Amtgard\IdP\Utility\Security\ScriptAlertResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
@@ -36,7 +38,23 @@ class BaseAuthController
         $routeParser = $routeContext->getRouteParser();
 
         $this->logger->info("Building JWT for " . $login->user->getEmail());
-        $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($login->user);
+        try {
+            $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($login->user);
+        } catch (MalformedUserPolicyException $e) {
+            $this->logger->error('Malformed IDP access policy at login', [
+                'email' => $login->user->getEmail(),
+                'detail' => $e->getPrevious()?->getMessage(),
+            ]);
+            session_unset();
+
+            $response->getBody()->write(
+                ScriptAlertResponse::alertAndRedirect(
+                    MalformedUserPolicyException::USER_MESSAGE,
+                    '/auth/login'
+                )
+            );
+            return $response;
+        }
 
         $profileUrl = $routeParser->urlFor('resources.profile');
         $storedRedirect = RedirectValidator::sanitizeOrNull($_SESSION['redirect'] ?? null);
