@@ -21,7 +21,21 @@ class RedisCacheRepository
     }
 
     public function getUser(string $userId): ?CachedValidatedUserEntity {
-        return $this->redis->get($userId) ? unserialize($this->redis->get($userId)) : null;
+        $cached = $this->redis->get($userId);
+        if (!$cached) {
+            return null;
+        }
+
+        $user = unserialize($cached);
+        if (!$user instanceof CachedValidatedUserEntity) {
+            return null;
+        }
+
+        if (method_exists($user, '__wakeup')) {
+            $user->__wakeup();
+        }
+
+        return $user;
     }
 
     public function setUser(CachedValidatedUserEntity $userEntity): void {
