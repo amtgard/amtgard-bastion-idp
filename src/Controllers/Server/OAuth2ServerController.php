@@ -3,6 +3,7 @@
 namespace Amtgard\IdP\Controllers\Server;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Utility\Security\RedirectValidator;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Exception;
 use League\OAuth2\Server\AuthorizationServer;
@@ -75,7 +76,7 @@ class OAuth2ServerController
         if ($request->getMethod() === 'POST') {
             $data = (array) $request->getParsedBody();
             $action = $data['action'] ?? null;
-            $callback = $data['callback'] ?? '/';
+            $callback = RedirectValidator::sanitize($data['callback'] ?? '/', '/');
 
             if ($action === 'allow') {
                 $_SESSION['approved'] = true;
@@ -115,7 +116,7 @@ class OAuth2ServerController
         $scopes = !empty($scopeString) ? explode(',', $scopeString) : [];
         $clientId = $queryParams['client_id'] ?? 'Unknown Application';
         $client = $this->clientRepository->getClientEntity($clientId);
-        $callback = $queryParams['callback'] ?? '/';
+        $callback = RedirectValidator::sanitize($queryParams['callback'] ?? '/', '/');
 
         $response->getBody()->write(
             $this->view->render('oauth_approve.twig', [

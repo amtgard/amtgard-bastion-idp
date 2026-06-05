@@ -5,6 +5,8 @@ namespace Amtgard\IdP\Controllers\Client;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Utility\Security\RedirectValidator;
+use Amtgard\IdP\Utility\Security\ScriptAlertResponse;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use League\OAuth2\Client\Provider\Facebook;
@@ -56,9 +58,10 @@ class AuthController extends BaseAuthController
      */
     public function loginForm(Request $request, Response $response): Response
     {
+        $queryParams = $request->getQueryParams();
         $response->getBody()->write($this->twig->render('login_form.twig', [
-            'redirect' => $request->getQueryParams()['redirect'],
-            'jwtpublickey' => $request->getQueryParams()['jwtpublickey']
+            'redirect' => RedirectValidator::sanitizeOrNull($queryParams['redirect'] ?? null) ?? '',
+            'jwtpublickey' => $queryParams['jwtpublickey'] ?? ''
         ]));
         return $response;
     }
@@ -76,21 +79,21 @@ class AuthController extends BaseAuthController
         $email = $data['email'] ?? '';
         $password = $data['password'] ?? '';
 
-        $user = $this->users->getUserByEmail($email);
         $login = Optional::ofNullable($this->users->getUserByEmail($email))
-            ->map(function ($user) {
-                return $this->logins->getLoginByUser($user);
-            })->orElse(null);
+            ->map(fn($user) => $this->logins->getLoginByUser($user))
+            ->orElse(null);
+
+        $isPasswordCorrect = Optional::ofNullable($login)
+            ->map(fn($l) => $l->getPassword())
+            ->filter(fn($p) => password_verify($password, $p))
+            ->isPresent();
 
         // Check if user exists and password is correct
-        if ($login === null || $login->getPassword() === null || !password_verify($password, $login->getPassword())) {
+        if (!$isPasswordCorrect) {
             // Invalid credentials, redirect back to login form
-            $response->getBody()->write('
-                <script>
-                    alert("Invalid email or password");
-                    window.location.href = "/auth/login";
-                </script>
-            ');
+            $response->getBody()->write(
+                ScriptAlertResponse::alertAndRedirect('Invalid email or password', '/auth/login')
+            );
             return $response;
         }
 
@@ -111,6 +114,38 @@ class AuthController extends BaseAuthController
         return $response;
     }
 
+    private function validateRequiredFields(string $firstName, string $lastName, string $email, string $password): ?string
+    {
+        if (empty($firstName) || empty($lastName) || empty($email) || empty($password)) {
+            return ScriptAlertResponse::alertAndRedirect('All fields are required', '/auth/register');
+        }
+        return null;
+    }
+
+    private function validateEmailFormat(string $email): ?string
+    {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ScriptAlertResponse::alertAndRedirect('Invalid email format', '/auth/register');
+        }
+        return null;
+    }
+
+    private function validatePasswordsMatch(string $password, string $confirmPassword): ?string
+    {
+        if ($password !== $confirmPassword) {
+            return ScriptAlertResponse::alertAndRedirect('Passwords do not match', '/auth/register');
+        }
+        return null;
+    }
+
+    private function validateEmailIsUnique(string $email): ?string
+    {
+        if ($this->users->userExists($email)) {
+            return ScriptAlertResponse::alertAndRedirect('Email already registered', '/auth/register');
+        }
+        return null;
+    }
+
     /**
      * Handle registration form submission.
      *
@@ -127,47 +162,13 @@ class AuthController extends BaseAuthController
         $password = $data['password'] ?? '';
         $confirmPassword = $data['confirmPassword'] ?? '';
 
-        // Validate input
-        if (empty($firstName) || empty($lastName) || empty($email) || empty($password)) {
-            $response->getBody()->write('
-                <script>
-                    alert("All fields are required");
-                    window.location.href = "/auth/register";
-                </script>
-            ');
-            return $response;
-        }
+        $validationResult = $this->validateRequiredFields($firstName, $lastName, $email, $password)
+            ?? $this->validateEmailFormat($email)
+            ?? $this->validatePasswordsMatch($password, $confirmPassword)
+            ?? $this->validateEmailIsUnique($email);
 
-        // Validate email
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $response->getBody()->write('
-                <script>
-                    alert("Invalid email format");
-                    window.location.href = "/auth/register";
-                </script>
-            ');
-            return $response;
-        }
-
-        // Check if passwords match
-        if ($password !== $confirmPassword) {
-            $response->getBody()->write('
-                <script>
-                    alert("Passwords do not match");
-                    window.location.href = "/auth/register";
-                </script>
-            ');
-            return $response;
-        }
-
-        // Check if email already exists
-        if ($this->users->userExists($email)) {
-            $response->getBody()->write('
-                <script>
-                    alert("Email already registered");
-                    window.location.href = "/auth/register";
-                </script>
-            ');
+        if ($validationResult !== null) {
+            $response->getBody()->write($validationResult);
             return $response;
         }
 

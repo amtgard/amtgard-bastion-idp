@@ -29,6 +29,7 @@ class ResourcesController
 
     protected LoggerInterface $logger;
     private ClientRepositoryInterface $clientRepository;
+    private Database $database;
     private PubSubQueue $redisPubSubQueue;
     private PubSubQueueHandle $pubSubQueueHandle;
     private OrkService $orkService;

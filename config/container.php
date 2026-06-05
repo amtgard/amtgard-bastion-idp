@@ -79,8 +79,8 @@ return [
         return UncachedPolicy::builder()->build();
     },
 
-    UserClientAuthorizationRepository::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(UserClientAuthorizationRepository::class);
+    UserClientAuthorizationRepository::class => function (EntityManager $em) {
+        return $em->getRepository(UserClientAuthorizationRepository::class);
     },
 
     EntityManager::class => function (ContainerInterface $container) {
@@ -93,44 +93,44 @@ return [
         return $em;
     },
 
-    UserRepository::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(UserRepository::class);
+    UserRepository::class => function (EntityManager $em) {
+        return $em->getRepository(UserRepository::class);
     },
 
-    UserRepositoryInterface::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(UserRepository::class);
+    UserRepositoryInterface::class => function (EntityManager $em) {
+        return $em->getRepository(UserRepository::class);
     },
 
-    UserLoginRepository::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(UserLoginRepository::class);
+    UserLoginRepository::class => function (EntityManager $em) {
+        return $em->getRepository(UserLoginRepository::class);
     },
 
-    UserOrkProfileRepository::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(UserOrkProfileRepository::class);
+    UserOrkProfileRepository::class => function (EntityManager $em) {
+        return $em->getRepository(UserOrkProfileRepository::class);
     },
 
-    ClientRepositoryInterface::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(ClientRepository::class);
+    ClientRepositoryInterface::class => function (EntityManager $em) {
+        return $em->getRepository(ClientRepository::class);
     },
 
-    ScopeRepositoryInterface::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(ScopeRepository::class);
+    ScopeRepositoryInterface::class => function (EntityManager $em) {
+        return $em->getRepository(ScopeRepository::class);
     },
 
-    AccessTokenRepositoryInterface::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(AccessTokenRepository::class);
+    AccessTokenRepositoryInterface::class => function (EntityManager $em) {
+        return $em->getRepository(AccessTokenRepository::class);
     },
 
-    AuthCodeRepositoryInterface::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(AuthCodeRepository::class);
+    AuthCodeRepositoryInterface::class => function (EntityManager $em) {
+        return $em->getRepository(AuthCodeRepository::class);
     },
 
     ManagementMiddleware::class => function (ContainerInterface $container) {
         return new ManagementMiddleware();
     },
 
-    RefreshTokenRepositoryInterface::class => function (ContainerInterface $container) {
-        return EntityManager::getManager()->getRepository(RefreshTokenRepository::class);
+    RefreshTokenRepositoryInterface::class => function (EntityManager $em) {
+        return $em->getRepository(RefreshTokenRepository::class);
     },
 
     OAuthServerConfiguration::class => function (ContainerInterface $container) {
