@@ -54,8 +54,14 @@ Utility::configureIamClasses();
 return [
         // Logger
     LoggerInterface::class => function () {
+        $logDir = __DIR__ . '/../logs';
+        if (!is_dir($logDir)) {
+            mkdir($logDir, 0755, true);
+        }
+
+        $level = ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? Logger::DEBUG : Logger::ERROR;
         $logger = new Logger('app');
-        $logger->pushHandler(new StreamHandler(__DIR__ . '/../logs/app.log', Logger::DEBUG));
+        $logger->pushHandler(new StreamHandler($logDir . '/app.log', $level));
         return $logger;
     },
 

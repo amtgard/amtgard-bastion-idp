@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-error_reporting(E_ERROR | E_PARSE);
-ini_set('display_errors', '1');
-
+error_reporting(E_ALL);
 
 use DI\Bridge\Slim\Bridge;
 use DI\ContainerBuilder;
@@ -15,6 +13,9 @@ require __DIR__ . '/../vendor/autoload.php';
 // Load environment variables
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->safeLoad();
+
+$debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
+ini_set('display_errors', $debug ? '1' : '0');
 
 // Set up dependency injection container
 $containerBuilder = new ContainerBuilder();
