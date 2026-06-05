@@ -89,7 +89,7 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
 
         return Optional::ofNullable($client)
             ->map(function ($client) use ($clientSecret, $grantType, $self) {
-                $gate = $client->getClientEntity()->getClientSecret() == $clientSecret;
+                $gate = hash_equals((string) $client->getClientEntity()->getClientSecret(), (string) $clientSecret);
                 $gate &= $self->validateGrant($client, $grantType);
                 return $gate;
             })

@@ -49,6 +49,7 @@ class ManagementControllerTest extends TestCase
     private $refreshTokens;
     private $authCodes;
     private $clientRepository;
+    private $orkLinkTokenService;
     private $request;
     private $response;
     private $stream;
@@ -77,6 +78,7 @@ class ManagementControllerTest extends TestCase
         $this->refreshTokens = $this->createMock(\Amtgard\IdP\Persistence\Server\Repositories\RefreshTokenRepository::class);
         $this->authCodes = $this->createMock(\Amtgard\IdP\Persistence\Server\Repositories\AuthCodeRepository::class);
         $this->clientRepository = $this->createMock(ClientRepository::class);
+        $this->orkLinkTokenService = $this->createMock(\Amtgard\IdP\Services\OrkLinkTokenService::class);
 
         $this->request = $this->createMock(ServerRequestInterface::class);
         $this->response = $this->createMock(ResponseInterface::class);
@@ -93,7 +95,8 @@ class ManagementControllerTest extends TestCase
             $this->accessTokens,
             $this->refreshTokens,
             $this->authCodes,
-            $this->clientRepository
+            $this->clientRepository,
+            $this->orkLinkTokenService
         );
     }
 
@@ -103,6 +106,7 @@ class ManagementControllerTest extends TestCase
         $this->refreshTokens->expects($this->once())->method('deleteExpiredTokens');
         $this->refreshTokens->expects($this->once())->method('deleteOrphanedRefreshTokens');
         $this->authCodes->expects($this->once())->method('deleteExpiredAuthCodes');
+        $this->orkLinkTokenService->expects($this->once())->method('cleanExpiredJti');
 
         $this->stream->expects($this->once())
             ->method('write')

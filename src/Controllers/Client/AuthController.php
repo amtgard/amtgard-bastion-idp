@@ -59,8 +59,16 @@ class AuthController extends BaseAuthController
     public function loginForm(Request $request, Response $response): Response
     {
         $queryParams = $request->getQueryParams();
+        $redirect = RedirectValidator::sanitizeOrNull($queryParams['redirect'] ?? null) ?? '';
+        // Stash the validated redirect into the session so finalizeAuthorization
+        // can route back to the originating /oauth/authorize after credentials
+        // are validated. (Google/Discord controllers do the same, but email
+        // login was missing it.)
+        if ($redirect !== '') {
+            $_SESSION['redirect'] = $redirect;
+        }
         $response->getBody()->write($this->twig->render('login_form.twig', [
-            'redirect' => RedirectValidator::sanitizeOrNull($queryParams['redirect'] ?? null) ?? '',
+            'redirect' => $redirect,
             'jwtpublickey' => $queryParams['jwtpublickey'] ?? ''
         ]));
         return $response;
@@ -180,11 +188,11 @@ class AuthController extends BaseAuthController
     }
 
     /**
-     * Logout the user.
-     *
-     * @param Request $request
-     * @param Response $response
-     * @return Response
+     * Logout the user. Supports OIDC RP-initiated logout style: a relying
+     * party may pass ?post_logout_redirect_uri=<url> to be redirected back
+     * after the IDP session is destroyed.  The redirect URI is validated
+     * against the configured ORK_BASE_URL — only same-origin redirects are
+     * accepted so this endpoint cannot be turned into an open redirect.
      */
     public function logout(Request $request, Response $response): Response
     {
@@ -192,12 +200,51 @@ class AuthController extends BaseAuthController
         session_unset();
         session_destroy();
 
-        // Redirect to home page
+        // RP-initiated logout: optionally redirect back to a trusted origin.
+        $params  = $request->getQueryParams();
+        $postUri = isset($params['post_logout_redirect_uri']) ? trim((string)$params['post_logout_redirect_uri']) : '';
+        if ($postUri !== '' && $this->isAllowedPostLogoutUri($postUri)) {
+            return $response->withHeader('Location', $postUri)->withStatus(302);
+        }
+
+        // Default: home page.
         $routeContext = RouteContext::fromRequest($request);
         $routeParser = $routeContext->getRouteParser();
-
         return $response
             ->withHeader('Location', $routeParser->urlFor('home'))
             ->withStatus(302);
+    }
+
+    /**
+     * Validate a post-logout redirect URI against the configured ORK_BASE_URL.
+     * Accepts only same-scheme-and-host-and-port matches; rejects anything
+     * with auth info, fragments, or non-http(s) schemes.
+     */
+    private function isAllowedPostLogoutUri(string $uri): bool
+    {
+        $base = $_ENV['ORK_BASE_URL'] ?? '';
+        if ($base === '') {
+            return false;
+        }
+        $baseParts = parse_url($base);
+        $uriParts  = parse_url($uri);
+        if (!is_array($baseParts) || !is_array($uriParts)) {
+            return false;
+        }
+        if (!in_array(($uriParts['scheme'] ?? ''), ['http', 'https'], true)) {
+            return false;
+        }
+        if (isset($uriParts['user']) || isset($uriParts['pass'])) {
+            return false;
+        }
+        if (($uriParts['scheme'] ?? '') !== ($baseParts['scheme'] ?? '')) {
+            return false;
+        }
+        if (strcasecmp($uriParts['host'] ?? '', $baseParts['host'] ?? '') !== 0) {
+            return false;
+        }
+        $basePort = $baseParts['port'] ?? (($baseParts['scheme'] ?? '') === 'https' ? 443 : 80);
+        $uriPort  = $uriParts['port']  ?? (($uriParts['scheme']  ?? '') === 'https' ? 443 : 80);
+        return $basePort === $uriPort;
     }
 }

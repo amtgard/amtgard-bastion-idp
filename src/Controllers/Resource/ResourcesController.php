@@ -8,6 +8,7 @@ use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
+use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Services\OrkService;
@@ -18,6 +19,7 @@ use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use OpenApi\Attributes as OA;
+use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -34,6 +36,7 @@ class ResourcesController
     private PubSubQueueHandle $pubSubQueueHandle;
     private OrkService $orkService;
     private UserOrkProfileRepository $orkProfileRepository;
+    private UserRepository $userRepository;
     private UserClientAuthorizationRepository $userClientAuthorizationRepository;
     private UserLoginRepository $userLoginRepository;
     private RedisCacheRepository $redisCacheRepository;
@@ -52,6 +55,7 @@ class ResourcesController
         Database $database,
         OrkService $orkService,
         UserOrkProfileRepository $orkProfileRepository,
+        UserRepository $userRepository,
         UserClientAuthorizationRepository $userClientAuthorizationRepository,
         UserLoginRepository $userLoginRepository,
         AmtgardIdpJwt $amtgardIdpJwt,
@@ -65,6 +69,7 @@ class ResourcesController
         $this->pubSubQueueHandle = $pubSubQueueHandle;
         $this->orkService = $orkService;
         $this->orkProfileRepository = $orkProfileRepository;
+        $this->userRepository = $userRepository;
         $this->userClientAuthorizationRepository = $userClientAuthorizationRepository;
         $this->userLoginRepository = $userLoginRepository;
         $this->redisCacheRepository = $redisCacheRepository;
@@ -365,6 +370,58 @@ class ResourcesController
         $this->orkProfileRepository->saveOrUpdateProfile($playerData, $parkData, $token, $user->getId());
 
         return $response->withHeader('Location', '/resources/profile?success=refreshed')->withStatus(302);
+    }
+
+    /**
+     * Server-to-server endpoint called by ORK to mirror a successful ORK-side
+     * link-write back into the IDP. Behind ConfidentialClientBasicAuthMiddleware
+     * so only the configured ORK confidential client can invoke it.
+     *
+     * Request:  { "idp_user_id": "<uuid string>", "mundane_id": 12345 }
+     * Response: 204 on success, 400/404/409 on failure (idempotent).
+     */
+    public function linkOrkProfile(Request $request, Response $response): Response
+    {
+        $body = (array) $request->getParsedBody();
+        $idpUserId = Optional::ofNullable($body['idp_user_id'] ?? null)
+            ->map(fn($v) => trim((string)$v))
+            ->filter(fn($v) => $v !== '')
+            ->orElse(null);
+        $mundaneId = Optional::ofNullable($body['mundane_id'] ?? null)
+            ->map(fn($v) => (int)$v)
+            ->filter(fn($v) => $v > 0)
+            ->orElse(null);
+
+        if ($idpUserId === null || $mundaneId === null) {
+            $response->getBody()->write(json_encode(['error' => 'idp_user_id (string) and mundane_id (positive int) are required']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
+        $userOpt = Optional::ofNullable($this->userRepository->findUserByUserId($idpUserId));
+        if (!$userOpt->isPresent()) {
+            $this->logger->info('linkOrkProfile unknown idp_user_id', ['idp_user_id' => $idpUserId]);
+            $response->getBody()->write(json_encode(['error' => 'unknown idp_user_id']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+        }
+        $user = $userOpt->get();
+
+        try {
+            $this->orkProfileRepository->linkExistingUserToMundane($user->getId(), $mundaneId, 'mirror');
+        } catch (\RuntimeException $e) {
+            if (str_contains($e->getMessage(), 'conflict')) {
+                $this->logger->warning('linkOrkProfile conflict', [
+                    'idp_user_id' => $idpUserId,
+                    'requested_mundane_id' => $mundaneId,
+                    'msg' => $e->getMessage(),
+                ]);
+                $response->getBody()->write(json_encode(['error' => 'idp_user_id already linked to a different mundane_id']));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(409);
+            }
+            throw $e;
+        }
+
+        $this->logger->info('linkOrkProfile success', ['idp_user_id' => $idpUserId, 'mundane_id' => $mundaneId]);
+        return $response->withStatus(204);
     }
 
     public function revokeAuthorization(Request $request, Response $response): Response

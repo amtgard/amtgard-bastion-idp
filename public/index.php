@@ -8,7 +8,9 @@ use Slim\Factory\AppFactory;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-// Load environment variables
+// Load environment variables from the gitignored .env file. Keeping a single
+// loaded env file (never committed) avoids the risk of secrets leaking via a
+// checked-in dev env. safeLoad() doesn't error when the file is missing.
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->safeLoad();
 

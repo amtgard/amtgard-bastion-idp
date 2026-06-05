@@ -105,6 +105,7 @@ class ResourcesControllerTest extends TestCase
         $this->database = $this->createMock(Database::class);
         $this->orkService = $this->createMock(OrkService::class);
         $this->orkProfileRepository = $this->createMock(UserOrkProfileRepository::class);
+        $this->userRepository = $this->createMock(UserRepository::class);
         $this->userClientAuthorizationRepository = $this->createMock(UserClientAuthorizationRepository::class);
         $this->userLoginRepository = $this->createMock(UserLoginRepository::class);
         $this->amtgardIdpJwt = $this->createMock(AmtgardIdpJwt::class);
@@ -143,6 +144,7 @@ class ResourcesControllerTest extends TestCase
             $this->database,
             $this->orkService,
             $this->orkProfileRepository,
+            $this->userRepository,
             $this->userClientAuthorizationRepository,
             $this->userLoginRepository,
             $this->amtgardIdpJwt,
