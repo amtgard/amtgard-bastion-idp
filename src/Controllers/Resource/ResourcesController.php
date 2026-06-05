@@ -240,8 +240,9 @@ class ResourcesController
 
         $orkProfile = null;
         $userLogins = [];
-        $isAdmin = $this->userAuthority->isAdmin($user);
+        $isAdmin = false;
         if ($user) {
+            $isAdmin = $this->userAuthority->isAdmin($user);
             $clients = $this->clientRepository->findActiveClientsForUser($user->getId());
             $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
             $userLogins = $this->userLoginRepository->getAllLoginsForUser($user->getId());
