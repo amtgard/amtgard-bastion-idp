@@ -7,7 +7,7 @@ cd "$ROOT"
 GIT_BRANCH="${GIT_BRANCH:-main}"
 WEB_USER="${WEB_USER:-www-data}"
 WEB_GROUP="${WEB_GROUP:-www-data}"
-COMPOSER_FLAGS="${COMPOSER_FLAGS:---no-dev --optimize-autoloader}"
+COMPOSER_FLAGS="${COMPOSER_FLAGS:---no-dev --optimize-autoloader --ignore-platform-reqs}"
 PHINX_ENV="${PHINX_ENV:-production}"
 
 run_as_web_user() {
