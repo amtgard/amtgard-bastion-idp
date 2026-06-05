@@ -227,9 +227,10 @@ return [
     PubSubQueueHandle::class => function (ContainerInterface $container) {
         $queue = $container->get(SetQueue::class);
         $pubSub = $container->get(PubSubQueue::class);
-        $handle = $pubSub->addQueue($queue);
+        $queueName = $_ENV['REDIS_PUBLISHER_NAME'];
+        $pubSub->addQueue($queueName, $queue);
 
-        return PubSubQueueHandle::builder()->handle($handle)->build();
+        return PubSubQueueHandle::builder()->handle($queueName)->build();
     },
 
     SetQueue::class => function (ContainerInterface $container) {
