@@ -10,5 +10,10 @@ class CachedValidatedUserEntity
     use Builder, Getter;
     private string $userId;
     private string $email;
-    private string $jwt;
+    private ?string $jwt = null;
+
+    public function hasJwt(): bool
+    {
+        return isset($this->jwt);
+    }
 }

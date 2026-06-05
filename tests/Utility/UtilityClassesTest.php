@@ -34,6 +34,17 @@ class UtilityClassesTest extends TestCase
         $this->assertSame('user-1', $entity->getUserId());
         $this->assertSame('test@example.com', $entity->getEmail());
         $this->assertSame('jwt-string', $entity->getJwt());
+        $this->assertTrue($entity->hasJwt());
+    }
+
+    public function testCachedValidatedUserEntityWithoutJwt(): void
+    {
+        $entity = CachedValidatedUserEntity::builder()
+            ->userId('user-1')
+            ->email('test@example.com')
+            ->build();
+
+        $this->assertFalse($entity->hasJwt());
     }
 
     public function testConstants(): void

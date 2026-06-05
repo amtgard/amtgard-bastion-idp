@@ -151,12 +151,12 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
             ->willReturn($userRepo);
 
         $this->redisCacheRepository->expects($this->once())
-            ->method('setUser')
-            ->with($this->callback(function ($cachedUser) {
-                return $cachedUser instanceof CachedValidatedUserEntity 
-                    && $cachedUser->getUserId() === 'user-123'
-                    && $cachedUser->getEmail() === 'test@example.com';
-            }));
+            ->method('cacheValidatedUser')
+            ->with(
+                'user-123',
+                'test@example.com',
+                $this->isType('string')
+            );
 
         $this->handler->expects($this->once())
             ->method('handle')

@@ -67,14 +67,23 @@ class LowLatencyController
             throw new HttpUnauthorizedException($request, "Not authorized.");
         }
 
-        if (!Jwt::validateJwt($challengeJwt, $user->getJwt())) {
+        $cachedJwt = $user->hasJwt() ? $user->getJwt() : $challengeJwt;
+        if (!$user->hasJwt()) {
+            $this->redisCacheRepository->cacheValidatedUser(
+                $user->getUserId(),
+                $user->getEmail(),
+                $challengeJwt
+            );
+        }
+
+        if (!Jwt::validateJwt($challengeJwt, $cachedJwt)) {
             throw new HttpUnauthorizedException($request, "Not authorized.");
         }
 
         $userData = [
             'id' => $user->getUserId(),
             'email' => $user->getEmail(),
-            'jwt' => $user->getJwt()
+            'jwt' => $cachedJwt
         ];
 
         $handle = $this->pubSubQueueHandle->getHandle();
