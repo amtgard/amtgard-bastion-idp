@@ -175,11 +175,29 @@ class OAuth2ServerController
 
             return $this->finalizeAuthorization($authRequest, $response);
         } catch (OAuthServerException $exception) {
+            $this->logger->error('OAuth authorization server exception', [
+                'message' => $exception->getMessage(),
+                'hint' => $exception->getHint(),
+            ]);
+
+            if ($request->getMethod() === 'GET') {
+                $response->getBody()->write(
+                    $this->view->render('error.twig', [
+                        'title' => 'OAuth Authorization Error',
+                        'message' => $exception->getMessage(),
+                        'hint' => $exception->getHint()
+                    ])
+                );
+                return $response->withStatus($exception->getHttpStatusCode());
+            }
 
             $response = $exception->generateHttpResponse($response);
 
         } catch (Exception $exception) {
-
+            $this->logger->error('General exception during OAuth authorization', [
+                'message' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString()
+            ]);
             $response = $response->withStatus(500);
         }
         return $response;

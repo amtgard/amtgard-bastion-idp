@@ -63,6 +63,9 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
     {
         /** @var Client $client */
         $client = $this->fetchBy('identifier', $clientIdentifier);
+        if (!$client) {
+            return null;
+        }
         $redirectUris = json_decode($client->getRedirectUri());
         if (!is_array($redirectUris)) {
             $redirectUris = [$client->getRedirectUri()];
