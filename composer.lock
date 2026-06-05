@@ -64,6 +64,41 @@
             "time": "2026-06-01T15:15:17+00:00"
         },
         {
+            "name": "amtgard/amtgard-interfaces",
+            "version": "v1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/amtgard/amtgard-interfaces.git",
+                "reference": "cfed672af5a29d9b649a93b484445d58ad3e86a4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/amtgard/amtgard-interfaces/zipball/cfed672af5a29d9b649a93b484445d58ad3e86a4",
+                "reference": "cfed672af5a29d9b649a93b484445d58ad3e86a4",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Amtgard\\Interface\\": "./src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Generic interfaces for use by Amtgard dependencies",
+            "homepage": "https://github.com/amtgard/amtgard-interfaces",
+            "support": {
+                "issues": "https://github.com/amtgard/amtgard-interfaces/issues",
+                "source": "https://github.com/amtgard/amtgard-interfaces/tree/v1.0.2"
+            },
+            "time": "2025-08-01T18:39:20+00:00"
+        },
+        {
             "name": "amtgard/builder-traits",
             "version": "v2.2.2",
             "source": {
@@ -232,26 +267,28 @@
         },
         {
             "name": "amtgard/redis-set-queue",
-            "version": "v1.0.1",
+            "version": "v1.1.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/amtgard/redis-set-queue.git",
-                "reference": "8255157b5d517c74b90238379aec1d166891dac5"
+                "reference": "86ac6f37cc93d5105c7eb1a92830943a977de399"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/amtgard/redis-set-queue/zipball/8255157b5d517c74b90238379aec1d166891dac5",
-                "reference": "8255157b5d517c74b90238379aec1d166891dac5",
+                "url": "https://api.github.com/repos/amtgard/redis-set-queue/zipball/86ac6f37cc93d5105c7eb1a92830943a977de399",
+                "reference": "86ac6f37cc93d5105c7eb1a92830943a977de399",
                 "shasum": ""
             },
             "require": {
+                "amtgard/amtgard-interfaces": "^1.0",
+                "amtgard/builder-traits": "^2.0",
                 "ext-redis": "*",
                 "jedibc/optional": "^1.0",
                 "php": ">=8.1"
             },
             "require-dev": {
                 "phake/phake": "^4.5",
-                "phpunit/phpunit": "^11.2"
+                "phpunit/phpunit": "^11.5.28"
             },
             "type": "library",
             "autoload": {
@@ -267,9 +304,9 @@
             "homepage": "https://github.com/amtgard/redis-set-queue",
             "support": {
                 "issues": "https://github.com/amtgard/redis-set-queue/issues",
-                "source": "https://github.com/amtgard/redis-set-queue/tree/v1.0.1"
+                "source": "https://github.com/amtgard/redis-set-queue/tree/v1.1.2"
             },
-            "time": "2025-05-06T14:43:12+00:00"
+            "time": "2026-06-05T17:26:30+00:00"
         },
         {
             "name": "brick/math",

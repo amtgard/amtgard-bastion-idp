@@ -99,7 +99,7 @@ class LowLatencyController
         ];
 
         $handle = $this->pubSubQueueHandle->getHandle();
-        $this->redisPubSubQueue->send($handle, $user->getUserId(), $user->getEmail());
+        $this->redisPubSubQueue->publish($handle, $user->getUserId(), $user->getEmail());
 
         $response->getBody()->write(json_encode($userData));
         return $response->withHeader('Content-Type', 'application/json');

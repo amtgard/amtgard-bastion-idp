@@ -160,7 +160,7 @@ class LowLatencyControllerTest extends TestCase
             ->willReturn('Bearer ' . $jwt);
 
         $this->redisPubSubQueue->expects($this->once())
-            ->method('send')
+            ->method('publish')
             ->with('test-handle', 'user-123', 'test@example.com');
 
         $this->stream->expects($this->once())
@@ -201,7 +201,7 @@ class LowLatencyControllerTest extends TestCase
             ->willReturn('Bearer ' . $jwt);
 
         $this->redisPubSubQueue->expects($this->once())
-            ->method('send')
+            ->method('publish')
             ->with('test-handle', 'user-123', 'test@example.com');
 
         $this->stream->expects($this->once())
@@ -242,7 +242,7 @@ class LowLatencyControllerTest extends TestCase
             ->willReturn('Bearer ' . $jwt);
 
         $this->redisPubSubQueue->expects($this->once())
-            ->method('send')
+            ->method('publish')
             ->with('test-handle', 'user-123', 'test@example.com');
 
         $this->stream->expects($this->once())
