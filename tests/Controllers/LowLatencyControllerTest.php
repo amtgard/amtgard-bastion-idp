@@ -57,12 +57,33 @@ class LowLatencyControllerTest extends TestCase
         );
     }
 
-    public function testValidateThrowsUnauthorizedWhenNoUser(): void
+    public function testValidateThrowsUnauthorizedWhenNoBearerToken(): void
     {
-        $this->redisCacheRepository->expects($this->once())
-            ->method('getUser')
-            ->with(0)
-            ->willReturn(null);
+        $this->request->expects($this->once())
+            ->method('getHeaderLine')
+            ->with('Authorization')
+            ->willReturn('');
+
+        $this->redisCacheRepository->expects($this->never())
+            ->method('getUser');
+
+        $this->expectException(HttpUnauthorizedException::class);
+
+        $this->controller->validate($this->request, $this->response);
+    }
+
+    public function testValidateThrowsUnauthorizedWhenSessionMissing(): void
+    {
+        $_SESSION = [];
+
+        $jwt = $this->generateValidJwt('user-123', 'test@example.com');
+        $this->request->expects($this->once())
+            ->method('getHeaderLine')
+            ->with('Authorization')
+            ->willReturn('Bearer ' . $jwt);
+
+        $this->redisCacheRepository->expects($this->never())
+            ->method('getUser');
 
         $this->expectException(HttpUnauthorizedException::class);
 
@@ -71,18 +92,10 @@ class LowLatencyControllerTest extends TestCase
 
     public function testValidateThrowsUnauthorizedWhenInvalidSignature(): void
     {
-        $_SESSION['user_id'] = 123;
+        $_SESSION['user_id'] = 'user-123';
 
-        $user = CachedValidatedUserEntity::builder()
-            ->userId('user-123')
-            ->email('test@example.com')
-            ->jwt('some-jwt')
-            ->build();
-
-        $this->redisCacheRepository->expects($this->once())
-            ->method('getUser')
-            ->with(123)
-            ->willReturn($user);
+        $this->redisCacheRepository->expects($this->never())
+            ->method('getUser');
 
         // Invalid JWT (just a random string)
         $this->request->expects($this->once())
@@ -97,7 +110,7 @@ class LowLatencyControllerTest extends TestCase
 
     public function testValidateThrowsUnauthorizedWhenMismatchedJwt(): void
     {
-        $_SESSION['user_id'] = 123;
+        $_SESSION['user_id'] = 'user-123';
 
         $user = CachedValidatedUserEntity::builder()
             ->userId('user-123')
@@ -107,7 +120,7 @@ class LowLatencyControllerTest extends TestCase
 
         $this->redisCacheRepository->expects($this->once())
             ->method('getUser')
-            ->with(123)
+            ->with('user-123')
             ->willReturn($user);
 
         // Generate a valid signed JWT but it won't match $user->getJwt()
@@ -125,7 +138,7 @@ class LowLatencyControllerTest extends TestCase
 
     public function testValidateSuccess(): void
     {
-        $_SESSION['user_id'] = 123;
+        $_SESSION['user_id'] = 'user-123';
 
         // Generate a valid JWT
         $jwt = $this->generateValidJwt('user-123', 'test@example.com');
@@ -138,7 +151,7 @@ class LowLatencyControllerTest extends TestCase
 
         $this->redisCacheRepository->expects($this->once())
             ->method('getUser')
-            ->with(123)
+            ->with('user-123')
             ->willReturn($user);
 
         $this->request->expects($this->once())
@@ -203,6 +216,47 @@ class LowLatencyControllerTest extends TestCase
         $this->assertSame($this->response, $result);
     }
 
+    public function testValidateSuccessWhenRedisCacheMiss(): void
+    {
+        $_SESSION['user_id'] = 'user-123';
+        $_SESSION['user_email'] = 'test@example.com';
+
+        $jwt = $this->generateValidJwt('user-123', 'test@example.com');
+
+        $this->redisCacheRepository->expects($this->once())
+            ->method('getUser')
+            ->with('user-123')
+            ->willReturn(null);
+
+        $this->redisCacheRepository->expects($this->once())
+            ->method('setUser')
+            ->with($this->callback(function (CachedValidatedUserEntity $user) use ($jwt) {
+                return $user->getUserId() === 'user-123'
+                    && $user->getEmail() === 'test@example.com'
+                    && $user->getJwt() === $jwt;
+            }));
+
+        $this->request->expects($this->once())
+            ->method('getHeaderLine')
+            ->with('Authorization')
+            ->willReturn('Bearer ' . $jwt);
+
+        $this->redisPubSubQueue->expects($this->once())
+            ->method('send')
+            ->with('test-handle', 'user-123', 'test@example.com');
+
+        $this->stream->expects($this->once())
+            ->method('write')
+            ->with(json_encode([
+                'id' => 'user-123',
+                'email' => 'test@example.com',
+                'jwt' => $jwt
+            ]));
+
+        $result = $this->controller->validate($this->request, $this->response);
+        $this->assertSame($this->response, $result);
+    }
+
     private function generateValidJwt(string $userId, string $email): string
     {
         if (!file_exists('/tmp/private.key') || !file_exists('/tmp/public.key')) {
@@ -220,7 +274,9 @@ class LowLatencyControllerTest extends TestCase
         $token = $config->builder()
             ->issuedBy('http://localhost')
             ->permittedFor('client-1')
+            ->relatedTo($userId)
             ->expiresAt($now->modify('+1 hour'))
+            ->withClaim('email', $email)
             ->withClaim('policy', '[]')
             ->getToken($config->signer(), $config->signingKey());
 

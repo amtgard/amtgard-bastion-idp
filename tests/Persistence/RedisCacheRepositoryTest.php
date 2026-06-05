@@ -45,7 +45,7 @@ class RedisCacheRepositoryTest extends TestCase
             ->email('test@example.com')
             ->build();
 
-        $this->redis->expects($this->exactly(2))
+        $this->redis->expects($this->once())
             ->method('get')
             ->with('user-1')
             ->willReturn(serialize($entity));

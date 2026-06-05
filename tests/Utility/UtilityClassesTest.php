@@ -45,6 +45,20 @@ class UtilityClassesTest extends TestCase
             ->build();
 
         $this->assertFalse($entity->hasJwt());
+        $this->assertNull($entity->getJwt());
+    }
+
+    public function testCachedValidatedUserEntitySurvivesUnserializeWithoutJwt(): void
+    {
+        $entity = CachedValidatedUserEntity::builder()
+            ->userId('user-1')
+            ->email('test@example.com')
+            ->build();
+
+        $restored = unserialize(serialize($entity));
+
+        $this->assertFalse($restored->hasJwt());
+        $this->assertNull($restored->getJwt());
     }
 
     public function testConstants(): void

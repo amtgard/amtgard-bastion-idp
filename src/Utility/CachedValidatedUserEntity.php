@@ -16,4 +16,16 @@ class CachedValidatedUserEntity
     {
         return isset($this->jwt);
     }
+
+    public function getJwt(): ?string
+    {
+        return $this->hasJwt() ? $this->jwt : null;
+    }
+
+    public function __wakeup(): void
+    {
+        if (!isset($this->jwt)) {
+            $this->jwt = null;
+        }
+    }
 }
