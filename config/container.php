@@ -41,7 +41,9 @@ use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\ScopeRepositoryInterface;
 use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 use League\OAuth2\Server\ResourceServer;
+use Monolog\Handler\ErrorLogHandler;
 use Monolog\Handler\StreamHandler;
+use Monolog\Handler\WhatFailureGroupHandler;
 use Monolog\Logger;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -61,7 +63,11 @@ return [
 
         $level = ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? Logger::DEBUG : Logger::ERROR;
         $logger = new Logger('app');
-        $logger->pushHandler(new StreamHandler($logDir . '/app.log', $level));
+        $logger->pushHandler(new WhatFailureGroupHandler([
+            new StreamHandler($logDir . '/app.log', $level),
+            new ErrorLogHandler(level: $level),
+        ]));
+
         return $logger;
     },
 
