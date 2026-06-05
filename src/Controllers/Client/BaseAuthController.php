@@ -5,6 +5,7 @@ namespace Amtgard\IdP\Controllers\Client;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Amtgard\IdP\Utility\Constants;
+use Amtgard\IdP\Utility\Security\RedirectValidator;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
@@ -37,7 +38,11 @@ class BaseAuthController
         $this->logger->info("Building JWT for " . $login->user->getEmail());
         $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($login->user);
 
-        $finalizeUrl = empty($_SESSION['redirect']) ? $routeParser->urlFor('resources.profile') : ($_SESSION['redirect'] . "?jwt=$jwt");
+        $profileUrl = $routeParser->urlFor('resources.profile');
+        $storedRedirect = RedirectValidator::sanitizeOrNull($_SESSION['redirect'] ?? null);
+        $finalizeUrl = $storedRedirect === null
+            ? $profileUrl
+            : ($storedRedirect . "?jwt=$jwt");
 
         $this->logger->info("Redirecting user for " . $login->user->getEmail());
         return $response
