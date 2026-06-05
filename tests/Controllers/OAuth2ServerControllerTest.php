@@ -139,16 +139,23 @@ class OAuth2ServerControllerTest extends TestCase
             ->method('respondToAccessTokenRequest')
             ->willThrowException(new \Exception('Token error'));
 
+        $this->stream->expects($this->once())
+            ->method('write')
+            ->with($this->callback(function (string $json) {
+                $data = json_decode($json, true);
+                return ($data['error'] ?? null) === 'server_error'
+                    && str_contains($data['error_description'] ?? '', 'internal error')
+                    && str_contains($data['oauth_step'] ?? '', '/oauth/token');
+            }));
+
         $this->response->expects($this->once())
             ->method('withStatus')
             ->with(500)
             ->willReturnSelf();
 
         $this->response->expects($this->once())
-            ->method('withBody')
-            ->with($this->callback(function ($stream) {
-                return $stream instanceof \Psr\Http\Message\StreamInterface && (string)$stream === 'Token error';
-            }))
+            ->method('withHeader')
+            ->with('Content-Type', 'application/json')
             ->willReturnSelf();
 
         $result = $this->controller->token($this->request, $this->response);
@@ -389,11 +396,13 @@ class OAuth2ServerControllerTest extends TestCase
 
         $this->view->expects($this->once())
             ->method('render')
-            ->with('error.twig', [
-                'title' => 'OAuth Authorization Error',
-                'message' => 'OAuth Error',
-                'hint' => 'Check params'
-            ])
+            ->with('oauth_error.twig', $this->callback(function (array $context) {
+                return $context['title'] === 'OAuth Authorization Error'
+                    && str_contains($context['step'], '/oauth/authorize')
+                    && $context['message'] === 'OAuth Error'
+                    && $context['hint'] === 'Check params'
+                    && $context['is_protocol_error'] === true;
+            }))
             ->willReturn('error HTML');
 
         $this->stream->expects($this->once())
@@ -415,12 +424,73 @@ class OAuth2ServerControllerTest extends TestCase
             ->method('validateAuthorizationRequest')
             ->willThrowException(new \Exception('Internal error'));
 
+        $this->view->expects($this->once())
+            ->method('render')
+            ->with('oauth_error.twig', $this->callback(function (array $context) {
+                return $context['title'] === 'Authorization Unavailable'
+                    && str_contains($context['step'], '/oauth/authorize')
+                    && $context['is_protocol_error'] === false;
+            }))
+            ->willReturn('error HTML');
+
+        $this->stream->expects($this->once())
+            ->method('write')
+            ->with('error HTML');
+
         $this->response->expects($this->once())
             ->method('withStatus')
             ->with(500)
             ->willReturnSelf();
 
         $result = $this->controller->authorize($this->request, $this->response);
+        $this->assertSame($this->response, $result);
+    }
+
+    public function testApprovePostAllowInternalError(): void
+    {
+        $this->request->method('getMethod')->willReturn('POST');
+        $this->request->method('getParsedBody')->willReturn([
+            'action' => 'allow',
+            'callback' => '/next'
+        ]);
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('client-1');
+
+        $clientRecord = new TestClient();
+        $clientRecord->setId(456);
+
+        $authRequest = new TestAuthorizationRequest($clientMock);
+        $_SESSION['authRequest'] = serialize($authRequest);
+        $_SESSION['user_id'] = 123;
+
+        $this->clientRepository->expects($this->once())
+            ->method('fetchBy')
+            ->with('identifier', 'client-1')
+            ->willReturn($clientRecord);
+
+        $this->userClientAuthorizationRepository->expects($this->once())
+            ->method('authorize')
+            ->willThrowException(new \TypeError('Cannot assign null to property createdAt'));
+
+        $this->view->expects($this->once())
+            ->method('render')
+            ->with('oauth_error.twig', $this->callback(function (array $context) {
+                return str_contains($context['step'], '/oauth/approve')
+                    && $context['is_protocol_error'] === false;
+            }))
+            ->willReturn('error HTML');
+
+        $this->stream->expects($this->once())
+            ->method('write')
+            ->with('error HTML');
+
+        $this->response->expects($this->once())
+            ->method('withStatus')
+            ->with(500)
+            ->willReturnSelf();
+
+        $result = $this->controller->approve($this->request, $this->response);
         $this->assertSame($this->response, $result);
     }
 
