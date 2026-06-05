@@ -139,6 +139,16 @@ class OAuth2ServerControllerTest extends TestCase
             ->method('respondToAccessTokenRequest')
             ->willThrowException(new \Exception('Token error'));
 
+        $this->logger->expects($this->once())
+            ->method('error')
+            ->with(
+                'OAuth token internal error',
+                $this->callback(function (array $context) {
+                    return str_contains($context['step'], '/oauth/token')
+                        && $context['message'] === 'Token error';
+                })
+            );
+
         $this->stream->expects($this->once())
             ->method('write')
             ->with($this->callback(function (string $json) {
@@ -473,10 +483,22 @@ class OAuth2ServerControllerTest extends TestCase
             ->method('authorize')
             ->willThrowException(new \TypeError('Cannot assign null to property createdAt'));
 
+        $this->logger->expects($this->once())
+            ->method('error')
+            ->with(
+                'OAuth flow internal error',
+                $this->callback(function (array $context) {
+                    return str_contains($context['step'], '/oauth/approve')
+                        && str_contains($context['message'], 'createdAt');
+                })
+            );
+
         $this->view->expects($this->once())
             ->method('render')
             ->with('oauth_error.twig', $this->callback(function (array $context) {
-                return str_contains($context['step'], '/oauth/approve')
+                return $context['title'] === 'Authorization Unavailable'
+                    && str_contains($context['message'], 'could not complete client approval')
+                    && str_contains($context['step'], '/oauth/approve')
                     && $context['is_protocol_error'] === false;
             }))
             ->willReturn('error HTML');
@@ -491,6 +513,94 @@ class OAuth2ServerControllerTest extends TestCase
             ->willReturnSelf();
 
         $result = $this->controller->approve($this->request, $this->response);
+        $this->assertSame($this->response, $result);
+    }
+
+    public function testApprovePostAllowCallsAuthorizeWithSessionUserAndClient(): void
+    {
+        $this->request->method('getMethod')->willReturn('POST');
+        $this->request->method('getParsedBody')->willReturn([
+            'action' => 'allow',
+            'callback' => '/oauth/authorize',
+        ]);
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('skbc_dev');
+
+        $clientRecord = new TestClient();
+        $clientRecord->setId(789);
+
+        $_SESSION['authRequest'] = serialize(new TestAuthorizationRequest($clientMock));
+        $_SESSION['user_id'] = 'user-abc';
+
+        $this->clientRepository->expects($this->once())
+            ->method('fetchBy')
+            ->with('identifier', 'skbc_dev')
+            ->willReturn($clientRecord);
+
+        $this->userClientAuthorizationRepository->expects($this->once())
+            ->method('authorize')
+            ->with('user-abc', 789);
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/oauth/authorize')
+            ->willReturnSelf();
+
+        $this->response->expects($this->once())
+            ->method('withStatus')
+            ->with(302)
+            ->willReturnSelf();
+
+        $result = $this->controller->approve($this->request, $this->response);
+        $this->assertSame($this->response, $result);
+        $this->assertTrue($_SESSION['approved']);
+    }
+
+    public function testAuthorizeInternalExceptionOnPostReturnsHtmlErrorPage(): void
+    {
+        $this->request->method('getMethod')->willReturn('POST');
+
+        $this->authorizationServer->expects($this->once())
+            ->method('validateAuthorizationRequest')
+            ->willThrowException(new \Exception('Internal error'));
+
+        $this->view->expects($this->once())
+            ->method('render')
+            ->with('oauth_error.twig', $this->callback(function (array $context) {
+                return str_contains($context['step'], '/oauth/authorize')
+                    && $context['is_protocol_error'] === false;
+            }))
+            ->willReturn('error HTML');
+
+        $this->stream->expects($this->once())
+            ->method('write')
+            ->with('error HTML');
+
+        $result = $this->controller->authorize($this->request, $this->response);
+        $this->assertSame($this->response, $result);
+    }
+
+    public function testAuthorizeOAuthExceptionOnPostReturnsOAuthResponse(): void
+    {
+        $exception = $this->getMockBuilder(OAuthServerException::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        $this->request->method('getMethod')->willReturn('POST');
+
+        $this->authorizationServer->expects($this->once())
+            ->method('validateAuthorizationRequest')
+            ->willThrowException($exception);
+
+        $exception->expects($this->once())
+            ->method('generateHttpResponse')
+            ->with($this->response)
+            ->willReturn($this->response);
+
+        $this->view->expects($this->never())->method('render');
+
+        $result = $this->controller->authorize($this->request, $this->response);
         $this->assertSame($this->response, $result);
     }
 
