@@ -110,6 +110,12 @@ class ResourcesController
             return $this->jsonPolicyError($response);
         }
 
+        $this->redisCacheRepository->cacheValidatedUser(
+            $user->getUserId(),
+            $user->getEmail() ?? '',
+            $jwt
+        );
+
         $response->getBody()->write(json_encode(['jwt' => $jwt]));
         return $response->withHeader('Content-Type', 'application/json');
     }

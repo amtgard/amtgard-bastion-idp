@@ -238,6 +238,10 @@ class ResourcesControllerTest extends TestCase
             ->with($this->userEntity)
             ->willReturn('jwt-val');
 
+        $this->redisCacheRepository->expects($this->once())
+            ->method('cacheValidatedUser')
+            ->with('123', 'test@example.com', 'jwt-val');
+
         $this->stream->expects($this->once())
             ->method('write')
             ->with(json_encode(['jwt' => 'jwt-val']));

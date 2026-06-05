@@ -28,6 +28,15 @@ class RedisCacheRepository
         $this->redis->set($userEntity->getUserId(), serialize($userEntity));
     }
 
+    public function cacheValidatedUser(string $userId, string $email, string $jwt): void
+    {
+        $this->setUser(CachedValidatedUserEntity::builder()
+            ->userId($userId)
+            ->email($email)
+            ->jwt($jwt)
+            ->build());
+    }
+
     public function queueUserValidation(string $userId, string $userEmail) {
 
     }

@@ -162,6 +162,47 @@ class LowLatencyControllerTest extends TestCase
         $this->assertSame($this->response, $result);
     }
 
+    public function testValidateSuccessWhenCachedUserMissingJwt(): void
+    {
+        $_SESSION['user_id'] = 'user-123';
+
+        $jwt = $this->generateValidJwt('user-123', 'test@example.com');
+
+        $user = CachedValidatedUserEntity::builder()
+            ->userId('user-123')
+            ->email('test@example.com')
+            ->build();
+
+        $this->redisCacheRepository->expects($this->once())
+            ->method('getUser')
+            ->with('user-123')
+            ->willReturn($user);
+
+        $this->redisCacheRepository->expects($this->once())
+            ->method('cacheValidatedUser')
+            ->with('user-123', 'test@example.com', $jwt);
+
+        $this->request->expects($this->once())
+            ->method('getHeaderLine')
+            ->with('Authorization')
+            ->willReturn('Bearer ' . $jwt);
+
+        $this->redisPubSubQueue->expects($this->once())
+            ->method('send')
+            ->with('test-handle', 'user-123', 'test@example.com');
+
+        $this->stream->expects($this->once())
+            ->method('write')
+            ->with(json_encode([
+                'id' => 'user-123',
+                'email' => 'test@example.com',
+                'jwt' => $jwt
+            ]));
+
+        $result = $this->controller->validate($this->request, $this->response);
+        $this->assertSame($this->response, $result);
+    }
+
     private function generateValidJwt(string $userId, string $email): string
     {
         if (!file_exists('/tmp/private.key') || !file_exists('/tmp/public.key')) {

@@ -4,7 +4,6 @@ namespace Amtgard\IdP\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Utility\AuthorizedClients;
-use Amtgard\IdP\Utility\CachedValidatedUserEntity;
 use Amtgard\IdP\Utility\Jwt;
 use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\ResourceServer;
@@ -64,10 +63,11 @@ class ClientRestrictedAuthMiddleware implements MiddlewareInterface
             $_SESSION['user_id'] = $request->getAttribute('oauth_user_id');
             $_SESSION['client_id'] = $clientId;
             $user = Utility::getAuthenticatedUser();
-            $this->redisCacheRepository->setUser(CachedValidatedUserEntity::builder()
-                ->userId($user->getUserId())
-                ->email($user->getEmail())
-                ->build());
+            $this->redisCacheRepository->cacheValidatedUser(
+                $user->getUserId(),
+                $user->getEmail() ?? '',
+                $jwt
+            );
             return $handler->handle($request);
         }
     }
