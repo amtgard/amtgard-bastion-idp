@@ -31,18 +31,80 @@ You will pass this token in the header of all your API requests to retrieve user
 
 ## 2. API Endpoint Reference
 
-The Amtgard IdP supports standard OAuth 2.0 endpoints for retrieving user details and validating tokens.
+These are the HTTP endpoints your application calls after you have registered an OAuth client. The Amtgard IdP implements standard OAuth 2.0 (authorization code + PKCE) plus a small set of resource endpoints for profile data and session validation.
 
-All resource endpoints require an `Authorization` header containing the retrieved Access Token:
+### OAuth 2.0 Server
+
+#### Authorization Endpoint (`GET /oauth/authorize`)
+
+Starts the login and consent flow. Redirect the user's browser here with standard OAuth query parameters.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `response_type` | Yes | Must be `code` |
+| `client_id` | Yes | Your registered client identifier |
+| `redirect_uri` | Yes | Must match a URI registered for your client |
+| `scope` | Yes | Space-separated scopes (e.g. `profile email`) |
+| `state` | Yes | Random value you verify on callback (CSRF protection) |
+| `code_challenge` | Yes (public clients) | PKCE S256 challenge |
+| `code_challenge_method` | Yes (public clients) | Must be `S256` |
+
+If the user is not logged in, they are redirected to `/auth/login` and returned here afterward. If the user has not previously authorized your client, they see a consent screen at `/oauth/approve`. On success, the user is redirected to your `redirect_uri` with an authorization `code`.
+
+#### Token Endpoint (`POST /oauth/token`)
+
+Exchange an authorization code or refresh token for access (and optionally refresh) tokens. Authenticate confidential clients with `client_id` and `client_secret` in the request body.
+
+**Authorization code exchange** (after user returns from `/oauth/authorize`):
+
+| Field | Description |
+|-------|-------------|
+| `grant_type` | `authorization_code` |
+| `client_id` | Your client identifier |
+| `client_secret` | Required for confidential clients |
+| `redirect_uri` | Must match the authorize request |
+| `code` | Authorization code from the redirect |
+| `code_verifier` | PKCE verifier (public clients) |
+
+**Refresh token exchange**:
+
+| Field | Description |
+|-------|-------------|
+| `grant_type` | `refresh_token` |
+| `client_id` | Your client identifier |
+| `client_secret` | Required for confidential clients |
+| `refresh_token` | Previously issued refresh token |
+
+**Example response**:
+
+```json
+{
+  "token_type": "Bearer",
+  "expires_in": 7200,
+  "access_token": "...",
+  "refresh_token": "..."
+}
+```
+
+---
+
+### Resource Endpoints
+
+All resource endpoints below require an `Authorization` header with a valid access token obtained from `/oauth/token`:
+
 ```http
 Authorization: Bearer <YOUR_ACCESS_TOKEN>
 ```
 
-### <a href="/swagger#/default/userinfo" target="_self">User Info Endpoint (`GET /resources/userinfo`)</a>
-Retrieves the full profile of the authenticated user, including their linked Amtgard ORK profile (Mundane ID, persona, kingdom, park, image, dues status, etc.).
+#### <a href="/swagger#/default/userinfo" target="_self">User Info (`GET /resources/userinfo`)</a>
+
+Retrieves the full profile of the authenticated user, including their linked Amtgard ORK profile (Mundane ID, persona, kingdom, park, image, dues status, etc.). This is the primary endpoint for loading user data after login.
+
 - **Method**: `GET`
 - **Response Format**: `application/json`
+- **Use when**: You need complete profile data — display name, email, ORK persona, park/kingdom, dues, heraldry, etc.
 - **Example Response**:
+
 ```json
 {
   "id": 123,
@@ -66,11 +128,16 @@ Retrieves the full profile of the authenticated user, including their linked Amt
 }
 ```
 
-### <a href="/swagger#/default/validate" target="_self">Validate Token & Presence (`GET /resources/validate`)</a>
-An optimized, lightweight endpoint to quickly validate a session and register user presence (heartbeat/liveness checks).
+#### <a href="/swagger#/default/validate" target="_self">Validate Token & Presence (`GET /resources/validate`)</a>
+
+A lightweight endpoint to confirm a session is still active and register user presence (heartbeat/liveness). Returns minimal identity data compared to `userinfo`.
+
 - **Method**: `GET`
 - **Response Format**: `application/json`
+- **Use when**: You need frequent, low-cost checks that a user is still online — for example presence indicators or activity heartbeats — without fetching the full profile each time.
+- **Note**: Also publishes a presence event to connected services via PubSub.
 - **Example Response**:
+
 ```json
 {
   "id": 123,
@@ -78,6 +145,25 @@ An optimized, lightweight endpoint to quickly validate a session and register us
   "jwt": "..."
 }
 ```
+
+---
+
+### Policy Evaluation (`POST /api/is_authorized`)
+
+Used by other Amtgard backend services to evaluate IAM authorization policies. This is **not** part of the standard OAuth client integration flow; most app developers will not call this directly.
+
+- **Method**: `POST`
+- **Content-Type**: `application/json` or form body
+- **Request body**:
+  - `policy` — JSON array representing the user's IAM policy (ORN format)
+  - `requirement` — Requirement string to check (e.g. `Idp:0::::IDP/SomeAction`)
+- **Response**:
+
+```json
+{ "is_authorized": true }
+```
+
+Contact the IDP maintainers if your service needs to integrate with the policy engine.
 
 ---
 
@@ -540,37 +626,96 @@ if (!isset($_GET['code'])) {
 
 ---
 
-## 5. Official Client Library Wrapper (`amtgard-idp-client`)
+## 5. Public API Endpoint Overview
 
-For developers working inside the official Amtgard ecosystem, you can utilize the `amtgard-idp-client` package to encapsulate both curl queries and endpoint configs.
+This section lists every public-facing endpoint on the IDP, what it is for, and who typically calls it. Documenting these endpoints is intentional — developers need this reference to integrate correctly.
 
-### Installation
-```bash
-composer require amtgard/amtgard-idp-client
-```
+Endpoints fall into four categories: **OAuth server** (standard protocol), **resource API** (your app after login), **policy service** (backend authorization checks), and **browser UI** (human login and profile management).
 
-### Basic Usage
+### OAuth 2.0 Server
 
-```php
-<?php
-use Amtgard\Idp\Client\IdpClient;
+These implement the standard OAuth 2.0 authorization code flow. Every registered client uses them.
 
-$client = new IdpClient([
-    'client_id'     => 'your_client_id',
-    'client_secret' => 'your_client_secret',
-    'redirect_uri'  => 'https://your-app.com/callback',
-    'base_url'      => 'https://idp.amtgard.com'
-]);
+| Endpoint | Method | Purpose | Called by |
+|----------|--------|---------|-----------|
+| `/oauth/authorize` | GET | Start login/consent; returns authorization code to your redirect URI | User's browser (redirect from your app) |
+| `/oauth/token` | POST | Exchange authorization code or refresh token for access token | Your server (confidential) or app (public + PKCE) |
+| `/oauth/approve` | GET/POST | Consent screen — user approves or denies client access to scopes | User's browser (during first authorization) |
 
-// Redirect URL helper
-$loginUrl = $client->getAuthorizationUrl(['profile', 'email']);
+### Resource API (OAuth clients)
 
-// Retrieve Profile details
-if (isset($_GET['code'])) {
-    $userProfile = $client->authenticateWithCode($_GET['code']);
-    
-    echo "Persona: " . $userProfile->getPersona();
-    echo "Email: " . $userProfile->getEmail();
-    echo "Dues Expiration: " . $userProfile->getDuesThrough();
-}
-```
+Call these from your application with the access token from `/oauth/token`.
+
+| Endpoint | Method | Purpose | Called by |
+|----------|--------|---------|-----------|
+| `/resources/userinfo` | GET | Full user profile including ORK data (persona, park, kingdom, dues, etc.) | Your app/server after login |
+| `/resources/validate` | GET | Lightweight session heartbeat and presence registration | Your app for frequent liveness checks |
+
+### Policy Service (backend services)
+
+| Endpoint | Method | Purpose | Called by |
+|----------|--------|---------|-----------|
+| `/api/is_authorized` | POST | Evaluate whether a user's IAM policy satisfies a requirement | Other Amtgard backend services |
+
+This endpoint is public by design — it *is* the authorization check. Services POST a policy and requirement; the IDP returns `{ "is_authorized": true/false }`. It does not require end-user login because callers evaluate policies on behalf of users they have already authenticated.
+
+### Browser UI (end users)
+
+These are HTML pages, not JSON APIs. Users interact with them directly in a browser.
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/` | GET | IDP home page |
+| `/auth/login` | GET/POST | Email/password login form |
+| `/auth/register` | GET/POST | Create a local IDP account |
+| `/auth/logout` | GET | End session |
+| `/auth/google`, `/auth/facebook`, `/auth/discord` | GET | Start social login redirect |
+| `/auth/google/callback`, etc. | GET | Social provider callback (handled by IDP) |
+| `/resources/profile` | GET | User profile management page (linked accounts, authorized apps, ORK linking) |
+
+### Developer Documentation
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/swagger` | GET | Interactive Swagger UI for testing resource endpoints |
+| `/openapi.json` | GET | Machine-readable OpenAPI specification |
+| `/docs` | GET | This documentation (Docsify) |
+
+### Typical integration flow
+
+For a third-party app developer, the flow you care about is:
+
+1. **`GET /oauth/authorize`** — redirect user to log in and consent
+2. **`POST /oauth/token`** — exchange the returned code for tokens
+3. **`GET /resources/userinfo`** — fetch profile with the access token
+4. **`GET /resources/validate`** — optional heartbeat/presence checks
+
+Everything else is either browser UI (login pages), infrastructure (policy service for other backends), or developer tooling (this documentation).
+
+---
+
+## 6. Integration Examples Repository
+
+The [amtgard-idp-client-examples](https://github.com/amtgard/amtgard-idp-client-examples) repository is **not** a client library or SDK. It is a collection of standalone example projects showing how to integrate with the Amtgard IDP using common languages and OAuth libraries.
+
+Each example demonstrates the same core flow documented in this guide:
+
+1. Redirect the user to `/oauth/authorize` with PKCE
+2. Handle the callback and exchange the code at `/oauth/token`
+3. Call `/resources/userinfo` with the access token
+
+Examples are available for multiple stacks (PHP, JavaScript/Node.js, etc.). Copy the approach that matches your project rather than installing a shared package — there is no `composer require` wrapper to pull in.
+
+### When to use the examples repo
+
+- You are building a new Amtgard app and want a working starting point
+- You want to see PKCE, token exchange, and profile fetch implemented end-to-end
+- You prefer reading complete sample code over assembling snippets from this guide
+
+### When to use this guide + standard libraries directly
+
+- You already have OAuth infrastructure (e.g. [PHP League OAuth2 Client](https://oauth2-client.thephpleague.com/) — see Section 4)
+- You need only a specific step (token refresh, userinfo call) rather than a full sample app
+- Your framework provides its own OAuth module (Passport, NextAuth, etc.)
+
+Browse the examples at: **https://github.com/amtgard/amtgard-idp-client-examples**
