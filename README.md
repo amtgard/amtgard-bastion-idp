@@ -63,9 +63,11 @@ Production uses blue-green Docker (blue on port 37080, green on 37081) behind ho
 **First deploy after upgrading install.sh — run twice:**
 
 ```bash
-sudo ./install.sh   # 1. pulls the new install.sh and docker/ layout (legacy container)
-sudo ./install.sh   # 2. bootstraps blue-green (PHP 8.4, migrations, host nginx)
+sudo git pull origin main          # 1. get install.sh + docker/ onto the server (host git once)
+sudo ./install.sh                  # 2. bootstrap blue-green (git/composer/phinx run in container)
 ```
+
+Git, Composer, Phinx, and chown all run **inside** the Docker container via `docker compose exec`. Host only runs `docker`, `curl` health checks, and nginx reload.
 
 **Routine deploys — run once:**
 
