@@ -44,6 +44,27 @@ run_priv() {
     fi
 }
 
+chown_app() {
+    if [[ "$INSTALL_SKIP_CHOWN" == "1" ]]; then
+        echo "==> Skipping chown (INSTALL_SKIP_CHOWN=1)."
+        return
+    fi
+    echo "==> Setting ownership to ${WEB_USER}:${WEB_GROUP}..."
+    run_priv chown -R "${WEB_USER}:${WEB_GROUP}" .
+}
+
+pull_code() {
+    if [[ "$INSTALL_SKIP_GIT_PULL" == "1" ]]; then
+        echo "==> Skipping git pull (INSTALL_SKIP_GIT_PULL=1)."
+        return
+    fi
+    echo "==> Pulling latest from ${GIT_BRANCH}..."
+    git fetch origin "$GIT_BRANCH"
+    git checkout "$GIT_BRANCH"
+    git pull --ff-only origin "$GIT_BRANCH"
+    chown_app
+}
+
 uses_blue_green() {
     [[ -f "${ROOT}/docker/compose.prod.yml" ]]
 }
@@ -111,10 +132,6 @@ container_running() {
     docker ps --format '{{.Names}}' | grep -Fxq "$1"
 }
 
-slot_container_running() {
-    container_running "$(slot_container "$1")"
-}
-
 exec_in_slot() {
     local slot="$1"
     local user="$2"
@@ -122,79 +139,11 @@ exec_in_slot() {
     compose_for_slot "$slot" exec -T -u "$user" -w "$CONTAINER_APP_DIR" "$COMPOSE_SERVICE" "$@"
 }
 
-exec_in_slot_root() {
-    local slot="$1"
-    shift
-    exec_in_slot "$slot" root "$@"
-}
-
 exec_in_named_container() {
     local container="$1"
     local user="$2"
     shift 2
     docker exec -T -u "$user" -w "$CONTAINER_APP_DIR" "$container" "$@"
-}
-
-exec_in_named_container_root() {
-    local container="$1"
-    shift
-    exec_in_named_container "$container" root "$@"
-}
-
-chown_app_in_slot() {
-    local slot="$1"
-    if [[ "$INSTALL_SKIP_CHOWN" == "1" ]]; then
-        echo "==> Skipping chown (INSTALL_SKIP_CHOWN=1)."
-        return
-    fi
-    echo "==> Setting ownership to ${WEB_USER}:${WEB_GROUP} in $(slot_container "$slot")..."
-    exec_in_slot_root "$slot" chown -R "${WEB_USER}:${WEB_GROUP}" "$CONTAINER_APP_DIR"
-}
-
-chown_app_in_named_container() {
-    local container="$1"
-    if [[ "$INSTALL_SKIP_CHOWN" == "1" ]]; then
-        echo "==> Skipping chown (INSTALL_SKIP_CHOWN=1)."
-        return
-    fi
-    echo "==> Setting ownership to ${WEB_USER}:${WEB_GROUP} in ${container}..."
-    exec_in_named_container_root "$container" chown -R "${WEB_USER}:${WEB_GROUP}" "$CONTAINER_APP_DIR"
-}
-
-pull_code_in_slot() {
-    local slot="$1"
-    if [[ "$INSTALL_SKIP_GIT_PULL" == "1" ]]; then
-        echo "==> Skipping git pull (INSTALL_SKIP_GIT_PULL=1)."
-        return
-    fi
-    if ! slot_container_running "$slot"; then
-        echo "install.sh: $(slot_container "$slot") is not running." >&2
-        exit 1
-    fi
-
-    echo "==> Pulling latest from ${GIT_BRANCH} in $(slot_container "$slot")..."
-    exec_in_slot_root "$slot" git -C "$CONTAINER_APP_DIR" fetch origin "$GIT_BRANCH"
-    exec_in_slot_root "$slot" git -C "$CONTAINER_APP_DIR" checkout "$GIT_BRANCH"
-    exec_in_slot_root "$slot" git -C "$CONTAINER_APP_DIR" pull --ff-only origin "$GIT_BRANCH"
-    chown_app_in_slot "$slot"
-}
-
-pull_code_in_named_container() {
-    local container="$1"
-    if [[ "$INSTALL_SKIP_GIT_PULL" == "1" ]]; then
-        echo "==> Skipping git pull (INSTALL_SKIP_GIT_PULL=1)."
-        return
-    fi
-    if ! container_running "$container"; then
-        echo "install.sh: container '${container}' is not running." >&2
-        exit 1
-    fi
-
-    echo "==> Pulling latest from ${GIT_BRANCH} in ${container}..."
-    exec_in_named_container_root "$container" git -C "$CONTAINER_APP_DIR" fetch origin "$GIT_BRANCH"
-    exec_in_named_container_root "$container" git -C "$CONTAINER_APP_DIR" checkout "$GIT_BRANCH"
-    exec_in_named_container_root "$container" git -C "$CONTAINER_APP_DIR" pull --ff-only origin "$GIT_BRANCH"
-    chown_app_in_named_container "$container"
 }
 
 install_app_in_slot() {
@@ -290,7 +239,6 @@ bootstrap_blue_green() {
     fi
 
     build_and_start_slot "$slot"
-    pull_code_in_slot "$slot"
     install_app_in_slot "$slot"
     health_check_port "$slot" "$(slot_port "$slot")"
     activate_nginx_slot "$slot"
@@ -311,7 +259,6 @@ deploy_blue_green() {
 
     echo "==> Blue-green deploy to inactive slot: ${target} (active: ${active})..."
     build_and_start_slot "$target"
-    pull_code_in_slot "$target"
     install_app_in_slot "$target"
     health_check_port "$target" "$(slot_port "$target")"
     write_previous_slot "$active"
@@ -326,7 +273,6 @@ install_legacy() {
         echo "install.sh: container '${LEGACY_CONTAINER}' is not running." >&2
         exit 1
     fi
-    pull_code_in_named_container "$LEGACY_CONTAINER"
     install_app_in_named_container "$LEGACY_CONTAINER"
     echo "==> Install complete."
 }
@@ -344,6 +290,8 @@ main() {
         echo "install.sh: docker is required but not installed." >&2
         exit 1
     fi
+
+    pull_code
 
     if uses_blue_green; then
         install_blue_green
