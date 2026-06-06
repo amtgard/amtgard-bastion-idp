@@ -13,3 +13,4 @@ devfile.yaml
 cache/
 keys/
 dev-keys/
+.local/

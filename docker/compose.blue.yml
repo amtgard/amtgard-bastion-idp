@@ -1,0 +1,6 @@
+services:
+  amtgardidpapp:
+    ports:
+      - "37080:80"
+    container_name: amtgard-idp-blue
+    hostname: amtgard-idp-blue

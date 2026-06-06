@@ -19,18 +19,17 @@ RUN sed -i 's/^variables_order = .*/variables_order = "EGPCS"/' /etc/php/8.4/fpm
 
 RUN mkdir -p /var/www/idp.amtgard.com
 
-COPY nginx.idp.config /etc/nginx/sites-available/idp.amtgard.com
+COPY docker/nginx.idp.config /etc/nginx/sites-available/idp.amtgard.com
 RUN rm /etc/nginx/sites-enabled/*
 RUN ln -s /etc/nginx/sites-available/idp.amtgard.com /etc/nginx/sites-enabled/idp.amtgard.com
-COPY xdebug.dev.ini /etc/php/8.4/mods-available/xdebug.ini
-COPY etc.memcached /etc/memcached.conf
+COPY docker/xdebug.dev.ini /etc/php/8.4/mods-available/xdebug.ini
+COPY docker/etc.memcached /etc/memcached.conf
 
-COPY --from=composer /usr/bin/composer /var/www/idp.amtgard.com/composer.phar
-RUN mv /var/www/idp.amtgard.com/composer.phar /usr/local/bin/composer
+COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 
 WORKDIR /var/www
 
-COPY heartbeat.sh /var/www/heartbeat.sh
+COPY docker/heartbeat.sh /var/www/heartbeat.sh
 RUN chmod +x heartbeat.sh
 
 CMD ./heartbeat.sh

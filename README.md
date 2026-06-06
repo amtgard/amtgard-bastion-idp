@@ -51,10 +51,29 @@ This project requires extensive configuration via dotenv (.env). Check .dev.env 
 ```php
 composer install
 vendor/robmorgan/phinx/bin/phinx migrate
-sudo docker-compose -f docker-compose.dev.yml up -d --build
+docker compose -f docker/compose.dev.yml up -d --build
 ```
 
 Server will be on http://localhost:37080/
+
+## Production
+
+Production uses blue-green Docker (blue on port 37080, green on 37081) behind host nginx.
+
+**First deploy after upgrading install.sh — run twice:**
+
+```bash
+sudo ./install.sh   # 1. pulls the new install.sh and docker/ layout (legacy container)
+sudo ./install.sh   # 2. bootstraps blue-green (PHP 8.4, migrations, host nginx)
+```
+
+**Routine deploys — run once:**
+
+```bash
+sudo ./install.sh   # builds inactive slot, migrates, switches host nginx
+```
+
+Host nginx configs: `host/nginx.blue.conf`, `host/nginx.green.conf`. Docker configs: `docker/`.
 
 ## Configuration
 Copy the example environment file to get started:
