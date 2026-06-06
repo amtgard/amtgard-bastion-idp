@@ -11,6 +11,7 @@ use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Middleware\ManagementMiddleware;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
+use Amtgard\IdP\Utility\Security\CsrfTokenManager;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Services\OrkService;
@@ -49,6 +50,7 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Twig\Environment as TwigEnvironment;
 use Twig\Loader\FilesystemLoader;
+use Twig\TwigFunction;
 use Wohali\OAuth2\Client\Provider\Discord;
 
 Utility::configureIamClasses();
@@ -140,6 +142,20 @@ return [
     ManagementMiddleware::class => function (ContainerInterface $container) {
         return new ManagementMiddleware();
     },
+
+    // Concrete ClientRepository (the League ClientRepositoryInterface entry
+    // returns the same object, but ConfidentialClientBasicAuthMiddleware needs
+    // the concrete type for validateClient()). Lets that middleware autowire.
+    ClientRepository::class => function (EntityManager $em) {
+        return $em->getRepository(ClientRepository::class);
+    },
+
+    // ConfidentialClientBasicAuthMiddleware, OrkLinkTokenService,
+    // RegistrationService and ConnectController are all resolved by autowiring.
+    // The repository-backed ones (the middleware, RegistrationService,
+    // ConnectController) take EntityManager as their first constructor parameter
+    // so the ORM singleton is configured before their repositories resolve;
+    // OrkLinkTokenService needs only Database + LoggerInterface.
 
     RefreshTokenRepositoryInterface::class => function (EntityManager $em) {
         return $em->getRepository(RefreshTokenRepository::class);
@@ -252,12 +268,17 @@ return [
     },
 
         // Twig Environment
-    TwigEnvironment::class => function () {
+    TwigEnvironment::class => function (ContainerInterface $container) {
         $loader = new FilesystemLoader(__DIR__ . '/../templates');
-        return new TwigEnvironment($loader, [
+        $twig = new TwigEnvironment($loader, [
             'cache' => __DIR__ . '/cache/twig',
             'auto_reload' => true,
         ]);
+        // Expose the per-session CSRF token to every template as csrf_token().
+        // Backed by the shared CsrfTokenManager; forms render it as a hidden
+        // field (name="_csrf_token") and CsrfMiddleware validates it on POST.
+        $twig->addFunction(new TwigFunction('csrf_token', fn() => CsrfTokenManager::getOrCreate()));
+        return $twig;
     },
 
     AuthorizedClients::class => function (ContainerInterface $container) {

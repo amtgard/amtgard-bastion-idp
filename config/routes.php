@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use Amtgard\IdP\Controllers\Api\ApiController;
 use Amtgard\IdP\Controllers\Client\AuthController;
+use Amtgard\IdP\Controllers\Client\ConnectController;
 use Amtgard\IdP\Controllers\Client\FacebookAuthController;
 use Amtgard\IdP\Controllers\Client\GoogleAuthController;
 use Amtgard\IdP\Controllers\HomeController;
@@ -14,6 +15,8 @@ use Amtgard\IdP\Controllers\SwaggerController;
 use Amtgard\IdP\Middleware\LocalAdminUserMiddleware;
 use Amtgard\IdP\Middleware\LocalIdpAuthMiddleware;
 use Amtgard\IdP\Middleware\ClientRestrictedAuthMiddleware;
+use Amtgard\IdP\Middleware\ConfidentialClientBasicAuthMiddleware;
+use Amtgard\IdP\Middleware\CsrfMiddleware;
 use Amtgard\IdP\Middleware\ManagementMiddleware;
 use Amtgard\IdP\Middleware\CachedJwtLocalIdpAuthMiddleware;
 use Slim\App;
@@ -54,16 +57,25 @@ return function (App $app) {
             ->setName('resources.authorizations');
 
         $group->post('/profile/link-ork', [ResourcesController::class, 'linkOrkAccount'])
+            ->add(CsrfMiddleware::class)
             ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.profile.link_ork');
 
         $group->post('/profile/refresh-ork', [ResourcesController::class, 'refreshOrkAccount'])
+            ->add(CsrfMiddleware::class)
             ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.profile.refresh_ork');
 
         $group->post('/profile/revoke', [ResourcesController::class, 'revokeAuthorization'])
+            ->add(CsrfMiddleware::class)
             ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.profile.revoke');
+
+        // Server-to-server: ORK calls this to mirror a successful local link write
+        // into the IDP. Basic auth against the confidential-client credentials.
+        $group->post('/link-ork-profile', [ResourcesController::class, 'linkOrkProfile'])
+            ->add(ConfidentialClientBasicAuthMiddleware::class)
+            ->setName('resources.link_ork_profile');
             
         $group->get('/jwt', [ResourcesController::class, 'getJwt'])
             ->add(LocalIdpAuthMiddleware::class)
@@ -74,11 +86,11 @@ return function (App $app) {
     $app->group('/auth', function (RouteCollectorProxy $group) {
         // Login form
         $group->get('/login', [AuthController::class, 'loginForm'])->setName('auth.login');
-        $group->post('/login', [AuthController::class, 'login']);
+        $group->post('/login', [AuthController::class, 'login'])->add(CsrfMiddleware::class);
 
         // Registration form
         $group->get('/register', [AuthController::class, 'registerForm'])->setName('auth.register');
-        $group->post('/register', [AuthController::class, 'register']);
+        $group->post('/register', [AuthController::class, 'register'])->add(CsrfMiddleware::class);
 
         // Logout
         $group->get('/logout', [AuthController::class, 'logout'])->setName('auth.logout');
@@ -92,6 +104,12 @@ return function (App $app) {
 
         $group->get('/discord', [\Amtgard\IdP\Controllers\Client\DiscordAuthController::class, 'redirectToDiscord'])->setName('auth.discord');
         $group->get('/discord/callback', [\Amtgard\IdP\Controllers\Client\DiscordAuthController::class, 'handleDiscordCallback'])->setName('auth.discord.callback');
+
+        // ORK→IDP onboarding handoff. ORK signs a short-lived JWT and redirects
+        // the user here; we log them in or register them and write the link.
+        $group->get('/connect', [ConnectController::class, 'showConnect'])->setName('auth.connect.show');
+        $group->post('/connect/login', [ConnectController::class, 'submitConnectLogin'])->add(CsrfMiddleware::class)->setName('auth.connect.login');
+        $group->post('/connect/register', [ConnectController::class, 'submitConnectRegister'])->add(CsrfMiddleware::class)->setName('auth.connect.register');
     });
 
     // Management routes
@@ -106,11 +124,13 @@ return function (App $app) {
             ->setName('management.clients');
             
         $group->post('/clients', [ManagementController::class, 'createClient'])
+            ->add(CsrfMiddleware::class)
             ->add(LocalIdpAuthMiddleware::class)
             ->add(LocalAdminUserMiddleware::class)
             ->setName('management.clients.create');
-            
+
         $group->post('/clients/{id}', [ManagementController::class, 'updateClient'])
+            ->add(CsrfMiddleware::class)
             ->add(LocalIdpAuthMiddleware::class)
             ->add(LocalAdminUserMiddleware::class)
             ->setName('management.clients.update');
@@ -126,7 +146,7 @@ return function (App $app) {
         $group->post('/token', [OAuth2ServerController::class, 'token'])->setName('oauth.token');
 
         // access_token endpoint
-        $group->map(['GET', 'POST'], '/approve', [OAuth2ServerController::class, 'approve'])->setName('oauth.approve');
+        $group->map(['GET', 'POST'], '/approve', [OAuth2ServerController::class, 'approve'])->add(CsrfMiddleware::class)->setName('oauth.approve');
 
     });
 };
