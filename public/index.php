@@ -8,11 +8,11 @@ use Slim\Factory\AppFactory;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-// Load environment variables from the gitignored .env file. Keeping a single
-// loaded env file (never committed) avoids the risk of secrets leaking via a
-// checked-in dev env. safeLoad() doesn't error when the file is missing.
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
-$dotenv->safeLoad();
+// Prod docker injects .prod.env via compose; .env overrides with live server values.
+if (is_readable(__DIR__ . '/../.prod.env')) {
+    Dotenv\Dotenv::createMutable(__DIR__ . '/..', '.prod.env')->safeLoad();
+}
+Dotenv\Dotenv::createMutable(__DIR__ . '/..')->safeLoad();
 
 $debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
 error_reporting($debug ? E_ALL : (E_ERROR | E_PARSE));

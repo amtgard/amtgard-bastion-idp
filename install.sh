@@ -8,6 +8,7 @@ GIT_BRANCH="${GIT_BRANCH:-main}"
 WEB_USER="${WEB_USER:-www-data}"
 WEB_GROUP="${WEB_GROUP:-www-data}"
 CONTAINER_APP_DIR="${CONTAINER_APP_DIR:-/var/www/idp.amtgard.com}"
+COMPOSE_SERVICE="${COMPOSE_SERVICE:-amtgardidpapp}"
 COMPOSER_FLAGS="${COMPOSER_FLAGS:---no-dev --optimize-autoloader}"
 PHINX_ENV="${PHINX_ENV:-production}"
 
@@ -48,6 +49,7 @@ chown_app() {
         echo "==> Skipping chown (INSTALL_SKIP_CHOWN=1)."
         return
     fi
+    echo "==> Setting ownership to ${WEB_USER}:${WEB_GROUP}..."
     run_priv chown -R "${WEB_USER}:${WEB_GROUP}" .
 }
 
@@ -130,18 +132,38 @@ container_running() {
     docker ps --format '{{.Names}}' | grep -Fxq "$1"
 }
 
-run_in_container() {
-    docker exec -u "$WEB_USER" -w "$CONTAINER_APP_DIR" "$1" "${@:2}"
+exec_in_slot() {
+    local slot="$1"
+    local user="$2"
+    shift 2
+    compose_for_slot "$slot" exec -T -u "$user" -w "$CONTAINER_APP_DIR" "$COMPOSE_SERVICE" "$@"
 }
 
-install_app_in_container() {
+exec_in_named_container() {
+    local container="$1"
+    local user="$2"
+    shift 2
+    docker exec -T -u "$user" -w "$CONTAINER_APP_DIR" "$container" "$@"
+}
+
+install_app_in_slot() {
+    local slot="$1"
+    echo "==> Installing Composer dependencies in $(slot_container "$slot")..."
+    read -r -a composer_flags <<< "$COMPOSER_FLAGS"
+    exec_in_slot "$slot" "$WEB_USER" composer install "${composer_flags[@]}"
+
+    echo "==> Running Phinx migrations (${PHINX_ENV}) in $(slot_container "$slot")..."
+    exec_in_slot "$slot" "$WEB_USER" vendor/bin/phinx migrate -e "$PHINX_ENV"
+}
+
+install_app_in_named_container() {
     local container="$1"
     echo "==> Installing Composer dependencies in ${container}..."
     read -r -a composer_flags <<< "$COMPOSER_FLAGS"
-    run_in_container "$container" composer install "${composer_flags[@]}"
+    exec_in_named_container "$container" "$WEB_USER" composer install "${composer_flags[@]}"
 
     echo "==> Running Phinx migrations (${PHINX_ENV}) in ${container}..."
-    run_in_container "$container" vendor/bin/phinx migrate -e "$PHINX_ENV"
+    exec_in_named_container "$container" "$WEB_USER" vendor/bin/phinx migrate -e "$PHINX_ENV"
 }
 
 health_check_port() {
@@ -151,7 +173,7 @@ health_check_port() {
 
     echo "==> Health check ${label} at ${url}..."
     for ((i = 1; i <= HEALTH_RETRIES; i++)); do
-        if curl -fsS --max-time 5 "$url" >/dev/null; then
+        if curl -fsS --max-time 5 "$url" >/dev/null 2>&1; then
             echo "==> ${label} is healthy."
             return 0
         fi
@@ -193,6 +215,10 @@ stop_legacy_container() {
     fi
 }
 
+legacy_container_present() {
+    docker ps -a --format '{{.Names}}' | grep -Fxq "$LEGACY_CONTAINER"
+}
+
 build_and_start_slot() {
     local slot="$1"
     echo "==> Building Docker image for ${slot}..."
@@ -203,13 +229,26 @@ build_and_start_slot() {
 
 bootstrap_blue_green() {
     local slot="blue"
-    echo "==> First blue-green install: bootstrapping ${slot}..."
-    stop_legacy_container
+
+    if legacy_container_present; then
+        slot="green"
+        echo "==> First blue-green install: legacy ${LEGACY_CONTAINER} still running."
+        echo "==> Bootstrapping ${slot} on port $(slot_port "$slot") with zero downtime..."
+    else
+        echo "==> First blue-green install: bootstrapping ${slot}..."
+    fi
+
     build_and_start_slot "$slot"
-    install_app_in_container "$(slot_container "$slot")"
+    install_app_in_slot "$slot"
     health_check_port "$slot" "$(slot_port "$slot")"
     activate_nginx_slot "$slot"
     write_active_slot "$slot"
+
+    if legacy_container_present; then
+        echo "==> New slot is live; stopping legacy ${LEGACY_CONTAINER}..."
+        stop_legacy_container
+    fi
+
     echo "==> Bootstrap complete. Active slot: ${slot}."
 }
 
@@ -220,7 +259,7 @@ deploy_blue_green() {
 
     echo "==> Blue-green deploy to inactive slot: ${target} (active: ${active})..."
     build_and_start_slot "$target"
-    install_app_in_container "$(slot_container "$target")"
+    install_app_in_slot "$target"
     health_check_port "$target" "$(slot_port "$target")"
     write_previous_slot "$active"
     activate_nginx_slot "$target"
@@ -234,7 +273,7 @@ install_legacy() {
         echo "install.sh: container '${LEGACY_CONTAINER}' is not running." >&2
         exit 1
     fi
-    install_app_in_container "$LEGACY_CONTAINER"
+    install_app_in_named_container "$LEGACY_CONTAINER"
     echo "==> Install complete."
 }
 

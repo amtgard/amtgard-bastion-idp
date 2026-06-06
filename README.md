@@ -63,9 +63,10 @@ Production uses blue-green Docker (blue on port 37080, green on 37081) behind ho
 **First deploy after upgrading install.sh — run twice:**
 
 ```bash
-sudo ./install.sh   # 1. pulls the new install.sh and docker/ layout (legacy container)
-sudo ./install.sh   # 2. bootstraps blue-green (PHP 8.4, migrations, host nginx)
+sudo ./install.sh
 ```
+
+Host: `git pull`, `chown`. Container: `composer install`, `phinx migrate`.
 
 **Routine deploys — run once:**
 
@@ -83,7 +84,7 @@ cp .env.example .env
 
 ### Key Configuration Options
 - **Application**: `APP_URL`, `APP_ENV`, `APP_SECRET`
-- **Database**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`
+- **Database**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — prod `.env` must point at a host reachable from the blue/green containers (e.g. `host.docker.internal` when MySQL runs on the server). `.env` overrides `.prod.env` in Docker.
 - **OAuth**:
   - `OAUTH_PRIVATE_KEY` / `OAUTH_PUBLIC_KEY`: Paths to RSA keys for signing tokens.
   - `OAUTH_ENCRYPTION_KEY`: Key for encrypting auth codes.
