@@ -380,6 +380,51 @@ class ResourcesController
      * Request:  { "idp_user_id": "<uuid string>", "mundane_id": 12345 }
      * Response: 204 on success, 400/404/409 on failure (idempotent).
      */
+    #[OA\Post(
+        path: '/resources/link-ork-profile',
+        operationId: 'linkOrkProfile',
+        summary: 'Mirror an ORK account link into the IDP (ORK server-to-server)',
+        description: 'Called by ORK3 after linking on the ORK side. Writes `user_ork_profiles` on the IDP. Restricted to confidential clients listed in `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS`. Browser handoff flows are documented in /docs Section 7.',
+        tags: ['ORK Integration'],
+        security: [['orkConfidentialClient' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'application/json',
+                schema: new OA\Schema(
+                    required: ['idp_user_id', 'mundane_id'],
+                    properties: [
+                        new OA\Property(property: 'idp_user_id', type: 'string', format: 'uuid', description: 'IDP user UUID'),
+                        new OA\Property(property: 'mundane_id', type: 'integer', minimum: 1, description: 'ORK mundane player ID'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 204, description: 'Link recorded (idempotent)'),
+            new OA\Response(
+                response: 400,
+                description: 'Invalid request body',
+                content: new OA\JsonContent(
+                    properties: [new OA\Property(property: 'error', type: 'string')]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Unknown idp_user_id',
+                content: new OA\JsonContent(
+                    properties: [new OA\Property(property: 'error', type: 'string')]
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: 'idp_user_id already linked to a different mundane_id',
+                content: new OA\JsonContent(
+                    properties: [new OA\Property(property: 'error', type: 'string')]
+                )
+            ),
+        ]
+    )]
     public function linkOrkProfile(Request $request, Response $response): Response
     {
         $body = (array) $request->getParsedBody();
