@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Middleware;
 
+use Amtgard\IdP\Utility\Security\SessionStorage;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -16,6 +17,7 @@ class SessionMiddleware implements MiddlewareInterface
     public function process(Request $request, RequestHandler $handler): Response
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
+            SessionStorage::configure();
             // Set session timeout to 30 days (2592000 seconds)
             ini_set('session.gc_maxlifetime', '2592000');
             ini_set('session.cookie_lifetime', '2592000');

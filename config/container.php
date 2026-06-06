@@ -25,6 +25,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepositor
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\Redis\PubSubRedisConfig;
 use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisDataStructureConfig;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisHashSetFactory;
@@ -224,26 +225,17 @@ return [
     },
 
     RedisDataStructureConfig::class => function (ContainerInterface $container) {
-        $config = new RedisDataStructureConfig();
-        $config->setConfig([
-            'host' => '127.0.0.1',
-            'port' => 6379,
-        ]);
-        return $config;
+        return PubSubRedisConfig::dataStructureConfig();
     },
 
     Redis::class => function (ContainerInterface $container) {
-        $redis = new Redis();
-        $config = $container->get(RedisDataStructureConfig::class);
-        $redis->pconnect($config->getConfig()['host'], $config->getConfig()['port']);
-
-        return $redis;
+        return PubSubRedisConfig::connect(new Redis());
     },
 
     PubSubQueueHandle::class => function (ContainerInterface $container) {
         $queue = $container->get(SetQueue::class);
         $pubSub = $container->get(PubSubQueue::class);
-        $queueName = $_ENV['REDIS_PUBLISHER_NAME'];
+        $queueName = PubSubRedisConfig::queueName();
         $pubSub->addQueue($queueName, $queue);
 
         return PubSubQueueHandle::builder()->handle($queueName)->build();
@@ -253,7 +245,7 @@ return [
         $hashSetFactory = new RedisHashSetFactory();
         $redrivableQueueFactory = new RedisRedrivableQueueFactory();
         $config = $container->get(RedisDataStructureConfig::class);
-        $queue = new SetQueue($_ENV['REDIS_PUBLISHER_NAME'], $config, $hashSetFactory, $redrivableQueueFactory);
+        $queue = new SetQueue(PubSubRedisConfig::queueName(), $config, $hashSetFactory, $redrivableQueueFactory);
         return $queue;
     },
 

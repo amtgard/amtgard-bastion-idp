@@ -32,6 +32,14 @@ HEALTH_INTERVAL="${HEALTH_INTERVAL:-2}"
 INSTALL_SKIP_GIT_PULL="${INSTALL_SKIP_GIT_PULL:-0}"
 INSTALL_SKIP_CHOWN="${INSTALL_SKIP_CHOWN:-0}"
 INSTALL_SKIP_HOST_NGINX="${INSTALL_SKIP_HOST_NGINX:-0}"
+INSTALL_RESET_SESSIONS="${INSTALL_RESET_SESSIONS:-0}"
+INSTALL_REBUILD_SESSIONS="${INSTALL_REBUILD_SESSIONS:-0}"
+
+SESSIONS_CONTAINER="${SESSIONS_CONTAINER:-amtgard-idp-sessions}"
+SESSIONS_COMPOSE_PROJECT="${SESSIONS_COMPOSE_PROJECT:-amtgard-idp-sessions}"
+SESSIONS_COMPOSE_SERVICE="${SESSIONS_COMPOSE_SERVICE:-sessions}"
+SESSIONS_NETWORK="${SESSIONS_NETWORK:-amtgard-idp-shared}"
+SESSION_REDIS_DB="${SESSION_REDIS_DB:-1}"
 
 run_priv() {
     if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
@@ -126,6 +134,52 @@ compose_for_slot() {
         -f docker/compose.prod.yml \
         -f "docker/compose.${slot}.yml" \
         "$@"
+}
+
+compose_sessions() {
+    docker compose --project-directory "$ROOT" -p "$SESSIONS_COMPOSE_PROJECT" \
+        -f docker/compose.sessions.yml \
+        "$@"
+}
+
+ensure_sessions_network() {
+    if docker network inspect "$SESSIONS_NETWORK" >/dev/null 2>&1; then
+        return
+    fi
+    echo "==> Creating shared Docker network ${SESSIONS_NETWORK}..."
+    docker network create "$SESSIONS_NETWORK"
+}
+
+flush_sessions_store() {
+    if ! container_running "$SESSIONS_CONTAINER"; then
+        echo "install.sh: session container ${SESSIONS_CONTAINER} is not running." >&2
+        return 1
+    fi
+    echo "==> Flushing session store (Redis DB ${SESSION_REDIS_DB})..."
+    compose_sessions exec -T "$SESSIONS_COMPOSE_SERVICE" \
+        redis-cli -n "$SESSION_REDIS_DB" FLUSHDB
+}
+
+ensure_sessions_store() {
+    if [[ ! -f "${ROOT}/docker/compose.sessions.yml" ]]; then
+        return
+    fi
+
+    ensure_sessions_network
+
+    if [[ "$INSTALL_REBUILD_SESSIONS" == "1" ]]; then
+        echo "==> Rebuilding session store container and wiping persisted data..."
+        compose_sessions down -v
+        compose_sessions up -d
+        return
+    fi
+
+    echo "==> Ensuring shared Redis store is running (${SESSIONS_CONTAINER})..."
+    compose_sessions up -d
+
+    if [[ "$INSTALL_RESET_SESSIONS" == "1" ]]; then
+        flush_sessions_store
+    fi
 }
 
 container_running() {
@@ -278,6 +332,8 @@ install_legacy() {
 }
 
 install_blue_green() {
+    ensure_sessions_store
+
     if [[ -z "$(read_active_slot)" ]]; then
         bootstrap_blue_green
     else

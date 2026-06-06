@@ -15,6 +15,10 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       - amtgard-idp-net
+      - amtgard-idp-shared
 
 networks:
   amtgard-idp-net:
+  amtgard-idp-shared:
+    name: amtgard-idp-shared
+    external: true
