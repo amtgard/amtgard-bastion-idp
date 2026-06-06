@@ -28,6 +28,9 @@ NGINX_SITES_ENABLED="${NGINX_SITES_ENABLED:-/etc/nginx/sites-enabled/${NGINX_SIT
 HEALTH_PATH="${HEALTH_PATH:-/}"
 HEALTH_RETRIES="${HEALTH_RETRIES:-30}"
 HEALTH_INTERVAL="${HEALTH_INTERVAL:-2}"
+INSTALL_SKIP_GIT_PULL="${INSTALL_SKIP_GIT_PULL:-0}"
+INSTALL_SKIP_CHOWN="${INSTALL_SKIP_CHOWN:-0}"
+INSTALL_SKIP_HOST_NGINX="${INSTALL_SKIP_HOST_NGINX:-0}"
 
 run_priv() {
     if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
@@ -41,10 +44,18 @@ run_priv() {
 }
 
 chown_app() {
+    if [[ "$INSTALL_SKIP_CHOWN" == "1" ]]; then
+        echo "==> Skipping chown (INSTALL_SKIP_CHOWN=1)."
+        return
+    fi
     run_priv chown -R "${WEB_USER}:${WEB_GROUP}" .
 }
 
 pull_code() {
+    if [[ "$INSTALL_SKIP_GIT_PULL" == "1" ]]; then
+        echo "==> Skipping git pull (INSTALL_SKIP_GIT_PULL=1)."
+        return
+    fi
     echo "==> Pulling latest from ${GIT_BRANCH}..."
     git fetch origin "$GIT_BRANCH"
     git checkout "$GIT_BRANCH"
@@ -87,13 +98,23 @@ read_active_slot() {
 }
 
 write_active_slot() {
-    run_priv mkdir -p "$STATE_DIR"
-    printf '%s\n' "$1" | run_priv tee "$STATE_FILE" >/dev/null
+    if [[ "$STATE_DIR" == "${ROOT}/"* ]]; then
+        mkdir -p "$STATE_DIR"
+        printf '%s\n' "$1" > "$STATE_FILE"
+    else
+        run_priv mkdir -p "$STATE_DIR"
+        printf '%s\n' "$1" | run_priv tee "$STATE_FILE" >/dev/null
+    fi
 }
 
 write_previous_slot() {
-    run_priv mkdir -p "$STATE_DIR"
-    printf '%s\n' "$1" | run_priv tee "$PREVIOUS_STATE_FILE" >/dev/null
+    if [[ "$STATE_DIR" == "${ROOT}/"* ]]; then
+        mkdir -p "$STATE_DIR"
+        printf '%s\n' "$1" > "$PREVIOUS_STATE_FILE"
+    else
+        run_priv mkdir -p "$STATE_DIR"
+        printf '%s\n' "$1" | run_priv tee "$PREVIOUS_STATE_FILE" >/dev/null
+    fi
 }
 
 compose_for_slot() {
@@ -143,6 +164,12 @@ health_check_port() {
 
 activate_nginx_slot() {
     local slot="$1"
+    if [[ "$INSTALL_SKIP_HOST_NGINX" == "1" ]]; then
+        echo "==> Skipping host nginx activation (INSTALL_SKIP_HOST_NGINX=1)."
+        echo "    Would activate ${slot} -> port $(slot_port "$slot")"
+        return
+    fi
+
     local source="${ROOT}/host/nginx.${slot}.conf"
 
     echo "==> Activating host nginx for ${slot} (port $(slot_port "$slot"))..."
