@@ -671,6 +671,7 @@ These are HTML pages, not JSON APIs. Users interact with them directly in a brow
 | `/auth/logout` | GET | End session |
 | `/auth/google`, `/auth/facebook`, `/auth/discord` | GET | Start social login redirect |
 | `/auth/google/callback`, etc. | GET | Social provider callback (handled by IDP) |
+| `/auth/connect` | GET | ORK→IDP onboarding handoff (see [Section 7](#7-ork-deep-integration-amtgard-specific)) |
 | `/resources/profile` | GET | User profile management page (linked accounts, authorized apps, ORK linking) |
 
 ### Developer Documentation
@@ -690,7 +691,7 @@ For a third-party app developer, the flow you care about is:
 3. **`GET /resources/userinfo`** — fetch profile with the access token
 4. **`GET /resources/validate`** — optional heartbeat/presence checks
 
-Everything else is either browser UI (login pages), infrastructure (policy service for other backends), or developer tooling (this documentation).
+Everything else is either browser UI (login pages), infrastructure (policy service for other backends), ORK-specific coupling ([Section 7](#7-ork-deep-integration-amtgard-specific)), or developer tooling (this documentation).
 
 ---
 
@@ -719,3 +720,87 @@ Examples are available for multiple stacks (PHP, JavaScript/Node.js, etc.). Copy
 - Your framework provides its own OAuth module (Passport, NextAuth, etc.)
 
 Browse the examples at: **https://github.com/amtgard/amtgard-idp-client-examples**
+
+---
+
+## 7. ORK Deep Integration (Amtgard-specific)
+
+> [!IMPORTANT]
+> **End-note — not a general OAuth integration path.** The flows below are **tight coupling between the Amtgard IDP and [ORK3](https://github.com/amtgard/ork3)** (the Amtgard Online Record Keeper). Third-party app developers using standard OAuth should rely on Section 2 (`/resources/userinfo` and the `ork_profile` field when present). The endpoints in this section are for ORK maintainers and IDP operators coordinating account linking across both systems.
+
+The IDP and ORK share a **bidirectional account link**: each Amtgard player has a **mundane ID** in ORK and a **UUID user ID** in the IDP. Linking lets OAuth clients (including ORK itself) retrieve persona, park, kingdom, dues, and related ORK data via `/resources/userinfo`.
+
+### Shared configuration
+
+Both systems must agree on these secrets and URLs (see `.env.example`):
+
+| Variable | Purpose |
+|----------|---------|
+| `IDP_ORK_SHARED_SECRET` | HS256 secret for handoff JWTs (`iss=ork,aud=idp`) and completion JWTs (`iss=idp,aud=ork`). Must match ORK byte-for-byte. |
+| `ORK_BASE_URL` | Where the IDP redirects after a successful `/auth/connect` handoff (ORK's `idp_link_complete` route). |
+| `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS` | Comma-separated OAuth `client_id` values allowed to call `POST /resources/link-ork-profile` (typically the ORK confidential client only). |
+
+Legacy env name `ORK_LINK_TOKEN_SECRET` is still read as a fallback during the rename to `IDP_ORK_SHARED_SECRET`.
+
+### Flow A — ORK → IDP onboarding handoff (browser)
+
+When ORK prompts a player to create or link an Amtgard login, ORK mints a **short-lived, single-use JWT** (`link_token`) and redirects the user's browser to:
+
+```
+GET /auth/connect?link_token=<jwt>&email=<optional>
+```
+
+The IDP renders a Login / Register form (email prefilled from the token). On submit:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /auth/connect/login` | Authenticate an existing IDP user and link to the ORK mundane ID from the JWT |
+| `POST /auth/connect/register` | Create a new IDP account and link to the ORK mundane ID |
+
+The link is keyed off the **JWT `sub` claim (mundane ID)**, not the form email — so an IDP account registered with Discord can still link to an ORK profile whose email differs.
+
+After success, the IDP mints a **completion JWT** and redirects to ORK (`ORK_BASE_URL` + `Route=Login/idp_link_complete`) so ORK can write its own `ork_idp_auth` row and clear dashboard banners.
+
+These routes are **HTML browser flows** (CSRF-protected forms). They are intentionally **not** listed in Swagger.
+
+### Flow B — ORK → IDP link mirror (server-to-server)
+
+When ORK completes a link on its side first, it mirrors the result into the IDP:
+
+```
+POST /resources/link-ork-profile
+Authorization: Basic <ork_confidential_client_id:secret>
+Content-Type: application/json
+
+{ "idp_user_id": "<uuid>", "mundane_id": 12345 }
+```
+
+| Status | Meaning |
+|--------|---------|
+| `204` | Link written (or already idempotent) |
+| `400` | Missing/invalid body |
+| `404` | Unknown `idp_user_id` |
+| `409` | `idp_user_id` already linked to a different mundane ID |
+
+Documented in Swagger under the **ORK Integration** tag. Only clients in `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS` may call this endpoint.
+
+### Flow C — Profile page manual link (browser)
+
+Logged-in users can also link from the IDP profile UI (`GET /resources/profile`):
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /resources/profile/link-ork` | Submit ORK username/password; IDP validates against ORK API and stores profile + token |
+| `POST /resources/profile/refresh-ork` | Refresh cached ORK profile data using the stored ORK token |
+
+These are **session-authenticated HTML form POSTs** with CSRF protection. Not in Swagger.
+
+### What general integrators should use
+
+If you are **not** building ORK itself:
+
+1. Use standard OAuth (Sections 1–2).
+2. Call `GET /resources/userinfo` — when the user has linked ORK, the `ork_profile` object is included.
+3. Do **not** implement `/auth/connect` or `/resources/link-ork-profile`; those are ORK↔IDP plumbing.
+
+For ORK-side implementation details, coordinate with the ORK maintainers on Discord or the ORK Help & Updates group (Section 1).

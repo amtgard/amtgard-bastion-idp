@@ -8,7 +8,11 @@ use OpenApi\Attributes as OA;
 #[OA\Info(
     title: "Amtgard Identity Provider API",
     version: "1.0.0",
-    description: "API endpoints for the Amtgard Identity Provider (IdP) server, facilitating authentication and profile retrieval for Amtgard services."
+    description: "OAuth 2.0 and resource endpoints for Amtgard apps. ORK-specific server-to-server integration is under the ORK Integration tag; browser handoff flows are documented in /docs (Section 7)."
+)]
+#[OA\Tag(
+    name: 'ORK Integration',
+    description: 'Amtgard-specific coupling with ORK3. Not for general third-party OAuth clients. See /docs Section 7 for browser handoff flows.'
 )]
 #[OA\Server(
     url: "/",
@@ -21,6 +25,12 @@ use OpenApi\Attributes as OA;
     in: "header",
     scheme: "bearer",
     bearerFormat: "JWT"
+)]
+#[OA\SecurityScheme(
+    securityScheme: 'orkConfidentialClient',
+    type: 'http',
+    scheme: 'basic',
+    description: 'ORK confidential OAuth client_id and client_secret (HTTP Basic Auth)'
 )]
 class OpenApi
 {
