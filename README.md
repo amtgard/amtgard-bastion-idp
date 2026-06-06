@@ -74,6 +74,18 @@ Host: `git pull`, `chown`. Container: `composer install`, `phinx migrate`.
 sudo ./install.sh   # builds inactive slot, migrates, switches host nginx
 ```
 
+Blue and green app containers share a separate Redis container (`amtgard-idp-sessions`) for PHP sessions (DB 1) and app queue/cache (DB 0) so deploys do not log users out or drop in-flight queue work. That container is started once and left running across slot switches.
+
+Optional session store maintenance:
+
+```bash
+# Log everyone out (flush sessions, keep container + volume)
+sudo INSTALL_RESET_SESSIONS=1 ./install.sh
+
+# Rebuild session container and wipe all persisted session data
+sudo INSTALL_REBUILD_SESSIONS=1 ./install.sh
+```
+
 Host nginx configs: `host/nginx.blue.conf`, `host/nginx.green.conf`. Docker configs: `docker/`.
 
 ## Configuration
@@ -85,6 +97,8 @@ cp .env.example .env
 ### Key Configuration Options
 - **Application**: `APP_URL`, `APP_ENV`, `APP_SECRET`
 - **Database**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — prod `.env` must point at a host reachable from the blue/green containers (e.g. `host.docker.internal` when MySQL runs on the server). `.env` overrides `.prod.env` in Docker.
+- **Sessions**: `SESSION_REDIS_HOST`, `SESSION_REDIS_PORT`, `SESSION_REDIS_DB` — point at the shared `amtgard-idp-sessions` container in production (DB 1).
+- **Pub/sub queue & cache**: `REDIS_PUBSUB_HOST`, `REDIS_PUBSUB_PORT`, `REDIS_PUBSUB_DB`, `REDIS_PUBSUB_QUEUE_NAME` — shared container in production (DB 0). Omit `REDIS_PUBSUB_HOST` locally to use in-container Redis.
 - **OAuth**:
   - `OAUTH_PRIVATE_KEY` / `OAUTH_PUBLIC_KEY`: Paths to RSA keys for signing tokens.
   - `OAUTH_ENCRYPTION_KEY`: Key for encrypting auth codes.

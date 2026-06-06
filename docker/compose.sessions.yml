@@ -1,0 +1,23 @@
+services:
+  sessions:
+    image: redis:7-alpine
+    container_name: amtgard-idp-sessions
+    hostname: amtgard-idp-sessions
+    restart: unless-stopped
+    volumes:
+      - amtgard-idp-session-data:/data
+    networks:
+      - amtgard-idp-shared
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+
+volumes:
+  amtgard-idp-session-data:
+    name: amtgard-idp-session-data
+
+networks:
+  amtgard-idp-shared:
+    name: amtgard-idp-shared
+    external: true
