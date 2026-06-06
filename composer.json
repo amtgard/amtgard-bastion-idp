@@ -3,7 +3,7 @@
     "description": "IDP server for Amtgard domains using Slim framework and PHPLeague OAuth components",
     "type": "project",
     "require": {
-        "php": "^8.3",
+        "php": "^8.4",
         "ext-redis": "*",
         "amtgard/active-record-orm": "^1.0",
         "amtgard/ork-iam": "^1.0",

@@ -1,0 +1,6 @@
+services:
+  amtgardidpapp:
+    ports:
+      - "37081:80"
+    container_name: amtgard-idp-green
+    hostname: amtgard-idp-green
