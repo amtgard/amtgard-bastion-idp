@@ -193,6 +193,10 @@ stop_legacy_container() {
     fi
 }
 
+legacy_container_present() {
+    docker ps -a --format '{{.Names}}' | grep -Fxq "$LEGACY_CONTAINER"
+}
+
 build_and_start_slot() {
     local slot="$1"
     echo "==> Building Docker image for ${slot}..."
@@ -203,13 +207,26 @@ build_and_start_slot() {
 
 bootstrap_blue_green() {
     local slot="blue"
-    echo "==> First blue-green install: bootstrapping ${slot}..."
-    stop_legacy_container
+
+    if legacy_container_present; then
+        slot="green"
+        echo "==> First blue-green install: legacy ${LEGACY_CONTAINER} still running."
+        echo "==> Bootstrapping ${slot} on port $(slot_port "$slot") with zero downtime..."
+    else
+        echo "==> First blue-green install: bootstrapping ${slot}..."
+    fi
+
     build_and_start_slot "$slot"
     install_app_in_container "$(slot_container "$slot")"
     health_check_port "$slot" "$(slot_port "$slot")"
     activate_nginx_slot "$slot"
     write_active_slot "$slot"
+
+    if legacy_container_present; then
+        echo "==> New slot is live; stopping legacy ${LEGACY_CONTAINER}..."
+        stop_legacy_container
+    fi
+
     echo "==> Bootstrap complete. Active slot: ${slot}."
 }
 

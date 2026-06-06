@@ -83,7 +83,7 @@ cp .env.example .env
 
 ### Key Configuration Options
 - **Application**: `APP_URL`, `APP_ENV`, `APP_SECRET`
-- **Database**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`
+- **Database**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — prod `.env` must point at a host reachable from the blue/green containers (e.g. `host.docker.internal` when MySQL runs on the server). `.env` overrides `.prod.env` in Docker.
 - **OAuth**:
   - `OAUTH_PRIVATE_KEY` / `OAUTH_PUBLIC_KEY`: Paths to RSA keys for signing tokens.
   - `OAUTH_ENCRYPTION_KEY`: Key for encrypting auth codes.
