@@ -10,12 +10,9 @@ class ScriptAlertResponse
 {
     public static function alertAndRedirect(string $message, string $redirectUrl): string
     {
-        return '
-                <script>
-                    alert("' . self::escapeForJsString($message) . '");
-                    window.location.href = "' . self::escapeForJsString($redirectUrl) . '";
-                </script>
-            ';
+        $separator = str_contains($redirectUrl, '?') ? '&' : '?';
+        $url = $redirectUrl . $separator . 'error=' . urlencode($message);
+        return '<script>window.location.href = ' . json_encode($url) . ';</script>';
     }
 
     public static function oauthProviderError(string $providerName, string $error, string $redirectUrl = '/auth/login'): string
@@ -44,8 +41,4 @@ class ScriptAlertResponse
         return self::alertAndRedirect('Invalid state parameter', $redirectUrl);
     }
 
-    private static function escapeForJsString(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-    }
 }

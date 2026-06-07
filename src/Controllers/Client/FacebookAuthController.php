@@ -89,8 +89,10 @@ class FacebookAuthController extends BaseAuthController
 
             $this->logger->debug('Facebook user data: ' . json_encode($userData));
 
+            $isNewUser = false;
             $user = Optional::ofNullable($this->users->getUserByEmail($userData['email']))
-                ->orElseGet(function () use ($userData) {
+                ->orElseGet(function () use ($userData, &$isNewUser) {
+                    $isNewUser = true;
                     return $this->users->createUserFromFacebookData($userData);
                 });
 
@@ -103,7 +105,7 @@ class FacebookAuthController extends BaseAuthController
                     return $this->logins->createLoginFromFacebookData($user, $userData, $token);
                 });
 
-            return $this->finalizeAuthorization($login, $request, $response);
+            return $this->finalizeAuthorization($login, $request, $response, $isNewUser);
         } catch (\Exception $e) {
             $this->logger->error('Facebook authentication error: ' . $e->getMessage());
 

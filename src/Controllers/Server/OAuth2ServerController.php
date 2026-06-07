@@ -177,6 +177,11 @@ class OAuth2ServerController
             if (!$this->userIsAuthenticated($authRequest)) {
                 if (isset($_SESSION['user_id'])) {
                     $user = $this->userRepository->getUserEntityById($_SESSION['user_id']);
+                    if ($user === null) {
+                        session_unset();
+                        session_destroy();
+                        return $this->authenticateUser($response);
+                    }
                     $authRequest->setUser($user);
                     $_SESSION['authRequest'] = serialize($authRequest);
                 } else {

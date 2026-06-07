@@ -96,8 +96,10 @@ class DiscordAuthController extends BaseAuthController
                 throw new \Exception("Email permission denied or not provided by Discord.");
             }
 
+            $isNewUser = false;
             $user = Optional::ofNullable($this->users->getUserByEmail($email))
-                ->orElseGet(function () use ($userData) {
+                ->orElseGet(function () use ($userData, &$isNewUser) {
+                    $isNewUser = true;
                     // Map Discord fields to Google-like fields for createUserFromGoogleData if generic,
                     // or implement createUserFromDiscordData. Ideally reuse or adapt.
                     // Discord doesn't give first/last names easily, usually just username.
@@ -123,7 +125,7 @@ class DiscordAuthController extends BaseAuthController
                     return $this->logins->createLoginFromDiscordData($user, $userData, $token);
                 });
 
-            return $this->finalizeAuthorization($login, $request, $response);
+            return $this->finalizeAuthorization($login, $request, $response, $isNewUser);
         } catch (\Exception $e) {
             $this->logger->error('Discord authentication error: ' . $e->getTraceAsString());
 

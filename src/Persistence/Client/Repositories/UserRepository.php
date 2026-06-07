@@ -63,9 +63,12 @@ class UserRepository extends Repository implements EntityRepositoryInterface, Us
         return $this->fetchBy('user_id', $userId);
     }
 
-    public function getUserEntityById(string $userIdentifier): UserEntityInterface {
-        /** @var UserEntity $user */
+    public function getUserEntityById(string $userIdentifier): ?UserEntityInterface {
+        /** @var UserEntity|null $user */
         $user = $this->findUserByUserId($userIdentifier);
+        if ($user === null) {
+            return null;
+        }
         return OAuthUser::builder()
             ->identifier($user->getUserId())
             ->userEntity($user)

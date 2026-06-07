@@ -11,12 +11,16 @@
         </div>
 
         <div class="flex-grow">
-            <h1 class="text-3xl font-serif font-bold text-secondary text-center md:text-left mb-6">Approve Access</h1>
+            <h1 class="text-3xl font-serif font-bold text-secondary text-center md:text-left mb-2">Approve Access</h1>
+            <p class="text-sm text-gray-600 mb-5 leading-snug">
+              Your <strong>Amtgard Sign-In</strong> is requesting permission to share information with an app.
+              This is not your ORK player record &mdash; it is your single Amtgard digital account.
+            </p>
 
             <p class="mb-6 text-gray-700">
                 <!-- Mobile Logo -->
                 <a href="/" class="md:hidden float-left mr-3 mb-1"><img src="/images/idp_logo_tiny.jpeg" alt="Amtgard IDP Logo" class="rounded shadow-sm"></a>
-                <strong>{{ client_name }}</strong> would like to access the following information about you:
+                <strong>{{ client_name }}</strong> would like to access the following information from your Amtgard Sign-In:
             </p>
             
             <ul class="mb-6 bg-gray-50 rounded-lg border border-gray-100 divide-y divide-gray-100 clear-both">
