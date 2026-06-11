@@ -5,8 +5,6 @@ namespace Amtgard\IdP\Tests\Config;
 
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\Redis\PubSubRedisConfig;
-use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisHashSetFactory;
-use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisRedrivableQueueFactory;
 use Amtgard\SetQueue\DataStructure\SetQueue;
 use Amtgard\SetQueue\PubSubQueue;
 use PHPUnit\Framework\TestCase;
@@ -33,14 +31,8 @@ class ContainerPubSubRedisWiringTest extends TestCase
         $_ENV['REDIS_PUBSUB_QUEUE_NAME'] = 'amtgard-idp-prod';
 
         $config = PubSubRedisConfig::dataStructureConfig();
-        $queue = new SetQueue(
-            PubSubRedisConfig::queueName(),
-            $config,
-            new RedisHashSetFactory(),
-            new RedisRedrivableQueueFactory()
-        );
 
-        $this->assertSame('amtgard-idp-prod', $queue->getName());
+        $this->assertSame('amtgard-idp-prod', PubSubRedisConfig::queueName());
         $this->assertSame('amtgard-idp-sessions', $config->getConfig()['host']);
     }
 

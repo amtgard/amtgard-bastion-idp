@@ -7,6 +7,7 @@ use Amtgard\IdP\Controllers\Client\ConnectController;
 use Amtgard\IdP\Controllers\Client\FacebookAuthController;
 use Amtgard\IdP\Controllers\Client\GoogleAuthController;
 use Amtgard\IdP\Controllers\HomeController;
+use Amtgard\IdP\Controllers\Resource\ClientResourcesController;
 use Amtgard\IdP\Controllers\Resource\LowLatencyController;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Management\ManagementController;
@@ -15,7 +16,9 @@ use Amtgard\IdP\Controllers\SwaggerController;
 use Amtgard\IdP\Middleware\LocalAdminUserMiddleware;
 use Amtgard\IdP\Middleware\LocalIdpAuthMiddleware;
 use Amtgard\IdP\Middleware\ClientRestrictedAuthMiddleware;
+use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
 use Amtgard\IdP\Middleware\ConfidentialClientBasicAuthMiddleware;
+use Amtgard\IdP\Middleware\OAuthAccessTokenElevationMiddleware;
 use Amtgard\IdP\Middleware\CsrfMiddleware;
 use Amtgard\IdP\Middleware\ManagementMiddleware;
 use Amtgard\IdP\Middleware\CachedJwtLocalIdpAuthMiddleware;
@@ -78,8 +81,32 @@ return function (App $app) {
             ->setName('resources.link_ork_profile');
             
         $group->get('/jwt', [ResourcesController::class, 'getJwt'])
-            ->add(LocalIdpAuthMiddleware::class)
+            ->add(OAuthAccessTokenElevationMiddleware::class)
             ->setName('resources.jwt');
+
+        $group->post('/client/policy-claims', [ClientResourcesController::class, 'addPolicyClaim'])
+            ->add(ConfidentialClientAuthMiddleware::class)
+            ->setName('resources.client.policy_claims.add');
+
+        $group->delete('/client/policy-claims', [ClientResourcesController::class, 'deletePolicyClaim'])
+            ->add(ConfidentialClientAuthMiddleware::class)
+            ->setName('resources.client.policy_claims.delete');
+
+        $group->get('/client/policy-claims/{idp_user_id}', [ClientResourcesController::class, 'listPolicyClaims'])
+            ->add(ConfidentialClientAuthMiddleware::class)
+            ->setName('resources.client.policy_claims.list');
+
+        $group->put('/client/user-metadata', [ClientResourcesController::class, 'upsertUserMetadata'])
+            ->add(ConfidentialClientAuthMiddleware::class)
+            ->setName('resources.client.user_metadata.upsert');
+
+        $group->get('/client/user-metadata/{idp_user_id}', [ClientResourcesController::class, 'getUserMetadata'])
+            ->add(ConfidentialClientAuthMiddleware::class)
+            ->setName('resources.client.user_metadata.get');
+
+        $group->delete('/client/user-metadata/{idp_user_id}', [ClientResourcesController::class, 'deleteUserMetadata'])
+            ->add(ConfidentialClientAuthMiddleware::class)
+            ->setName('resources.client.user_metadata.delete');
     });
 
     // Authentication routes

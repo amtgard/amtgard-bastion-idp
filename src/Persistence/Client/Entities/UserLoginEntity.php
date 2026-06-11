@@ -50,4 +50,9 @@ class UserLoginEntity extends RepositoryEntity
 
     #[Field('expiry_date_time')]
     private ?DateTimeInterface $expiryDateTime;
+
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
 }

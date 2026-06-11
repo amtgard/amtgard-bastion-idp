@@ -5,8 +5,9 @@
     "require": {
         "php": "^8.4",
         "ext-redis": "*",
-        "amtgard/active-record-orm": "^1.0",
-        "amtgard/ork-iam": "^1.0",
+        "amtgard/active-record-orm": "^1.6",
+        "amtgard/ork-iam": "^1.2",
+        "amtgard/ork-iam-orn-definitions": "^0.9",
         "amtgard/redis-set-queue": "^1.1",
         "firebase/php-jwt": "^7.0",
         "league/oauth2-client": "^2.6",
@@ -34,7 +35,10 @@
     "autoload": {
         "psr-4": {
             "Amtgard\\IdP\\": "src/"
-        }
+        },
+        "files": [
+            "src/register_orn_definitions.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

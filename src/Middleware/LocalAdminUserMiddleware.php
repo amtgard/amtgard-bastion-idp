@@ -4,8 +4,6 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
-use Amtgard\IAM\OrkService;
-use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Models\Orn\IdpRequirement;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;

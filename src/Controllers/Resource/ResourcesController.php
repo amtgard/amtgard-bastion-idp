@@ -80,8 +80,11 @@ class ResourcesController
     #[OA\Get(
         path: '/resources/jwt',
         operationId: 'getJwt',
-        summary: 'Get a JWT for the authenticated user',
-        security: [['bearerAuth' => []]],
+        summary: 'Elevate to an authorization JWT',
+        description: 'Exchange an OAuth access token (or browser session) for a signed RS256 authorization JWT containing IAM policy and optional client_metadata. Use that JWT as Bearer on GET /resources/userinfo.',
+        security: [
+            ['oauthAccessToken' => []],
+        ],
         responses: [
             new OA\Response(
                 response: 200,
@@ -137,6 +140,7 @@ class ResourcesController
         path: '/resources/userinfo',
         operationId: 'userinfo',
         summary: 'Get user information',
+        description: 'Requires the RS256 authorization JWT from GET /resources/jwt — not an OAuth access token.',
         security: [['bearerAuth' => []]],
         responses: [
             new OA\Response(
@@ -148,7 +152,11 @@ class ResourcesController
                         properties: [
                             new OA\Property(property: 'id', type: 'integer'),
                             new OA\Property(property: 'email', type: 'string'),
-                            new OA\Property(property: 'jwt', type: 'string'),
+                            new OA\Property(
+                                property: 'jwt',
+                                type: 'string',
+                                description: 'RS256 authorization JWT (same token sent in Authorization header). Decode for policy, client_metadata, sub, aud. See /docs Section 8.'
+                            ),
                             new OA\Property(
                                 property: 'ork_profile',
                                 type: 'object',

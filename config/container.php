@@ -26,7 +26,6 @@ use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\Redis\PubSubRedisConfig;
-use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisDataStructureConfig;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisHashSetFactory;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisRedrivableQueueFactory;
@@ -53,8 +52,6 @@ use Twig\Environment as TwigEnvironment;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFunction;
 use Wohali\OAuth2\Client\Provider\Discord;
-
-Utility::configureIamClasses();
 
 return [
         // Logger

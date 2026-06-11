@@ -56,13 +56,20 @@ class TestUserLoginEntity extends UserLoginEntity
 {
     private string $testPassword;
     private string $testAvatarUrl;
+    private int $testId;
     public $user;
 
-    public function __construct($user, string $password, string $avatarUrl)
+    public function __construct($user, string $password, string $avatarUrl, int $testId = 1)
     {
         $this->user = $user;
         $this->testPassword = $password;
         $this->testAvatarUrl = $avatarUrl;
+        $this->testId = $testId;
+    }
+
+    public function getId(): ?int
+    {
+        return $this->testId;
     }
 
     public function getPassword(): ?string

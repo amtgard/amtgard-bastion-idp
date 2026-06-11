@@ -13,7 +13,6 @@ class ApiControllerTest extends TestCase
 {
     public function testIsAuthorizedFalse(): void
     {
-        \Amtgard\IdP\Utility\Utility::configureIamClasses();
         $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
         $stream = $this->createMock(StreamInterface::class);

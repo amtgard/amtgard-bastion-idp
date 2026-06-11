@@ -90,10 +90,32 @@ Exchange an authorization code or refresh token for access (and optionally refre
 
 ### Resource Endpoints
 
-All resource endpoints below require an `Authorization` header with a valid access token obtained from `/oauth/token`:
+After OAuth login, profile and IAM data use a **two-step elevation**:
+
+1. **`GET /resources/jwt`** — present your OAuth **access token** (or browser session) to obtain a signed RS256 **authorization JWT**.
+2. **`GET /resources/userinfo`** — present that **authorization JWT** (not the access token) to load the full profile.
 
 ```http
-Authorization: Bearer <YOUR_ACCESS_TOKEN>
+Authorization: Bearer <authorization_jwt>
+```
+
+Browser-first-party apps may use the session cookie for step 1 instead of an access token.
+
+#### <a href="/swagger#/default/getJwt" target="_self">Authorization JWT (`GET /resources/jwt`)</a>
+
+Elevates an OAuth access token (or authenticated session) to a signed RS256 authorization JWT containing IAM policy and optional `client_metadata`.
+
+- **Method**: `GET`
+- **Auth**: `Authorization: Bearer <access_token>` from `/oauth/token`, or session cookie for browser apps
+- **Response Format**: `application/json`
+- **Use when**: You need the authorization JWT before calling `/resources/userinfo` or `/resources/validate`
+
+- **Example Response**:
+
+```json
+{
+  "jwt": "eyJ..."
+}
 ```
 
 #### <a href="/swagger#/default/userinfo" target="_self">User Info (`GET /resources/userinfo`)</a>
@@ -101,8 +123,20 @@ Authorization: Bearer <YOUR_ACCESS_TOKEN>
 Retrieves the full profile of the authenticated user, including their linked Amtgard ORK profile (Mundane ID, persona, kingdom, park, image, dues status, etc.). This is the primary endpoint for loading user data after login.
 
 - **Method**: `GET`
+- **Auth**: `Authorization: Bearer <authorization_jwt>` from `/resources/jwt` — **not** the OAuth access token
 - **Response Format**: `application/json`
 - **Use when**: You need complete profile data — display name, email, ORK persona, park/kingdom, dues, heraldry, etc.
+
+The `jwt` field is the same RS256 **authorization JWT** you sent in the `Authorization` header (refreshed if needed). Decode it to access IAM policy and optional client metadata (see [Section 8](#8-client-iam--jwt-metadata-server-to-server)). Claims include:
+
+| Claim | Description |
+|-------|-------------|
+| `sub` | IDP user UUID |
+| `aud` | OAuth `client_id` of the requesting app |
+| `email`, `orkid`, `orkuser` | Identity fields |
+| `policy` | User's IAM policy (ORN JSON) — IDP is the authoritative policy store |
+| `client_metadata` | Optional per-user JSON blob (≤ 200 bytes) set by the requesting client |
+
 - **Example Response**:
 
 ```json
@@ -133,6 +167,7 @@ Retrieves the full profile of the authenticated user, including their linked Amt
 A lightweight endpoint to confirm a session is still active and register user presence (heartbeat/liveness). Returns minimal identity data compared to `userinfo`.
 
 - **Method**: `GET`
+- **Auth**: `Authorization: Bearer <authorization_jwt>` from `/resources/jwt`
 - **Response Format**: `application/json`
 - **Use when**: You need frequent, low-cost checks that a user is still online — for example presence indicators or activity heartbeats — without fetching the full profile each time.
 - **Note**: Also publishes a presence event to connected services via PubSub.
@@ -406,19 +441,33 @@ app.get('/callback', async (req: Request, res: Response) => {
 ---
 
 ### C. Fetching User Profile Details
-Use the acquired `access_token` to retrieve the user's information.
+Exchange the OAuth access token for an authorization JWT, then call userinfo.
 
 <!-- tabs:start -->
 
 #### **PHP**
 ```php
-$url = 'https://idp.amtgard.com/resources/userinfo';
+function fetchAuthorizationJwt(string $accessToken): string
+{
+    $ch = curl_init('https://idp.amtgard.com/resources/jwt');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $accessToken,
+        'Accept: application/json',
+    ]);
+    $response = curl_exec($ch);
+    curl_close($ch);
 
-$ch = curl_init($url);
+    return json_decode($response, true)['jwt'];
+}
+
+$authJwt = fetchAuthorizationJwt($accessToken);
+
+$ch = curl_init('https://idp.amtgard.com/resources/userinfo');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Authorization: Bearer ' . $accessToken,
-    'Accept: application/json'
+    'Authorization: Bearer ' . $authJwt,
+    'Accept: application/json',
 ]);
 $response = curl_exec($ch);
 $profileData = json_decode($response, true);
@@ -429,13 +478,27 @@ echo "Hello, " . $profileData['ork_profile']['persona'];
 
 #### **JavaScript**
 ```javascript
-async function fetchUserProfile(accessToken) {
-  const response = await fetch('https://idp.amtgard.com/resources/userinfo', {
+async function fetchAuthorizationJwt(accessToken) {
+  const response = await fetch('https://idp.amtgard.com/resources/jwt', {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
-      'Accept': 'application/json'
-    }
+      'Accept': 'application/json',
+    },
+  });
+  const data = await response.json();
+  return data.jwt;
+}
+
+async function fetchUserProfile(accessToken) {
+  const authJwt = await fetchAuthorizationJwt(accessToken);
+
+  const response = await fetch('https://idp.amtgard.com/resources/userinfo', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${authJwt}`,
+      'Accept': 'application/json',
+    },
   });
 
   const profile = await response.json();
@@ -462,13 +525,27 @@ interface UserProfile {
   ork_profile?: OrkProfile;
 }
 
-async function fetchUserProfile(accessToken: string): Promise<UserProfile> {
-  const response = await fetch('https://idp.amtgard.com/resources/userinfo', {
+async function fetchAuthorizationJwt(accessToken: string): Promise<string> {
+  const response = await fetch('https://idp.amtgard.com/resources/jwt', {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
-      'Accept': 'application/json'
-    }
+      'Accept': 'application/json',
+    },
+  });
+  const data = await response.json() as { jwt: string };
+  return data.jwt;
+}
+
+async function fetchUserProfile(accessToken: string): Promise<UserProfile> {
+  const authJwt = await fetchAuthorizationJwt(accessToken);
+
+  const response = await fetch('https://idp.amtgard.com/resources/userinfo', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${authJwt}`,
+      'Accept': 'application/json',
+    },
   });
 
   const profile = await response.json() as UserProfile;
@@ -578,7 +655,6 @@ $provider = new GenericProvider([
     'redirectUri'             => 'https://your-app.com/callback',
     'urlAuthorize'            => 'https://idp.amtgard.com/oauth/authorize',
     'urlAccessToken'          => 'https://idp.amtgard.com/oauth/token',
-    'urlResourceOwnerDetails' => 'https://idp.amtgard.com/resources/userinfo',
     'scopes'                  => 'profile email'
 ]);
 
@@ -612,9 +688,22 @@ if (!isset($_GET['code'])) {
         
         unset($_SESSION['oauth2pkceCode']);
 
-        // Fetch user profile from /resources/userinfo
-        $resourceOwner = $provider->getResourceOwner($accessToken);
-        $userProfile = $resourceOwner->toArray();
+        // Elevate access token to authorization JWT, then fetch profile
+        $jwtRequest = $provider->getAuthenticatedRequest(
+            'GET',
+            'https://idp.amtgard.com/resources/jwt',
+            $accessToken
+        );
+        $jwtResponse = $provider->getParsedResponse($jwtRequest);
+        $authJwt = $jwtResponse['jwt'];
+
+        $profileRequest = $provider->getAuthenticatedRequest(
+            'GET',
+            'https://idp.amtgard.com/resources/userinfo',
+            $accessToken,
+            ['headers' => ['Authorization' => 'Bearer ' . $authJwt]]
+        );
+        $userProfile = $provider->getParsedResponse($profileRequest);
         
         print_r($userProfile);
         
@@ -630,7 +719,7 @@ if (!isset($_GET['code'])) {
 
 This section lists every public-facing endpoint on the IDP, what it is for, and who typically calls it. Documenting these endpoints is intentional — developers need this reference to integrate correctly.
 
-Endpoints fall into four categories: **OAuth server** (standard protocol), **resource API** (your app after login), **policy service** (backend authorization checks), and **browser UI** (human login and profile management).
+Endpoints fall into five categories: **OAuth server** (standard protocol), **resource API** (your app after login), **client IAM API** (server-to-server policy/metadata for registered apps), **policy service** (backend authorization checks), and **browser UI** (human login and profile management).
 
 ### OAuth 2.0 Server
 
@@ -644,12 +733,26 @@ These implement the standard OAuth 2.0 authorization code flow. Every registered
 
 ### Resource API (OAuth clients)
 
-Call these from your application with the access token from `/oauth/token`.
+Call these after login. Elevate your access token to an authorization JWT first (see [Section 2](#2-api-endpoints--usage)).
 
 | Endpoint | Method | Purpose | Called by |
 |----------|--------|---------|-----------|
-| `/resources/userinfo` | GET | Full user profile including ORK data (persona, park, kingdom, dues, etc.) | Your app/server after login |
-| `/resources/validate` | GET | Lightweight session heartbeat and presence registration | Your app for frequent liveness checks |
+| `/resources/jwt` | GET | Exchange OAuth access token (or session) for authorization JWT | Your app/server after login |
+| `/resources/userinfo` | GET | Full user profile including ORK data and authorization JWT | Your app/server with authorization JWT |
+| `/resources/validate` | GET | Lightweight session heartbeat and presence registration | Your app with authorization JWT |
+
+### Client IAM API (confidential server-to-server)
+
+Requires HTTP Basic auth with your OAuth `client_id` and `client_secret`. Your client must be **confidential** and have an **`iam_service`** namespace assigned by IDP admins. See [Section 8](#8-client-iam--jwt-metadata-server-to-server).
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/resources/client/policy-claims` | POST | Add an IAM policy claim for a user (scoped to your `iam_service`) |
+| `/resources/client/policy-claims` | DELETE | Remove a policy claim |
+| `/resources/client/policy-claims/{idp_user_id}` | GET | List policy claims for a user in your service namespace |
+| `/resources/client/user-metadata` | PUT | Set per-login metadata embedded in authorization JWTs |
+| `/resources/client/user-metadata/{idp_user_id}` | GET | Read metadata for a login (`?login_id=`) |
+| `/resources/client/user-metadata/{idp_user_id}` | DELETE | Clear metadata for a login (`?login_id=`) |
 
 ### Policy Service (backend services)
 
@@ -688,10 +791,11 @@ For a third-party app developer, the flow you care about is:
 
 1. **`GET /oauth/authorize`** — redirect user to log in and consent
 2. **`POST /oauth/token`** — exchange the returned code for tokens
-3. **`GET /resources/userinfo`** — fetch profile with the access token
-4. **`GET /resources/validate`** — optional heartbeat/presence checks
+3. **`GET /resources/jwt`** — elevate the access token to an authorization JWT
+4. **`GET /resources/userinfo`** — fetch profile with the authorization JWT
+5. **`GET /resources/validate`** — optional heartbeat/presence checks (authorization JWT)
 
-Everything else is either browser UI (login pages), infrastructure (policy service for other backends), ORK-specific coupling ([Section 7](#7-ork-deep-integration-amtgard-specific)), or developer tooling (this documentation).
+Everything else is either browser UI (login pages), infrastructure (policy service for other backends), client IAM server APIs ([Section 8](#8-client-iam--jwt-metadata-server-to-server)), ORK-specific coupling ([Section 7](#7-ork-deep-integration-amtgard-specific)), or developer tooling (this documentation).
 
 ---
 
@@ -703,7 +807,7 @@ Each example demonstrates the same core flow documented in this guide:
 
 1. Redirect the user to `/oauth/authorize` with PKCE
 2. Handle the callback and exchange the code at `/oauth/token`
-3. Call `/resources/userinfo` with the access token
+3. Call `/resources/jwt` with the access token, then `/resources/userinfo` with the authorization JWT
 
 Examples are available for multiple stacks (PHP, JavaScript/Node.js, etc.). Copy the approach that matches your project rather than installing a shared package — there is no `composer require` wrapper to pull in.
 
@@ -795,12 +899,117 @@ Logged-in users can also link from the IDP profile UI (`GET /resources/profile`)
 
 These are **session-authenticated HTML form POSTs** with CSRF protection. Not in Swagger.
 
-### What general integrators should use
+### What general OAuth clients should use
 
 If you are **not** building ORK itself:
 
 1. Use standard OAuth (Sections 1–2).
-2. Call `GET /resources/userinfo` — when the user has linked ORK, the `ork_profile` object is included.
+2. Elevate to an authorization JWT at `GET /resources/jwt`, then call `GET /resources/userinfo` — when the user has linked ORK, the `ork_profile` object is included.
 3. Do **not** implement `/auth/connect` or `/resources/link-ork-profile`; those are ORK↔IDP plumbing.
 
 For ORK-side implementation details, coordinate with the ORK maintainers on Discord or the ORK Help & Updates group (Section 1).
+
+---
+
+## 8. Client IAM & JWT Metadata (server-to-server)
+
+> [!IMPORTANT]
+> **For registered Amtgard app operators only.** These endpoints let a confidential OAuth client manage IAM policy claims and optional JWT metadata for its users. The IDP is the **authoritative policy store** for ORK IAM — ORK and other services consume policies from the authorization JWT obtained via the two-step flow in [Section 2](#2-api-endpoints--usage).
+
+### Prerequisites
+
+1. **Confidential OAuth client** registered in the IDP (`is_confidential = true`).
+2. **`iam_service` assigned** by an IDP admin via `/management/clients`. This must be a **custom** ORK IAM service identifier (e.g. `Skbc`) — not a built-in enum name such as `Documents`, `Idp`, or `Application`. Each identifier is unique across clients.
+3. **`iam_service_format`** (optional JSON array) defines the proviso slots for your service namespace, e.g. `["Configuration","Game","Kingdom","Park"]`. When omitted, the IDP uses that default layout.
+4. Each client may only create policy rows scoped to its own `client_id` and `iam_service`. At most **25** policy claims per user per client.
+
+### Authentication
+
+All client IAM endpoints use **HTTP Basic Auth**:
+
+```http
+Authorization: Basic base64(client_id:client_secret)
+```
+
+Use the same `client_id` and `client_secret` as your OAuth confidential client.
+
+### Policy claims
+
+Policy claims use ORK IAM **ORN format**. The IDP stores three columns that concatenate to the full ORN: `service` + `provisos` + `resource`. When calling the client IAM API, you supply `provisos` and `resource`; the `service` is always your client's `iam_service`.
+
+**Add claim** — `POST /resources/client/policy-claims`
+
+```json
+{
+  "idp_user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "provisos": ":0::::",
+  "resource": "MyResource/MyAction"
+}
+```
+
+Response: `204 No Content` (idempotent if the claim already exists).
+
+**Delete claim** — `DELETE /resources/client/policy-claims` (same JSON body).
+
+**List claims** — `GET /resources/client/policy-claims/{idp_user_id}`
+
+```json
+{
+  "claims": [
+    { "service": "Skbc", "provisos": ":0::::", "resource": "MyResource/MyAction" }
+  ]
+}
+```
+
+Only claims for your `iam_service` and `client_id` are returned. Changes invalidate cached authorization JWTs for that user.
+
+### Per-login JWT metadata
+
+Registered clients may attach a small metadata blob (max **300 bytes**) per **login method** (`user_logins.id`) per OAuth client. The IDP embeds this as the `client_metadata` claim in authorization JWTs when `aud` matches your OAuth `client_id` and the active login matches the stored row.
+
+**Set metadata** — `PUT /resources/client/user-metadata`
+
+```json
+{
+  "idp_user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "login_id": 42,
+  "metadata": { "role": "editor", "tier": 2 },
+  "encoding": "json"
+}
+```
+
+Rules:
+- `login_id` is required and must belong to the user
+- `metadata` must be a JSON **object** when `encoding` is `json` (default), or a **base64 string** when `encoding` is `base64`
+- Stored payload ≤ 300 bytes; base64 payloads must decode to a JSON object ≤ 300 bytes
+- Scoped per login × OAuth client — other clients cannot read or overwrite your metadata
+
+**Get metadata** — `GET /resources/client/user-metadata/{idp_user_id}?login_id=42`
+
+**Delete metadata** — `DELETE /resources/client/user-metadata/{idp_user_id}?login_id=42`
+
+### End-user flow (how metadata reaches your app)
+
+1. Client operator sets policy claims and/or metadata server-to-server (above).
+2. User completes standard OAuth (`/oauth/authorize` → `/oauth/token`).
+3. Your app calls `GET /resources/jwt` with the access token, then `GET /resources/userinfo` with the authorization JWT.
+4. Response includes a `jwt` field; decode it to read `policy` and `client_metadata`.
+
+Example decoded JWT payload (abbreviated):
+
+```json
+{
+  "sub": "550e8400-e29b-41d4-a716-446655440000",
+  "aud": "your-client-id",
+  "email": "player@amtgard.com",
+  "policy": "[\"Skbc:0::::MyResource/MyAction\"]",
+  "client_metadata": { "role": "editor", "tier": 2 },
+  "exp": 1717603200
+}
+```
+
+Use `POST /api/is_authorized` server-side to evaluate `policy` against ORN requirements.
+
+### Swagger
+
+Client IAM endpoints are tagged **Client** in the <a href="/swagger" target="_self">Swagger UI</a>.

@@ -35,6 +35,8 @@ class TestTableSchema extends TableSchema
             'redirect_uri' => FieldDefinition::builder()->name('redirect_uri')->type(FieldType::STRING)->build(),
             'is_confidential' => FieldDefinition::builder()->name('is_confidential')->type(FieldType::BOOL)->build(),
             'is_dev' => FieldDefinition::builder()->name('is_dev')->type(FieldType::BOOL)->build(),
+            'iam_service' => FieldDefinition::builder()->name('iam_service')->type(FieldType::STRING)->build(),
+            'iam_service_format' => FieldDefinition::builder()->name('iam_service_format')->type(FieldType::STRING)->build(),
         ];
         $this->primaryKey = FieldDefinition::builder()->name('id')->type(FieldType::INTEGER)->build();
     }
