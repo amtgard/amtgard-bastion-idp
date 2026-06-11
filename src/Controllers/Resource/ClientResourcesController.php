@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Controllers\Resource;
 
+use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
@@ -12,6 +13,8 @@ use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use Amtgard\IdP\Utility\ClientMetadataValidator;
+use Amtgard\IdP\Utility\IamServiceFormatParser;
+use Amtgard\IdP\Utility\IamServiceFormatValidator;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
 use OpenApi\Attributes as OA;
 use Optional\Optional;
@@ -278,6 +281,92 @@ class ClientResourcesController
         return $response->withStatus(204);
     }
 
+    #[OA\Get(
+        path: '/resources/client/service-format',
+        operationId: 'clientGetServiceFormat',
+        summary: 'Get IAM service format (proviso slot layout) for this client',
+        tags: ['Client'],
+        security: [['clientBasicAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Service format'),
+        ]
+    )]
+    public function getServiceFormat(Request $request, Response $response): Response
+    {
+        $client = $this->registeredClient($request);
+
+        return $this->json($response, $this->serviceFormatPayload($client));
+    }
+
+    #[OA\Post(
+        path: '/resources/client/service-format',
+        operationId: 'clientCreateServiceFormat',
+        summary: 'Set IAM service format when none is configured yet',
+        tags: ['Client'],
+        security: [['clientBasicAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['service_format'],
+                properties: [
+                    new OA\Property(
+                        property: 'service_format',
+                        type: 'array',
+                        items: new OA\Items(type: 'string'),
+                        example: ['Configuration', 'Game', 'Kingdom', 'Park']
+                    ),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 204, description: 'Service format created'),
+            new OA\Response(response: 400, description: 'Invalid service_format'),
+            new OA\Response(response: 409, description: 'Service format already configured'),
+        ]
+    )]
+    public function createServiceFormat(Request $request, Response $response): Response
+    {
+        $client = $this->registeredClient($request);
+
+        if ($this->hasConfiguredServiceFormat($client)) {
+            return $this->jsonError($response, 'service format already configured; use PUT to replace', 409);
+        }
+
+        return $this->saveServiceFormat($request, $response, $client);
+    }
+
+    #[OA\Put(
+        path: '/resources/client/service-format',
+        operationId: 'clientReplaceServiceFormat',
+        summary: 'Replace IAM service format (proviso slot layout)',
+        tags: ['Client'],
+        security: [['clientBasicAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['service_format'],
+                properties: [
+                    new OA\Property(
+                        property: 'service_format',
+                        type: 'array',
+                        items: new OA\Items(type: 'string'),
+                        example: ['Configuration', 'Kingdom', 'EventInstance']
+                    ),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 204, description: 'Service format updated'),
+            new OA\Response(response: 400, description: 'Invalid service_format'),
+        ]
+    )]
+    public function replaceServiceFormat(Request $request, Response $response): Response
+    {
+        $client = $this->registeredClient($request);
+
+        return $this->saveServiceFormat($request, $response, $client);
+    }
+
     private function registeredClient(Request $request): Client
     {
         /** @var Client $client */
@@ -373,5 +462,61 @@ class ClientResourcesController
     private function jsonError(Response $response, string $message, int $status): Response
     {
         return $this->json($response, ['error' => $message], $status);
+    }
+
+    private function saveServiceFormat(Request $request, Response $response, Client $client): Response
+    {
+        try {
+            $encoded = $this->encodedServiceFormatFromBody((array) $request->getParsedBody());
+            $client->setIamServiceFormat($encoded);
+            EntityManager::getManager()->persist($client);
+            OrnClaimRegistry::registerForClient($client);
+        } catch (\InvalidArgumentException|\JsonException $e) {
+            return $this->jsonError($response, $e->getMessage(), 400);
+        }
+
+        return $response->withStatus(204);
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     */
+    private function encodedServiceFormatFromBody(array $body): string
+    {
+        if (!isset($body['service_format']) || !is_array($body['service_format'])) {
+            throw new \InvalidArgumentException('service_format array is required');
+        }
+
+        $encoded = IamServiceFormatValidator::validate(
+            json_encode($body['service_format'], JSON_THROW_ON_ERROR)
+        );
+
+        if ($encoded === null) {
+            throw new \InvalidArgumentException('service_format must be a non-empty array');
+        }
+
+        return $encoded;
+    }
+
+    /**
+     * @return array{iam_service: ?string, service_format: list<string>, is_default: bool}
+     */
+    private function serviceFormatPayload(Client $client): array
+    {
+        $stored = $client->getIamServiceFormat();
+        $slots = IamServiceFormatParser::parse($stored);
+
+        return [
+            'iam_service' => $client->getIamService(),
+            'service_format' => array_map(fn ($slot) => $slot->value, $slots),
+            'is_default' => !$this->hasConfiguredServiceFormat($client),
+        ];
+    }
+
+    private function hasConfiguredServiceFormat(Client $client): bool
+    {
+        $stored = $client->getIamServiceFormat();
+
+        return $stored !== null && trim($stored) !== '';
     }
 }

@@ -792,6 +792,9 @@ Requires HTTP Basic auth with your OAuth `client_id` and `client_secret`. Your c
 | `/resources/client/user-metadata` | PUT | Set per-login metadata embedded in authorization JWTs |
 | `/resources/client/user-metadata/{idp_user_id}` | GET | Read metadata for a login (`?login_id=`) |
 | `/resources/client/user-metadata/{idp_user_id}` | DELETE | Clear metadata for a login (`?login_id=`) |
+| `/resources/client/service-format` | GET | Read proviso slot layout (`iam_service_format`) |
+| `/resources/client/service-format` | POST | Set format when none configured yet (requires `iam_service`) |
+| `/resources/client/service-format` | PUT | Replace proviso slot layout (requires `iam_service`) |
 
 ### Policy Service (backend services)
 
@@ -1020,7 +1023,37 @@ The array order defines how proviso values map to ORN positions. With the defaul
 
 Your app's resource paths (`Officer/Approve`, `Editor/Write`, etc.) are validated loosely (`*/*` wildcard map) — you define the semantics; the IDP stores and replays them in JWT `policy` claims.
 
-IdP administrators set `iam_service` and `iam_service_format` on your OAuth client via **Management → Clients** (`/management/clients`).
+IdP administrators set `iam_service` on your OAuth client via **Management → Clients** (`/management/clients`). Your integrator backend may set or update `iam_service_format` via the Client IAM API once `iam_service` is assigned (see below).
+
+### Service format API (`/resources/client/service-format`)
+
+Integrators can read and manage their proviso layout without an admin UI change:
+
+| Method | Auth | Purpose |
+|--------|------|---------|
+| `GET` | Confidential client (Basic) | Returns `iam_service`, effective `service_format` array, and `is_default` |
+| `POST` | Confidential client **with** `iam_service` | Set format when none is stored yet (`409` if already configured) |
+| `PUT` | Confidential client **with** `iam_service` | Replace stored format |
+
+**GET response example**:
+
+```json
+{
+  "iam_service": "Skbc",
+  "service_format": ["Configuration", "Game", "Kingdom", "Park"],
+  "is_default": true
+}
+```
+
+**POST / PUT body**:
+
+```json
+{
+  "service_format": ["Configuration", "Kingdom", "EventInstance"]
+}
+```
+
+Slot names must be from the allowed `OrkServices` proviso vocabulary (see above). After a successful POST or PUT, the IDP re-registers your ORN claim parser for the new layout.
 
 ### What a third-party integrator can do
 

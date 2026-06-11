@@ -11,12 +11,11 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 
 /**
- * Server-to-server gate for registered confidential OAuth clients with an
- * assigned IAM service namespace. Sets request attribute `registered_client`.
+ * Confidential OAuth client credentials only (no iam_service requirement).
  */
-class ConfidentialClientAuthMiddleware implements MiddlewareInterface
+class ConfidentialClientCredentialMiddleware implements MiddlewareInterface
 {
-    public const REQUEST_ATTRIBUTE = 'registered_client';
+    public const REQUEST_ATTRIBUTE = ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE;
 
     public function __construct(
         private ConfidentialClientAuthenticator $authenticator,
@@ -24,7 +23,7 @@ class ConfidentialClientAuthMiddleware implements MiddlewareInterface
 
     public function process(Request $request, RequestHandler $handler): Response
     {
-        $client = $this->authenticator->authenticate($request, true);
+        $client = $this->authenticator->authenticate($request, false);
 
         return $handler->handle($request->withAttribute(self::REQUEST_ATTRIBUTE, $client));
     }
