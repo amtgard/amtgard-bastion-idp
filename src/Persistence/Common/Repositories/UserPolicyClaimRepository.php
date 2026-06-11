@@ -14,6 +14,7 @@ use Amtgard\IAM\ClaimFactory;
 use Amtgard\IAM\OrkServices;
 use Amtgard\IdP\Utility\Exception\MalformedUserPolicyException;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
+use Optional\Optional;
 use Throwable;
 
 class UserPolicyClaimRepository
@@ -34,23 +35,15 @@ class UserPolicyClaimRepository
      */
     public function listClaimsForUser(int $userDbId, ?string $service = null, ?int $clientDbId = null): array
     {
-        $this->userClaims->clear();
-        $this->userClaims->user_id = $userDbId;
-        $this->userClaims->find();
+        $this->loadClaimsForUser($userDbId);
 
         $claims = [];
         while ($this->userClaims->next()) {
-            if ($service !== null && $this->userClaims->service !== $service) {
+            if (!$this->matchesListFilters($service, $clientDbId)) {
                 continue;
             }
-            if ($clientDbId !== null && (int) ($this->userClaims->client_id ?? 0) !== $clientDbId) {
-                continue;
-            }
-            $claims[] = [
-                'service' => (string) $this->userClaims->service,
-                'provisos' => (string) $this->userClaims->provisos,
-                'resource' => (string) $this->userClaims->resource,
-            ];
+
+            $claims[] = $this->currentClaimRow();
         }
 
         return $claims;
@@ -65,32 +58,17 @@ class UserPolicyClaimRepository
         ?int $clientDbId = null
     ): void {
         $this->assertValidOrnParts($service, $provisos, $resource);
-        if ($service !== OrkServices::Idp->value && $clientDbId === null) {
-            throw new \InvalidArgumentException('client_id is required for third-party policy claims.');
-        }
+        $this->assertThirdPartyClaimHasClient($service, $clientDbId);
         $this->assertClaimParses($service, $provisos, $resource);
 
         if ($this->claimExists($userDbId, $service, $provisos, $resource)) {
             return;
         }
 
-        if ($clientDbId !== null) {
-            $this->assertClientClaimCap($userDbId, $clientDbId);
-        }
+        Optional::ofNullable($clientDbId)
+            ->ifPresent(fn (int $scopedClientDbId) => $this->assertClientClaimCap($userDbId, $scopedClientDbId));
 
-        $this->userClaims->clear();
-        $this->userClaims->query(
-            'INSERT INTO user_policy_claims (user_id, client_id, updated_by_user_id, updated_at, service, provisos, resource)
-             VALUES (:user_id, :client_id, :updated_by_user_id, :updated_at, :service, :provisos, :resource)'
-        );
-        $this->userClaims->user_id = $userDbId;
-        $this->userClaims->client_id = $clientDbId;
-        $this->userClaims->updated_by_user_id = $updatedByUserDbId;
-        $this->userClaims->updated_at = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
-        $this->userClaims->service = $service;
-        $this->userClaims->provisos = $provisos;
-        $this->userClaims->resource = $resource;
-        $this->userClaims->execute();
+        $this->insertClaim($userDbId, $clientDbId, $updatedByUserDbId, $service, $provisos, $resource);
     }
 
     public function deleteClaim(int $userDbId, string $service, string $provisos, string $resource): bool
@@ -113,31 +91,119 @@ class UserPolicyClaimRepository
 
     public function getUserPolicy(EntityInterface $user, ?int $forClientDbId = null): Policy
     {
-        $this->userClaims->clear();
-        $this->userClaims->user_id = $user->id;
-        $policyClaims = [];
-        $this->userClaims->find();
+        $this->loadClaimsForUser($user->id);
         OrnClaimRegistry::registerForService(OrkServices::Idp->value);
+
+        $policyClaims = [];
         while ($this->userClaims->next()) {
             $service = (string) $this->userClaims->service;
             $claimClientId = $this->userClaims->client_id ?? null;
 
-            if ($forClientDbId !== null) {
-                if ($service !== OrkServices::Idp->value && (int) $claimClientId !== $forClientDbId) {
-                    continue;
-                }
+            if (!$this->includeClaimInAuthorizationJwt($service, $claimClientId, $forClientDbId)) {
+                continue;
             }
 
-            try {
-                OrnClaimRegistry::registerForService($service);
-                $orn = $service . $this->userClaims->provisos . $this->userClaims->resource;
-                $policyClaims[] = ClaimFactory::createOrn($orn);
-            } catch (Throwable $e) {
-                throw new MalformedUserPolicyException($e);
-            }
+            $policyClaims[] = $this->parseStoredClaim($service);
         }
 
         return new Policy($policyClaims);
+    }
+
+    private function loadClaimsForUser(int $userDbId): void
+    {
+        $this->userClaims->clear();
+        $this->userClaims->user_id = $userDbId;
+        $this->userClaims->find();
+    }
+
+    /**
+     * Authorization JWTs are minted for a specific OAuth client audience; omit other
+     * clients' third-party claims so policy is not leaked across integrators.
+     */
+    private function includeClaimInAuthorizationJwt(
+        string $service,
+        mixed $claimClientId,
+        ?int $forClientDbId
+    ): bool {
+        if ($forClientDbId === null) {
+            return true;
+        }
+
+        if ($service === OrkServices::Idp->value) {
+            return true;
+        }
+
+        return (int) $claimClientId === $forClientDbId;
+    }
+
+    private function matchesListFilters(?string $service, ?int $clientDbId): bool
+    {
+        if ($service !== null && $this->userClaims->service !== $service) {
+            return false;
+        }
+
+        if ($clientDbId !== null && (int) ($this->userClaims->client_id ?? 0) !== $clientDbId) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array{service: string, provisos: string, resource: string}
+     */
+    private function currentClaimRow(): array
+    {
+        return [
+            'service' => (string) $this->userClaims->service,
+            'provisos' => (string) $this->userClaims->provisos,
+            'resource' => (string) $this->userClaims->resource,
+        ];
+    }
+
+    private function parseStoredClaim(string $service): mixed
+    {
+        try {
+            OrnClaimRegistry::registerForService($service);
+            $orn = $service . $this->userClaims->provisos . $this->userClaims->resource;
+
+            return ClaimFactory::createOrn($orn);
+        } catch (Throwable $e) {
+            throw new MalformedUserPolicyException($e);
+        }
+    }
+
+    private function assertThirdPartyClaimHasClient(string $service, ?int $clientDbId): void
+    {
+        if ($service === OrkServices::Idp->value) {
+            return;
+        }
+
+        Optional::ofNullable($clientDbId)
+            ->orElseThrow(new \InvalidArgumentException('client_id is required for third-party policy claims.'));
+    }
+
+    private function insertClaim(
+        int $userDbId,
+        ?int $clientDbId,
+        int $updatedByUserDbId,
+        string $service,
+        string $provisos,
+        string $resource
+    ): void {
+        $this->userClaims->clear();
+        $this->userClaims->query(
+            'INSERT INTO user_policy_claims (user_id, client_id, updated_by_user_id, updated_at, service, provisos, resource)
+             VALUES (:user_id, :client_id, :updated_by_user_id, :updated_at, :service, :provisos, :resource)'
+        );
+        $this->userClaims->user_id = $userDbId;
+        $this->userClaims->client_id = $clientDbId;
+        $this->userClaims->updated_by_user_id = $updatedByUserDbId;
+        $this->userClaims->updated_at = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $this->userClaims->service = $service;
+        $this->userClaims->provisos = $provisos;
+        $this->userClaims->resource = $resource;
+        $this->userClaims->execute();
     }
 
     private function claimExists(int $userDbId, string $service, string $provisos, string $resource): bool
@@ -160,11 +226,10 @@ class UserPolicyClaimRepository
         $this->userClaims->user_id = $userDbId;
         $this->userClaims->client_id = $clientDbId;
         $this->userClaims->execute();
-        if (!$this->userClaims->next()) {
-            return;
-        }
 
-        $count = (int) ($this->userClaims->claim_count ?? 0);
+        $count = Optional::ofNullable($this->userClaims->next() ? (int) ($this->userClaims->claim_count ?? 0) : null)
+            ->orElse(0);
+
         if ($count >= self::MAX_CLAIMS_PER_CLIENT) {
             throw new \InvalidArgumentException(
                 sprintf('At most %d policy claims are allowed per user for this client.', self::MAX_CLAIMS_PER_CLIENT)

@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
-use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
-use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
+use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use Amtgard\IdP\Utility\ClientMetadataValidator;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
 use OpenApi\Attributes as OA;
+use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -22,8 +23,7 @@ class ClientResourcesController
 {
     public function __construct(
         private LoggerInterface $logger,
-        private UserRepository $userRepository,
-        private UserLoginRepository $userLoginRepository,
+        private ClientResourcesRequestResolver $requestResolver,
         private UserPolicyClaimRepository $policyClaimRepository,
         private UserLoginClientRepository $metadataRepository,
         private RedisCacheRepository $redisCacheRepository,
@@ -56,7 +56,7 @@ class ClientResourcesController
     {
         $client = $this->registeredClient($request);
         $body = (array) $request->getParsedBody();
-        $user = $this->resolveUser($body['idp_user_id'] ?? null, $response);
+        $user = $this->requireUser($body['idp_user_id'] ?? null, $response);
         if ($user instanceof Response) {
             return $user;
         }
@@ -66,12 +66,12 @@ class ClientResourcesController
             $this->policyClaimRepository->addClaim(
                 $user->getId(),
                 (string) $client->getIamService(),
-                trim((string) ($body['provisos'] ?? '')),
-                trim((string) ($body['resource'] ?? '')),
+                $this->trimmedClaimPart($body['provisos'] ?? null),
+                $this->trimmedClaimPart($body['resource'] ?? null),
                 $user->getId(),
                 $client->getId()
             );
-            $this->redisCacheRepository->invalidateUser($user->getUserId());
+            $this->invalidateUserCache($user);
         } catch (\InvalidArgumentException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
         }
@@ -106,7 +106,7 @@ class ClientResourcesController
     {
         $client = $this->registeredClient($request);
         $body = (array) $request->getParsedBody();
-        $user = $this->resolveUser($body['idp_user_id'] ?? null, $response);
+        $user = $this->requireUser($body['idp_user_id'] ?? null, $response);
         if ($user instanceof Response) {
             return $user;
         }
@@ -115,10 +115,10 @@ class ClientResourcesController
             $this->policyClaimRepository->deleteClaim(
                 $user->getId(),
                 (string) $client->getIamService(),
-                trim((string) ($body['provisos'] ?? '')),
-                trim((string) ($body['resource'] ?? ''))
+                $this->trimmedClaimPart($body['provisos'] ?? null),
+                $this->trimmedClaimPart($body['resource'] ?? null)
             );
-            $this->redisCacheRepository->invalidateUser($user->getUserId());
+            $this->invalidateUserCache($user);
         } catch (\InvalidArgumentException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
         }
@@ -140,7 +140,7 @@ class ClientResourcesController
     public function listPolicyClaims(Request $request, Response $response, string $idpUserId): Response
     {
         $client = $this->registeredClient($request);
-        $user = $this->resolveUser($idpUserId, $response);
+        $user = $this->requireUser($idpUserId, $response);
         if ($user instanceof Response) {
             return $user;
         }
@@ -150,6 +150,7 @@ class ClientResourcesController
             $client->getIamService(),
             $client->getId()
         );
+
         return $this->json($response, ['claims' => $claims]);
     }
 
@@ -181,14 +182,9 @@ class ClientResourcesController
     {
         $client = $this->registeredClient($request);
         $body = (array) $request->getParsedBody();
-        $user = $this->resolveUser($body['idp_user_id'] ?? null, $response);
-        if ($user instanceof Response) {
-            return $user;
-        }
-
-        $loginId = $this->resolveLoginId($body['login_id'] ?? null, $user->getId(), $response);
-        if ($loginId instanceof Response) {
-            return $loginId;
+        $context = $this->requireUserAndLogin($body, $response);
+        if ($context instanceof Response) {
+            return $context;
         }
 
         try {
@@ -197,13 +193,13 @@ class ClientResourcesController
                 isset($body['encoding']) ? (string) $body['encoding'] : null
             );
             $this->metadataRepository->upsertMetadata(
-                $user->getId(),
-                $loginId,
+                $context['user']->getId(),
+                $context['loginId'],
                 $client->getId(),
                 $prepared['payload'],
                 $prepared['encoding']
             );
-            $this->redisCacheRepository->invalidateUser($user->getUserId());
+            $this->invalidateUserCache($context['user']);
         } catch (\InvalidArgumentException|\JsonException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
         }
@@ -233,26 +229,20 @@ class ClientResourcesController
     public function getUserMetadata(Request $request, Response $response, string $idpUserId): Response
     {
         $client = $this->registeredClient($request);
-        $user = $this->resolveUser($idpUserId, $response);
-        if ($user instanceof Response) {
-            return $user;
+        $context = $this->requireUserAndLoginFromQuery($idpUserId, $request, $response);
+        if ($context instanceof Response) {
+            return $context;
         }
 
-        $loginId = $this->resolveLoginId($request->getQueryParams()['login_id'] ?? null, $user->getId(), $response);
-        if ($loginId instanceof Response) {
-            return $loginId;
-        }
+        $stored = $this->metadataRepository->getMetadata($context['loginId'], $client->getId());
 
-        $stored = $this->metadataRepository->getMetadata($loginId, $client->getId());
-        if ($stored === null) {
-            return $this->jsonError($response, 'metadata not found', 404);
-        }
-
-        return $this->json($response, [
-            'login_id' => $loginId,
-            'metadata' => $stored['metadata'],
-            'encoding' => $stored['encoding'],
-        ]);
+        return Optional::ofNullable($stored)
+            ->map(fn (array $metadataRow) => $this->json($response, [
+                'login_id' => $context['loginId'],
+                'metadata' => $metadataRow['metadata'],
+                'encoding' => $metadataRow['encoding'],
+            ]))
+            ->orElseGet(fn () => $this->jsonError($response, 'metadata not found', 404));
     }
 
     #[OA\Delete(
@@ -277,18 +267,13 @@ class ClientResourcesController
     public function deleteUserMetadata(Request $request, Response $response, string $idpUserId): Response
     {
         $client = $this->registeredClient($request);
-        $user = $this->resolveUser($idpUserId, $response);
-        if ($user instanceof Response) {
-            return $user;
+        $context = $this->requireUserAndLoginFromQuery($idpUserId, $request, $response);
+        if ($context instanceof Response) {
+            return $context;
         }
 
-        $loginId = $this->resolveLoginId($request->getQueryParams()['login_id'] ?? null, $user->getId(), $response);
-        if ($loginId instanceof Response) {
-            return $loginId;
-        }
-
-        $this->metadataRepository->deleteMetadata($loginId, $client->getId());
-        $this->redisCacheRepository->invalidateUser($user->getUserId());
+        $this->metadataRepository->deleteMetadata($context['loginId'], $client->getId());
+        $this->invalidateUserCache($context['user']);
 
         return $response->withStatus(204);
     }
@@ -300,33 +285,83 @@ class ClientResourcesController
         return $client;
     }
 
-    private function resolveUser(mixed $idpUserId, Response $response): \Amtgard\IdP\Persistence\Client\Entities\UserEntity|Response
+    private function requireUser(mixed $idpUserId, Response $response): UserEntity|Response
     {
-        $idpUserId = is_string($idpUserId) ? trim($idpUserId) : '';
-        if ($idpUserId === '') {
+        if (!$this->hasNonEmptyPublicId($idpUserId)) {
             return $this->jsonError($response, 'idp_user_id is required', 400);
         }
 
-        $user = $this->userRepository->findUserByUserId($idpUserId);
-        if ($user === null) {
-            return $this->jsonError($response, 'unknown idp_user_id', 404);
-        }
-
-        return $user;
+        return $this->requestResolver->findUserByPublicId($idpUserId)
+            ->map(fn (UserEntity $user) => $user)
+            ->orElseGet(fn () => $this->jsonError($response, 'unknown idp_user_id', 404));
     }
 
-    private function resolveLoginId(mixed $loginId, int $userDbId, Response $response): int|Response
+    /**
+     * @param array<string, mixed> $body
+     * @return array{user: UserEntity, loginId: int}|Response
+     */
+    private function requireUserAndLogin(array $body, Response $response): array|Response
     {
-        if (!is_numeric($loginId) || (int) $loginId <= 0) {
+        $user = $this->requireUser($body['idp_user_id'] ?? null, $response);
+        if ($user instanceof Response) {
+            return $user;
+        }
+
+        return $this->requireLoginForUser($body['login_id'] ?? null, $user, $response);
+    }
+
+    /**
+     * @return array{user: UserEntity, loginId: int}|Response
+     */
+    private function requireUserAndLoginFromQuery(
+        string $idpUserId,
+        Request $request,
+        Response $response
+    ): array|Response {
+        $user = $this->requireUser($idpUserId, $response);
+        if ($user instanceof Response) {
+            return $user;
+        }
+
+        return $this->requireLoginForUser($request->getQueryParams()['login_id'] ?? null, $user, $response);
+    }
+
+    /**
+     * @return array{user: UserEntity, loginId: int}|Response
+     */
+    private function requireLoginForUser(mixed $loginId, UserEntity $user, Response $response): array|Response
+    {
+        if (!$this->hasPositiveInteger($loginId)) {
             return $this->jsonError($response, 'login_id is required', 400);
         }
 
-        $loginId = (int) $loginId;
-        if (!$this->userLoginRepository->loginBelongsToUser($loginId, $userDbId)) {
-            return $this->jsonError($response, 'unknown login_id for user', 404);
-        }
+        return $this->requestResolver->findLoginIdForUser($loginId, $user->getId())
+            ->map(fn (int $resolvedLoginId) => ['user' => $user, 'loginId' => $resolvedLoginId])
+            ->orElseGet(fn () => $this->jsonError($response, 'unknown login_id for user', 404));
+    }
 
-        return $loginId;
+    private function hasNonEmptyPublicId(mixed $idpUserId): bool
+    {
+        return Optional::ofNullable(is_string($idpUserId) ? trim($idpUserId) : null)
+            ->filter(fn (string $normalized) => $normalized !== '')
+            ->isPresent();
+    }
+
+    private function hasPositiveInteger(mixed $value): bool
+    {
+        return Optional::ofNullable(is_numeric($value) ? (int) $value : null)
+            ->filter(fn (int $resolved) => $resolved > 0)
+            ->isPresent();
+    }
+
+    private function trimmedClaimPart(mixed $value): string
+    {
+        return trim((string) ($value ?? ''));
+    }
+
+    private function invalidateUserCache(UserEntity $user): void
+    {
+        $this->redisCacheRepository->invalidateUser($user->getUserId());
     }
 
     private function json(Response $response, array $payload, int $status = 200): Response

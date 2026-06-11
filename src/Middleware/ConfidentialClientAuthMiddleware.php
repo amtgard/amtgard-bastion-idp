@@ -7,6 +7,8 @@ namespace Amtgard\IdP\Middleware;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Utility\Security\HttpBasicCredentialsParser;
+use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -30,37 +32,49 @@ class ConfidentialClientAuthMiddleware implements MiddlewareInterface
 
     public function process(Request $request, RequestHandler $handler): Response
     {
-        $header = $request->getHeaderLine('Authorization');
-        if (!preg_match('/^Basic\s+(\S+)$/i', $header, $matches)) {
+        $credentials = HttpBasicCredentialsParser::fromAuthorizationHeader(
+            $request->getHeaderLine('Authorization')
+        );
+
+        if (!$credentials->isPresent()) {
             $this->logger->info('ConfidentialClientAuth: missing or non-Basic Authorization header');
             throw new HttpUnauthorizedException($request, 'Confidential client credentials required.');
         }
 
-        $decoded = base64_decode($matches[1], true);
-        if ($decoded === false || !str_contains($decoded, ':')) {
-            throw new HttpUnauthorizedException($request, 'Malformed credentials.');
-        }
+        $client = $this->authenticateClient($request, $credentials->get());
 
-        [$clientId, $clientSecret] = explode(':', $decoded, 2);
+        return $handler->handle($request->withAttribute(self::REQUEST_ATTRIBUTE, $client));
+    }
 
-        if (!$this->clientRepository->validateClient($clientId, $clientSecret, 'confidential_basic')) {
-            $this->logger->warning('ConfidentialClientAuth: invalid credentials', ['client_id' => $clientId]);
+    private function authenticateClient(Request $request, \Amtgard\IdP\Utility\Security\HttpBasicCredentials $credentials): Client
+    {
+        if (!$this->clientRepository->validateClient(
+            $credentials->clientId,
+            $credentials->clientSecret,
+            'confidential_basic'
+        )) {
+            $this->logger->warning('ConfidentialClientAuth: invalid credentials', [
+                'client_id' => $credentials->clientId,
+            ]);
             throw new HttpUnauthorizedException($request, 'Invalid client credentials.');
         }
 
-        $client = $this->clientRepository->findClientByIdentifier($clientId);
-        if (!$client instanceof Client) {
-            throw new HttpUnauthorizedException($request, 'Unknown client.');
-        }
+        $client = Optional::ofNullable(
+            $this->clientRepository->findClientByIdentifier($credentials->clientId)
+        )->orElseThrow(new HttpUnauthorizedException($request, 'Unknown client.'));
 
         if (!$client->getIsConfidential()) {
             throw new HttpUnauthorizedException($request, 'Client endpoints require a confidential client.');
         }
 
-        if ($client->getIamService() === null || $client->getIamService() === '') {
-            throw new HttpUnauthorizedException($request, 'Client is not configured with an IAM service namespace.');
-        }
+        // Without a dedicated iam_service namespace, clients cannot scope ORN policy rows.
+        Optional::ofNullable($client->getIamService())
+            ->filter(fn (string $iamService) => $iamService !== '')
+            ->orElseThrow(new HttpUnauthorizedException(
+                $request,
+                'Client is not configured with an IAM service namespace.'
+            ));
 
-        return $handler->handle($request->withAttribute(self::REQUEST_ATTRIBUTE, $client));
+        return $client;
     }
 }

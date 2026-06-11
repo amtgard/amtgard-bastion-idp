@@ -9,6 +9,7 @@ use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\UserLoginClient;
 use Amtgard\IdP\Utility\ClientMetadataValidator;
+use Optional\Optional;
 
 #[RepositoryOf('user_login_client', UserLoginClient::class)]
 class UserLoginClientRepository extends Repository implements EntityRepositoryInterface
@@ -24,20 +25,20 @@ class UserLoginClientRepository extends Repository implements EntityRepositoryIn
     }
 
     /**
-     * Value for the `client_metadata` JWT claim (object or base64 string).
+     * Shapes the stored blob for the JWT claim: json rows become objects, base64 rows stay opaque strings
+     * because integrators requested on-wire encoding without IDP re-serialization.
      */
     public function getMetadataForJwt(int $loginDbId, int $clientDbId): mixed
     {
-        $row = $this->findRow($loginDbId, $clientDbId);
-        if ($row === null) {
-            return null;
-        }
+        return Optional::ofNullable($this->findRow($loginDbId, $clientDbId))
+            ->map(function (UserLoginClient $row): mixed {
+                if ($row->getEncoding() === ClientMetadataValidator::ENCODING_BASE64) {
+                    return $row->getMetadata();
+                }
 
-        if ($row->getEncoding() === ClientMetadataValidator::ENCODING_BASE64) {
-            return $row->getMetadata();
-        }
-
-        return json_decode($row->getMetadata(), true, flags: JSON_THROW_ON_ERROR);
+                return json_decode($row->getMetadata(), true, flags: JSON_THROW_ON_ERROR);
+            })
+            ->orElse(null);
     }
 
     /**
