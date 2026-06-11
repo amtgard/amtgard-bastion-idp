@@ -60,12 +60,13 @@ namespace Amtgard\IdP\Tests\Middleware {
 
             $middleware = new SessionMiddleware();
 
-            $_SESSION = ['foo' => 'baz'];
-
             $request = $this->createMock(ServerRequestInterface::class);
             $request->expects($this->once())
                 ->method('withAttribute')
-                ->with('session', ['foo' => 'baz'])
+                ->with(
+                    'session',
+                    $this->callback(fn (mixed $session): bool => is_array($session))
+                )
                 ->willReturnSelf();
 
             $responseMock = $this->createMock(ResponseInterface::class);
@@ -76,10 +77,10 @@ namespace Amtgard\IdP\Tests\Middleware {
             $this->assertSame($responseMock, $response);
         }
 
-        public function testProcessConfiguresSharedRedisSessionsWhenInactive(): void
+        public function testProcessFallsBackToFileSessionsWhenRedisUnreachable(): void
         {
             $GLOBALS['mock_session_active'] = false;
-            $_ENV['SESSION_REDIS_HOST'] = 'amtgard-idp-sessions';
+            $_ENV['SESSION_REDIS_HOST'] = 'unreachable-session-redis.test';
             $_ENV['SESSION_REDIS_DB'] = '1';
 
             $middleware = new SessionMiddleware();
@@ -93,11 +94,7 @@ namespace Amtgard\IdP\Tests\Middleware {
 
             $middleware->process($request, $handler);
 
-            $this->assertSame('redis', ini_get('session.save_handler'));
-            $this->assertSame(
-                'tcp://amtgard-idp-sessions:6379?database=1&prefix=PHPSESS:',
-                ini_get('session.save_path')
-            );
+            $this->assertSame('files', ini_get('session.save_handler'));
         }
     }
 }

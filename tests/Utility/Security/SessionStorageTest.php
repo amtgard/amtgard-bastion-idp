@@ -87,4 +87,13 @@ class SessionStorageTest extends TestCase
             ini_get('session.save_path')
         );
     }
+
+    public function testStartSessionFallsBackToFilesWhenRedisUnreachable(): void
+    {
+        $_ENV['SESSION_REDIS_HOST'] = 'unreachable-session-redis.test';
+
+        SessionStorage::startSession();
+
+        $this->assertSame('files', ini_get('session.save_handler'));
+    }
 }

@@ -59,6 +59,8 @@ The compose file lives under `docker/` but build context, volume mounts, and `en
 
 Server: http://localhost:37080/
 
+Dev Docker injects Redis settings via `.dev.env` (in-container Redis on `127.0.0.1`). If you copy `.env.example` to `.env`, the compose `env_file` values take precedence for session and pub/sub hosts.
+
 ### Tests (PHPUnit in Docker)
 
 PHPUnit requires PHP 8.4 (matches `composer.json`). Run the suite in the dev container:
