@@ -46,15 +46,18 @@ The IDP provides specific endpoints for retrieving user data and validating sess
 
 ## Development
 
-This project requires extensive configuration via dotenv (.env). Check .dev.env and .env.example for details.
+This project requires extensive configuration via dotenv. Copy and edit `.dev.env` (see `.env.example` for all options). Run commands from the **repository root**.
 
-```php
+```bash
 composer install
-vendor/robmorgan/phinx/bin/phinx migrate
 docker compose -f docker/compose.dev.yml up -d --build
+docker compose -f docker/compose.dev.yml exec amtgardidpapp bash -lc \
+  "cd /var/www/idp.amtgard.com && vendor/robmorgan/phinx/bin/phinx migrate"
 ```
 
-Server will be on http://localhost:37080/
+The compose file lives under `docker/` but build context, volume mounts, and `env_file` paths are written relative to that file so they resolve to the repo root. You do **not** need `--project-directory`. The project name is fixed as `amtgard-idp` so it reuses an existing dev database container if you already have one running.
+
+Server: http://localhost:37080/
 
 ### Tests (PHPUnit in Docker)
 
@@ -67,7 +70,8 @@ docker compose -f docker/compose.dev.yml --profile test run --rm test
 Or against a running app container:
 
 ```bash
-docker compose -f docker/compose.dev.yml exec amtgardidpapp bash -lc "cd /var/www/idp.amtgard.com && composer test"
+docker compose -f docker/compose.dev.yml exec amtgardidpapp bash -lc \
+  "cd /var/www/idp.amtgard.com && composer test"
 ```
 
 ## Production

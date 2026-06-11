@@ -62,7 +62,7 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
             return null;
         }
 
-        return (int) $logins[0]->id;
+        return (int) $logins[0]->getId();
     }
 
     /**

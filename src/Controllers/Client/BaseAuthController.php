@@ -33,7 +33,9 @@ class BaseAuthController
         $_SESSION['user_email'] = $login->user->getEmail();
         $_SESSION['user_name'] = $login->user->getFullName();
         $_SESSION['avatar_url'] = $login->getAvatarUrl();
-        LoginSession::setLoginId((int) $login->id);
+        if ($login->getId() !== null) {
+            LoginSession::setLoginId($login->getId());
+        }
 
         // Redirect to home page
         $routeContext = RouteContext::fromRequest($request);
