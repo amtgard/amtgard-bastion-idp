@@ -5,32 +5,12 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Utility;
 
 use Amtgard\IAM\OrkServices;
+use Amtgard\IAM\Orn\OrnSegmentLabel;
 
 final class IamServiceFormatParser
 {
-    /** Proviso slot names allowed in iam_service_format (not ORN service prefixes). */
-    private const ALLOWED_PROVISO_SLOTS = [
-        OrkServices::Configuration,
-        OrkServices::Game,
-        OrkServices::Kingdom,
-        OrkServices::Park,
-        OrkServices::Event,
-        OrkServices::EventInstance,
-        OrkServices::Mundane,
-        OrkServices::Unit,
-        OrkServices::ORK,
-        OrkServices::Attendance,
-        OrkServices::Awards,
-        OrkServices::Audit,
-        OrkServices::Cache,
-        OrkServices::Tenant,
-        OrkServices::Officer,
-        OrkServices::Recommendations,
-        OrkServices::Tournament,
-    ];
-
     /**
-     * @return list<OrkServices>
+     * @return list<OrkServices|string>
      */
     public static function parse(?string $json): array
     {
@@ -48,18 +28,16 @@ final class IamServiceFormatParser
             if (!is_string($slot) || trim($slot) === '') {
                 throw new \InvalidArgumentException('iam_service_format entries must be non-empty strings.');
             }
-            $service = OrkServices::tryFrom($slot);
-            if ($service === null || !in_array($service, self::ALLOWED_PROVISO_SLOTS, true)) {
-                throw new \InvalidArgumentException("iam_service_format slot '$slot' is not an allowed proviso name.");
-            }
-            $format[] = $service;
+
+            $label = OrnSegmentLabel::from(trim($slot));
+            $format[] = $label->toOrkServices() ?? $label->name;
         }
 
         return $format;
     }
 
     /**
-     * @return list<OrkServices>
+     * @return list<OrkServices|string>
      */
     public static function defaultFormat(): array
     {
@@ -72,10 +50,16 @@ final class IamServiceFormatParser
     }
 
     /**
-     * @param list<OrkServices> $format
+     * @param list<OrkServices|string> $format
      */
     public static function encode(array $format): string
     {
-        return json_encode(array_map(fn (OrkServices $s) => $s->value, $format), JSON_THROW_ON_ERROR);
+        return json_encode(
+            array_map(
+                static fn (OrkServices|string $slot): string => $slot instanceof OrkServices ? $slot->value : $slot,
+                $format
+            ),
+            JSON_THROW_ON_ERROR
+        );
     }
 }

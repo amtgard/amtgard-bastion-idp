@@ -29,7 +29,7 @@ The IdP serves two audiences: **players and volunteers** who sign in through a b
 | **Profile API** | After login, elevate to an authorization JWT and fetch email, ORK profile, IAM policy, and optional app metadata |
 | **Presence / heartbeat** | Lightweight `/resources/validate` checks without reloading full profile data |
 | **Custom IAM service namespace** | Operators can register a dedicated ORK IAM **service name** (e.g. `Skbc`) for your app's permission model |
-| **Custom service format** | Choose which **ORK IAM proviso slots** (from the shared `OrkServices` enum) appear in your ORNs and in what order |
+| **Custom service format** | Choose which **proviso slots** appear in your ORNs and in what order — built-in ORK IAM labels or custom names (ORK IAM 1.3+) |
 | **Server-side policy management** | Add/remove/list IAM policy claims for your users (roles, entitlements) via HTTP Basic auth |
 | **Per-login JWT metadata** | Attach a small JSON blob (≤ 300 bytes) per user login method; it appears in authorization JWTs for your client |
 
@@ -1001,11 +1001,9 @@ At runtime the IDP registers a dynamic ORN claim class for your service so ORK I
 An ORN has two different “service” concepts (see [amtgard/ork-iam](https://github.com/amtgard/ork-iam)):
 
 1. **Service prefix** — the leading segment (`Skbc` in `Skbc:0::::Officer/Approve`). Integrators get a **custom** prefix via `iam_service`.
-2. **Proviso slots** — the middle colon-separated segments that scope a claim (configuration id, kingdom id, park id, etc.). These are **not** custom strings — they always use names from the shared **`OrkServices` enum** in ORK IAM.
+2. **Proviso slots** — the middle colon-separated segments that scope a claim (configuration id, kingdom id, park id, etc.). With **ORK IAM 1.3+**, slot names may be any non-empty string. Names that match the shared **`OrkServices` enum** normalize to those built-in labels; you may also define **custom** slot names (e.g. `tenant-id`, `org unit`).
 
-So yes: **the fixed proviso vocabulary is an ORK IAM model constraint**, not something the IdP invented. The policy engine parses proviso segments against `OrkServices` cases regardless of which app owns the prefix. What *is* configurable per integrator is **which** of those slots you use and **in what order** (`iam_service_format`), plus your resource paths (`Officer/Approve`, etc.).
-
-The IdP adds one extra rule on top of ORK IAM: **`iam_service_format` may only list proviso-dimension enum values**, not application/service-prefix names. You cannot use `Idp`, `Documents`, `Application`, etc. as proviso slots — those enum cases identify products, not scoping dimensions.
+What is configurable per integrator is **which** slots you use and **in what order** (`iam_service_format`), plus your resource paths (`Officer/Approve`, etc.).
 
 **Default format** (used when `iam_service_format` is empty):
 
@@ -1019,11 +1017,17 @@ The IdP adds one extra rule on top of ORK IAM: **`iam_service_format` may only l
 ["Configuration","Kingdom","EventInstance"]
 ```
 
-**Allowed proviso slot names** (ORK IAM `OrkServices` values accepted by the IdP for `iam_service_format`):
+**Example with custom slot names** (ORK IAM 1.3+):
+
+```json
+["tenant-id","Kingdom","event-series"]
+```
+
+**Common built-in slot names** (ORK IAM `OrkServices` values — optional; use these when they match your domain):
 
 `Configuration`, `Game`, `Kingdom`, `Park`, `Event`, `EventInstance`, `Mundane`, `Unit`, `ORK`, `Attendance`, `Awards`, `Audit`, `Cache`, `Tenant`, `Officer`, `Recommendations`, `Tournament`
 
-New dimensions would require an **`OrkServices` enum change** in `amtgard/ork-iam` first; the IdP list would then be updated to match.
+Custom names must be non-empty strings. Each entry is validated via ORK IAM `OrnSegmentLabel`.
 
 The array order defines how proviso values map to ORN positions. With the default four-slot format, a proviso string like `:0::::` sets the **Configuration** slot to `0` and leaves other slots empty:
 
@@ -1064,7 +1068,7 @@ Integrators can read and manage their proviso layout without an admin UI change:
 }
 ```
 
-Slot names must be from the allowed proviso list above (ORK IAM `OrkServices` values). After a successful POST or PUT, the IdP re-registers your ORN claim parser for the new layout.
+Slot names must be non-empty strings accepted by ORK IAM (built-in `OrkServices` labels or custom names). After a successful POST or PUT, the IdP re-registers your ORN claim parser for the new layout.
 
 ### What a third-party integrator can do
 

@@ -12,3 +12,6 @@ cache/
 keys/
 dev-keys/
 .local/
+.env.prod
+.phinx.env
+.deploy-state/

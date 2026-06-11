@@ -200,6 +200,167 @@ class ClientResourcesControllerTest extends TestCase
         );
     }
 
+    public function testGetServiceFormatReturnsStoredCustomFormat(): void
+    {
+        $client = Client::builder()
+            ->identifier('app-client')
+            ->clientSecret('secret')
+            ->name('App')
+            ->redirectUri('http://localhost/cb')
+            ->isConfidential(true)
+            ->iamService('Skbc')
+            ->iamServiceFormat('["tenant-id","Kingdom","event-series"]')
+            ->build();
+
+        $controller = $this->makeController();
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')
+            ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
+            ->willReturn($client);
+
+        [$response, $stream] = $this->mockJsonResponse();
+        $stream->expects($this->once())
+            ->method('write')
+            ->with($this->callback(function (string $json): bool {
+                $payload = json_decode($json, true);
+                return ($payload['iam_service'] ?? null) === 'Skbc'
+                    && ($payload['is_default'] ?? null) === false
+                    && ($payload['service_format'] ?? null) === ['tenant-id', 'Kingdom', 'event-series'];
+            }));
+
+        $controller->getServiceFormat($request, $response);
+    }
+
+    public function testCreateServiceFormatPersistsEncodedFormat(): void
+    {
+        $client = Client::builder()
+            ->identifier('app-client')
+            ->clientSecret('secret')
+            ->name('App')
+            ->redirectUri('http://localhost/cb')
+            ->isConfidential(true)
+            ->iamService('Skbc')
+            ->build();
+
+        $controller = $this->makeController();
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')
+            ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
+            ->willReturn($client);
+        $request->method('getParsedBody')->willReturn([
+            'service_format' => ['tenant-id', 'Kingdom'],
+        ]);
+
+        $response = $this->mockResponse();
+        $response->expects($this->once())->method('withStatus')->with(204)->willReturnSelf();
+
+        $controller->createServiceFormat($request, $response);
+
+        $this->assertSame('["tenant-id","Kingdom"]', $client->getIamServiceFormat());
+    }
+
+    public function testCreateServiceFormatReturns400WhenServiceFormatMissing(): void
+    {
+        $client = $this->serviceFormatClient();
+        $controller = $this->makeController();
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')
+            ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
+            ->willReturn($client);
+        $request->method('getParsedBody')->willReturn([]);
+
+        [$response, $stream] = $this->mockJsonResponse();
+        $stream->expects($this->once())
+            ->method('write')
+            ->with($this->stringContains('service_format array is required'));
+        $response->expects($this->once())->method('withStatus')->with(400)->willReturnSelf();
+
+        $controller->createServiceFormat($request, $response);
+    }
+
+    public function testCreateServiceFormatReturns400WhenServiceFormatEmpty(): void
+    {
+        $client = $this->serviceFormatClient();
+        $controller = $this->makeController();
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')
+            ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
+            ->willReturn($client);
+        $request->method('getParsedBody')->willReturn(['service_format' => []]);
+
+        [$response, $stream] = $this->mockJsonResponse();
+        $stream->expects($this->once())
+            ->method('write')
+            ->with($this->stringContains('iam_service_format must be a JSON array'));
+        $response->expects($this->once())->method('withStatus')->with(400)->willReturnSelf();
+
+        $controller->createServiceFormat($request, $response);
+    }
+
+    public function testReplaceServiceFormatReturns400WhenSlotNameEmpty(): void
+    {
+        $client = $this->serviceFormatClient();
+        $controller = $this->makeController();
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')
+            ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
+            ->willReturn($client);
+        $request->method('getParsedBody')->willReturn([
+            'service_format' => ['Configuration', ''],
+        ]);
+
+        [$response, $stream] = $this->mockJsonResponse();
+        $stream->expects($this->once())
+            ->method('write')
+            ->with($this->stringContains('iam_service_format entries must be non-empty strings'));
+        $response->expects($this->once())->method('withStatus')->with(400)->willReturnSelf();
+
+        $controller->replaceServiceFormat($request, $response);
+    }
+
+    public function testReplaceServiceFormatPersistsCustomSlotNames(): void
+    {
+        $client = Client::builder()
+            ->identifier('app-client')
+            ->clientSecret('secret')
+            ->name('App')
+            ->redirectUri('http://localhost/cb')
+            ->isConfidential(true)
+            ->iamService('Skbc')
+            ->build();
+
+        $controller = $this->makeController();
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')
+            ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
+            ->willReturn($client);
+        $request->method('getParsedBody')->willReturn([
+            'service_format' => ['tenant-id', 'Kingdom', 'event-series'],
+        ]);
+
+        $response = $this->mockResponse();
+        $response->expects($this->once())->method('withStatus')->with(204)->willReturnSelf();
+
+        $controller->replaceServiceFormat($request, $response);
+
+        $this->assertSame(
+            '["tenant-id","Kingdom","event-series"]',
+            $client->getIamServiceFormat()
+        );
+    }
+
+    private function serviceFormatClient(): Client
+    {
+        return Client::builder()
+            ->identifier('app-client')
+            ->clientSecret('secret')
+            ->name('App')
+            ->redirectUri('http://localhost/cb')
+            ->isConfidential(true)
+            ->iamService('Skbc')
+            ->build();
+    }
+
     private function makeController(
         ?ClientResourcesRequestResolver $resolver = null,
         ?UserLoginClientRepository $metadataRepository = null,
