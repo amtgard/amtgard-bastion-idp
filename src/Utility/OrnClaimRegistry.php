@@ -8,19 +8,20 @@ use Amtgard\IAM\ORN\OrnClassMap;
 use Amtgard\IAM\OrkServices;
 use Amtgard\IdP\Models\Orn\ClientApplicationClaim;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
+use Optional\Optional;
 
 class OrnClaimRegistry
 {
     public static function registerForClient(Client $client): void
     {
-        $service = $client->getIamService();
-        if ($service === null || $service === '') {
-            return;
-        }
-
-        $format = IamServiceFormatParser::parse($client->getIamServiceFormat());
-        ClientApplicationFormatRegistry::register($service, $format);
-        self::registerForService($service);
+        Optional::ofNullable($client->getIamService())
+            ->filter(fn (string $service) => $service !== '')
+            ->ifPresent(function (string $service) use ($client): void {
+                // Each integrator may define a distinct proviso layout; bind it before parsing claims.
+                $format = IamServiceFormatParser::parse($client->getIamServiceFormat());
+                ClientApplicationFormatRegistry::register($service, $format);
+                self::registerForService($service);
+            });
     }
 
     public static function registerForService(string $service): void
@@ -33,7 +34,7 @@ class OrnClaimRegistry
             return;
         }
 
-        // Built-in ORK service prefixes are registered by orn-definitions or IDP bootstrap.
+        // Built-in enum names are owned by orn-definitions; only custom strings become ClientApplicationClaim.
         if (OrkServices::tryFrom($service) !== null) {
             return;
         }

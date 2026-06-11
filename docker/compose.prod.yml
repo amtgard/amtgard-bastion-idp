@@ -7,7 +7,6 @@ services:
     volumes:
       - .:/var/www/idp.amtgard.com
     env_file:
-      - .prod.env
       - .env
     environment:
       - ENVIRONMENT=PROD

@@ -46,7 +46,7 @@ The IDP provides specific endpoints for retrieving user data and validating sess
 
 ## Development
 
-This project requires extensive configuration via dotenv. Copy and edit `.dev.env` (see `.env.example` for all options). Run commands from the **repository root**.
+This project requires a local `.env` with your development secrets. Copy `.env.example` to `.env`, fill in OAuth credentials and other values, then run commands from the **repository root**.
 
 ```bash
 composer install
@@ -58,6 +58,8 @@ docker compose -f docker/compose.dev.yml exec amtgardidpapp bash -lc \
 The compose file lives under `docker/` but build context, volume mounts, and `env_file` paths are written relative to that file so they resolve to the repo root. You do **not** need `--project-directory`. The project name is fixed as `amtgard-idp` so it reuses an existing dev database container if you already have one running.
 
 Server: http://localhost:37080/
+
+`.env` is gitignored. Production servers also keep a single `.env` on the host (never committed).
 
 ### Tests (PHPUnit in Docker)
 
@@ -114,7 +116,7 @@ cp .env.example .env
 
 ### Key Configuration Options
 - **Application**: `APP_URL`, `APP_ENV`, `APP_SECRET`
-- **Database**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — prod `.env` must point at a host reachable from the blue/green containers (e.g. `host.docker.internal` when MySQL runs on the server). `.env` overrides `.prod.env` in Docker.
+- **Database**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — production `.env` must point at a host reachable from the blue/green containers (e.g. `host.docker.internal` when MySQL runs on the server).
 - **Sessions**: `SESSION_REDIS_HOST`, `SESSION_REDIS_PORT`, `SESSION_REDIS_DB` — point at the shared `amtgard-idp-sessions` container in production (DB 1).
 - **Pub/sub queue & cache**: `REDIS_PUBSUB_HOST`, `REDIS_PUBSUB_PORT`, `REDIS_PUBSUB_DB`, `REDIS_PUBSUB_QUEUE_NAME` — shared container in production (DB 0). Omit `REDIS_PUBSUB_HOST` locally to use in-container Redis.
 - **OAuth**:

@@ -39,12 +39,9 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
 
     public function loginBelongsToUser(int $loginId, int $userDbId): bool
     {
-        $login = $this->findLoginById($loginId);
-        if ($login === null) {
-            return false;
-        }
-
-        return (int) $login->userId === $userDbId;
+        return Optional::ofNullable($this->findLoginById($loginId))
+            ->map(fn (UserLoginEntity $login) => (int) $login->userId === $userDbId)
+            ->orElse(false);
     }
 
     public function resolveDefaultLoginIdForUser(int $userDbId): ?int

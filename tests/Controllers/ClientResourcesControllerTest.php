@@ -12,6 +12,7 @@ use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
+use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use Amtgard\IdP\Utility\ClientMetadataValidator;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -67,8 +68,7 @@ class ClientResourcesControllerTest extends TestCase
 
         $controller = new ClientResourcesController(
             $this->createMock(LoggerInterface::class),
-            $userRepository,
-            $userLoginRepository,
+            new ClientResourcesRequestResolver($userRepository, $userLoginRepository),
             $this->createMock(UserPolicyClaimRepository::class),
             $metadataRepository,
             $redis
@@ -87,6 +87,7 @@ class ClientResourcesControllerTest extends TestCase
         $stream = $this->createMock(StreamInterface::class);
         $response = $this->createMock(ResponseInterface::class);
         $response->method('withStatus')->willReturnSelf();
+        $response->method('withHeader')->willReturnSelf();
         $response->method('getBody')->willReturn($stream);
 
         $result = $controller->upsertUserMetadata($request, $response);

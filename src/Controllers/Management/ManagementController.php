@@ -6,8 +6,7 @@ use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Services\OrkLinkTokenService;
-use Amtgard\IdP\Utility\IamServiceFormatValidator;
-use Amtgard\IdP\Utility\IamServiceValidator;
+use Amtgard\IdP\Utility\Client\ClientIamAdminInput;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -99,17 +98,11 @@ class ManagementController
 
     public function createClient(Request $request, Response $response): Response
     {
-        $data = $request->getParsedBody();
-        
+        $data = (array) $request->getParsedBody();
+
         // If client_secret is not provided (e.g. from disabled input), generate one
         $clientSecret = $data['client_secret'] ?? $this->generateClientSecret();
-        
-        $iamService = IamServiceValidator::validate(
-            isset($data['iam_service']) ? trim((string) $data['iam_service']) : null
-        );
-        $iamServiceFormat = IamServiceFormatValidator::validate(
-            isset($data['iam_service_format']) ? trim((string) $data['iam_service_format']) : null
-        );
+        $iamInput = ClientIamAdminInput::fromFormData($data);
 
         $client = Client::builder()
             ->identifier($data['client_id'])
@@ -118,8 +111,8 @@ class ManagementController
             ->redirectUri($data['redirect_uri'])
             ->isConfidential(isset($data['is_confidential']))
             ->isDev(isset($data['is_dev']))
-            ->iamService($iamService)
-            ->iamServiceFormat($iamServiceFormat)
+            ->iamService($iamInput->iamService)
+            ->iamServiceFormat($iamInput->iamServiceFormat)
             ->build();
 
         EntityManager::getManager()->persist($client);
@@ -131,16 +124,11 @@ class ManagementController
     
     public function updateClient(Request $request, Response $response, $id): Response
     {
-        $data = $request->getParsedBody();
+        $data = (array) $request->getParsedBody();
         $client = $this->clientRepository->fetch($id);
-        
+
         if ($client) {
-            $iamService = IamServiceValidator::validate(
-                isset($data['iam_service']) ? trim((string) $data['iam_service']) : null
-            );
-            $iamServiceFormat = IamServiceFormatValidator::validate(
-                isset($data['iam_service_format']) ? trim((string) $data['iam_service_format']) : null
-            );
+            $iamInput = ClientIamAdminInput::fromFormData($data);
 
             $client->setIdentifier($data['client_id']);
             $client->setClientSecret($data['client_secret']);
@@ -148,9 +136,9 @@ class ManagementController
             $client->setRedirectUri($data['redirect_uri']);
             $client->setIsConfidential(isset($data['is_confidential']));
             $client->setIsDev(isset($data['is_dev']));
-            $client->setIamService($iamService);
-            $client->setIamServiceFormat($iamServiceFormat);
-            
+            $client->setIamService($iamInput->iamService);
+            $client->setIamServiceFormat($iamInput->iamServiceFormat);
+
             EntityManager::getManager()->persist($client);
         }
 
