@@ -29,7 +29,7 @@ The IdP serves two audiences: **players and volunteers** who sign in through a b
 | **Profile API** | After login, elevate to an authorization JWT and fetch email, ORK profile, IAM policy, and optional app metadata |
 | **Presence / heartbeat** | Lightweight `/resources/validate` checks without reloading full profile data |
 | **Custom IAM service namespace** | Operators can register a dedicated ORK IAM **service name** (e.g. `Skbc`) for your app's permission model |
-| **Custom service format** | Configure which **proviso slots** your service uses in ORN claims (kingdom/park scoping, etc.) |
+| **Custom service format** | Choose which **proviso slots** appear in your ORNs and in what order — built-in ORK IAM labels or custom names (ORK IAM 1.3+) |
 | **Server-side policy management** | Add/remove/list IAM policy claims for your users (roles, entitlements) via HTTP Basic auth |
 | **Per-login JWT metadata** | Attach a small JSON blob (≤ 300 bytes) per user login method; it appears in authorization JWTs for your client |
 
@@ -792,6 +792,9 @@ Requires HTTP Basic auth with your OAuth `client_id` and `client_secret`. Your c
 | `/resources/client/user-metadata` | PUT | Set per-login metadata embedded in authorization JWTs |
 | `/resources/client/user-metadata/{idp_user_id}` | GET | Read metadata for a login (`?login_id=`) |
 | `/resources/client/user-metadata/{idp_user_id}` | DELETE | Clear metadata for a login (`?login_id=`) |
+| `/resources/client/service-format` | GET | Read proviso slot layout (`iam_service_format`) |
+| `/resources/client/service-format` | POST | Set format when none configured yet (requires `iam_service`) |
+| `/resources/client/service-format` | PUT | Replace proviso slot layout (requires `iam_service`) |
 
 ### Policy Service (backend services)
 
@@ -995,7 +998,12 @@ At runtime the IDP registers a dynamic ORN claim class for your service so ORK I
 
 ### Service format (`iam_service_format`)
 
-ORK IAM claims include a **proviso segment** between the service name and the resource. The proviso layout is defined by a JSON array of **slot names** from the shared `OrkServices` vocabulary — not your custom service name.
+An ORN has two different “service” concepts (see [amtgard/ork-iam](https://github.com/amtgard/ork-iam)):
+
+1. **Service prefix** — the leading segment (`Skbc` in `Skbc:0::::Officer/Approve`). Integrators get a **custom** prefix via `iam_service`.
+2. **Proviso slots** — the middle colon-separated segments that scope a claim (configuration id, kingdom id, park id, etc.). With **ORK IAM 1.3+**, slot names may be any non-empty string. Names that match the shared **`OrkServices` enum** normalize to those built-in labels; you may also define **custom** slot names (e.g. `tenant-id`, `org unit`).
+
+What is configurable per integrator is **which** slots you use and **in what order** (`iam_service_format`), plus your resource paths (`Officer/Approve`, etc.).
 
 **Default format** (used when `iam_service_format` is empty):
 
@@ -1009,7 +1017,17 @@ ORK IAM claims include a **proviso segment** between the service name and the re
 ["Configuration","Kingdom","EventInstance"]
 ```
 
-Allowed slot names: `Configuration`, `Game`, `Kingdom`, `Park`, `Event`, `EventInstance`, `Mundane`, `Unit`, `ORK`, `Attendance`, `Awards`, `Audit`, `Cache`, `Tenant`, `Officer`, `Recommendations`, `Tournament`.
+**Example with custom slot names** (ORK IAM 1.3+):
+
+```json
+["tenant-id","Kingdom","event-series"]
+```
+
+**Common built-in slot names** (ORK IAM `OrkServices` values — optional; use these when they match your domain):
+
+`Configuration`, `Game`, `Kingdom`, `Park`, `Event`, `EventInstance`, `Mundane`, `Unit`, `ORK`, `Attendance`, `Awards`, `Audit`, `Cache`, `Tenant`, `Officer`, `Recommendations`, `Tournament`
+
+Custom names must be non-empty strings. Each entry is validated via ORK IAM `OrnSegmentLabel`.
 
 The array order defines how proviso values map to ORN positions. With the default four-slot format, a proviso string like `:0::::` sets the **Configuration** slot to `0` and leaves other slots empty:
 
@@ -1020,7 +1038,37 @@ The array order defines how proviso values map to ORN positions. With the defaul
 
 Your app's resource paths (`Officer/Approve`, `Editor/Write`, etc.) are validated loosely (`*/*` wildcard map) — you define the semantics; the IDP stores and replays them in JWT `policy` claims.
 
-IdP administrators set `iam_service` and `iam_service_format` on your OAuth client via **Management → Clients** (`/management/clients`).
+IdP administrators set `iam_service` on your OAuth client via **Management → Clients** (`/management/clients`). Your integrator backend may set or update `iam_service_format` via the Client IAM API once `iam_service` is assigned (see below).
+
+### Service format API (`/resources/client/service-format`)
+
+Integrators can read and manage their proviso layout without an admin UI change:
+
+| Method | Auth | Purpose |
+|--------|------|---------|
+| `GET` | Confidential client (Basic) | Returns `iam_service`, effective `service_format` array, and `is_default` |
+| `POST` | Confidential client **with** `iam_service` | Set format when none is stored yet (`409` if already configured) |
+| `PUT` | Confidential client **with** `iam_service` | Replace stored format |
+
+**GET response example**:
+
+```json
+{
+  "iam_service": "Skbc",
+  "service_format": ["Configuration", "Game", "Kingdom", "Park"],
+  "is_default": true
+}
+```
+
+**POST / PUT body**:
+
+```json
+{
+  "service_format": ["Configuration", "Kingdom", "EventInstance"]
+}
+```
+
+Slot names must be non-empty strings accepted by ORK IAM (built-in `OrkServices` labels or custom names). After a successful POST or PUT, the IdP re-registers your ORN claim parser for the new layout.
 
 ### What a third-party integrator can do
 

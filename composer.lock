@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "52180ce21df7d140f05c40d0d7d3c2ff",
+    "content-hash": "d3e2ccab191edd88dd8e33408cb1336e",
     "packages": [
         {
             "name": "amtgard/active-record-orm",
@@ -183,16 +183,16 @@
         },
         {
             "name": "amtgard/ork-iam",
-            "version": "v1.2.0",
+            "version": "v1.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/amtgard/ork-iam.git",
-                "reference": "bb7796ac885e92b97046c487c4660957f1001376"
+                "reference": "71ce4c7104d64f785858aa846ef1c9b67fec973f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/amtgard/ork-iam/zipball/bb7796ac885e92b97046c487c4660957f1001376",
-                "reference": "bb7796ac885e92b97046c487c4660957f1001376",
+                "url": "https://api.github.com/repos/amtgard/ork-iam/zipball/71ce4c7104d64f785858aa846ef1c9b67fec973f",
+                "reference": "71ce4c7104d64f785858aa846ef1c9b67fec973f",
                 "shasum": ""
             },
             "require": {
@@ -224,9 +224,9 @@
             "homepage": "https://github.com/amtgard/active-record-orm",
             "support": {
                 "issues": "https://github.com/amtgard/ork-iam/issues",
-                "source": "https://github.com/amtgard/ork-iam/tree/v1.2.0"
+                "source": "https://github.com/amtgard/ork-iam/tree/v1.3.0"
             },
-            "time": "2026-06-11T00:00:00+00:00"
+            "time": "2026-06-11T03:28:26+00:00"
         },
         {
             "name": "amtgard/ork-iam-orn-definitions",

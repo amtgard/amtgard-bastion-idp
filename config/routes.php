@@ -17,6 +17,7 @@ use Amtgard\IdP\Middleware\LocalAdminUserMiddleware;
 use Amtgard\IdP\Middleware\LocalIdpAuthMiddleware;
 use Amtgard\IdP\Middleware\ClientRestrictedAuthMiddleware;
 use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
+use Amtgard\IdP\Middleware\ConfidentialClientCredentialMiddleware;
 use Amtgard\IdP\Middleware\ConfidentialClientBasicAuthMiddleware;
 use Amtgard\IdP\Middleware\OAuthAccessTokenElevationMiddleware;
 use Amtgard\IdP\Middleware\CsrfMiddleware;
@@ -107,6 +108,18 @@ return function (App $app) {
         $group->delete('/client/user-metadata/{idp_user_id}', [ClientResourcesController::class, 'deleteUserMetadata'])
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.user_metadata.delete');
+
+        $group->get('/client/service-format', [ClientResourcesController::class, 'getServiceFormat'])
+            ->add(ConfidentialClientCredentialMiddleware::class)
+            ->setName('resources.client.service_format.get');
+
+        $group->post('/client/service-format', [ClientResourcesController::class, 'createServiceFormat'])
+            ->add(ConfidentialClientAuthMiddleware::class)
+            ->setName('resources.client.service_format.create');
+
+        $group->put('/client/service-format', [ClientResourcesController::class, 'replaceServiceFormat'])
+            ->add(ConfidentialClientAuthMiddleware::class)
+            ->setName('resources.client.service_format.replace');
     });
 
     // Authentication routes

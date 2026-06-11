@@ -8,11 +8,11 @@ use Amtgard\IAM\OrkServices;
 
 final class ClientApplicationFormatRegistry
 {
-    /** @var array<string, list<OrkServices>> */
+    /** @var array<string, list<OrkServices|string>> */
     private static array $formats = [];
 
     /**
-     * @param list<OrkServices> $provisoSlots
+     * @param list<OrkServices|string> $provisoSlots
      */
     public static function register(string $serviceIdentifier, array $provisoSlots): void
     {
@@ -20,7 +20,7 @@ final class ClientApplicationFormatRegistry
     }
 
     /**
-     * @return list<OrkServices>
+     * @return list<OrkServices|string>
      */
     public static function get(string $serviceIdentifier): array
     {
