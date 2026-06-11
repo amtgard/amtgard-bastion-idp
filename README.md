@@ -56,6 +56,20 @@ docker compose -f docker/compose.dev.yml up -d --build
 
 Server will be on http://localhost:37080/
 
+### Tests (PHPUnit in Docker)
+
+PHPUnit requires PHP 8.4 (matches `composer.json`). Run the suite in the dev container:
+
+```bash
+docker compose -f docker/compose.dev.yml --profile test run --rm test
+```
+
+Or against a running app container:
+
+```bash
+docker compose -f docker/compose.dev.yml exec amtgardidpapp bash -lc "cd /var/www/idp.amtgard.com && composer test"
+```
+
 ## Production
 
 Production uses blue-green Docker (blue on port 37080, green on 37081) behind host nginx.

@@ -17,6 +17,22 @@ services:
       - amtgard-idp-net
     hostname: amtgard-idp-app
 
+  test:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    working_dir: /var/www/idp.amtgard.com
+    volumes:
+      - .:/var/www/idp.amtgard.com
+    env_file: .dev.env
+    environment:
+      - ENVIRONMENT=DEV
+    entrypoint: ["bash", "-lc"]
+    command: ["composer test"]
+    networks:
+      - amtgard-idp-net
+
   amtgardidpdb:
     image: mariadb:latest
     restart: always

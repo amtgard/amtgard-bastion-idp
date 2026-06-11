@@ -32,6 +32,39 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
         return null;
     }
 
+    public function findLoginById(int $loginId): ?UserLoginEntity
+    {
+        return $this->fetch($loginId);
+    }
+
+    public function loginBelongsToUser(int $loginId, int $userDbId): bool
+    {
+        $login = $this->findLoginById($loginId);
+        if ($login === null) {
+            return false;
+        }
+
+        return (int) $login->userId === $userDbId;
+    }
+
+    public function resolveDefaultLoginIdForUser(int $userDbId): ?int
+    {
+        $this->clear();
+        $this->query("select id from user_logins where user_id = :user_id and type = 'local' limit 1");
+        $this->user_id = $userDbId;
+        $this->execute();
+        if ($this->next()) {
+            return (int) $this->id;
+        }
+
+        $logins = $this->getAllLoginsForUser($userDbId);
+        if ($logins === []) {
+            return null;
+        }
+
+        return (int) $logins[0]->id;
+    }
+
     /**
      * @param int $userId
      * @return UserLoginEntity[]

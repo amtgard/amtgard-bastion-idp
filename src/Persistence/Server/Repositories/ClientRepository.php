@@ -35,6 +35,13 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
         return $clients;
     }
 
+    public function findClientByIdentifier(string $clientIdentifier): ?Client
+    {
+        /** @var Client|null $client */
+        $client = $this->fetchBy('identifier', $clientIdentifier);
+        return $client;
+    }
+
     public function findActiveClientsForUser($userId)
     {
         $this->clear();

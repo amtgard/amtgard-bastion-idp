@@ -84,6 +84,8 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
     public function testProcessThrowsUnauthorizedOnMissingJwt(): void
     {
         $this->request->method('getHeaderLine')->with('Authorization')->willReturn('');
+        $this->resourceServer->method('validateAuthenticatedRequest')
+            ->willThrowException(new \League\OAuth2\Server\Exception\OAuthServerException('missing', 0, 'missing'));
         $this->expectException(HttpUnauthorizedException::class);
         $this->middleware->process($this->request, $this->handler);
     }
@@ -126,14 +128,6 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
             ->with('user-123')
             ->willReturn(false);
 
-        $validatedRequest = $this->createMock(ServerRequestInterface::class);
-        $validatedRequest->method('getAttribute')->with('oauth_user_id')->willReturn('user-123');
-
-        $this->resourceServer->expects($this->once())
-            ->method('validateAuthenticatedRequest')
-            ->with($this->request)
-            ->willReturn($validatedRequest);
-
         $userEntity = new CachedJwtTestUserEntity('user-123', 'test@example.com');
 
         $oauthUser = \Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser::builder()
@@ -150,6 +144,9 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
             ->with(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class)
             ->willReturn($userRepo);
 
+        $this->resourceServer->expects($this->never())
+            ->method('validateAuthenticatedRequest');
+
         $this->redisCacheRepository->expects($this->once())
             ->method('cacheValidatedUser')
             ->with(
@@ -160,7 +157,7 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
 
         $this->handler->expects($this->once())
             ->method('handle')
-            ->with($validatedRequest)
+            ->with($this->request)
             ->willReturn($this->response);
 
         @session_start();

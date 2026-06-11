@@ -7,8 +7,12 @@ use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Models\Orn\IdpClaim;
+use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Common\Repositories\JwtChallenge;
+use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
+use Amtgard\IdP\Utility\LoginSession;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -47,17 +51,41 @@ class ModelsTest extends TestCase
 
         $user = $this->createMock(EntityInterface::class);
         $user->userId = 'user-123';
+        $user->id = 7;
         $user->orkUserId = 456;
         $user->username = 'testuser';
         $user->email = 'test@example.com';
 
         @session_start();
         $_SESSION['client_id'] = 'client-123';
+        LoginSession::setLoginId(55);
 
-        $idpJwt = new AmtgardIdpJwt($userPolicy, $jwtChallenge);
+        $clientRepository = $this->createMock(ClientRepository::class);
+        $client = new class extends \Amtgard\IdP\Persistence\Server\Entities\Repository\Client {
+            public function getId(): int
+            {
+                return 99;
+            }
+        };
+        $clientRepository->method('findClientByIdentifier')->with('client-123')->willReturn($client);
+
+        $metadataRepository = $this->createMock(UserLoginClientRepository::class);
+        $metadataRepository->method('getMetadataForJwt')->with(55, 99)->willReturn(['tier' => 'gold']);
+
+        $userLoginRepository = $this->createMock(UserLoginRepository::class);
+
+        $idpJwt = new AmtgardIdpJwt(
+            $userPolicy,
+            $jwtChallenge,
+            $clientRepository,
+            $metadataRepository,
+            $userLoginRepository
+        );
         $jwtString = $idpJwt->buildAuthorizationJwt($user);
-        
+
         $this->assertIsString($jwtString);
+        $payload = json_decode(base64_decode(strtr(explode('.', $jwtString)[1], '-_', '+/')), true);
+        $this->assertSame(['tier' => 'gold'], $payload['client_metadata']);
 
         // test validate
         $jwtChallenge->expects($this->once())
@@ -90,7 +118,6 @@ class ModelsTest extends TestCase
 
     public function testIdpClaim(): void
     {
-        \Amtgard\IAM\ORN\OrnClassMap::$ORN_CLASS_MAP[\Amtgard\IAM\OrkService::Idp->value] = IdpClaim::class;
         $claim = \Amtgard\IAM\ClaimFactory::createOrn("Idp:0::::IDP/EditClient");
         $this->assertInstanceOf(IdpClaim::class, $claim);
     }

@@ -6,6 +6,7 @@ use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\Exception\MalformedUserPolicyException;
+use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\Security\RedirectValidator;
 use Amtgard\IdP\Utility\Security\ScriptAlertResponse;
 use Psr\Http\Message\ResponseInterface;
@@ -32,6 +33,7 @@ class BaseAuthController
         $_SESSION['user_email'] = $login->user->getEmail();
         $_SESSION['user_name'] = $login->user->getFullName();
         $_SESSION['avatar_url'] = $login->getAvatarUrl();
+        LoginSession::setLoginId((int) $login->id);
 
         // Redirect to home page
         $routeContext = RouteContext::fromRequest($request);

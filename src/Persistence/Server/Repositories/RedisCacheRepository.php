@@ -51,6 +51,11 @@ class RedisCacheRepository
             ->build());
     }
 
+    public function invalidateUser(string $userId): void
+    {
+        $this->redis->del($userId);
+    }
+
     public function queueUserValidation(string $userId, string $userEmail) {
 
     }

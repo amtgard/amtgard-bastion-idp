@@ -24,6 +24,8 @@
                     <th class="py-2 px-2 border-b text-left w-1/4">Redirect URI</th>
                     <th class="py-2 px-2 border-b text-center w-24">Confidential</th>
                     <th class="py-2 px-2 border-b text-center w-24">Dev</th>
+                    <th class="py-2 px-2 border-b text-left w-32">IAM Service</th>
+                    <th class="py-2 px-2 border-b text-left w-48">IAM Format</th>
                     <th class="py-2 px-2 border-b text-center w-24">Actions</th>
                 </tr>
             </thead>
@@ -51,6 +53,12 @@
                         </td>
                         <td class="py-2 px-2 border-b text-center">
                             <input type="checkbox" name="is_dev" value="1">
+                        </td>
+                        <td class="py-2 px-2 border-b">
+                            <input type="text" name="iam_service" placeholder="Unique IAM namespace" class="w-full px-2 py-1 border rounded">
+                        </td>
+                        <td class="py-2 px-2 border-b">
+                            <input type="text" name="iam_service_format" placeholder='["Configuration","Game","Kingdom","Park"]' class="w-full px-2 py-1 border rounded text-xs">
                         </td>
                         <td class="py-2 px-2 border-b text-center">
                             <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm w-full">
@@ -83,6 +91,12 @@
                         </td>
                         <td class="py-2 px-2 border-b text-center">
                             <input type="checkbox" name="is_dev" value="1" {% if client.isDev %}checked{% endif %}>
+                        </td>
+                        <td class="py-2 px-2 border-b">
+                            <input type="text" name="iam_service" value="{{ client.iamService }}" placeholder="Unique IAM namespace" class="w-full px-2 py-1 border rounded">
+                        </td>
+                        <td class="py-2 px-2 border-b">
+                            <input type="text" name="iam_service_format" value="{{ client.iamServiceFormat }}" placeholder='["Configuration","Game","Kingdom","Park"]' class="w-full px-2 py-1 border rounded text-xs">
                         </td>
                         <td class="py-2 px-2 border-b text-center">
                             <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm w-full">
