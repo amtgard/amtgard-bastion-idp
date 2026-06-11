@@ -29,7 +29,7 @@ The IdP serves two audiences: **players and volunteers** who sign in through a b
 | **Profile API** | After login, elevate to an authorization JWT and fetch email, ORK profile, IAM policy, and optional app metadata |
 | **Presence / heartbeat** | Lightweight `/resources/validate` checks without reloading full profile data |
 | **Custom IAM service namespace** | Operators can register a dedicated ORK IAM **service name** (e.g. `Skbc`) for your app's permission model |
-| **Custom service format** | Configure which **proviso slots** your service uses in ORN claims (kingdom/park scoping, etc.) |
+| **Custom service format** | Choose which **ORK IAM proviso slots** (from the shared `OrkServices` enum) appear in your ORNs and in what order |
 | **Server-side policy management** | Add/remove/list IAM policy claims for your users (roles, entitlements) via HTTP Basic auth |
 | **Per-login JWT metadata** | Attach a small JSON blob (≤ 300 bytes) per user login method; it appears in authorization JWTs for your client |
 
@@ -998,7 +998,14 @@ At runtime the IDP registers a dynamic ORN claim class for your service so ORK I
 
 ### Service format (`iam_service_format`)
 
-ORK IAM claims include a **proviso segment** between the service name and the resource. The proviso layout is defined by a JSON array of **slot names** from the shared `OrkServices` vocabulary — not your custom service name.
+An ORN has two different “service” concepts (see [amtgard/ork-iam](https://github.com/amtgard/ork-iam)):
+
+1. **Service prefix** — the leading segment (`Skbc` in `Skbc:0::::Officer/Approve`). Integrators get a **custom** prefix via `iam_service`.
+2. **Proviso slots** — the middle colon-separated segments that scope a claim (configuration id, kingdom id, park id, etc.). These are **not** custom strings — they always use names from the shared **`OrkServices` enum** in ORK IAM.
+
+So yes: **the fixed proviso vocabulary is an ORK IAM model constraint**, not something the IdP invented. The policy engine parses proviso segments against `OrkServices` cases regardless of which app owns the prefix. What *is* configurable per integrator is **which** of those slots you use and **in what order** (`iam_service_format`), plus your resource paths (`Officer/Approve`, etc.).
+
+The IdP adds one extra rule on top of ORK IAM: **`iam_service_format` may only list proviso-dimension enum values**, not application/service-prefix names. You cannot use `Idp`, `Documents`, `Application`, etc. as proviso slots — those enum cases identify products, not scoping dimensions.
 
 **Default format** (used when `iam_service_format` is empty):
 
@@ -1012,7 +1019,11 @@ ORK IAM claims include a **proviso segment** between the service name and the re
 ["Configuration","Kingdom","EventInstance"]
 ```
 
-Allowed slot names: `Configuration`, `Game`, `Kingdom`, `Park`, `Event`, `EventInstance`, `Mundane`, `Unit`, `ORK`, `Attendance`, `Awards`, `Audit`, `Cache`, `Tenant`, `Officer`, `Recommendations`, `Tournament`.
+**Allowed proviso slot names** (ORK IAM `OrkServices` values accepted by the IdP for `iam_service_format`):
+
+`Configuration`, `Game`, `Kingdom`, `Park`, `Event`, `EventInstance`, `Mundane`, `Unit`, `ORK`, `Attendance`, `Awards`, `Audit`, `Cache`, `Tenant`, `Officer`, `Recommendations`, `Tournament`
+
+New dimensions would require an **`OrkServices` enum change** in `amtgard/ork-iam` first; the IdP list would then be updated to match.
 
 The array order defines how proviso values map to ORN positions. With the default four-slot format, a proviso string like `:0::::` sets the **Configuration** slot to `0` and leaves other slots empty:
 
@@ -1053,7 +1064,7 @@ Integrators can read and manage their proviso layout without an admin UI change:
 }
 ```
 
-Slot names must be from the allowed `OrkServices` proviso vocabulary (see above). After a successful POST or PUT, the IDP re-registers your ORN claim parser for the new layout.
+Slot names must be from the allowed proviso list above (ORK IAM `OrkServices` values). After a successful POST or PUT, the IdP re-registers your ORN claim parser for the new layout.
 
 ### What a third-party integrator can do
 
