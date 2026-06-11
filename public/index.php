@@ -8,10 +8,6 @@ use Slim\Factory\AppFactory;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-// Prod docker injects .prod.env via compose; .env overrides with live server values.
-if (is_readable(__DIR__ . '/../.prod.env')) {
-    Dotenv\Dotenv::createMutable(__DIR__ . '/..', '.prod.env')->safeLoad();
-}
 Dotenv\Dotenv::createMutable(__DIR__ . '/..')->safeLoad();
 
 $debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';

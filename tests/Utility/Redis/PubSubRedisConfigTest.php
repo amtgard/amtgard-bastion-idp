@@ -41,10 +41,36 @@ class PubSubRedisConfigTest extends TestCase
         $this->assertSame(6380, PubSubRedisConfig::port());
         $this->assertSame(2, PubSubRedisConfig::database());
         $this->assertSame('amtgard-idp-prod', PubSubRedisConfig::queueName());
+    }
+
+    public function testDataStructureConfigFallsBackWhenPrimaryHostUnreachable(): void
+    {
+        $_ENV['REDIS_PUBSUB_HOST'] = 'unreachable-redis-host.invalid';
+        $_ENV['REDIS_PUBSUB_PORT'] = '6379';
+
+        $config = PubSubRedisConfig::dataStructureConfig()->getConfig();
+        $this->assertSame('127.0.0.1', $config['host']);
+        $this->assertSame(6379, $config['port']);
+    }
+
+    public function testDataStructureConfigUsesProductionHostWhenItResolves(): void
+    {
+        $_ENV['REDIS_PUBSUB_HOST'] = 'amtgard-idp-sessions';
+        $_ENV['REDIS_PUBSUB_PORT'] = '6379';
+
+        if (!self::hostResolvesForTest('amtgard-idp-sessions')) {
+            $config = PubSubRedisConfig::dataStructureConfig()->getConfig();
+            $this->assertSame('127.0.0.1', $config['host']);
+            return;
+        }
 
         $config = PubSubRedisConfig::dataStructureConfig()->getConfig();
         $this->assertSame('amtgard-idp-sessions', $config['host']);
-        $this->assertSame(6380, $config['port']);
+    }
+
+    private static function hostResolvesForTest(string $host): bool
+    {
+        return gethostbyname($host) !== $host;
     }
 
     public function testTrimsWhitespaceFromHostAndQueueName(): void
@@ -65,7 +91,7 @@ class PubSubRedisConfigTest extends TestCase
         $redis = $this->createMock(\Redis::class);
         $redis->expects($this->once())
             ->method('pconnect')
-            ->with('amtgard-idp-sessions', 6379)
+            ->with('amtgard-idp-sessions', 6379, 1.0)
             ->willReturn(true);
         $redis->expects($this->never())->method('select');
 
@@ -82,5 +108,23 @@ class PubSubRedisConfigTest extends TestCase
         $redis->expects($this->once())->method('select')->with(2)->willReturn(true);
 
         PubSubRedisConfig::connect($redis);
+    }
+
+    public function testConnectFallsBackToLocalhostWhenPrimaryUnreachable(): void
+    {
+        if (!extension_loaded('redis')) {
+            $this->markTestSkipped('redis extension required');
+        }
+
+        $_ENV['REDIS_PUBSUB_HOST'] = 'unreachable-redis-host.invalid';
+        $_ENV['REDIS_PUBSUB_PORT'] = '6379';
+        $_ENV['REDIS_PUBSUB_DB'] = '0';
+
+        try {
+            $connected = PubSubRedisConfig::connect(new \Redis());
+            $this->assertTrue($connected->isConnected());
+        } catch (\RedisException) {
+            $this->markTestSkipped('Local Redis not available for fallback test');
+        }
     }
 }

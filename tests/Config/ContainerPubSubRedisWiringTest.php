@@ -33,7 +33,8 @@ class ContainerPubSubRedisWiringTest extends TestCase
         $config = PubSubRedisConfig::dataStructureConfig();
 
         $this->assertSame('amtgard-idp-prod', PubSubRedisConfig::queueName());
-        $this->assertSame('amtgard-idp-sessions', $config->getConfig()['host']);
+        $this->assertSame('amtgard-idp-sessions', PubSubRedisConfig::host());
+        $this->assertSame(6379, $config->getConfig()['port']);
     }
 
     public function testPubSubQueueHandleUsesConfiguredQueueName(): void

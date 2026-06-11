@@ -57,7 +57,6 @@ class SharedRedisEnvironmentTest extends TestCase
             'tcp://amtgard-idp-sessions:6379?database=1&prefix=PHPSESS:',
             ini_get('session.save_path')
         );
-        $this->assertSame('amtgard-idp-sessions', PubSubRedisConfig::dataStructureConfig()->getConfig()['host']);
         $this->assertSame(0, PubSubRedisConfig::database());
     }
 }

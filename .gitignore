@@ -1,6 +1,4 @@
 .env
-.prod.env
-.phinx.env
 .idea
 .phpunit.cache
 logs/
