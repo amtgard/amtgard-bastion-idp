@@ -13,101 +13,216 @@
         </a>
     </div>
 
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto md:overflow-visible">
         <table class="min-w-full bg-white border border-gray-200">
             <thead>
                 <tr class="bg-gray-100">
-                    <th class="py-2 px-2 border-b text-left w-12">ID</th>
-                    <th class="py-2 px-2 border-b text-left w-1/6">Client ID</th>
-                    <th class="py-2 px-2 border-b text-left w-1/6">Client Secret</th>
-                    <th class="py-2 px-2 border-b text-left w-1/6">Name</th>
-                    <th class="py-2 px-2 border-b text-left w-1/4">Redirect URI</th>
-                    <th class="py-2 px-2 border-b text-center w-24">Confidential</th>
-                    <th class="py-2 px-2 border-b text-center w-24">Dev</th>
-                    <th class="py-2 px-2 border-b text-left w-32">IAM Service</th>
-                    <th class="py-2 px-2 border-b text-left w-48">IAM Format</th>
-                    <th class="py-2 px-2 border-b text-center w-24">Actions</th>
+                    <th class="py-2 px-2 border-b text-left md:w-1/6">Name</th>
+                    <th class="hidden md:table-cell py-2 px-2 border-b text-left w-1/6">Client ID</th>
+                    <th class="hidden md:table-cell py-2 px-2 border-b text-left w-1/6">Client Secret</th>
+                    <th class="hidden md:table-cell py-2 px-2 border-b text-center w-24">Confidential</th>
+                    <th class="hidden md:table-cell py-2 px-2 border-b text-center w-24">Dev</th>
+                    <th class="py-2 px-2 border-b text-center w-20 md:w-16">Actions</th>
                 </tr>
             </thead>
             <tbody>
-                <!-- Create New Client Row -->
                 <tr class="bg-gray-50">
-                    <form action="/management/clients" method="POST">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                        <td class="py-2 px-2 border-b text-gray-500">New</td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="client_id" placeholder="Client ID" required class="w-full px-2 py-1 border rounded">
-                        </td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="client_secret" value="{{ newClientSecret }}" readonly class="w-full px-2 py-1 border rounded bg-gray-100 text-gray-500 cursor-not-allowed">
-                            <input type="hidden" name="client_secret" value="{{ newClientSecret }}">
-                        </td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="name" placeholder="Name" required class="w-full px-2 py-1 border rounded">
-                        </td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="redirect_uri" placeholder="Redirect URI" required class="w-full px-2 py-1 border rounded">
-                        </td>
-                        <td class="py-2 px-2 border-b text-center">
-                            <input type="checkbox" name="is_confidential" value="1">
-                        </td>
-                        <td class="py-2 px-2 border-b text-center">
-                            <input type="checkbox" name="is_dev" value="1">
-                        </td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="iam_service" placeholder="Unique IAM namespace" class="w-full px-2 py-1 border rounded">
-                        </td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="iam_service_format" placeholder='["Configuration","Game","Kingdom","Park"]' class="w-full px-2 py-1 border rounded text-xs">
-                        </td>
-                        <td class="py-2 px-2 border-b text-center">
-                            <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm w-full">
-                                <i class="fas fa-plus"></i> Add
-                            </button>
-                        </td>
-                    </form>
+                    <td class="py-2 px-2 border-b text-gray-500 italic md:hidden">New client</td>
+                    <td class="hidden md:table-cell py-2 px-2 border-b text-gray-500 italic" colspan="5">New client</td>
+                    <td class="py-2 px-2 border-b text-center whitespace-nowrap">
+                        <button type="button" onclick="openAddClient()" class="inline-block w-20 text-center bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-sm whitespace-nowrap">
+                            <i class="fas fa-plus"></i> Add
+                        </button>
+                    </td>
                 </tr>
 
-                <!-- Existing Clients -->
                 {% for client in clients %}
                 <tr>
-                    <form action="/management/clients/{{ client.id }}" method="POST">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                        <td class="py-2 px-2 border-b">{{ client.id }}</td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="client_id" value="{{ client.identifier }}" required class="w-full px-2 py-1 border rounded">
-                        </td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="client_secret" value="{{ client.clientSecret }}" required class="w-full px-2 py-1 border rounded">
-                        </td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="name" value="{{ client.name }}" required class="w-full px-2 py-1 border rounded">
-                        </td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="redirect_uri" value="{{ client.redirectUri }}" required class="w-full px-2 py-1 border rounded">
-                        </td>
-                        <td class="py-2 px-2 border-b text-center">
-                            <input type="checkbox" name="is_confidential" value="1" {% if client.isConfidential %}checked{% endif %}>
-                        </td>
-                        <td class="py-2 px-2 border-b text-center">
-                            <input type="checkbox" name="is_dev" value="1" {% if client.isDev %}checked{% endif %}>
-                        </td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="iam_service" value="{{ client.iamService }}" placeholder="Unique IAM namespace" class="w-full px-2 py-1 border rounded">
-                        </td>
-                        <td class="py-2 px-2 border-b">
-                            <input type="text" name="iam_service_format" value="{{ client.iamServiceFormat }}" placeholder='["Configuration","Game","Kingdom","Park"]' class="w-full px-2 py-1 border rounded text-xs">
-                        </td>
-                        <td class="py-2 px-2 border-b text-center">
-                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm w-full">
-                                <i class="fas fa-save"></i> Save
-                            </button>
-                        </td>
-                    </form>
+                    <td class="py-2 px-2 border-b truncate max-w-0 md:max-w-none">{{ client.name }}</td>
+                    <td class="hidden md:table-cell py-2 px-2 border-b font-mono text-sm">{{ client.identifier }}</td>
+                    <td class="hidden md:table-cell py-2 px-2 border-b font-mono text-sm whitespace-nowrap">{{ client.clientSecret }}</td>
+                    <td class="hidden md:table-cell py-2 px-2 border-b text-center">
+                        {% if client.isConfidential %}
+                            <span class="text-green-600"><i class="fas fa-check"></i></span>
+                        {% else %}
+                            <span class="text-gray-300"><i class="fas fa-minus"></i></span>
+                        {% endif %}
+                    </td>
+                    <td class="hidden md:table-cell py-2 px-2 border-b text-center">
+                        {% if client.isDev %}
+                            <span class="text-green-600"><i class="fas fa-check"></i></span>
+                        {% else %}
+                            <span class="text-gray-300"><i class="fas fa-minus"></i></span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-2 border-b text-center whitespace-nowrap">
+                        <button
+                            type="button"
+                            class="edit-client-btn inline-block w-20 text-center bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm whitespace-nowrap"
+                            data-client="{{ {
+                                id: client.id,
+                                name: client.name,
+                                identifier: client.identifier,
+                                clientSecret: client.clientSecret,
+                                redirectUri: client.redirectUri,
+                                isConfidential: client.isConfidential,
+                                isDev: client.isDev,
+                                iamService: client.iamService,
+                                iamServiceFormat: client.iamServiceFormat
+                            }|json_encode|e('html_attr') }}"
+                        >
+                            Edit
+                        </button>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<div id="client-modal" class="client-details-modal fixed inset-0 z-50 hidden bg-white md:bg-gray-600/50 md:overflow-y-auto">
+    <div id="client-modal-panel" class="flex flex-col h-full w-full md:h-auto md:min-h-0 md:max-w-lg md:w-11/12 md:mx-auto md:my-8 md:rounded-lg md:border md:shadow-xl bg-white overflow-hidden">
+        <form id="client-form" method="POST" action="/management/clients" class="flex flex-col flex-1 min-h-0 md:flex-none md:max-h-[calc(100vh-4rem)]">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+            <div class="flex shrink-0 justify-between items-center px-4 py-4 md:px-5 border-b md:border-b-0">
+                <h3 id="client-modal-title" class="text-lg font-bold text-gray-900">Add Client</h3>
+                <button type="button" onclick="closeClientModal()" class="text-gray-400 hover:text-gray-500 focus:outline-none" aria-label="Close">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto px-4 md:px-5 space-y-4">
+                <div>
+                    <label for="client-name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input type="text" id="client-name" name="name" required class="w-full px-2 py-1 border rounded">
+                </div>
+                <div>
+                    <label for="client-id" class="block text-sm font-medium text-gray-700 mb-1">Client ID</label>
+                    <input type="text" id="client-id" name="client_id" required class="w-full px-2 py-1 border rounded font-mono text-sm">
+                </div>
+                <div>
+                    <label for="client-secret" class="block text-sm font-medium text-gray-700 mb-1">Client Secret</label>
+                    <input type="text" id="client-secret" name="client_secret" required class="w-full px-2 py-1 border rounded font-mono text-sm">
+                </div>
+                <div>
+                    <label for="client-redirect-uri" class="block text-sm font-medium text-gray-700 mb-1">Redirect URI</label>
+                    <input type="text" id="client-redirect-uri" name="redirect_uri" required class="w-full px-2 py-1 border rounded">
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="client-confidential" name="is_confidential" value="1">
+                    <label for="client-confidential" class="text-sm font-medium text-gray-700">Confidential</label>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="client-dev" name="is_dev" value="1">
+                    <label for="client-dev" class="text-sm font-medium text-gray-700">Dev</label>
+                </div>
+                <div>
+                    <label for="client-iam-service" class="block text-sm font-medium text-gray-700 mb-1">IAM Service</label>
+                    <input type="text" id="client-iam-service" name="iam_service" placeholder="Unique IAM namespace" class="w-full px-2 py-1 border rounded">
+                </div>
+                <div>
+                    <label for="client-iam-format" class="block text-sm font-medium text-gray-700 mb-1">IAM Format</label>
+                    <input type="text" id="client-iam-format" name="iam_service_format" placeholder='["Configuration","Game","Kingdom","Park"]' class="w-full px-2 py-1 border rounded text-sm font-mono">
+                </div>
+            </div>
+
+            <div class="shrink-0 px-4 py-4 md:px-5 border-t bg-white flex justify-end gap-2">
+                <button type="button" onclick="closeClientModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm">
+                    Cancel
+                </button>
+                <button type="submit" id="client-modal-submit" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded text-sm">
+                    <i class="fas fa-plus"></i> Add
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<input type="hidden" id="new-client-secret" value="{{ newClientSecret }}">
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const clientForm = document.getElementById('client-form');
+    const clientModal = document.getElementById('client-modal');
+    const clientModalTitle = document.getElementById('client-modal-title');
+    const clientModalSubmit = document.getElementById('client-modal-submit');
+    const newClientSecret = document.getElementById('new-client-secret').value;
+
+    function setFormValue(id, value) {
+        document.getElementById(id).value = value ?? '';
+    }
+
+    function setFormChecked(id, checked) {
+        document.getElementById(id).checked = !!checked;
+    }
+
+    function openClientModal() {
+        clientModal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeClientModal() {
+        clientModal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    function openAddClient() {
+        clientForm.action = '/management/clients';
+        clientModalTitle.textContent = 'Add Client';
+        clientModalSubmit.innerHTML = '<i class="fas fa-plus"></i> Add';
+
+        setFormValue('client-name', '');
+        setFormValue('client-id', '');
+        setFormValue('client-secret', newClientSecret);
+        setFormValue('client-redirect-uri', '');
+        setFormChecked('client-confidential', false);
+        setFormChecked('client-dev', false);
+        setFormValue('client-iam-service', '');
+        setFormValue('client-iam-format', '');
+
+        openClientModal();
+    }
+
+    function openEditClient(button) {
+        const client = JSON.parse(button.dataset.client);
+
+        clientForm.action = '/management/clients/' + client.id;
+        clientModalTitle.textContent = 'Edit Client';
+        clientModalSubmit.innerHTML = '<i class="fas fa-save"></i> Save';
+
+        setFormValue('client-name', client.name);
+        setFormValue('client-id', client.identifier);
+        setFormValue('client-secret', client.clientSecret);
+        setFormValue('client-redirect-uri', client.redirectUri);
+        setFormChecked('client-confidential', client.isConfidential);
+        setFormChecked('client-dev', client.isDev);
+        setFormValue('client-iam-service', client.iamService);
+        setFormValue('client-iam-format', client.iamServiceFormat);
+
+        openClientModal();
+    }
+
+    document.querySelectorAll('.edit-client-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+            openEditClient(button);
+        });
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !clientModal.classList.contains('hidden')) {
+            closeClientModal();
+        }
+    });
+
+    clientModal.addEventListener('click', function (event) {
+        if (event.target === clientModal && window.matchMedia('(min-width: 768px)').matches) {
+            closeClientModal();
+        }
+    });
+</script>
 {% endblock %}
