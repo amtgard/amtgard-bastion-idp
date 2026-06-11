@@ -7,6 +7,45 @@ Welcome to the Amtgard Identity Provider (IdP) developer documentation. The Amtg
 
 ---
 
+## Capabilities Overview
+
+The IdP serves two audiences: **players and volunteers** who sign in through a browser, and **application developers** who integrate via OAuth and optional server APIs.
+
+### For end users
+
+| Capability | What it means |
+|------------|----------------|
+| **Unified Amtgard account** | One identity shared across ORK, forums, event tools, and other registered apps |
+| **Social & local login** | Sign in with Google, Facebook, Discord, or an IdP email/password account |
+| **ORK profile linking** | Attach an Amtgard Online Record Keeper (ORK) persona to the IdP account for kingdom/park/dues data in apps |
+| **Profile & consent UI** | Manage linked logins, authorized applications, and OAuth consent at `/resources/profile` |
+| **Session persistence** | Stay signed in across IdP-hosted pages; apps receive OAuth tokens for their own sessions |
+
+### For integrators (OAuth clients)
+
+| Capability | What it means |
+|------------|----------------|
+| **Standards-compliant OAuth 2.0** | Authorization code flow with PKCE for public clients; refresh tokens for long-lived access |
+| **Profile API** | After login, elevate to an authorization JWT and fetch email, ORK profile, IAM policy, and optional app metadata |
+| **Presence / heartbeat** | Lightweight `/resources/validate` checks without reloading full profile data |
+| **Custom IAM service namespace** | Operators can register a dedicated ORK IAM **service name** (e.g. `Skbc`) for your app's permission model |
+| **Custom service format** | Configure which **proviso slots** your service uses in ORN claims (kingdom/park scoping, etc.) |
+| **Server-side policy management** | Add/remove/list IAM policy claims for your users (roles, entitlements) via HTTP Basic auth |
+| **Per-login JWT metadata** | Attach a small JSON blob (≤ 300 bytes) per user login method; it appears in authorization JWTs for your client |
+
+### Choose your integration path
+
+| You are building… | Read first |
+|-------------------|------------|
+| A web or mobile app that needs “Sign in with Amtgard” | [Section 1](#1-getting-an-access-token) → [Section 2](#2-api-endpoint-reference) |
+| A backend that needs roles/permissions in JWTs | [Section 8](#8-client-iam--jwt-metadata-server-to-server) (requires admin-assigned `iam_service`) |
+| ORK itself or another core Amtgard service | [Section 7](#7-ork-deep-integration-amtgard-specific) |
+| A sample app in PHP, Node, etc. | [Section 6](#6-integration-examples-repository) |
+
+Most third-party apps use **OAuth + userinfo** only. **Client IAM** (custom service, policy claims, metadata) is optional and must be enabled by IdP administrators when your app needs programmatic permission management.
+
+---
+
 ## 1. Getting an Access Token
 
 If you're new to OAuth, don't worry! Getting an Access Token is a standard, straightforward process. The Amtgard IdP is fully standards-compliant, meaning you don't need to write complex authentication flows yourself—you can use standard libraries (like the ones shown below) to handle everything.
@@ -135,7 +174,7 @@ The `jwt` field is the same RS256 **authorization JWT** you sent in the `Authori
 | `aud` | OAuth `client_id` of the requesting app |
 | `email`, `orkid`, `orkuser` | Identity fields |
 | `policy` | User's IAM policy (ORN JSON) — IDP is the authoritative policy store |
-| `client_metadata` | Optional per-user JSON blob (≤ 200 bytes) set by the requesting client |
+| `client_metadata` | Optional per-login JSON blob (≤ 300 bytes) set by the requesting client |
 
 - **Example Response**:
 
@@ -733,7 +772,7 @@ These implement the standard OAuth 2.0 authorization code flow. Every registered
 
 ### Resource API (OAuth clients)
 
-Call these after login. Elevate your access token to an authorization JWT first (see [Section 2](#2-api-endpoints--usage)).
+Call these after login. Elevate your access token to an authorization JWT first (see [Section 2](#2-api-endpoint-reference)).
 
 | Endpoint | Method | Purpose | Called by |
 |----------|--------|---------|-----------|
@@ -743,7 +782,7 @@ Call these after login. Elevate your access token to an authorization JWT first 
 
 ### Client IAM API (confidential server-to-server)
 
-Requires HTTP Basic auth with your OAuth `client_id` and `client_secret`. Your client must be **confidential** and have an **`iam_service`** namespace assigned by IDP admins. See [Section 8](#8-client-iam--jwt-metadata-server-to-server).
+Requires HTTP Basic auth with your OAuth `client_id` and `client_secret`. Your client must be **confidential** and have an **`iam_service`** namespace (and optional **`iam_service_format`**) assigned by IDP admins. See [Section 8](#8-client-iam--jwt-metadata-server-to-server).
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
@@ -795,7 +834,14 @@ For a third-party app developer, the flow you care about is:
 4. **`GET /resources/userinfo`** — fetch profile with the authorization JWT
 5. **`GET /resources/validate`** — optional heartbeat/presence checks (authorization JWT)
 
-Everything else is either browser UI (login pages), infrastructure (policy service for other backends), client IAM server APIs ([Section 8](#8-client-iam--jwt-metadata-server-to-server)), ORK-specific coupling ([Section 7](#7-ork-deep-integration-amtgard-specific)), or developer tooling (this documentation).
+**Optional (server-to-server, admin-enabled):**
+
+6. **`POST /resources/client/policy-claims`** — grant IAM permissions in your assigned `iam_service` namespace
+7. **`PUT /resources/client/user-metadata`** — attach per-login data to authorization JWTs
+
+See [Section 8](#8-client-iam--jwt-metadata-server-to-server) for custom `iam_service`, `iam_service_format`, and metadata rules.
+
+Everything else is either browser UI (login pages), infrastructure (policy service for other backends), ORK-specific coupling ([Section 7](#7-ork-deep-integration-amtgard-specific)), or developer tooling (this documentation).
 
 ---
 
@@ -914,14 +960,88 @@ For ORK-side implementation details, coordinate with the ORK maintainers on Disc
 ## 8. Client IAM & JWT Metadata (server-to-server)
 
 > [!IMPORTANT]
-> **For registered Amtgard app operators only.** These endpoints let a confidential OAuth client manage IAM policy claims and optional JWT metadata for its users. The IDP is the **authoritative policy store** for ORK IAM — ORK and other services consume policies from the authorization JWT obtained via the two-step flow in [Section 2](#2-api-endpoints--usage).
+> **For registered Amtgard app operators only.** These endpoints let a confidential OAuth client manage IAM policy claims and optional JWT metadata for its users. The IDP is the **authoritative policy store** for ORK IAM — ORK and other services consume policies from the authorization JWT obtained via the two-step flow in [Section 2](#2-api-endpoint-reference).
+
+Third-party integrators with an assigned IAM namespace can **grant and revoke permissions** for IdP users, **scope those permissions** using ORK IAM proviso slots (kingdom, park, etc.), and **attach app-specific state** to authorization JWTs — without implementing a separate user-permissions database tied to IdP accounts.
 
 ### Prerequisites
 
 1. **Confidential OAuth client** registered in the IDP (`is_confidential = true`).
-2. **`iam_service` assigned** by an IDP admin via `/management/clients`. This must be a **custom** ORK IAM service identifier (e.g. `Skbc`) — not a built-in enum name such as `Documents`, `Idp`, or `Application`. Each identifier is unique across clients.
-3. **`iam_service_format`** (optional JSON array) defines the proviso slots for your service namespace, e.g. `["Configuration","Game","Kingdom","Park"]`. When omitted, the IDP uses that default layout.
+2. **`iam_service` assigned** by an IDP admin via `/management/clients` (see below).
+3. **`iam_service_format`** (optional) defines proviso slots for your namespace (see below).
 4. Each client may only create policy rows scoped to its own `client_id` and `iam_service`. At most **25** policy claims per user per client.
+
+### Custom IAM service (`iam_service`)
+
+Each integrator app can receive a **unique ORK IAM service identifier** — a short PascalCase name such as `Skbc` or `EventPortal`. This string becomes the **service prefix** in every ORN claim your app owns:
+
+```
+Skbc:0::::Officer/ApproveBudget
+ ^      ^       ^
+ |      |       resource (your app's permission path)
+ |      proviso segment (scoped by iam_service_format)
+ service (your iam_service)
+```
+
+Rules enforced by the IDP:
+
+- Must be a **custom** name — not a built-in ORK enum value such as `Documents`, `Idp`, `Application`, or `ORK`.
+- Must be **unique** across all OAuth clients.
+- Assigned only by IdP administrators on the client record; it is not self-service during OAuth registration.
+
+When your client adds policy claims, the IDP always stores and emits the `service` column as your `iam_service`. Callers supply only `provisos` and `resource` in the Client IAM API.
+
+At runtime the IDP registers a dynamic ORN claim class for your service so ORK IAM parsing and `/api/is_authorized` evaluation understand your namespace.
+
+### Service format (`iam_service_format`)
+
+ORK IAM claims include a **proviso segment** between the service name and the resource. The proviso layout is defined by a JSON array of **slot names** from the shared `OrkServices` vocabulary — not your custom service name.
+
+**Default format** (used when `iam_service_format` is empty):
+
+```json
+["Configuration","Game","Kingdom","Park"]
+```
+
+**Example custom format** for an app that scopes permissions by kingdom and event instance:
+
+```json
+["Configuration","Kingdom","EventInstance"]
+```
+
+Allowed slot names: `Configuration`, `Game`, `Kingdom`, `Park`, `Event`, `EventInstance`, `Mundane`, `Unit`, `ORK`, `Attendance`, `Awards`, `Audit`, `Cache`, `Tenant`, `Officer`, `Recommendations`, `Tournament`.
+
+The array order defines how proviso values map to ORN positions. With the default four-slot format, a proviso string like `:0::::` sets the **Configuration** slot to `0` and leaves other slots empty:
+
+| Full ORN | Meaning |
+|----------|---------|
+| `Skbc:0::::Officer/Approve` | Global (configuration slot `0`) permission on resource `Officer/Approve` |
+| `Skbc::123::Officer/Approve` | Kingdom-scoped permission (kingdom id `123`) when your format includes `Kingdom` in that position |
+
+Your app's resource paths (`Officer/Approve`, `Editor/Write`, etc.) are validated loosely (`*/*` wildcard map) — you define the semantics; the IDP stores and replays them in JWT `policy` claims.
+
+IdP administrators set `iam_service` and `iam_service_format` on your OAuth client via **Management → Clients** (`/management/clients`).
+
+### What a third-party integrator can do
+
+| Goal | Mechanism |
+|------|-----------|
+| **Issue roles after purchase or approval** | `POST /resources/client/policy-claims` adds ORN claims; user's next authorization JWT includes them in `policy` |
+| **Revoke access immediately** | `DELETE /resources/client/policy-claims`; IdP invalidates cached JWTs for that user |
+| **Scope a permission to a kingdom or park** | Choose an `iam_service_format` that includes `Kingdom` / `Park`, then set proviso values accordingly |
+| **Pass app state in the JWT** | `PUT /resources/client/user-metadata` stores ≤ 300 bytes per `(user, login_id, client_id)`; surfaced as `client_metadata` |
+| **Check permissions in your backend** | Decode the authorization JWT, then call `POST /api/is_authorized` with `policy` + a requirement string |
+| **Audit a user's entitlements** | `GET /resources/client/policy-claims/{idp_user_id}` lists claims in your namespace |
+
+Typical lifecycle:
+
+1. IdP admin registers your confidential client and assigns `iam_service` (+ optional format).
+2. User completes normal OAuth login to your app.
+3. Your **backend** (with client secret) adds policy claims when the user earns a role.
+4. Your app calls `GET /resources/jwt` → `GET /resources/userinfo`; decode JWT for `policy` and `client_metadata`.
+5. Your API handlers call `/api/is_authorized` or evaluate `policy` locally before sensitive actions.
+
+You **cannot** use Client IAM without an assigned `iam_service`. You **cannot** read or modify another client's claims or metadata.
 
 ### Authentication
 
