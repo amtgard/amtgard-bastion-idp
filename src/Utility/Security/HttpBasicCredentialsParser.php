@@ -18,8 +18,12 @@ final class HttpBasicCredentialsParser
 {
     public static function fromAuthorizationHeader(string $authorizationHeader): Optional
     {
-        return Optional::ofNullable(self::matchBasicPayload($authorizationHeader))
-            ->flatMap(fn (string $payload) => self::decodePayload($payload));
+        $payload = self::matchBasicPayload($authorizationHeader);
+        if ($payload === null) {
+            return Optional::blank();
+        }
+
+        return self::decodePayload($payload);
     }
 
     private static function matchBasicPayload(string $authorizationHeader): ?string
@@ -35,7 +39,7 @@ final class HttpBasicCredentialsParser
     {
         $decoded = base64_decode($payload, true);
         if ($decoded === false || !str_contains($decoded, ':')) {
-            return Optional::empty();
+            return Optional::blank();
         }
 
         [$clientId, $clientSecret] = explode(':', $decoded, 2);

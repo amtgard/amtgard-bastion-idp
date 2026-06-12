@@ -80,4 +80,32 @@ class RedisCacheRepositoryTest extends TestCase
 
         $this->assertTrue($this->repository->isUserInCache('user-1'));
     }
+
+    public function testInvalidateUserDeletesCachedEntry(): void
+    {
+        $this->redis->expects($this->once())->method('del')->with('user-1');
+
+        $this->repository->invalidateUser('user-1');
+    }
+
+    public function testSetUserStoresSerializedEntity(): void
+    {
+        $entity = CachedValidatedUserEntity::builder()
+            ->userId('user-2')
+            ->email('other@example.com')
+            ->build();
+
+        $this->redis->expects($this->once())
+            ->method('set')
+            ->with('user-2', serialize($entity));
+
+        $this->repository->setUser($entity);
+    }
+
+    public function testGetUserReturnsNullForInvalidSerializedPayload(): void
+    {
+        $this->redis->method('get')->with('user-bad')->willReturn(serialize(['not', 'an', 'entity']));
+
+        $this->assertNull($this->repository->getUser('user-bad'));
+    }
 }

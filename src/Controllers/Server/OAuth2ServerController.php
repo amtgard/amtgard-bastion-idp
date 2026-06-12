@@ -178,8 +178,8 @@ class OAuth2ServerController
                 if (isset($_SESSION['user_id'])) {
                     $user = $this->userRepository->getUserEntityById($_SESSION['user_id']);
                     if ($user === null) {
-                        session_unset();
-                        session_destroy();
+                        // Drop only the stale user reference; keep authRequest so login can resume OAuth.
+                        unset($_SESSION['user_id']);
                         return $this->authenticateUser($response);
                     }
                     $authRequest->setUser($user);

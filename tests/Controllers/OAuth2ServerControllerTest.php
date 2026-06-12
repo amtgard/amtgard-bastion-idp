@@ -316,6 +316,35 @@ class OAuth2ServerControllerTest extends TestCase
         $this->assertSame($this->response, $result);
     }
 
+    public function testAuthorizeClearsStaleSessionWhenUserRecordMissing(): void
+    {
+        $_SESSION['user_id'] = 'stale-user-id';
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('client-1');
+        $authRequest = new TestAuthorizationRequest($clientMock, null);
+
+        $this->authorizationServer->expects($this->once())
+            ->method('validateAuthorizationRequest')
+            ->willReturn($authRequest);
+
+        $this->userRepository->expects($this->once())
+            ->method('getUserEntityById')
+            ->with('stale-user-id')
+            ->willReturn(null);
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', $this->stringContains('/auth/login?redirect='))
+            ->willReturnSelf();
+        $this->response->expects($this->once())->method('withStatus')->with(301)->willReturnSelf();
+
+        $this->controller->authorize($this->request, $this->response);
+
+        $this->assertArrayNotHasKey('user_id', $_SESSION);
+        $this->assertArrayHasKey('authRequest', $_SESSION);
+    }
+
     public function testAuthorizeAuthenticatedNotApprovedRedirectsToApprove(): void
     {
         $_SESSION['user_id'] = 123;

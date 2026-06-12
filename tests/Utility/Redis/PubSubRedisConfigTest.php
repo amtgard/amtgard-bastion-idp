@@ -82,6 +82,26 @@ class PubSubRedisConfigTest extends TestCase
         $this->assertSame('amtgard-idp', PubSubRedisConfig::queueName());
     }
 
+    public function testLocalhostIsUsedDirectlyWithoutFallbackCandidate(): void
+    {
+        $_ENV['REDIS_PUBSUB_HOST'] = 'localhost';
+        $_ENV['REDIS_PUBSUB_PORT'] = '6381';
+
+        $config = PubSubRedisConfig::dataStructureConfig()->getConfig();
+
+        $this->assertSame('localhost', $config['host']);
+        $this->assertSame(6381, $config['port']);
+    }
+
+    public function testPortAndDatabaseCastEnvironmentValuesToIntegers(): void
+    {
+        $_ENV['REDIS_PUBSUB_PORT'] = '6380';
+        $_ENV['REDIS_PUBSUB_DB'] = '03';
+
+        $this->assertSame(6380, PubSubRedisConfig::port());
+        $this->assertSame(3, PubSubRedisConfig::database());
+    }
+
     public function testConnectUsesConfiguredHostAndPort(): void
     {
         $_ENV['REDIS_PUBSUB_HOST'] = 'amtgard-idp-sessions';
@@ -126,5 +146,28 @@ class PubSubRedisConfigTest extends TestCase
         } catch (\RedisException) {
             $this->markTestSkipped('Local Redis not available for fallback test');
         }
+    }
+
+    public function testConnectThrowsWhenAllHostCandidatesFail(): void
+    {
+        $_ENV['REDIS_PUBSUB_HOST'] = 'unreachable-redis-host.invalid';
+        $_ENV['REDIS_PUBSUB_PORT'] = '6379';
+
+        $redis = new class extends \Redis {
+            public function pconnect(
+                $host,
+                $port = 6379,
+                $timeout = 0,
+                $persistent_id = null,
+                $retry_interval = 0,
+                $read_timeout = 0,
+                $context = null
+            ): bool {
+                return false;
+            }
+        };
+
+        $this->expectException(\RedisException::class);
+        PubSubRedisConfig::connect($redis);
     }
 }

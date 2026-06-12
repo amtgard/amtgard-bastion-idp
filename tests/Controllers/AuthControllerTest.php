@@ -10,6 +10,7 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Tests\Support\ScriptAlertResponseAssert;
 use Amtgard\IdP\Utility\Exception\MalformedUserPolicyException;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
@@ -80,6 +81,11 @@ class TestUserLoginEntity extends UserLoginEntity
     public function getAvatarUrl(): ?string
     {
         return $this->testAvatarUrl;
+    }
+
+    public function setUser($user): void
+    {
+        $this->user = $user;
     }
 }
 
@@ -155,13 +161,20 @@ class AuthControllerTest extends TestCase
     {
         $this->request->expects($this->any())
             ->method('getQueryParams')
-            ->willReturn(['redirect' => '/profile', 'jwtpublickey' => 'key']);
+            ->willReturn([
+                'redirect' => '/profile',
+                'jwtpublickey' => 'key',
+                'error' => 'Invalid email or password',
+                'expand' => '1',
+            ]);
 
         $this->twig->expects($this->once())
             ->method('render')
             ->with('login_form.twig', [
                 'redirect' => '/profile',
-                'jwtpublickey' => 'key'
+                'jwtpublickey' => 'key',
+                'error' => 'Invalid email or password',
+                'expand' => true,
             ])
             ->willReturn('login form HTML');
 
@@ -171,13 +184,41 @@ class AuthControllerTest extends TestCase
 
         $result = $this->authController->loginForm($this->request, $this->response);
         $this->assertSame($this->response, $result);
+        $this->assertSame('/profile', $_SESSION['redirect']);
+    }
+
+    public function testLoginFormDoesNotStoreUnsafeRedirect(): void
+    {
+        $this->request->method('getQueryParams')->willReturn([
+            'redirect' => 'https://evil.example.com/phish',
+        ]);
+
+        $this->twig->method('render')->willReturn('login form HTML');
+
+        $this->authController->loginForm($this->request, $this->response);
+
+        $this->assertArrayNotHasKey('redirect', $_SESSION);
     }
 
     public function testRegisterForm(): void
     {
+        $this->request->method('getQueryParams')->willReturn([
+            'error' => 'Passwords do not match',
+            'expand' => '1',
+            'firstName' => 'Jane',
+            'lastName' => 'Doe',
+            'email' => 'jane@example.com',
+        ]);
+
         $this->twig->expects($this->once())
             ->method('render')
-            ->with('register_form.twig')
+            ->with('register_form.twig', [
+                'error' => 'Passwords do not match',
+                'expand' => true,
+                'firstName' => 'Jane',
+                'lastName' => 'Doe',
+                'email' => 'jane@example.com',
+            ])
             ->willReturn('register form HTML');
 
         $this->stream->expects($this->once())
@@ -221,6 +262,7 @@ class AuthControllerTest extends TestCase
         $this->assertSame($this->response, $result);
         $this->assertEquals('user-1', $_SESSION['user_id']);
         $this->assertEquals($email, $_SESSION['user_email']);
+        $this->assertSame(1, $_SESSION['login_id']);
     }
 
     public function testLoginMalformedPolicy(): void
@@ -252,7 +294,14 @@ class AuthControllerTest extends TestCase
 
         $this->stream->expects($this->once())
             ->method('write')
-            ->with($this->stringContains(MalformedUserPolicyException::USER_MESSAGE));
+            ->with($this->callback(function (string $html): bool {
+                ScriptAlertResponseAssert::assertRedirectWithError(
+                    $html,
+                    MalformedUserPolicyException::USER_MESSAGE,
+                    '/auth/login'
+                );
+                return true;
+            }));
 
         $result = $this->authController->login($this->request, $this->response);
         $this->assertSame($this->response, $result);
@@ -271,7 +320,14 @@ class AuthControllerTest extends TestCase
 
         $this->stream->expects($this->once())
             ->method('write')
-            ->with($this->stringContains('Invalid email or password'));
+            ->with($this->callback(function (string $html): bool {
+                ScriptAlertResponseAssert::assertRedirectWithError(
+                    $html,
+                    'Invalid email or password',
+                    '/auth/login'
+                );
+                return true;
+            }));
 
         $result = $this->authController->login($this->request, $this->response);
         $this->assertSame($this->response, $result);
@@ -308,9 +364,68 @@ class AuthControllerTest extends TestCase
             ->willReturn($login);
 
         $this->routeParser->method('urlFor')->willReturn('/resources/profile');
+        $this->amtgardIdpJwt->method('buildAuthorizationJwt')->with($user)->willReturn('new-user-jwt');
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile')
+            ->willReturnSelf();
 
         $result = $this->authController->register($this->request, $this->response);
         $this->assertSame($this->response, $result);
+    }
+
+    public function testRegisterRedirectsNewUserToProfileDespitePendingOAuthRedirect(): void
+    {
+        $_SESSION['redirect'] = '/oauth/authorize?client_id=ork-app';
+
+        $email = 'new@example.com';
+        $password = 'password123';
+        $this->request->method('getParsedBody')->willReturn([
+            'firstName' => 'Jane',
+            'lastName' => 'Doe',
+            'email' => $email,
+            'password' => $password,
+            'confirmPassword' => $password,
+        ]);
+
+        $this->usersExistsMock(false);
+
+        $user = new TestUserEntity('user-2', $email, 'Jane Doe');
+        $login = new TestUserLoginEntity($user, password_hash($password, PASSWORD_BCRYPT), 'http://avatar.url');
+        $this->userRepository->method('createLocalUser')->willReturn($user);
+        $this->userLoginRepository->method('createLocalLogin')->willReturn($login);
+        $this->routeParser->method('urlFor')->willReturn('/resources/profile');
+        $this->amtgardIdpJwt->method('buildAuthorizationJwt')->willReturn('new-user-jwt');
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile')
+            ->willReturnSelf();
+
+        $this->authController->register($this->request, $this->response);
+    }
+
+    public function testLoginRedirectsExistingUserToStoredOAuthRedirect(): void
+    {
+        $_SESSION['redirect'] = '/oauth/authorize?client_id=ork-app';
+
+        $email = 'test@example.com';
+        $password = 'password123';
+        $this->request->method('getParsedBody')->willReturn(['email' => $email, 'password' => $password]);
+
+        $user = new TestUserEntity('user-1', $email, 'John Doe');
+        $login = new TestUserLoginEntity($user, password_hash($password, PASSWORD_BCRYPT), 'http://avatar.url');
+        $this->userRepository->method('getUserByEmail')->willReturn($user);
+        $this->userLoginRepository->method('getLoginByUser')->willReturn($login);
+        $this->amtgardIdpJwt->method('buildAuthorizationJwt')->willReturn('existing-user-jwt');
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/oauth/authorize?client_id=ork-app?jwt=existing-user-jwt')
+            ->willReturnSelf();
+
+        $this->authController->login($this->request, $this->response);
     }
 
     public function testRegisterMissingFields(): void
@@ -326,7 +441,7 @@ class AuthControllerTest extends TestCase
 
         $this->stream->expects($this->once())
             ->method('write')
-            ->with($this->stringContains('All fields are required'));
+            ->with($this->callback(fn (string $html) => $this->assertRegisterValidationRedirect($html, 'All fields are required')));
 
         $result = $this->authController->register($this->request, $this->response);
         $this->assertSame($this->response, $result);
@@ -346,7 +461,7 @@ class AuthControllerTest extends TestCase
 
         $this->stream->expects($this->once())
             ->method('write')
-            ->with($this->stringContains('Invalid email format'));
+            ->with($this->callback(fn (string $html) => $this->assertRegisterValidationRedirect($html, 'Invalid email format')));
 
         $result = $this->authController->register($this->request, $this->response);
         $this->assertSame($this->response, $result);
@@ -366,7 +481,7 @@ class AuthControllerTest extends TestCase
 
         $this->stream->expects($this->once())
             ->method('write')
-            ->with($this->stringContains('Passwords do not match'));
+            ->with($this->callback(fn (string $html) => $this->assertRegisterValidationRedirect($html, 'Passwords do not match')));
 
         $result = $this->authController->register($this->request, $this->response);
         $this->assertSame($this->response, $result);
@@ -389,7 +504,7 @@ class AuthControllerTest extends TestCase
 
         $this->stream->expects($this->once())
             ->method('write')
-            ->with($this->stringContains('Email already registered'));
+            ->with($this->callback(fn (string $html) => $this->assertRegisterValidationRedirect($html, 'Email already registered')));
 
         $result = $this->authController->register($this->request, $this->response);
         $this->assertSame($this->response, $result);
@@ -416,10 +531,66 @@ class AuthControllerTest extends TestCase
         $this->assertEmpty($_SESSION);
     }
 
+    public function testLogoutRedirectsToTrustedPostLogoutUri(): void
+    {
+        $_ENV['ORK_BASE_URL'] = 'https://ork.example.com';
+        $this->request->method('getQueryParams')->willReturn([
+            'post_logout_redirect_uri' => 'https://ork.example.com/signed-out',
+        ]);
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', 'https://ork.example.com/signed-out')
+            ->willReturnSelf();
+        $this->response->expects($this->once())->method('withStatus')->with(302)->willReturnSelf();
+
+        $this->authController->logout($this->request, $this->response);
+    }
+
+    public function testLogoutIgnoresUntrustedPostLogoutUri(): void
+    {
+        $_ENV['ORK_BASE_URL'] = 'https://ork.example.com';
+        $this->request->method('getQueryParams')->willReturn([
+            'post_logout_redirect_uri' => 'https://evil.example.com/phish',
+        ]);
+        $this->routeParser->method('urlFor')->with('home')->willReturn('/');
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/')
+            ->willReturnSelf();
+
+        $this->authController->logout($this->request, $this->response);
+    }
+
+    public function testLogoutIgnoresPostLogoutUriWhenOrkBaseUrlMissing(): void
+    {
+        unset($_ENV['ORK_BASE_URL']);
+        $this->request->method('getQueryParams')->willReturn([
+            'post_logout_redirect_uri' => 'https://ork.example.com/signed-out',
+        ]);
+        $this->routeParser->method('urlFor')->with('home')->willReturn('/');
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/')
+            ->willReturnSelf();
+
+        $this->authController->logout($this->request, $this->response);
+    }
+
     private function usersExistsMock(bool $exists): void
     {
         $this->userRepository->expects($this->any())
             ->method('userExists')
             ->willReturn($exists);
+    }
+
+    private function assertRegisterValidationRedirect(string $html, string $message): bool
+    {
+        ScriptAlertResponseAssert::assertRedirectWithError($html, $message, '/auth/register');
+        $this->assertStringContainsString('expand=1', $html);
+
+        return true;
     }
 }

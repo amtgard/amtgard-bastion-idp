@@ -8,6 +8,7 @@ use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
+use Optional\Optional;
 use Ramsey\Uuid\Uuid;
 
 #[RepositoryOf("user_logins", UserLoginEntity::class)]

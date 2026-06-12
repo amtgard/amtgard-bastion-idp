@@ -7,6 +7,7 @@ use Amtgard\IdP\Utility\Security\CsrfTokenManager;
 use Amtgard\IdP\Utility\Security\OAuth2StateManager;
 use Amtgard\IdP\Utility\Security\OAuthCallbackValidator;
 use Amtgard\IdP\Utility\Security\RedirectValidator;
+use Amtgard\IdP\Tests\Support\ScriptAlertResponseAssert;
 use Amtgard\IdP\Utility\Security\ScriptAlertResponse;
 use PHPUnit\Framework\TestCase;
 
@@ -114,16 +115,21 @@ class SecurityUtilitiesTest extends TestCase
     {
         $html = ScriptAlertResponse::alertAndRedirect('"><script>alert(1)</script>', '/auth/login?x=1&y=2');
 
-        $this->assertStringContainsString('&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', $html);
-        $this->assertStringContainsString('window.location.href = "/auth/login?x=1&amp;y=2"', $html);
+        ScriptAlertResponseAssert::assertRedirectTo(
+            $html,
+            '/auth/login?x=1&y=2&error=%22%3E%3Cscript%3Ealert%281%29%3C%2Fscript%3E'
+        );
     }
 
     public function testScriptAlertResponseOauthProviderError(): void
     {
         $html = ScriptAlertResponse::oauthProviderError('Google', 'access_denied', '/custom/login');
 
-        $this->assertStringContainsString('Google authentication failed: access_denied', $html);
-        $this->assertStringContainsString('window.location.href = "/custom/login"', $html);
+        ScriptAlertResponseAssert::assertRedirectWithError(
+            $html,
+            'Google authentication failed: access_denied',
+            '/custom/login'
+        );
     }
 
     public function testScriptAlertResponseOauthProviderErrorIfPresentReturnsNullWhenNoError(): void
@@ -141,8 +147,11 @@ class SecurityUtilitiesTest extends TestCase
         );
 
         $this->assertNotNull($html);
-        $this->assertStringContainsString('Discord authentication failed: server_error', $html);
-        $this->assertStringContainsString('window.location.href = "/auth/discord"', $html);
+        ScriptAlertResponseAssert::assertRedirectWithError(
+            $html,
+            'Discord authentication failed: server_error',
+            '/auth/discord'
+        );
     }
 
     public function testScriptAlertResponseOauthProviderErrorIfPresentReturnsNullWhenErrorIsNull(): void
@@ -154,15 +163,21 @@ class SecurityUtilitiesTest extends TestCase
     {
         $html = ScriptAlertResponse::alertAndRedirect('ok', '/path" onclick="alert(1)');
 
-        $this->assertStringContainsString('window.location.href = "/path&quot; onclick=&quot;alert(1)"', $html);
+        ScriptAlertResponseAssert::assertRedirectTo(
+            $html,
+            '/path" onclick="alert(1)?error=ok'
+        );
     }
 
     public function testScriptAlertResponseInvalidOAuthState(): void
     {
         $html = ScriptAlertResponse::invalidOAuthState('/auth/login?policy');
 
-        $this->assertStringContainsString('Invalid state parameter', $html);
-        $this->assertStringContainsString('window.location.href = "/auth/login?policy"', $html);
+        ScriptAlertResponseAssert::assertRedirectWithError(
+            $html,
+            'Invalid state parameter',
+            '/auth/login?policy'
+        );
     }
 
     // --- OAuthCallbackValidator ---
@@ -172,7 +187,11 @@ class SecurityUtilitiesTest extends TestCase
         $result = OAuthCallbackValidator::validate(['error' => 'access_denied'], 'Google');
 
         $this->assertNotNull($result);
-        $this->assertStringContainsString('Google authentication failed', $result);
+        ScriptAlertResponseAssert::assertRedirectWithError(
+            $result,
+            'Google authentication failed: access_denied',
+            '/auth/login'
+        );
     }
 
     public function testOAuthCallbackValidatorReturnsInvalidStateError(): void
@@ -182,7 +201,11 @@ class SecurityUtilitiesTest extends TestCase
         $result = OAuthCallbackValidator::validate(['state' => 'invalid'], 'Discord');
 
         $this->assertNotNull($result);
-        $this->assertStringContainsString('Invalid state parameter', $result);
+        ScriptAlertResponseAssert::assertRedirectWithError(
+            $result,
+            'Invalid state parameter',
+            '/auth/login'
+        );
     }
 
     public function testOAuthCallbackValidatorReturnsNullOnSuccess(): void
@@ -198,14 +221,18 @@ class SecurityUtilitiesTest extends TestCase
 
         $result = OAuthCallbackValidator::validate(['state' => 'wrong'], 'Google', '/custom');
 
-        $this->assertStringContainsString('window.location.href = "/custom"', $result);
+        ScriptAlertResponseAssert::assertRedirectWithError($result, 'Invalid state parameter', '/custom');
     }
 
     public function testOAuthCallbackValidatorProviderErrorUsesCustomRedirectUrl(): void
     {
         $result = OAuthCallbackValidator::validate(['error' => 'denied'], 'Google', '/custom');
 
-        $this->assertStringContainsString('window.location.href = "/custom"', $result);
+        ScriptAlertResponseAssert::assertRedirectWithError(
+            $result,
+            'Google authentication failed: denied',
+            '/custom'
+        );
     }
 
     // --- CsrfTokenManager ---
