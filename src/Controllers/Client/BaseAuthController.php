@@ -25,7 +25,7 @@ class BaseAuthController
         $this->amtgardIdpJwt = $amtgardIdpJwt;
     }
 
-    protected function finalizeAuthorization(UserLoginEntity $login, ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    protected function finalizeAuthorization(UserLoginEntity $login, ServerRequestInterface $request, ResponseInterface $response, bool $isNewUser = false): ResponseInterface
     {
         $this->logger->info("User is authenticated; setting session for " . $login->user->getEmail());
         $_SESSION['client_id'] = Constants::$AMTGARD_IDP_CLIENT_ID;
@@ -62,9 +62,10 @@ class BaseAuthController
 
         $profileUrl = $routeParser->urlFor('resources.profile');
         $storedRedirect = RedirectValidator::sanitizeOrNull($_SESSION['redirect'] ?? null);
-        $finalizeUrl = $storedRedirect === null
-            ? $profileUrl
-            : ($storedRedirect . "?jwt=$jwt");
+
+        $finalizeUrl = ($storedRedirect !== null && !$isNewUser)
+            ? ($storedRedirect . "?jwt=$jwt")
+            : $profileUrl;
 
         $this->logger->info("Redirecting user for " . $login->user->getEmail());
         return $response

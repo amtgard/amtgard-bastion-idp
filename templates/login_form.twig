@@ -11,19 +11,27 @@
         </div>
 
         <div class="flex-grow max-w-[500px]">
-            <h1 class="text-3xl font-serif font-bold text-secondary text-center mb-6">Login to Amtgard</h1>
+            <h1 class="text-3xl font-serif font-bold text-secondary text-center mb-2">Sign in to Amtgard</h1>
+            <p class="text-sm text-gray-600 text-center mb-5 leading-snug">
+              One sign-in for all Amtgard digital services &mdash; the ORK and any other registered apps.
+              Sign in once here, then connect your existing player profile.
+            </p>
             
             <div class="flex justify-center mb-6 md:hidden">
                 <a href="/"><img src="/images/idp_logo_tiny.jpeg" alt="Amtgard IDP Logo" class="rounded shadow-sm"></a>
             </div>
             
+            {% if error %}
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{{ error }}</div>
+            {% endif %}
+
             <div class="text-center mb-6">
                 <div class="space-y-2 mb-4">
                     <a href="/auth/google?redirect={{ redirect }}&jwtpublickey={{ jwtpublickey }}" class="block w-full bg-[#DB4437] hover:bg-[#c53929] text-white py-2.5 rounded transition-colors duration-200 decoration-0"><i class="fa-brands fa-google mr-2"></i>Google</a>
                     <a href="/auth/facebook" class="block w-full bg-[#4267B2] hover:bg-[#365899] text-white py-2.5 rounded transition-colors duration-200 decoration-0"><i class="fa-brands fa-facebook mr-2"></i>Facebook</a>
                     <a href="/auth/discord" class="block w-full bg-[#5865F2] hover:bg-[#4752c4] text-white py-2.5 rounded transition-colors duration-200 decoration-0"><i class="fa-brands fa-discord mr-2"></i>Discord</a>
                 </div>
-                
+
                 <button type="button" onclick="toggleLogin()" class="group flex items-center justify-center gap-2 mx-auto text-gray-600 hover:text-gray-800 transition-colors focus:outline-none">
                     <span>Login with Email</span>
                     <!-- Default state: Point UP (rotate-180 if using a down chevron, or just an up chevron) -->
@@ -34,22 +42,7 @@
                 </button>
             </div>
 
-            <div id="login-form-container" class="max-h-0 overflow-hidden transition-all duration-500 ease-in-out opacity-0">
-                <form action="/auth/login" method="post" class="mb-6">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                    <div class="mb-4">
-                        <input type="email" id="email" name="email" required placeholder="Email" class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                    </div>
-                    <div class="mb-6">
-                        <input type="password" id="password" name="password" required placeholder="Password" class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                    </div>
-                    <button type="submit" class="w-full bg-primary hover:bg-primary-dark text-white font-medium py-2.5 px-4 rounded transition-colors duration-200">Login</button>
-                </form>
-                
-                <div class="text-center mt-8 pt-4 border-t border-gray-100">
-                    <p class="text-gray-600">Don't have an account? <a href="/auth/register" class="text-primary hover:text-primary-dark font-medium hover:underline">Register</a></p>
-                </div>
-            </div>
+            <div id="login-form-container" class="max-h-0 overflow-hidden transition-all duration-500 ease-in-out opacity-0"></div>
         </div>
     </div>
 </div>
@@ -57,25 +50,45 @@
 
 {% block scripts %}
 <script>
+    const LOGIN_FORM_HTML = `
+        <form action="/auth/login" method="post" class="mb-6">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-4">
+                <input type="email" id="email" name="email" required placeholder="Email" class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            </div>
+            <div class="mb-6">
+                <input type="password" id="password" name="password" required placeholder="Password" class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            </div>
+            <button type="submit" class="w-full bg-primary hover:bg-primary-dark text-white font-medium py-2.5 px-4 rounded transition-colors duration-200">Login</button>
+        </form>
+        <div class="text-center mt-8 pt-4 border-t border-gray-100">
+            <p class="text-gray-600">Don't have an account? <a href="/auth/register?expand=1" class="text-primary hover:text-primary-dark font-medium hover:underline">Register</a></p>
+        </div>
+    `;
+
     function toggleLogin() {
-        const form = document.getElementById('login-form-container');
+        const container = document.getElementById('login-form-container');
         const icon = document.getElementById('login-chevron');
-        
-        if (form.style.maxHeight) {
-            // Currently open, so CLOSE it
-            form.style.maxHeight = null;
-            form.classList.remove('opacity-100');
-            form.classList.add('opacity-0');
-            // Rotate UP (180deg)
+
+        if (container.style.maxHeight) {
+            container.style.maxHeight = null;
+            container.classList.remove('opacity-100');
+            container.classList.add('opacity-0');
             icon.classList.add('rotate-180');
+            setTimeout(() => { container.innerHTML = ''; }, 500);
         } else {
-            // Currently closed, so OPEN it
-            form.style.maxHeight = form.scrollHeight + "px";
-            form.classList.remove('opacity-0');
-            form.classList.add('opacity-100');
-            // Rotate DOWN (0deg)
-            icon.classList.remove('rotate-180');
+            container.innerHTML = LOGIN_FORM_HTML;
+            requestAnimationFrame(() => {
+                container.style.maxHeight = container.scrollHeight + "px";
+                container.classList.remove('opacity-0');
+                container.classList.add('opacity-100');
+                icon.classList.remove('rotate-180');
+            });
         }
     }
+
+    {% if error or expand %}
+    document.addEventListener('DOMContentLoaded', toggleLogin);
+    {% endif %}
 </script>
 {% endblock %}

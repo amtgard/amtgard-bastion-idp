@@ -93,8 +93,10 @@ class GoogleAuthController extends BaseAuthController
 
             $this->logger->debug('Google user data: ' . json_encode($userData));
 
+            $isNewUser = false;
             $user = Optional::ofNullable($this->users->getUserByEmail($userData['email']))
-                ->orElseGet(function () use ($userData) {
+                ->orElseGet(function () use ($userData, &$isNewUser) {
+                    $isNewUser = true;
                     return $this->users->createUserFromGoogleData($userData);
                 });
 
@@ -107,7 +109,7 @@ class GoogleAuthController extends BaseAuthController
                     return $this->logins->createLoginFromGoogleData($user, $userData, $token);
                 });
 
-            return $this->finalizeAuthorization($login, $request, $response);
+            return $this->finalizeAuthorization($login, $request, $response, $isNewUser);
         } catch (\Exception $e) {
             $this->logger->error('Google authentication error: ' . $e->getTraceAsString());
 

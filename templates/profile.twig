@@ -14,6 +14,13 @@
             </h1>
             <h2 class="text-2xl font-serif font-semibold text-tertiary mb-6">Profile</h2>
 
+            {% if pendingRedirect and not orkProfile %}
+                <div class="bg-blue-50 border border-blue-300 text-blue-900 px-4 py-3 rounded mb-6 leading-snug">
+                    <strong>One more step:</strong> Link your ORK player record below to finish signing in to the app that sent you here.
+                    Your park officers created it separately &mdash; it is not the same as this Amtgard Sign-In.
+                </div>
+            {% endif %}
+
             {% if error == 'ork_auth_failed' %}
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
                     <span class="block sm:inline">ORK Authorization failed. Please check your username and password.</span>
@@ -80,7 +87,8 @@
             {% endif %}
 
             <div class="mb-8">
-                <h3 class="text-xl font-serif font-semibold text-tertiary mb-4">ORK Account</h3>
+                <h3 class="text-xl font-serif font-semibold text-tertiary mb-1">ORK Player Record</h3>
+                <p class="text-sm text-gray-500 mb-4 leading-snug">Your ORK player record (persona, park, kingdom) is separate from your Amtgard Sign-In &mdash; it is created by your park officers. Link it here to share it with connected apps.</p>
                 {% if orkProfile %}
                     <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 flex items-start space-x-4">
                         {% if orkProfile.image %}
@@ -142,11 +150,11 @@
                 {% else %}
                     <div class="bg-gray-50 rounded-lg border border-gray-200">
                          <div class="p-6 cursor-pointer flex justify-between items-center" onclick="const form = document.getElementById('ork-link-form'); const icon = document.getElementById('ork-chevron'); form.classList.toggle('hidden'); icon.classList.toggle('rotate-180');">
-                            <h4 class="font-bold text-lg">Link ORK Account</h4>
+                            <h4 class="font-bold text-lg">Link ORK Player Record</h4>
                             <svg id="ork-chevron" class="w-6 h-6 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                          </div>
                         <div id="ork-link-form" class="hidden px-6 pb-6">
-                            <p class="mb-4 text-sm text-gray-600">Enter your ORK credentials to link your profile.</p>
+                            <p class="mb-4 text-sm text-gray-600">Enter your ORK username and password to link your ORK player record to your Amtgard Sign-In. This is the account your park officers set up for you &mdash; not your Amtgard Sign-In password.</p>
                             <form action="/resources/profile/link-ork" method="POST" class="max-w-sm">
                                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                                  <div class="mb-4">

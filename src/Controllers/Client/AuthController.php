@@ -69,7 +69,9 @@ class AuthController extends BaseAuthController
         }
         $response->getBody()->write($this->twig->render('login_form.twig', [
             'redirect' => $redirect,
-            'jwtpublickey' => $queryParams['jwtpublickey'] ?? ''
+            'jwtpublickey' => $queryParams['jwtpublickey'] ?? '',
+            'error' => $queryParams['error'] ?? null,
+            'expand' => isset($queryParams['expand']),
         ]));
         return $response;
     }
@@ -118,38 +120,45 @@ class AuthController extends BaseAuthController
      */
     public function registerForm(Request $request, Response $response): Response
     {
-        $response->getBody()->write($this->twig->render('register_form.twig'));
+        $queryParams = $request->getQueryParams();
+        $response->getBody()->write($this->twig->render('register_form.twig', [
+            'error' => $queryParams['error'] ?? null,
+            'expand' => isset($queryParams['expand']),
+            'firstName' => $queryParams['firstName'] ?? '',
+            'lastName' => $queryParams['lastName'] ?? '',
+            'email' => $queryParams['email'] ?? '',
+        ]));
         return $response;
     }
 
-    private function validateRequiredFields(string $firstName, string $lastName, string $email, string $password): ?string
+    private function validateRequiredFields(string $firstName, string $lastName, string $email, string $password, string $redirectUrl): ?string
     {
         if (empty($firstName) || empty($lastName) || empty($email) || empty($password)) {
-            return ScriptAlertResponse::alertAndRedirect('All fields are required', '/auth/register');
+            return ScriptAlertResponse::alertAndRedirect('All fields are required', $redirectUrl);
         }
         return null;
     }
 
-    private function validateEmailFormat(string $email): ?string
+    private function validateEmailFormat(string $email, string $redirectUrl): ?string
     {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return ScriptAlertResponse::alertAndRedirect('Invalid email format', '/auth/register');
+            return ScriptAlertResponse::alertAndRedirect('Invalid email format', $redirectUrl);
         }
         return null;
     }
 
-    private function validatePasswordsMatch(string $password, string $confirmPassword): ?string
+    private function validatePasswordsMatch(string $password, string $confirmPassword, string $redirectUrl): ?string
     {
         if ($password !== $confirmPassword) {
-            return ScriptAlertResponse::alertAndRedirect('Passwords do not match', '/auth/register');
+            return ScriptAlertResponse::alertAndRedirect('Passwords do not match', $redirectUrl);
         }
         return null;
     }
 
-    private function validateEmailIsUnique(string $email): ?string
+    private function validateEmailIsUnique(string $email, string $redirectUrl): ?string
     {
         if ($this->users->userExists($email)) {
-            return ScriptAlertResponse::alertAndRedirect('Email already registered', '/auth/register');
+            return ScriptAlertResponse::alertAndRedirect('Email already registered', $redirectUrl);
         }
         return null;
     }
@@ -170,10 +179,15 @@ class AuthController extends BaseAuthController
         $password = $data['password'] ?? '';
         $confirmPassword = $data['confirmPassword'] ?? '';
 
-        $validationResult = $this->validateRequiredFields($firstName, $lastName, $email, $password)
-            ?? $this->validateEmailFormat($email)
-            ?? $this->validatePasswordsMatch($password, $confirmPassword)
-            ?? $this->validateEmailIsUnique($email);
+        $redirectUrl = '/auth/register?expand=1'
+            . '&firstName=' . urlencode($firstName)
+            . '&lastName=' . urlencode($lastName)
+            . '&email=' . urlencode($email);
+
+        $validationResult = $this->validateRequiredFields($firstName, $lastName, $email, $password, $redirectUrl)
+            ?? $this->validateEmailFormat($email, $redirectUrl)
+            ?? $this->validatePasswordsMatch($password, $confirmPassword, $redirectUrl)
+            ?? $this->validateEmailIsUnique($email, $redirectUrl);
 
         if ($validationResult !== null) {
             $response->getBody()->write($validationResult);
@@ -184,7 +198,7 @@ class AuthController extends BaseAuthController
         $user = $this->users->createLocalUser($email, $firstName, $lastName);
         $login = $this->logins->createLocalLogin($user, $password);
 
-        return $this->finalizeAuthorization($login, $request, $response);
+        return $this->finalizeAuthorization($login, $request, $response, true);
     }
 
     /**

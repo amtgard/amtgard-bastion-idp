@@ -17,6 +17,7 @@ use Amtgard\IdP\Utility\UserAuthority;
 use Amtgard\IdP\Utility\Exception\MalformedUserPolicyException;
 use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
+use Amtgard\IdP\Utility\Security\RedirectValidator;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use OpenApi\Attributes as OA;
 use Optional\Optional;
@@ -304,6 +305,8 @@ class ResourcesController
             }
         }
 
+        $pendingRedirect = RedirectValidator::sanitizeOrNull($_SESSION['redirect'] ?? null);
+
         $response->getBody()->write($this->twig->render('profile.twig', [
             'avatarUrl' => $avatarUrl,
             'userLogins' => $userLogins,
@@ -311,7 +314,8 @@ class ResourcesController
             'orkProfile' => $orkProfile,
             'error' => $error,
             'success' => $success,
-            'isAdmin' => $isAdmin
+            'isAdmin' => $isAdmin,
+            'pendingRedirect' => $pendingRedirect !== null,
         ]));
 
         return $response;
@@ -347,6 +351,13 @@ class ResourcesController
         $parkData = $this->orkService->getParkShortInfo((int) $playerData['ParkId']);
 
         $this->orkProfileRepository->saveOrUpdateProfile($playerData, $parkData, $token, $user->getId());
+
+        $storedRedirect = RedirectValidator::sanitizeOrNull($_SESSION['redirect'] ?? null);
+        if ($storedRedirect !== null) {
+            unset($_SESSION['redirect']);
+            $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($user);
+            return $response->withHeader('Location', $storedRedirect . "?jwt=$jwt")->withStatus(302);
+        }
 
         return $response->withHeader('Location', '/resources/profile?success=linked')->withStatus(302);
     }
