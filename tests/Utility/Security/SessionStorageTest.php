@@ -96,4 +96,22 @@ class SessionStorageTest extends TestCase
 
         $this->assertSame('files', ini_get('session.save_handler'));
     }
+
+    public function testConfigureSkipsWhenSessionAlreadyActive(): void
+    {
+        $_ENV['SESSION_REDIS_HOST'] = 'amtgard-idp-sessions';
+        @session_start();
+        $handlerBefore = ini_get('session.save_handler');
+
+        SessionStorage::configure();
+
+        $this->assertSame($handlerBefore, ini_get('session.save_handler'));
+    }
+
+    public function testStartSessionReturnsTrueWhenSessionAlreadyActive(): void
+    {
+        @session_start();
+
+        $this->assertTrue(SessionStorage::startSession());
+    }
 }

@@ -173,6 +173,28 @@ class ResourcesControllerTest extends TestCase
         $this->assertSame($this->response, $result);
     }
 
+    public function testProfilePassesPendingRedirectFlagWhenOAuthRedirectStored(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $_SESSION['redirect'] = '/oauth/authorize?client_id=ork-app';
+
+        $this->request->method('getQueryParams')->willReturn([]);
+        $this->userAuthority->method('isAdmin')->willReturn(false);
+        $this->clientRepository->method('findActiveClientsForUser')->willReturn([]);
+        $this->orkProfileRepository->method('findByUserId')->willReturn(null);
+        $this->userLoginRepository->method('getAllLoginsForUser')->willReturn([]);
+
+        $this->twig->expects($this->once())
+            ->method('render')
+            ->with('profile.twig', $this->callback(function (array $context): bool {
+                return $context['pendingRedirect'] === true && $context['orkProfile'] === null;
+            }))
+            ->willReturn('profile view');
+
+        $this->stream->method('write')->with('profile view');
+        $this->controller->profile($this->request, $this->response);
+    }
+
     public function testProfileWithAuthenticatedUser(): void
     {
         $_SESSION['user_id'] = 123;
@@ -379,6 +401,31 @@ class ResourcesControllerTest extends TestCase
         $this->assertSame($this->response, $result);
     }
 
+    public function testUserInfoAuthenticatedWithoutOrkProfile(): void
+    {
+        $_SESSION['user_id'] = 123;
+
+        $this->amtgardIdpJwt->expects($this->once())
+            ->method('buildAuthorizationJwt')
+            ->with($this->userEntity)
+            ->willReturn('jwt-val');
+        $this->orkProfileRepository->expects($this->once())
+            ->method('findByUserId')
+            ->with(123)
+            ->willReturn(null);
+        $this->stream->expects($this->once())
+            ->method('write')
+            ->with($this->callback(function (string $json): bool {
+                $data = json_decode($json, true);
+                return $data['id'] === '123'
+                    && $data['email'] === 'test@example.com'
+                    && $data['jwt'] === 'jwt-val'
+                    && !isset($data['ork_profile']);
+            }));
+
+        $this->assertSame($this->response, $this->controller->userInfo($this->request, $this->response));
+    }
+
     public function testAuthorizationsUnauthenticated(): void
     {
         $this->response->expects($this->once())
@@ -416,6 +463,30 @@ class ResourcesControllerTest extends TestCase
 
         $result = $this->controller->linkOrkAccount($this->request, $this->response);
         $this->assertSame($this->response, $result);
+    }
+
+    public function testLinkOrkAccountCompletesPendingOAuthRedirect(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $_SESSION['redirect'] = '/oauth/authorize?client_id=ork-app';
+
+        $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'testpass']);
+        $this->orkService->method('authorize')->willReturn(['Token' => 'token-123', 'UserId' => 1001]);
+        $this->orkService->method('getPlayer')->willReturn(['ParkId' => 5, 'username' => 'testuser']);
+        $this->orkService->method('getParkShortInfo')->willReturn(['park_info']);
+        $this->orkProfileRepository->expects($this->once())->method('saveOrUpdateProfile');
+        $this->amtgardIdpJwt->expects($this->once())
+            ->method('buildAuthorizationJwt')
+            ->with($this->userEntity)
+            ->willReturn('linked-user-jwt');
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/oauth/authorize?client_id=ork-app?jwt=linked-user-jwt')
+            ->willReturnSelf();
+
+        $this->controller->linkOrkAccount($this->request, $this->response);
+        $this->assertArrayNotHasKey('redirect', $_SESSION);
     }
 
     public function testLinkOrkAccountSuccess(): void
@@ -475,6 +546,57 @@ class ResourcesControllerTest extends TestCase
         $this->assertSame($this->response, $result);
     }
 
+    public function testLinkOrkAccountRedirectsWhenPlayerFetchFails(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'testpass']);
+        $this->orkService->method('authorize')->willReturn(['Token' => 'token-123', 'UserId' => 1001]);
+        $this->orkService->method('getPlayer')->with('token-123', 1001)->willReturn(null);
+        $this->orkService->expects($this->never())->method('getParkShortInfo');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=ork_player_failed')
+            ->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->linkOrkAccount($this->request, $this->response));
+    }
+
+    public function testRefreshOrkAccountRedirectsWhenUnauthenticated(): void
+    {
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/auth/login')
+            ->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->refreshOrkAccount($this->request, $this->response));
+    }
+
+    public function testRefreshOrkAccountRedirectsWhenProfileMissing(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->orkProfileRepository->method('findByUserId')->with(123)->willReturn(null);
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=no_profile')
+            ->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->refreshOrkAccount($this->request, $this->response));
+    }
+
+    public function testRefreshOrkAccountRedirectsWhenPlayerFetchFails(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->orkProfileRepository->method('findByUserId')->with(123)->willReturn(new TestUserOrkProfileEntity());
+        $this->orkService->method('getPlayer')->with('ork-token-123', 1001)->willReturn(null);
+        $this->orkService->expects($this->never())->method('getParkShortInfo');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=ork_refresh_failed')
+            ->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->refreshOrkAccount($this->request, $this->response));
+    }
+
     public function testRefreshOrkAccountSuccess(): void
     {
         $_SESSION['user_id'] = 123;
@@ -527,5 +649,72 @@ class ResourcesControllerTest extends TestCase
 
         $result = $this->controller->revokeAuthorization($this->request, $this->response);
         $this->assertSame($this->response, $result);
+    }
+
+    public function testRevokeAuthorizationRedirectsWhenUnauthenticated(): void
+    {
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/auth/login')
+            ->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->revokeAuthorization($this->request, $this->response));
+    }
+
+    public function testRevokeAuthorizationRejectsInvalidClientId(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getParsedBody')->willReturn(['client_id' => '0']);
+        $this->userClientAuthorizationRepository->expects($this->never())->method('revokeAuthorization');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=invalid_client')
+            ->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->revokeAuthorization($this->request, $this->response));
+    }
+
+    public function testLinkOrkProfileRejectsInvalidBody(): void
+    {
+        $this->request->method('getParsedBody')->willReturn(['idp_user_id' => '', 'mundane_id' => 0]);
+        $this->response->expects($this->once())->method('withStatus')->with(400)->willReturnSelf();
+        $this->stream->expects($this->once())->method('write')->with($this->stringContains('mundane_id'));
+
+        $this->assertSame($this->response, $this->controller->linkOrkProfile($this->request, $this->response));
+    }
+
+    public function testLinkOrkProfileRejectsUnknownUser(): void
+    {
+        $this->request->method('getParsedBody')->willReturn(['idp_user_id' => 'uuid-missing', 'mundane_id' => 1001]);
+        $this->userRepository->method('findUserByUserId')->with('uuid-missing')->willReturn(null);
+        $this->response->expects($this->once())->method('withStatus')->with(404)->willReturnSelf();
+        $this->stream->expects($this->once())->method('write')->with($this->stringContains('unknown idp_user_id'));
+
+        $this->assertSame($this->response, $this->controller->linkOrkProfile($this->request, $this->response));
+    }
+
+    public function testLinkOrkProfileReportsConflict(): void
+    {
+        $this->request->method('getParsedBody')->willReturn(['idp_user_id' => 'uuid-user', 'mundane_id' => 1001]);
+        $this->userRepository->method('findUserByUserId')->with('uuid-user')->willReturn($this->userEntity);
+        $this->orkProfileRepository->method('linkExistingUserToMundane')
+            ->with(123, 1001, 'mirror')
+            ->willThrowException(new \RuntimeException('conflict: already linked'));
+        $this->response->expects($this->once())->method('withStatus')->with(409)->willReturnSelf();
+        $this->stream->expects($this->once())->method('write')->with($this->stringContains('different mundane_id'));
+
+        $this->assertSame($this->response, $this->controller->linkOrkProfile($this->request, $this->response));
+    }
+
+    public function testLinkOrkProfileReturnsNoContentOnSuccess(): void
+    {
+        $this->request->method('getParsedBody')->willReturn(['idp_user_id' => ' uuid-user ', 'mundane_id' => '1001']);
+        $this->userRepository->method('findUserByUserId')->with('uuid-user')->willReturn($this->userEntity);
+        $this->orkProfileRepository->expects($this->once())
+            ->method('linkExistingUserToMundane')
+            ->with(123, 1001, 'mirror');
+        $this->response->expects($this->once())->method('withStatus')->with(204)->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->linkOrkProfile($this->request, $this->response));
     }
 }

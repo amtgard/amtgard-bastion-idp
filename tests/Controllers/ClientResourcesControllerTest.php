@@ -349,6 +349,223 @@ class ClientResourcesControllerTest extends TestCase
         );
     }
 
+    public function testAddPolicyClaimReturns204AndInvalidatesCache(): void
+    {
+        [$user, $client, $resolver, $policyRepo, $redis] = $this->policyContext();
+        $policyRepo->expects($this->once())->method('addClaim')->with(
+            10,
+            'Skbc',
+            ':0::::',
+            'Officer/Approve',
+            10,
+            5
+        );
+        $redis->expects($this->once())->method('invalidateUser')->with('uuid-123');
+
+        $controller = $this->makeController($resolver, null, $redis, $policyRepo);
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')
+            ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
+            ->willReturn($client);
+        $request->method('getParsedBody')->willReturn([
+            'idp_user_id' => 'uuid-123',
+            'provisos' => ':0::::',
+            'resource' => 'Officer/Approve',
+        ]);
+
+        $response = $this->mockResponse();
+        $response->expects($this->once())->method('withStatus')->with(204)->willReturnSelf();
+
+        $controller->addPolicyClaim($request, $response);
+    }
+
+    public function testAddPolicyClaimReturns400WhenRepositoryRejectsClaim(): void
+    {
+        [$user, $client, $resolver, $policyRepo] = $this->policyContext();
+        $policyRepo->method('addClaim')->willThrowException(new \InvalidArgumentException('Invalid ORN claim'));
+
+        $controller = $this->makeController($resolver, null, null, $policyRepo);
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')
+            ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
+            ->willReturn($client);
+        $request->method('getParsedBody')->willReturn([
+            'idp_user_id' => 'uuid-123',
+            'provisos' => 'bad',
+            'resource' => 'Officer/Approve',
+        ]);
+
+        [$response, $stream] = $this->mockJsonResponse();
+        $stream->expects($this->once())->method('write')->with($this->stringContains('Invalid ORN claim'));
+        $response->expects($this->once())->method('withStatus')->with(400)->willReturnSelf();
+
+        $controller->addPolicyClaim($request, $response);
+    }
+
+    public function testDeletePolicyClaimReturns204(): void
+    {
+        [$user, $client, $resolver, $policyRepo, $redis] = $this->policyContext();
+        $policyRepo->expects($this->once())->method('deleteClaim');
+        $redis->expects($this->once())->method('invalidateUser')->with('uuid-123');
+
+        $controller = $this->makeController($resolver, null, $redis, $policyRepo);
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')->willReturn($client);
+        $request->method('getParsedBody')->willReturn([
+            'idp_user_id' => 'uuid-123',
+            'provisos' => ':0::::',
+            'resource' => 'Officer/Approve',
+        ]);
+
+        $response = $this->mockResponse();
+        $response->expects($this->once())->method('withStatus')->with(204)->willReturnSelf();
+
+        $controller->deletePolicyClaim($request, $response);
+    }
+
+    public function testListPolicyClaimsReturnsClaims(): void
+    {
+        [$user, $client, $resolver, $policyRepo] = $this->policyContext();
+        $policyRepo->method('listClaimsForUser')->willReturn([
+            ['service' => 'Skbc', 'provisos' => ':0::::', 'resource' => 'Officer/Approve'],
+        ]);
+
+        $controller = $this->makeController($resolver, null, null, $policyRepo);
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')->willReturn($client);
+
+        [$response, $stream] = $this->mockJsonResponse();
+        $stream->expects($this->once())
+            ->method('write')
+            ->with($this->callback(function (string $json): bool {
+                $payload = json_decode($json, true);
+                return count($payload['claims'] ?? []) === 1;
+            }));
+
+        $controller->listPolicyClaims($request, $response, 'uuid-123');
+    }
+
+    public function testGetUserMetadataReturnsStoredRow(): void
+    {
+        [$user, $client, $resolver] = $this->policyContext();
+        $metadataRepository = $this->createMock(UserLoginClientRepository::class);
+        $metadataRepository->method('getMetadata')->with(42, 5)->willReturn([
+            'metadata' => ['role' => 'editor'],
+            'encoding' => 'json',
+        ]);
+
+        $controller = $this->makeController($resolver, $metadataRepository);
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')->willReturn($client);
+        $request->method('getQueryParams')->willReturn(['login_id' => '42']);
+
+        [$response, $stream] = $this->mockJsonResponse();
+        $stream->expects($this->once())
+            ->method('write')
+            ->with($this->callback(function (string $json): bool {
+                $payload = json_decode($json, true);
+                return ($payload['login_id'] ?? null) === 42
+                    && ($payload['metadata']['role'] ?? null) === 'editor';
+            }));
+
+        $controller->getUserMetadata($request, $response, 'uuid-123');
+    }
+
+    public function testGetUserMetadataReturns404WhenMissing(): void
+    {
+        [$user, $client, $resolver] = $this->policyContext();
+        $metadataRepository = $this->createMock(UserLoginClientRepository::class);
+        $metadataRepository->method('getMetadata')->willReturn(null);
+
+        $controller = $this->makeController($resolver, $metadataRepository);
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')->willReturn($client);
+        $request->method('getQueryParams')->willReturn(['login_id' => '42']);
+
+        [$response, $stream] = $this->mockJsonResponse();
+        $stream->expects($this->once())->method('write')->with($this->stringContains('metadata not found'));
+        $response->expects($this->once())->method('withStatus')->with(404)->willReturnSelf();
+
+        $controller->getUserMetadata($request, $response, 'uuid-123');
+    }
+
+    public function testDeleteUserMetadataReturns204(): void
+    {
+        [$user, $client, $resolver] = $this->policyContext();
+        $metadataRepository = $this->createMock(UserLoginClientRepository::class);
+        $metadataRepository->expects($this->once())->method('deleteMetadata')->with(42, 5);
+        $redis = $this->createMock(RedisCacheRepository::class);
+        $redis->expects($this->once())->method('invalidateUser')->with('uuid-123');
+
+        $controller = $this->makeController($resolver, $metadataRepository, $redis);
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')->willReturn($client);
+        $request->method('getQueryParams')->willReturn(['login_id' => '42']);
+
+        $response = $this->mockResponse();
+        $response->expects($this->once())->method('withStatus')->with(204)->willReturnSelf();
+
+        $controller->deleteUserMetadata($request, $response, 'uuid-123');
+    }
+
+    public function testAddPolicyClaimReturns404ForUnknownUser(): void
+    {
+        $client = Client::builder()
+            ->identifier('app-client')
+            ->clientSecret('secret')
+            ->name('App')
+            ->redirectUri('http://localhost/cb')
+            ->isConfidential(true)
+            ->iamService('Skbc')
+            ->build();
+
+        $userRepository = $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class);
+        $userRepository->method('findUserByUserId')->willReturn(null);
+        $resolver = new ClientResourcesRequestResolver(
+            $userRepository,
+            $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository::class),
+        );
+
+        $controller = $this->makeController($resolver);
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')->willReturn($client);
+        $request->method('getParsedBody')->willReturn(['idp_user_id' => 'missing']);
+
+        [$response, $stream] = $this->mockJsonResponse();
+        $stream->expects($this->once())->method('write')->with($this->stringContains('unknown idp_user_id'));
+        $response->expects($this->once())->method('withStatus')->with(404)->willReturnSelf();
+
+        $controller->addPolicyClaim($request, $response);
+    }
+
+    /**
+     * @return array{0: object, 1: Client, 2: ClientResourcesRequestResolver, 3: UserPolicyClaimRepository, 4?: RedisCacheRepository}
+     */
+    private function policyContext(): array
+    {
+        $user = new class extends \Amtgard\IdP\Persistence\Client\Entities\UserEntity {
+            public function getId(): int { return 10; }
+            public function getUserId(): string { return 'uuid-123'; }
+        };
+
+        $client = new class extends Client {
+            public function getId(): int { return 5; }
+            public function getIamService(): ?string { return 'Skbc'; }
+        };
+
+        $userRepository = $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class);
+        $userRepository->method('findUserByUserId')->with('uuid-123')->willReturn($user);
+
+        $userLoginRepository = $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository::class);
+        $userLoginRepository->method('loginBelongsToUser')->with(42, 10)->willReturn(true);
+
+        $resolver = new ClientResourcesRequestResolver($userRepository, $userLoginRepository);
+        $policyRepo = $this->createMock(UserPolicyClaimRepository::class);
+        $redis = $this->createMock(RedisCacheRepository::class);
+
+        return [$user, $client, $resolver, $policyRepo, $redis];
+    }
+
     private function serviceFormatClient(): Client
     {
         return Client::builder()
@@ -365,6 +582,7 @@ class ClientResourcesControllerTest extends TestCase
         ?ClientResourcesRequestResolver $resolver = null,
         ?UserLoginClientRepository $metadataRepository = null,
         ?RedisCacheRepository $redis = null,
+        ?UserPolicyClaimRepository $policyRepository = null,
     ): ClientResourcesController {
         return new ClientResourcesController(
             $this->createMock(LoggerInterface::class),
@@ -372,7 +590,7 @@ class ClientResourcesControllerTest extends TestCase
                 $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class),
                 $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository::class),
             ),
-            $this->createMock(UserPolicyClaimRepository::class),
+            $policyRepository ?? $this->createMock(UserPolicyClaimRepository::class),
             $metadataRepository ?? $this->createMock(UserLoginClientRepository::class),
             $redis ?? $this->createMock(RedisCacheRepository::class),
         );

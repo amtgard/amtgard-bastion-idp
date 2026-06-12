@@ -48,6 +48,35 @@ class UserClientAuthorizationRepositoryTest extends TestCase
         EntityManager::configure($entityManager, true);
     }
 
+    public function testHasAuthorizationFindsByUserAndClient(): void
+    {
+        $fields = [];
+        $repository = $this->getMockBuilder(UserClientAuthorizationRepository::class)
+            ->onlyMethods(['clear', 'find', '__set'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())->method('clear');
+        $repository->expects($this->once())->method('find')->willReturn(1);
+        $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
+            $fields[$name] = $value;
+        });
+
+        $this->assertTrue($repository->hasAuthorization('user-123', 456));
+        $this->assertSame('user-123', $fields['user_identifier']);
+        $this->assertSame(456, $fields['client_id']);
+    }
+
+    public function testHasAuthorizationReturnsFalseWhenMissing(): void
+    {
+        $repository = $this->getMockBuilder(UserClientAuthorizationRepository::class)
+            ->onlyMethods(['clear', 'find', '__set'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->method('find')->willReturn(0);
+
+        $this->assertFalse($repository->hasAuthorization('user-123', 456));
+    }
+
     public function testAuthorizePersistsEntityWithCreatedAt(): void
     {
         $captured = null;
@@ -93,5 +122,33 @@ class UserClientAuthorizationRepositoryTest extends TestCase
             ->method('persist');
 
         $repository->authorize('user-123', 456);
+    }
+
+    public function testRevokeAuthorizationExecutesDeleteQuery(): void
+    {
+        $fields = [];
+        $repository = $this->getMockBuilder(UserClientAuthorizationRepository::class)
+            ->onlyMethods(['clear', 'query', 'execute', '__set'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())->method('clear');
+        $repository->expects($this->once())
+            ->method('query')
+            ->with('DELETE FROM user_client_authorizations WHERE user_identifier = :user_identifier AND client_id = :client_id');
+        $repository->expects($this->once())->method('execute');
+        $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
+            $fields[$name] = $value;
+        });
+
+        $repository->revokeAuthorization('user-123', 456);
+
+        $this->assertSame('user-123', $fields['user_identifier']);
+        $this->assertSame(456, $fields['client_id']);
+    }
+
+    public function testTableAndEntityClassMetadata(): void
+    {
+        $this->assertSame('user_client_authorizations', UserClientAuthorizationRepository::getTableName());
+        $this->assertSame(UserClientAuthorization::class, UserClientAuthorizationRepository::getEntityClass());
     }
 }
