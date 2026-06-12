@@ -156,6 +156,20 @@ class UserRepositoryTest extends TestCase
         $this->assertSame('fb@example.com', $user->getEmail());
         $this->assertNotEmpty($user->getUserId());
     }
+
+    public function testCreateUserFromAppleDataBuildsUser(): void
+    {
+        $repository = new UserRepository();
+
+        $user = $repository->createUserFromAppleData([
+            'email' => 'apple@example.com',
+            'given_name' => 'Apple',
+            'family_name' => 'User',
+        ]);
+
+        $this->assertSame('apple@example.com', $user->getEmail());
+        $this->assertNotEmpty($user->getUserId());
+    }
 }
 
 class UserRepositoryTestTableSchema extends TableSchema

@@ -59,6 +59,17 @@ class UserRepository extends Repository implements EntityRepositoryInterface, Us
         return $user;
     }
 
+    public function createUserFromAppleData(array $appleData): UserEntity {
+        $user = $this->configureNewUser(
+            $appleData['email'],
+            $appleData['given_name'] ?? '',
+            $appleData['family_name'] ?? ''
+        );
+        $user->setUserId(Uuid::uuid4()->toString());
+        EntityManager::getManager()->persist($user);
+        return $user;
+    }
+
     public function findUserByUserId(string $userId): ?UserEntity {
         return $this->fetchBy('user_id', $userId);
     }

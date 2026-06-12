@@ -29,6 +29,12 @@
         <env name="FACEBOOK_CLIENT_ID" value="test_facebook_client_id"/>
         <env name="FACEBOOK_CLIENT_SECRET" value="test_facebook_client_secret"/>
         <env name="FACEBOOK_REDIRECT_URI" value="http://localhost:8080/auth/facebook/callback"/>
+        <env name="APPLE_LOGIN_ENABLED" value="false"/>
+        <env name="APPLE_CLIENT_ID" value="test_apple_client_id"/>
+        <env name="APPLE_TEAM_ID" value="TESTTEAMID"/>
+        <env name="APPLE_KEY_FILE_ID" value="TESTKEYID"/>
+        <env name="APPLE_KEY_FILE_PATH" value="vendor/code-rhapsodie/oauth2-apple/test/src/private_key.pem"/>
+        <env name="APPLE_REDIRECT_URI" value="http://localhost:8080/auth/apple/callback"/>
         <env name="OAUTH_PRIVATE_KEY" value="file:///tmp/private.key"/>
         <env name="OAUTH_PUBLIC_KEY" value="file:///tmp/public.key"/>
         <env name="OAUTH_ENCRYPTION_KEY" value="test_encryption_key"/>

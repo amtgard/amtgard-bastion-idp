@@ -5,6 +5,7 @@ namespace Amtgard\IdP\Tests\Utility;
 
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
+use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\CachedValidatedUserEntity;
 use Amtgard\IdP\Utility\Constants;
@@ -93,5 +94,37 @@ class UtilityClassesTest extends TestCase
 
         $authority = new UserAuthority($userPolicy);
         $this->assertTrue($authority->isAdmin($user));
+    }
+
+    public function testAppleLoginFeatureIsDisabledByDefault(): void
+    {
+        $previous = $_ENV['APPLE_LOGIN_ENABLED'] ?? null;
+        unset($_ENV['APPLE_LOGIN_ENABLED']);
+
+        try {
+            $this->assertFalse(AppleLoginFeature::isEnabled());
+        } finally {
+            if ($previous === null) {
+                unset($_ENV['APPLE_LOGIN_ENABLED']);
+            } else {
+                $_ENV['APPLE_LOGIN_ENABLED'] = $previous;
+            }
+        }
+    }
+
+    public function testAppleLoginFeatureHonorsTruthyEnvValues(): void
+    {
+        $previous = $_ENV['APPLE_LOGIN_ENABLED'] ?? null;
+        $_ENV['APPLE_LOGIN_ENABLED'] = 'true';
+
+        try {
+            $this->assertTrue(AppleLoginFeature::isEnabled());
+        } finally {
+            if ($previous === null) {
+                unset($_ENV['APPLE_LOGIN_ENABLED']);
+            } else {
+                $_ENV['APPLE_LOGIN_ENABLED'] = $previous;
+            }
+        }
     }
 }

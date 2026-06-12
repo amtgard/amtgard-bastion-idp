@@ -122,5 +122,5 @@ cp .env.example .env
 - **OAuth**:
   - `OAUTH_PRIVATE_KEY` / `OAUTH_PUBLIC_KEY`: Paths to RSA keys for signing tokens.
   - `OAUTH_ENCRYPTION_KEY`: Key for encrypting auth codes.
-- **Social Login**: Credentials for Google, Facebook, Discord (`GOOGLE_CLIENT_ID`, etc.)
+- **Social Login**: Credentials for Google, Facebook, Discord, and optionally Apple (`GOOGLE_CLIENT_ID`, etc.). Apple requires `APPLE_LOGIN_ENABLED=true` plus Service ID, Team ID, Key ID, and AuthKey `.p8` file.
 

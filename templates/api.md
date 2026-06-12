@@ -815,7 +815,9 @@ These are HTML pages, not JSON APIs. Users interact with them directly in a brow
 | `/auth/register` | GET/POST | Create a local IDP account |
 | `/auth/logout` | GET | End session |
 | `/auth/google`, `/auth/facebook`, `/auth/discord` | GET | Start social login redirect |
-| `/auth/google/callback`, etc. | GET | Social provider callback (handled by IDP) |
+| `/auth/apple` | GET | Start Apple Sign In redirect (only when `APPLE_LOGIN_ENABLED=true`) |
+| `/auth/google/callback`, `/auth/facebook/callback`, `/auth/discord/callback` | GET | Social provider callback (handled by IDP) |
+| `/auth/apple/callback` | POST | Apple Sign In callback (`form_post`; only when `APPLE_LOGIN_ENABLED=true`) |
 | `/auth/connect` | GET | ORK→IDP onboarding handoff (see [Section 7](#7-ork-deep-integration-amtgard-specific)) |
 | `/resources/profile` | GET | User profile management page (linked accounts, authorized apps, ORK linking) |
 

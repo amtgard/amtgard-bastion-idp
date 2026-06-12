@@ -22,6 +22,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\RefreshTokenRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ScopeRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
+use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
@@ -31,6 +32,8 @@ use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisHashSetFactory;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisRedrivableQueueFactory;
 use Amtgard\SetQueue\DataStructure\SetQueue;
 use Amtgard\SetQueue\PubSubQueue;
+use Firebase\JWT\JWT;
+use League\OAuth2\Client\Provider\Apple;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use League\OAuth2\Server\AuthorizationServer;
@@ -217,6 +220,23 @@ return [
         ]);
     },
 
+    // Apple OAuth Provider (only when APPLE_LOGIN_ENABLED=true)
+    Apple::class => function () {
+        if (!AppleLoginFeature::isEnabled()) {
+            throw new \RuntimeException('Apple login is not enabled.');
+        }
+
+        JWT::$leeway = 60;
+
+        return new Apple([
+            'clientId' => $_ENV['APPLE_CLIENT_ID'],
+            'teamId' => $_ENV['APPLE_TEAM_ID'],
+            'keyFileId' => $_ENV['APPLE_KEY_FILE_ID'],
+            'keyFilePath' => $_ENV['APPLE_KEY_FILE_PATH'],
+            'redirectUri' => $_ENV['APPLE_REDIRECT_URI'],
+        ]);
+    },
+
     OrkService::class => function (ContainerInterface $container) {
         return new OrkService($container->get(LoggerInterface::class));
     },
@@ -267,6 +287,7 @@ return [
         // Backed by the shared CsrfTokenManager; forms render it as a hidden
         // field (name="_csrf_token") and CsrfMiddleware validates it on POST.
         $twig->addFunction(new TwigFunction('csrf_token', fn() => CsrfTokenManager::getOrCreate()));
+        $twig->addGlobal('appleLoginEnabled', AppleLoginFeature::isEnabled());
         return $twig;
     },
 
