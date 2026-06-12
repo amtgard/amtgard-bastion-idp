@@ -4,7 +4,9 @@ declare(strict_types=1);
 use Amtgard\IdP\Controllers\Api\ApiController;
 use Amtgard\IdP\Controllers\Client\AuthController;
 use Amtgard\IdP\Controllers\Client\ConnectController;
+use Amtgard\IdP\Controllers\Client\AppleAuthController;
 use Amtgard\IdP\Controllers\Client\FacebookAuthController;
+use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Controllers\Client\GoogleAuthController;
 use Amtgard\IdP\Controllers\HomeController;
 use Amtgard\IdP\Controllers\Resource\ClientResourcesController;
@@ -144,6 +146,11 @@ return function (App $app) {
 
         $group->get('/discord', [\Amtgard\IdP\Controllers\Client\DiscordAuthController::class, 'redirectToDiscord'])->setName('auth.discord');
         $group->get('/discord/callback', [\Amtgard\IdP\Controllers\Client\DiscordAuthController::class, 'handleDiscordCallback'])->setName('auth.discord.callback');
+
+        if (AppleLoginFeature::isEnabled()) {
+            $group->get('/apple', [AppleAuthController::class, 'redirectToApple'])->setName('auth.apple');
+            $group->post('/apple/callback', [AppleAuthController::class, 'handleAppleCallback'])->setName('auth.apple.callback');
+        }
 
         // ORK→IDP onboarding handoff. ORK signs a short-lived JWT and redirects
         // the user here; we log them in or register them and write the link.

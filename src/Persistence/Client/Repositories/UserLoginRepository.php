@@ -144,6 +144,16 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
         return $login;
     }
 
+    public function createLoginFromAppleData(UserEntity $user, array $appleData, $token): UserLoginEntity
+    {
+        $login = $this->configureNewLogin('apple', $user, Uuid::uuid4()->toString(), '');
+        $login->setProviderId($appleData['sub']);
+        $this->updateLoginTokens($login, fn($t) => $t->getRefreshToken(), $token);
+        EntityManager::getManager()->persist($login);
+        $login->user = $user;
+        return $login;
+    }
+
     public function updateLoginTokens(UserLoginEntity $login, callable $refreshTokenAccessor, $token): UserLoginEntity
     {
         $refreshToken = $refreshTokenAccessor($token);

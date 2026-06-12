@@ -7,6 +7,7 @@ namespace Amtgard\IdP\Tests\Controllers;
 require_once __DIR__ . '/AuthControllerTest.php';
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Controllers\Client\AppleAuthController;
 use Amtgard\IdP\Controllers\Client\DiscordAuthController;
 use Amtgard\IdP\Controllers\Client\FacebookAuthController;
 use Amtgard\IdP\Controllers\Client\GoogleAuthController;
@@ -15,6 +16,7 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Tests\Support\ScriptAlertResponseAssert;
 use Amtgard\IdP\Utility\Security\OAuth2StateManager;
+use League\OAuth2\Client\Provider\Apple;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use League\OAuth2\Client\Token\AccessToken;
@@ -460,5 +462,228 @@ class SocialAuthControllersTest extends TestCase
             return true;
         }));
         $controller->handleFacebookCallback($this->request, $this->response);
+    }
+
+    public function testAppleRedirectStoresStateAndRedirect(): void
+    {
+        $provider = $this->createMock(Apple::class);
+        $provider->method('getAuthorizationUrl')->willReturn('https://appleid.apple.com/auth/authorize');
+        $provider->method('getState')->willReturn('apple-state');
+        $this->request->method('getQueryParams')->willReturn(['redirect' => '/home']);
+
+        $controller = new AppleAuthController(
+            $this->createMock(EntityManager::class),
+            $this->users,
+            $this->logins,
+            $this->createMock(LoggerInterface::class),
+            $this->amtgardIdpJwt,
+            $provider,
+        );
+
+        $this->response->expects($this->once())->method('withStatus')->with(302)->willReturnSelf();
+        $controller->redirectToApple($this->request, $this->response);
+        $this->assertSame('apple-state', $_SESSION['oauth2state'] ?? null);
+    }
+
+    public function testAppleCallbackRejectsMissingEmailForNewUser(): void
+    {
+        OAuth2StateManager::store('apple-state');
+        $provider = $this->createMock(Apple::class);
+        $token = new AccessToken(['access_token' => 'at']);
+        $resourceOwner = new class {
+            public function toArray(): array
+            {
+                return ['sub' => 'apple-sub'];
+            }
+
+            public function getId(): string
+            {
+                return 'apple-sub';
+            }
+
+            public function getEmail(): ?string
+            {
+                return null;
+            }
+
+            public function getFirstName(): ?string
+            {
+                return null;
+            }
+
+            public function getLastName(): ?string
+            {
+                return null;
+            }
+        };
+
+        $provider->method('getAccessToken')->willReturn($token);
+        $provider->method('getResourceOwner')->willReturn($resourceOwner);
+        $this->logins->method('getLoginByProviderId')->with('apple-sub')->willReturn(null);
+        $this->request->method('getParsedBody')->willReturn(['code' => 'abc', 'state' => 'apple-state']);
+
+        $controller = new AppleAuthController(
+            $this->createMock(EntityManager::class),
+            $this->users,
+            $this->logins,
+            $this->createMock(LoggerInterface::class),
+            $this->amtgardIdpJwt,
+            $provider,
+        );
+
+        $this->stream->expects($this->once())->method('write')->with($this->callback(function (string $html): bool {
+            ScriptAlertResponseAssert::assertRedirectWithError(
+                $html,
+                'Apple did not provide an email address. If you have signed in before, use the same Apple ID. Otherwise, revoke Amtgard access in Apple ID settings and try again.',
+                '/auth/login?policy'
+            );
+            return true;
+        }));
+        $controller->handleAppleCallback($this->request, $this->response);
+    }
+
+    public function testAppleCallbackFinalizesAuthorizationForNewLogin(): void
+    {
+        OAuth2StateManager::store('apple-state');
+        $provider = $this->createMock(Apple::class);
+        $token = new AccessToken(['access_token' => 'at', 'refresh_token' => 'rt']);
+        $resourceOwner = new class {
+            public function toArray(): array
+            {
+                return [
+                    'sub' => 'apple-sub',
+                    'email' => 'apple@example.com',
+                    'name' => ['firstName' => 'Apple', 'lastName' => 'User'],
+                ];
+            }
+
+            public function getId(): string
+            {
+                return 'apple-sub';
+            }
+
+            public function getEmail(): ?string
+            {
+                return 'apple@example.com';
+            }
+
+            public function getFirstName(): ?string
+            {
+                return 'Apple';
+            }
+
+            public function getLastName(): ?string
+            {
+                return 'User';
+            }
+        };
+        $user = new TestUserEntity('uuid-apple', 'apple@example.com', 'Apple User');
+        $login = new TestUserLoginEntity($user, 'hash', '', 11);
+
+        $provider->expects($this->once())->method('getAccessToken')->with('authorization_code', ['code' => 'abc'])->willReturn($token);
+        $provider->expects($this->once())->method('getResourceOwner')->with($token)->willReturn($resourceOwner);
+        $this->logins->method('getLoginByProviderId')->with('apple-sub')->willReturn(null);
+        $this->users->method('getUserByEmail')->with('apple@example.com')->willReturn(null);
+        $this->users->expects($this->once())->method('createUserFromAppleData')->with([
+            'email' => 'apple@example.com',
+            'given_name' => 'Apple',
+            'family_name' => 'User',
+        ])->willReturn($user);
+        $this->logins->expects($this->once())->method('createLoginFromAppleData')->willReturn($login);
+        $this->amtgardIdpJwt->method('buildAuthorizationJwt')->with($user)->willReturn('jwt-token');
+        $this->routeParser->method('urlFor')->with('resources.profile')->willReturn('/resources/profile');
+        $this->request->method('getParsedBody')->willReturn(['code' => 'abc', 'state' => 'apple-state']);
+
+        $controller = new AppleAuthController(
+            $this->createMock(EntityManager::class),
+            $this->users,
+            $this->logins,
+            $this->createMock(LoggerInterface::class),
+            $this->amtgardIdpJwt,
+            $provider,
+        );
+
+        $this->response->expects($this->once())->method('withStatus')->with(302)->willReturnSelf();
+        $controller->handleAppleCallback($this->request, $this->response);
+
+        $this->assertSame('uuid-apple', $_SESSION['user_id']);
+        $this->assertSame('apple@example.com', $_SESSION['user_email']);
+    }
+
+    public function testAppleCallbackReusesExistingLoginWithoutEmail(): void
+    {
+        OAuth2StateManager::store('apple-state');
+        $provider = $this->createMock(Apple::class);
+        $token = new AccessToken(['access_token' => 'at', 'refresh_token' => 'rt']);
+        $resourceOwner = new class {
+            public function toArray(): array
+            {
+                return ['sub' => 'apple-sub'];
+            }
+
+            public function getId(): string
+            {
+                return 'apple-sub';
+            }
+
+            public function getEmail(): ?string
+            {
+                return null;
+            }
+
+            public function getFirstName(): ?string
+            {
+                return null;
+            }
+
+            public function getLastName(): ?string
+            {
+                return null;
+            }
+        };
+        $user = new TestUserEntity('uuid-returning', 'apple@example.com', 'Apple User');
+        $login = new TestUserLoginEntity($user, 'hash', '', 15);
+
+        $provider->method('getAccessToken')->willReturn($token);
+        $provider->method('getResourceOwner')->willReturn($resourceOwner);
+        $this->logins->method('getLoginByProviderId')->with('apple-sub')->willReturn($login);
+        $this->users->expects($this->never())->method('getUserByEmail');
+        $this->logins->expects($this->once())->method('updateLoginTokens')->willReturn($login);
+        $this->amtgardIdpJwt->method('buildAuthorizationJwt')->willReturn('jwt-token');
+        $this->routeParser->method('urlFor')->willReturn('/resources/profile');
+        $this->request->method('getParsedBody')->willReturn(['code' => 'abc', 'state' => 'apple-state']);
+
+        $controller = new AppleAuthController(
+            $this->createMock(EntityManager::class),
+            $this->users,
+            $this->logins,
+            $this->createMock(LoggerInterface::class),
+            $this->amtgardIdpJwt,
+            $provider,
+        );
+
+        $controller->handleAppleCallback($this->request, $this->response);
+        $this->assertSame('uuid-returning', $_SESSION['user_id']);
+    }
+
+    public function testAppleCallbackRejectsInvalidState(): void
+    {
+        $provider = $this->createMock(Apple::class);
+        $this->request->method('getParsedBody')->willReturn(['code' => 'abc', 'state' => 'bad-state']);
+
+        $controller = new AppleAuthController(
+            $this->createMock(EntityManager::class),
+            $this->users,
+            $this->logins,
+            $this->createMock(LoggerInterface::class),
+            $this->amtgardIdpJwt,
+            $provider,
+        );
+
+        $this->stream->expects($this->once())->method('write')->with($this->callback(function (string $html): bool {
+            ScriptAlertResponseAssert::assertRedirectWithError($html, 'Invalid state parameter', '/auth/login');
+            return true;
+        }));
+        $controller->handleAppleCallback($this->request, $this->response);
     }
 }

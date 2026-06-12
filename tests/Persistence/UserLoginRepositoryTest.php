@@ -199,6 +199,27 @@ class UserLoginRepositoryTest extends TestCase
         $this->assertSame('refresh-token', $login->getRefreshToken());
     }
 
+    public function testCreateLoginFromAppleDataStoresProviderAndRefreshToken(): void
+    {
+        $user = $this->testUser();
+        $token = new AccessToken(['access_token' => 'access', 'refresh_token' => 'refresh-token']);
+        $repository = $this->getMockBuilder(UserLoginRepository::class)
+            ->onlyMethods(['persist'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())->method('persist')->with($this->isInstanceOf(UserLoginEntity::class));
+
+        $login = $repository->createLoginFromAppleData($user, [
+            'sub' => 'apple-sub',
+            'email' => 'apple@example.com',
+        ], $token);
+
+        $this->assertSame($user, $login->user);
+        $this->assertSame('apple-sub', $login->getProviderId());
+        $this->assertSame('', $login->getAvatarUrl());
+        $this->assertSame('refresh-token', $login->getRefreshToken());
+    }
+
     public function testUpdateLoginTokensPersistsRefreshTokenAndExpiry(): void
     {
         $login = new class extends UserLoginEntity {
