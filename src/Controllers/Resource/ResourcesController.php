@@ -316,6 +316,7 @@ class ResourcesController
             'success' => $success,
             'isAdmin' => $isAdmin,
             'pendingRedirect' => $pendingRedirect !== null,
+            'sessionUserId' => $_SESSION['user_id'] ?? null,
         ]));
 
         return $response;

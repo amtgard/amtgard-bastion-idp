@@ -125,6 +125,26 @@ class UserPolicyClaimRepositoryTest extends TestCase
         $this->assertSame(10, $mapper->assigned['user_id']);
     }
 
+    public function testGetUserPolicyIncludesBuiltInOrkClaimsForAnyIntegrator(): void
+    {
+        $mapper = new UserPolicyClaimRepositoryCursorMapper([
+            ['service' => OrkServices::ORK->value, 'client_id' => 99, 'provisos' => ':0:::::', 'resource' => 'ORK/AddKingdom'],
+            ['service' => 'Skbc', 'client_id' => 5, 'provisos' => ':0::::', 'resource' => 'Officer/Approve'],
+            ['service' => 'Skbc', 'client_id' => 6, 'provisos' => ':0::::', 'resource' => 'Officer/Deny'],
+        ]);
+        $this->replaceMapper($mapper);
+
+        $user = $this->createMock(EntityInterface::class);
+        $user->id = 10;
+
+        $encodedPolicy = $this->repository->getUserPolicy($user, 5)->toJson();
+        $claims = json_decode($encodedPolicy, true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertContains('ORK:0:::::ORK/AddKingdom', $claims);
+        $this->assertContains('Skbc:0::::Officer/Approve', $claims);
+        $this->assertNotContains('Skbc:0::::Officer/Deny', $claims);
+    }
+
     public function testGetUserPolicyIncludesIdpAndMatchingClientClaims(): void
     {
         $mapper = new UserPolicyClaimRepositoryCursorMapper([
