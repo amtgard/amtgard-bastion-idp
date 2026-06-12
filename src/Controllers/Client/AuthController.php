@@ -9,6 +9,7 @@ use Amtgard\IdP\Utility\Security\RedirectValidator;
 use Amtgard\IdP\Utility\Security\ScriptAlertResponse;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use Optional\Optional;
@@ -27,6 +28,7 @@ class AuthController extends BaseAuthController
     private Facebook $facebookProvider;
     private Discord $discordProvider;
     private TwigEnvironment $twig;
+    private RedisCacheRepository $redisCacheRepository;
 
     public function __construct(
         EntityManager $entityManager,
@@ -37,7 +39,8 @@ class AuthController extends BaseAuthController
         Facebook        $facebookProvider,
         Discord         $discordProvider,
         AmtgardIdpJwt   $amtgardIdpJwt,
-        TwigEnvironment $twig
+        TwigEnvironment $twig,
+        RedisCacheRepository $redisCacheRepository,
     )
     {
         parent::__construct($logger, $amtgardIdpJwt);
@@ -47,6 +50,7 @@ class AuthController extends BaseAuthController
         $this->facebookProvider = $facebookProvider;
         $this->discordProvider = $discordProvider;
         $this->twig = $twig;
+        $this->redisCacheRepository = $redisCacheRepository;
     }
 
     /**
@@ -210,6 +214,11 @@ class AuthController extends BaseAuthController
      */
     public function logout(Request $request, Response $response): Response
     {
+        Optional::ofNullable($_SESSION['user_id'] ?? null)
+            ->map(fn (mixed $id): string => (string) $id)
+            ->filter(fn (string $id): bool => $id !== '')
+            ->ifPresent(fn (string $userId) => $this->redisCacheRepository->invalidateUser($userId));
+
         // Clear session
         session_unset();
         session_destroy();

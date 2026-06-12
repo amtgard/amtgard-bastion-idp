@@ -10,6 +10,7 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Tests\Support\ScriptAlertResponseAssert;
 use Amtgard\IdP\Utility\Exception\MalformedUserPolicyException;
 use League\OAuth2\Client\Provider\Facebook;
@@ -106,6 +107,7 @@ class AuthControllerTest extends TestCase
     private $authController;
     private $routeParser;
     private $routingResults;
+    private $redisCacheRepository;
 
     protected function setUp(): void
     {
@@ -121,6 +123,7 @@ class AuthControllerTest extends TestCase
         $this->discordProvider = $this->createMock(\Wohali\OAuth2\Client\Provider\Discord::class);
         $this->amtgardIdpJwt = $this->createMock(AmtgardIdpJwt::class);
         $this->twig = $this->createMock(TwigEnvironment::class);
+        $this->redisCacheRepository = $this->createMock(RedisCacheRepository::class);
 
         $this->request = $this->createMock(ServerRequestInterface::class);
         $this->response = $this->createMock(ResponseInterface::class);
@@ -153,7 +156,8 @@ class AuthControllerTest extends TestCase
             $this->facebookProvider,
             $this->discordProvider,
             $this->amtgardIdpJwt,
-            $this->twig
+            $this->twig,
+            $this->redisCacheRepository,
         );
     }
 
@@ -512,7 +516,11 @@ class AuthControllerTest extends TestCase
 
     public function testLogout(): void
     {
-        $_SESSION['user_id'] = 123;
+        $_SESSION['user_id'] = 'user-123';
+
+        $this->redisCacheRepository->expects($this->once())
+            ->method('invalidateUser')
+            ->with('user-123');
 
         $this->routeParser->method('urlFor')->with('home')->willReturn('/');
 
