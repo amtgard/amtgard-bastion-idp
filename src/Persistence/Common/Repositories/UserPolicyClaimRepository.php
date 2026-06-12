@@ -12,6 +12,7 @@ use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IAM\Allowance\Policy;
 use Amtgard\IAM\ClaimFactory;
 use Amtgard\IAM\OrkServices;
+use Amtgard\IdP\Utility\BuiltInOrkPolicyServices;
 use Amtgard\IdP\Utility\Exception\MalformedUserPolicyException;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
 use Optional\Optional;
@@ -117,8 +118,9 @@ class UserPolicyClaimRepository
     }
 
     /**
-     * Authorization JWTs are minted for a specific OAuth client audience; omit other
-     * clients' third-party claims so policy is not leaked across integrators.
+     * Authorization JWT policy includes:
+     * - all built-in {@see OrkServices} claims (ORK platform + shared applications)
+     * - custom integrator iam_service claims for the requesting OAuth client only
      */
     private function includeClaimInAuthorizationJwt(
         string $service,
@@ -129,7 +131,7 @@ class UserPolicyClaimRepository
             return true;
         }
 
-        if ($service === OrkServices::Idp->value) {
+        if (BuiltInOrkPolicyServices::isBuiltIn($service)) {
             return true;
         }
 
