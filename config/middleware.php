@@ -1,10 +1,12 @@
 <?php
 declare(strict_types=1);
 
+use Amtgard\IdP\Handlers\NotFoundErrorHandler;
 use Amtgard\IdP\Middleware\SessionMiddleware;
 use Amtgard\IdP\Middleware\JsonBodyParserMiddleware;
 use Psr\Log\LoggerInterface;
 use Slim\App;
+use Slim\Exception\HttpNotFoundException;
 use Slim\Middleware\MethodOverrideMiddleware;
 
 return function (App $app) {
@@ -30,5 +32,15 @@ return function (App $app) {
     $displayErrorDetails = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
     $logger = $app->getContainer()->get(LoggerInterface::class);
 
-    return $app->addErrorMiddleware($displayErrorDetails, true, true, $logger);
+    $errorMiddleware = $app->addErrorMiddleware($displayErrorDetails, true, true, $logger);
+    $errorMiddleware->setErrorHandler(
+        HttpNotFoundException::class,
+        new NotFoundErrorHandler(
+            $app->getCallableResolver(),
+            $app->getResponseFactory(),
+            $logger
+        )
+    );
+
+    return $errorMiddleware;
 };
