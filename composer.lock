@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5feef50fa24f2f5febb995a91f31e476",
+    "content-hash": "b303e6ebdef63b2c63461e6c104bb7dc",
     "packages": [
         {
             "name": "amtgard/active-record-orm",
@@ -183,16 +183,16 @@
         },
         {
             "name": "amtgard/ork-iam",
-            "version": "v1.3.0",
+            "version": "v1.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/amtgard/ork-iam.git",
-                "reference": "71ce4c7104d64f785858aa846ef1c9b67fec973f"
+                "reference": "e74bbc8bfd50c186e3b5e7b83ea49936804f2fe9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/amtgard/ork-iam/zipball/71ce4c7104d64f785858aa846ef1c9b67fec973f",
-                "reference": "71ce4c7104d64f785858aa846ef1c9b67fec973f",
+                "url": "https://api.github.com/repos/amtgard/ork-iam/zipball/e74bbc8bfd50c186e3b5e7b83ea49936804f2fe9",
+                "reference": "e74bbc8bfd50c186e3b5e7b83ea49936804f2fe9",
                 "shasum": ""
             },
             "require": {
@@ -211,6 +211,11 @@
                 "./bin/"
             ],
             "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.x": "1.4-dev"
+                }
+            },
             "autoload": {
                 "psr-4": {
                     "Amtgard\\IAM\\": "./src"
@@ -221,12 +226,12 @@
                 "MIT"
             ],
             "description": "Amtgard ORK IAM",
-            "homepage": "https://github.com/amtgard/active-record-orm",
+            "homepage": "https://github.com/amtgard/ork-iam",
             "support": {
                 "issues": "https://github.com/amtgard/ork-iam/issues",
-                "source": "https://github.com/amtgard/ork-iam/tree/v1.3.0"
+                "source": "https://github.com/amtgard/ork-iam/tree/v1.4.1"
             },
-            "time": "2026-06-11T03:28:26+00:00"
+            "time": "2026-06-13T19:50:26+00:00"
         },
         {
             "name": "amtgard/ork-iam-orn-definitions",

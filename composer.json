@@ -6,7 +6,7 @@
         "php": "^8.4",
         "ext-redis": "*",
         "amtgard/active-record-orm": "^1.6",
-        "amtgard/ork-iam": "^1.3",
+        "amtgard/ork-iam": "v1.4.1",
         "amtgard/ork-iam-orn-definitions": "^0.9",
         "amtgard/redis-set-queue": "^1.1",
         "code-rhapsodie/oauth2-apple": "^0.5.0",
