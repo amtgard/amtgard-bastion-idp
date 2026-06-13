@@ -13,6 +13,7 @@ use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
 use Firebase\JWT\JWT;
 use Optional\Optional;
+use Psr\Log\LoggerInterface;
 
 class AmtgardIdpJwt
 {
@@ -24,6 +25,7 @@ class AmtgardIdpJwt
         ClientRepository $clientRepository,
         UserLoginClientRepository $metadataRepository,
         UserLoginRepository $userLoginRepository,
+        LoggerInterface $logger,
     ) {
         $this->assembler = new AuthorizationJwtAssembler(
             $userPolicy,
@@ -31,6 +33,7 @@ class AmtgardIdpJwt
             $clientRepository,
             $metadataRepository,
             $userLoginRepository,
+            $logger,
         );
     }
 

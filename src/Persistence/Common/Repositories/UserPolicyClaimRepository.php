@@ -6,6 +6,7 @@ namespace Amtgard\IdP\Persistence\Common\Repositories;
 
 use Amtgard\ActiveRecordOrm\Configuration\DataAccessPolicy\UncachedDataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Entity\EntityMapper;
+use Amtgard\ActiveRecordOrm\Entity\Repository\RepositoryEntity;
 use Amtgard\ActiveRecordOrm\Factory\TableFactory;
 use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
 use Amtgard\ActiveRecordOrm\Repository\Database;
@@ -13,9 +14,9 @@ use Amtgard\IAM\Allowance\Policy;
 use Amtgard\IAM\ClaimFactory;
 use Amtgard\IAM\OrkServices;
 use Amtgard\IdP\Utility\BuiltInOrkPolicyServices;
-use Amtgard\IdP\Utility\Exception\MalformedUserPolicyException;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
 use Optional\Optional;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 class UserPolicyClaimRepository
@@ -24,8 +25,11 @@ class UserPolicyClaimRepository
 
     private EntityMapper $userClaims;
 
-    public function __construct(Database $database, UncachedDataAccessPolicy $tablePolicy)
-    {
+    public function __construct(
+        Database $database,
+        UncachedDataAccessPolicy $tablePolicy,
+        private LoggerInterface $logger,
+    ) {
         $this->userClaims = EntityMapper::builder()
             ->table(TableFactory::build($database, $tablePolicy, 'user_policy_claims'))
             ->build();
@@ -92,22 +96,45 @@ class UserPolicyClaimRepository
 
     public function getUserPolicy(EntityInterface $user, ?int $forClientDbId = null): Policy
     {
-        $this->loadClaimsForUser($user->id);
-        OrnClaimRegistry::registerForService(OrkServices::Idp->value);
+        $userDbId = $this->resolveUserDbId($user);
 
-        $policyClaims = [];
-        while ($this->userClaims->next()) {
-            $service = (string) $this->userClaims->service;
-            $claimClientId = $this->userClaims->client_id ?? null;
+        try {
+            $this->loadClaimsForUser($userDbId);
+            OrnClaimRegistry::registerForService(OrkServices::Idp->value);
 
-            if (!$this->includeClaimInAuthorizationJwt($service, $claimClientId, $forClientDbId)) {
-                continue;
+            $policyClaims = [];
+            while ($this->userClaims->next()) {
+                $service = (string) $this->userClaims->service;
+                $claimClientId = $this->userClaims->client_id ?? null;
+
+                if (!$this->includeClaimInAuthorizationJwt($service, $claimClientId, $forClientDbId)) {
+                    continue;
+                }
+
+                $claim = $this->parseStoredClaim($service, $userDbId);
+                if ($claim !== null) {
+                    $policyClaims[] = $claim;
+                }
             }
 
-            $policyClaims[] = $this->parseStoredClaim($service);
+            return new Policy($policyClaims);
+        } catch (Throwable $e) {
+            $this->logger->error('Failed to load user policy claims; using empty policy', [
+                'user_id' => $userDbId,
+                'detail' => $e->getMessage(),
+            ]);
+
+            return new Policy([]);
+        }
+    }
+
+    private function resolveUserDbId(EntityInterface $user): int
+    {
+        if ($user instanceof RepositoryEntity) {
+            return (int) $user->getInternalEntity()->id;
         }
 
-        return new Policy($policyClaims);
+        return (int) $user->id;
     }
 
     private function loadClaimsForUser(int $userDbId): void
@@ -163,15 +190,22 @@ class UserPolicyClaimRepository
         ];
     }
 
-    private function parseStoredClaim(string $service): mixed
+    private function parseStoredClaim(string $service, int $userDbId): mixed
     {
+        $orn = $service . $this->userClaims->provisos . $this->userClaims->resource;
+
         try {
             OrnClaimRegistry::registerForService($service);
-            $orn = $service . $this->userClaims->provisos . $this->userClaims->resource;
 
             return ClaimFactory::createOrn($orn);
         } catch (Throwable $e) {
-            throw new MalformedUserPolicyException($e);
+            $this->logger->error('Skipping malformed user policy claim', [
+                'user_id' => $userDbId,
+                'orn' => $orn,
+                'detail' => $e->getMessage(),
+            ]);
+
+            return null;
         }
     }
 

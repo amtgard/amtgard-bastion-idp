@@ -19,6 +19,7 @@ use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\ScopeRepositoryInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class ModelsTest extends TestCase
 {
@@ -42,9 +43,7 @@ class ModelsTest extends TestCase
     public function testAmtgardIdpJwt(): void
     {
         $userPolicy = $this->createMock(UserPolicy::class);
-        $userPolicyPolicy = $this->createMock(\Amtgard\IAM\Allowance\Policy::class);
-        $userPolicyPolicy->method('toJson')->willReturn('{"foo":"bar"}');
-        $userPolicy->method('getUserPolicy')->willReturn($userPolicyPolicy);
+        $userPolicy->method('toPolicyJson')->willReturn('{"foo":"bar"}');
 
         $jwtChallenge = $this->createMock(JwtChallenge::class);
         $jwtChallenge->method('createChallenge')->willReturn('challenge123');
@@ -79,7 +78,8 @@ class ModelsTest extends TestCase
             $jwtChallenge,
             $clientRepository,
             $metadataRepository,
-            $userLoginRepository
+            $userLoginRepository,
+            $this->createMock(LoggerInterface::class),
         );
         $jwtString = $idpJwt->buildAuthorizationJwt($user);
 

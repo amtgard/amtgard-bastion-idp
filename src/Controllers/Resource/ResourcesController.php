@@ -14,7 +14,6 @@ use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepositor
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\UserAuthority;
-use Amtgard\IdP\Utility\Exception\MalformedUserPolicyException;
 use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
 use Amtgard\IdP\Utility\Security\RedirectValidator;
@@ -109,15 +108,7 @@ class ResourcesController
             return $response->withStatus(401);
         }
 
-        try {
-            $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($user);
-        } catch (MalformedUserPolicyException $e) {
-            $this->logger->error('Malformed IDP access policy fetching JWT', [
-                'email' => $user->getEmail(),
-                'detail' => $e->getPrevious()?->getMessage(),
-            ]);
-            return $this->jsonPolicyError($response);
-        }
+        $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($user);
 
         $this->redisCacheRepository->cacheValidatedUser(
             $user->getUserId(),
@@ -127,14 +118,6 @@ class ResourcesController
 
         $response->getBody()->write(json_encode(['jwt' => $jwt]));
         return $response->withHeader('Content-Type', 'application/json');
-    }
-
-    private function jsonPolicyError(Response $response): Response
-    {
-        $response->getBody()->write(json_encode([
-            'error' => MalformedUserPolicyException::USER_MESSAGE,
-        ]));
-        return $response->withStatus(422)->withHeader('Content-Type', 'application/json');
     }
 
     #[OA\Get(
@@ -191,15 +174,7 @@ class ResourcesController
             return $response->withStatus(401);
         }
 
-        try {
-            $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($user);
-        } catch (MalformedUserPolicyException $e) {
-            $this->logger->error('Malformed IDP access policy fetching userinfo', [
-                'email' => $user->getEmail(),
-                'detail' => $e->getPrevious()?->getMessage(),
-            ]);
-            return $this->jsonPolicyError($response);
-        }
+        $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($user);
 
         $userData = [
             'id' => $user->getUserId(),
@@ -291,18 +266,10 @@ class ResourcesController
         $isAdmin = false;
         $clients = [];
         if ($user) {
-            try {
-                $isAdmin = $this->userAuthority->isAdmin($user);
-                $clients = $this->clientRepository->findActiveClientsForUser($user->getId());
-                $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
-                $userLogins = $this->userLoginRepository->getAllLoginsForUser($user->getId());
-            } catch (MalformedUserPolicyException $e) {
-                $this->logger->error('Malformed IDP access policy on profile', [
-                    'email' => $user->getEmail(),
-                    'detail' => $e->getPrevious()?->getMessage(),
-                ]);
-                $error = 'malformed_policy';
-            }
+            $isAdmin = $this->userAuthority->isAdmin($user);
+            $clients = $this->clientRepository->findActiveClientsForUser($user->getId());
+            $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
+            $userLogins = $this->userLoginRepository->getAllLoginsForUser($user->getId());
         }
 
         $pendingRedirect = RedirectValidator::sanitizeOrNull($_SESSION['redirect'] ?? null);

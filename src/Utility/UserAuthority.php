@@ -6,17 +6,30 @@ use Amtgard\IAM\OrkServices;
 use Amtgard\IdP\Models\Orn\IdpRequirement;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
+use Psr\Log\LoggerInterface;
+use Throwable;
 
 class UserAuthority
 {
-    private UserPolicy $userPolicy;
-    public function __construct(UserPolicy $userPolicy) {
-        $this->userPolicy = $userPolicy;
+    public function __construct(
+        private UserPolicy $userPolicy,
+        private LoggerInterface $logger,
+    ) {
     }
-    public function isAdmin(UserEntity $user) {
-        $policy = $this->userPolicy->getUserPolicy($user);
-        $requirement = new IdpRequirement(OrkServices::Idp, "Idp:0::::IDP/EditClient");
 
-        return $policy->isAuthorized($requirement);
+    public function isAdmin(UserEntity $user): bool
+    {
+        try {
+            $policy = $this->userPolicy->getUserPolicy($user);
+            $requirement = new IdpRequirement(OrkServices::Idp, "Idp:0::::IDP/EditClient");
+
+            return $policy->isAuthorized($requirement);
+        } catch (Throwable $e) {
+            $this->logger->error('Failed to evaluate admin policy; treating user as non-admin', [
+                'detail' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 }

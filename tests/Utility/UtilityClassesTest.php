@@ -12,6 +12,7 @@ use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\UserAuthority;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class UtilityClassesTest extends TestCase
 {
@@ -92,7 +93,7 @@ class UtilityClassesTest extends TestCase
             ->with($this->isInstanceOf(\Amtgard\IdP\Models\Orn\IdpRequirement::class))
             ->willReturn(true);
 
-        $authority = new UserAuthority($userPolicy);
+        $authority = new UserAuthority($userPolicy, $this->createMock(LoggerInterface::class));
         $this->assertTrue($authority->isAdmin($user));
     }
 
