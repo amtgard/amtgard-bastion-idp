@@ -139,6 +139,31 @@ class UserOrkProfileRepositoryTest extends TestCase
         $this->assertNull($captured->getKingdomName());
     }
 
+    public function testSaveOrUpdateProfileStoresNullForMissingParkAndKingdomIds(): void
+    {
+        $captured = null;
+        $repository = $this->getMockBuilder(UserOrkProfileRepository::class)
+            ->onlyMethods(['findByUserId', 'persist'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->method('findByUserId')->with(10)->willReturn(null);
+        $repository->expects($this->once())->method('persist')->willReturnCallback(function (UserOrkProfileEntity $entity) use (&$captured): UserOrkProfileEntity {
+            $captured = $entity;
+            return $entity;
+        });
+
+        $playerData = $this->playerData();
+        $playerData['ParkId'] = 0;
+        $playerData['KingdomId'] = null;
+
+        $repository->saveOrUpdateProfile($playerData, null, 'ork-token', 10);
+
+        $this->assertNull($captured->getParkId());
+        $this->assertNull($captured->getKingdomId());
+        $this->assertNull($captured->getParkName());
+        $this->assertNull($captured->getKingdomName());
+    }
+
     public function testLinkExistingUserToMundaneIsNoOpWhenAlreadyLinked(): void
     {
         $existing = $this->createMock(UserOrkProfileEntity::class);

@@ -543,6 +543,43 @@ class ResourcesControllerTest extends TestCase
         $this->assertSame($this->response, $result);
     }
 
+    public function testRefreshOrkAccountSuccessWithNoPark(): void
+    {
+        $_SESSION['user_id'] = 123;
+
+        $orkProfile = new TestUserOrkProfileEntity();
+        $this->orkProfileRepository->expects($this->once())
+            ->method('findByUserId')
+            ->with(123)
+            ->willReturn($orkProfile);
+
+        $playerData = [
+            'MundaneId' => 1001,
+            'ParkId' => 0,
+            'KingdomId' => 0,
+            'UserName' => 'admin',
+        ];
+
+        $this->orkService->expects($this->once())
+            ->method('getPlayer')
+            ->with('ork-token-123', 1001)
+            ->willReturn($playerData);
+
+        $this->orkService->expects($this->never())->method('getParkShortInfo');
+
+        $this->orkProfileRepository->expects($this->once())
+            ->method('saveOrUpdateProfile')
+            ->with($playerData, null, 'ork-token-123', 123);
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?success=refreshed')
+            ->willReturnSelf();
+
+        $result = $this->controller->refreshOrkAccount($this->request, $this->response);
+        $this->assertSame($this->response, $result);
+    }
+
     public function testRevokeAuthorizationSuccess(): void
     {
         $_SESSION['user_id'] = 123;

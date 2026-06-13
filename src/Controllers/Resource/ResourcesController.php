@@ -500,7 +500,9 @@ class ResourcesController
     private function fetchOrkParkData(array $playerData, int $userId, string $flow): ?array
     {
         $parkIdRaw = $playerData['ParkId'] ?? null;
-        $parkId = (int) $parkIdRaw;
+        $parkIdOpt = Optional::ofNullable($parkIdRaw)
+            ->map(fn($v) => (int) $v)
+            ->filter(fn(int $id) => $id > 0);
 
         $parkRelatedFields = [];
         foreach ($playerData as $key => $value) {
@@ -517,10 +519,15 @@ class ResourcesController
             'mundaneId' => $playerData['MundaneId'] ?? null,
             'parkIdKeyPresent' => array_key_exists('ParkId', $playerData),
             'parkIdRaw' => $parkIdRaw,
-            'parkIdResolved' => $parkId,
+            'parkIdResolved' => $parkIdOpt->orElse(null),
             'parkRelatedFields' => $parkRelatedFields,
         ]);
 
+        if (!$parkIdOpt->isPresent()) {
+            return null;
+        }
+
+        $parkId = $parkIdOpt->get();
         $parkData = $this->orkService->getParkShortInfo($parkId);
 
         if ($parkData === null) {

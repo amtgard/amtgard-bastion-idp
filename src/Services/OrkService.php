@@ -112,10 +112,6 @@ class OrkService
         ];
 
         if ($parkId <= 0) {
-            $this->logger->warning('ORK GetParkShortInfo skipped: invalid ParkId', [
-                'parkId' => $parkId,
-                'request' => $request,
-            ]);
             return null;
         }
 
