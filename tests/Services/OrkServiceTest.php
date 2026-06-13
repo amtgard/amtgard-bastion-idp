@@ -185,4 +185,22 @@ class OrkServiceTest extends TestCase
         $result = $this->service->getParkShortInfo(456);
         $this->assertNull($result);
     }
+
+    public function testGetParkShortInfoSkipsInvalidParkId(): void
+    {
+        $this->clientMock->expects($this->never())->method('get');
+
+        $this->logger->expects($this->once())
+            ->method('warning')
+            ->with(
+                'ORK GetParkShortInfo skipped: invalid ParkId',
+                $this->callback(function (array $context): bool {
+                    return $context['parkId'] === 0
+                        && $context['request']['call'] === 'Park/GetParkShortInfo';
+                })
+            );
+
+        $result = $this->service->getParkShortInfo(0);
+        $this->assertNull($result);
+    }
 }
