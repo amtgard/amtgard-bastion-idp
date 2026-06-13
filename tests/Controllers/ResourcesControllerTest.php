@@ -17,7 +17,6 @@ use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepositor
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
 use Amtgard\IdP\Services\OrkService;
-use Amtgard\IdP\Utility\Exception\MalformedUserPolicyException;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\UserAuthority;
 use Amtgard\SetQueue\PubSubQueue;
@@ -272,92 +271,6 @@ class ResourcesControllerTest extends TestCase
             ->with(json_encode(['jwt' => 'jwt-val']));
 
         $result = $this->controller->getJwt($this->request, $this->response);
-        $this->assertSame($this->response, $result);
-    }
-
-    public function testGetJwtMalformedPolicy(): void
-    {
-        $_SESSION['user_id'] = 123;
-
-        $this->amtgardIdpJwt->expects($this->once())
-            ->method('buildAuthorizationJwt')
-            ->with($this->userEntity)
-            ->willThrowException(new MalformedUserPolicyException(new \InvalidArgumentException('bad orn')));
-
-        $this->redisCacheRepository->expects($this->never())
-            ->method('cacheValidatedUser');
-
-        $this->response->expects($this->once())
-            ->method('withStatus')
-            ->with(422)
-            ->willReturnSelf();
-
-        $this->stream->expects($this->once())
-            ->method('write')
-            ->with($this->callback(function (string $json) {
-                $data = json_decode($json, true);
-                return ($data['error'] ?? null) === MalformedUserPolicyException::USER_MESSAGE;
-            }));
-
-        $result = $this->controller->getJwt($this->request, $this->response);
-        $this->assertSame($this->response, $result);
-    }
-
-    public function testUserInfoMalformedPolicy(): void
-    {
-        $_SESSION['user_id'] = 123;
-
-        $this->amtgardIdpJwt->expects($this->once())
-            ->method('buildAuthorizationJwt')
-            ->with($this->userEntity)
-            ->willThrowException(new MalformedUserPolicyException(new \InvalidArgumentException('bad orn')));
-
-        $this->response->expects($this->once())
-            ->method('withStatus')
-            ->with(422)
-            ->willReturnSelf();
-
-        $this->stream->expects($this->once())
-            ->method('write')
-            ->with($this->callback(function (string $json) {
-                $data = json_decode($json, true);
-                return ($data['error'] ?? null) === MalformedUserPolicyException::USER_MESSAGE;
-            }));
-
-        $result = $this->controller->userInfo($this->request, $this->response);
-        $this->assertSame($this->response, $result);
-    }
-
-    public function testProfileWithMalformedPolicy(): void
-    {
-        $_SESSION['user_id'] = 123;
-
-        $this->request->expects($this->once())
-            ->method('getQueryParams')
-            ->willReturn([]);
-
-        $this->userAuthority->expects($this->once())
-            ->method('isAdmin')
-            ->with($this->userEntity)
-            ->willThrowException(new MalformedUserPolicyException(new \InvalidArgumentException('bad orn')));
-
-        $this->clientRepository->expects($this->never())
-            ->method('findActiveClientsForUser');
-
-        $this->twig->expects($this->once())
-            ->method('render')
-            ->with('profile.twig', $this->callback(function (array $context) {
-                return $context['error'] === 'malformed_policy'
-                    && $context['isAdmin'] === false
-                    && empty($context['authorizations']);
-            }))
-            ->willReturn('profile view');
-
-        $this->stream->expects($this->once())
-            ->method('write')
-            ->with('profile view');
-
-        $result = $this->controller->profile($this->request, $this->response);
         $this->assertSame($this->response, $result);
     }
 

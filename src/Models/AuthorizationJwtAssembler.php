@@ -14,6 +14,8 @@ use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
 use Optional\Optional;
+use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * Facade over the steps needed to assemble an authorization JWT payload.
@@ -30,6 +32,7 @@ final class AuthorizationJwtAssembler
         private ClientRepository $clientRepository,
         private UserLoginClientRepository $metadataRepository,
         private UserLoginRepository $userLoginRepository,
+        private LoggerInterface $logger,
     ) {}
 
     /**
@@ -71,8 +74,15 @@ final class AuthorizationJwtAssembler
             return new AuthorizationClientContext(null);
         }
 
-        // Custom ORN layouts are per-client; register before policy parsing.
-        OrnClaimRegistry::registerForClient($client);
+        try {
+            // Custom ORN layouts are per-client; register before policy parsing.
+            OrnClaimRegistry::registerForClient($client);
+        } catch (Throwable $e) {
+            $this->logger->error('Failed to register client ORN format; continuing without custom layout', [
+                'client_id' => $client->getIdentifier(),
+                'detail' => $e->getMessage(),
+            ]);
+        }
 
         return new AuthorizationClientContext($client->getId());
     }
@@ -96,7 +106,7 @@ final class AuthorizationJwtAssembler
             'orkid' => $user->orkUserId,
             'orkuser' => $user->username,
             'email' => $user->email,
-            'policy' => $this->userPolicy->getUserPolicy($user, $forClientDbId)->toJson(),
+            'policy' => $this->userPolicy->toPolicyJson($user, $forClientDbId),
             'challenge' => $this->jwtChallenge->createChallenge($user),
             'exp' => time() + 3600,
         ];

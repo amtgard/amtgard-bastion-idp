@@ -12,7 +12,6 @@ use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Tests\Support\ScriptAlertResponseAssert;
-use Amtgard\IdP\Utility\Exception\MalformedUserPolicyException;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use PHPUnit\Framework\TestCase;
@@ -267,49 +266,6 @@ class AuthControllerTest extends TestCase
         $this->assertEquals('user-1', $_SESSION['user_id']);
         $this->assertEquals($email, $_SESSION['user_email']);
         $this->assertSame(1, $_SESSION['login_id']);
-    }
-
-    public function testLoginMalformedPolicy(): void
-    {
-        $email = 'test@example.com';
-        $password = 'password123';
-
-        $this->request->expects($this->once())
-            ->method('getParsedBody')
-            ->willReturn(['email' => $email, 'password' => $password]);
-
-        $user = new TestUserEntity('user-1', $email, 'John Doe');
-        $login = new TestUserLoginEntity($user, password_hash($password, PASSWORD_BCRYPT), 'http://avatar.url');
-
-        $this->userRepository->expects($this->any())
-            ->method('getUserByEmail')
-            ->with($email)
-            ->willReturn($user);
-
-        $this->userLoginRepository->expects($this->once())
-            ->method('getLoginByUser')
-            ->with($user)
-            ->willReturn($login);
-
-        $this->amtgardIdpJwt->expects($this->once())
-            ->method('buildAuthorizationJwt')
-            ->with($user)
-            ->willThrowException(new MalformedUserPolicyException(new \InvalidArgumentException('bad orn')));
-
-        $this->stream->expects($this->once())
-            ->method('write')
-            ->with($this->callback(function (string $html): bool {
-                ScriptAlertResponseAssert::assertRedirectWithError(
-                    $html,
-                    MalformedUserPolicyException::USER_MESSAGE,
-                    '/auth/login'
-                );
-                return true;
-            }));
-
-        $result = $this->authController->login($this->request, $this->response);
-        $this->assertSame($this->response, $result);
-        $this->assertEmpty($_SESSION);
     }
 
     public function testLoginInvalidCredentials(): void

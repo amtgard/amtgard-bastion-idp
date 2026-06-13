@@ -12,6 +12,7 @@ use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
 use Amtgard\IdP\Utility\ClientApplicationFormatRegistry;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class UserPolicyClaimRepositoryCursorMapper extends EntityMapper
 {
@@ -57,6 +58,7 @@ class UserPolicyClaimRepositoryTest extends TestCase
         $this->repository = new UserPolicyClaimRepository(
             $this->createMock(Database::class),
             $this->createMock(UncachedDataAccessPolicy::class),
+            $this->createMock(LoggerInterface::class),
         );
 
         $property = new \ReflectionProperty(UserPolicyClaimRepository::class, 'userClaims');
@@ -172,6 +174,42 @@ class UserPolicyClaimRepositoryTest extends TestCase
 
         $this->expectException(\InvalidArgumentException::class);
         $this->repository->addClaim(1, 'Skbc', ':0::', 'Officer/Approve', 1, 5);
+    }
+
+    public function testGetUserPolicySkipsMalformedClaimsAndKeepsValidOnes(): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('error')
+            ->with(
+                'Skipping malformed user policy claim',
+                $this->callback(function (array $context): bool {
+                    return ($context['user_id'] ?? null) === 10
+                        && ($context['orn'] ?? null) === 'Idp0::::IDP/EditClient';
+                })
+            );
+
+        $repository = new UserPolicyClaimRepository(
+            $this->createMock(Database::class),
+            $this->createMock(UncachedDataAccessPolicy::class),
+            $logger,
+        );
+
+        $mapper = new UserPolicyClaimRepositoryCursorMapper([
+            ['service' => OrkServices::Idp->value, 'client_id' => null, 'provisos' => '0::::', 'resource' => 'IDP/EditClient'],
+            ['service' => OrkServices::Idp->value, 'client_id' => null, 'provisos' => ':0::::', 'resource' => 'IDP/EditIdentity'],
+        ]);
+        $property = new \ReflectionProperty(UserPolicyClaimRepository::class, 'userClaims');
+        $property->setAccessible(true);
+        $property->setValue($repository, $mapper);
+
+        $user = $this->createMock(EntityInterface::class);
+        $user->id = 10;
+
+        $encodedPolicy = $repository->getUserPolicy($user)->toJson();
+        $claims = json_decode($encodedPolicy, true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame(['Idp:0::::IDP/EditIdentity'], $claims);
     }
 
     private function replaceMapper(EntityMapper $mapper): void
