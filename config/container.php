@@ -64,7 +64,7 @@ return [
             mkdir($logDir, 0755, true);
         }
 
-        $level = ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? Logger::DEBUG : Logger::ERROR;
+        $level = ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? Logger::DEBUG : Logger::NOTICE;
         $logger = new Logger('app');
         $logger->pushHandler(new WhatFailureGroupHandler([
             new StreamHandler($logDir . '/app.log', $level),
