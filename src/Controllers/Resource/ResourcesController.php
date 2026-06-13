@@ -316,7 +316,7 @@ class ResourcesController
             return $response->withHeader('Location', '/resources/profile?error=ork_player_failed')->withStatus(302);
         }
 
-        $parkData = $this->orkService->getParkShortInfo((int) $playerData['ParkId']);
+        $parkData = $this->fetchOrkParkData($playerData, $user->getId(), 'LinkORK');
 
         $this->orkProfileRepository->saveOrUpdateProfile($playerData, $parkData, $token, $user->getId());
 
@@ -345,6 +345,13 @@ class ResourcesController
         $token = $existing->getOrkToken();
         $mundaneId = $existing->getMundaneId();
 
+        $this->logger->info('RefreshORK: starting refresh', [
+            'userId' => $user->getId(),
+            'mundaneId' => $mundaneId,
+            'storedParkId' => $existing->getParkId(),
+            'storedParkName' => $existing->getParkName(),
+        ]);
+
         $playerData = $this->orkService->getPlayer($token, $mundaneId);
 
         if (!$playerData) {
@@ -352,9 +359,15 @@ class ResourcesController
             return $response->withHeader('Location', '/resources/profile?error=ork_refresh_failed')->withStatus(302);
         }
 
-        $parkData = $this->orkService->getParkShortInfo((int) $playerData['ParkId']);
+        $parkData = $this->fetchOrkParkData($playerData, $user->getId(), 'RefreshORK');
 
         $this->orkProfileRepository->saveOrUpdateProfile($playerData, $parkData, $token, $user->getId());
+
+        $this->logger->info('RefreshORK: profile saved', [
+            'userId' => $user->getId(),
+            'mundaneId' => $mundaneId,
+            'parkDataResolved' => $parkData !== null,
+        ]);
 
         return $response->withHeader('Location', '/resources/profile?success=refreshed')->withStatus(302);
     }
@@ -479,5 +492,45 @@ class ResourcesController
         // Implementing full token revocation would require AccessTokenRepository method.
 
         return $response->withHeader('Location', '/resources/profile?success=revoked')->withStatus(302);
+    }
+
+    /**
+     * @param array<string, mixed> $playerData
+     */
+    private function fetchOrkParkData(array $playerData, int $userId, string $flow): ?array
+    {
+        $parkIdRaw = $playerData['ParkId'] ?? null;
+        $parkId = (int) $parkIdRaw;
+
+        $parkRelatedFields = [];
+        foreach ($playerData as $key => $value) {
+            if (!is_string($key)) {
+                continue;
+            }
+            if (stripos($key, 'park') !== false || stripos($key, 'kingdom') !== false) {
+                $parkRelatedFields[$key] = $value;
+            }
+        }
+
+        $this->logger->info("{$flow}: resolving park data from player", [
+            'userId' => $userId,
+            'mundaneId' => $playerData['MundaneId'] ?? null,
+            'parkIdKeyPresent' => array_key_exists('ParkId', $playerData),
+            'parkIdRaw' => $parkIdRaw,
+            'parkIdResolved' => $parkId,
+            'parkRelatedFields' => $parkRelatedFields,
+        ]);
+
+        $parkData = $this->orkService->getParkShortInfo($parkId);
+
+        if ($parkData === null) {
+            $this->logger->warning("{$flow}: park lookup returned no data", [
+                'userId' => $userId,
+                'mundaneId' => $playerData['MundaneId'] ?? null,
+                'parkIdResolved' => $parkId,
+            ]);
+        }
+
+        return $parkData;
     }
 }

@@ -83,10 +83,20 @@ class OrkService
             $data = json_decode($response->getBody()->getContents(), true);
 
             if (isset($data['Status']['Status']) && $data['Status']['Status'] === 0 && isset($data['Player'])) {
+                $this->logger->info('ORK GetPlayer success', [
+                    'mundaneId' => $mundaneId,
+                    'parkIdKeyPresent' => array_key_exists('ParkId', $data['Player']),
+                    'parkIdRaw' => $data['Player']['ParkId'] ?? null,
+                    'parkRelatedFields' => $this->extractParkRelatedFields($data['Player']),
+                ]);
                 return $data['Player'];
             }
 
-            $this->logger->warning('ORK GetPlayer failed', ['response' => $data, 'mundaneId' => $mundaneId]);
+            $this->logger->warning('ORK GetPlayer failed', [
+                'response' => $data,
+                'mundaneId' => $mundaneId,
+                'httpStatus' => $response->getStatusCode(),
+            ]);
             return null;
 
         } catch (GuzzleException $e) {
@@ -96,32 +106,86 @@ class OrkService
     }
     public function getParkShortInfo(int $parkId): ?array
     {
+        $request = [
+            'call' => 'Park/GetParkShortInfo',
+            'ParkId' => $parkId,
+        ];
+
+        if ($parkId <= 0) {
+            $this->logger->warning('ORK GetParkShortInfo skipped: invalid ParkId', [
+                'parkId' => $parkId,
+                'request' => $request,
+            ]);
+            return null;
+        }
+
         try {
             $response = $this->tempClient->get(self::BASE_URL, [
                 'query' => [
-                    'call' => 'Park/GetParkShortInfo',
+                    'call' => $request['call'],
                     'request' => [
-                        'ParkId' => $parkId
-                    ]
+                        'ParkId' => $parkId,
+                    ],
                 ],
-                'on_stats' => function (\GuzzleHttp\TransferStats $stats) use ($parkId) {
-                    $this->logger->info('ORK GetParkShortInfo Request', ['url' => (string) $stats->getEffectiveUri()]);
-                }
+                'on_stats' => function (\GuzzleHttp\TransferStats $stats) use ($parkId, $request) {
+                    $this->logger->info('ORK GetParkShortInfo Request', [
+                        'url' => (string) $stats->getEffectiveUri(),
+                        'parkId' => $parkId,
+                        'request' => $request,
+                    ]);
+                },
             ]);
 
-            $data = json_decode($response->getBody()->getContents(), true);
+            $httpStatus = $response->getStatusCode();
+            $rawBody = $response->getBody()->getContents();
+            $data = json_decode($rawBody, true);
 
             // Based on user sample: Status->Status === 0 means success
             if (isset($data['Status']['Status']) && $data['Status']['Status'] === 0) {
+                $this->logger->info('ORK GetParkShortInfo success', [
+                    'parkId' => $parkId,
+                    'httpStatus' => $httpStatus,
+                    'parkName' => $data['ParkInfo']['ParkName'] ?? null,
+                    'kingdomName' => $data['KingdomInfo']['KingdomName'] ?? null,
+                ]);
                 return $data;
             }
 
-            $this->logger->warning('ORK GetParkShortInfo failed', ['response' => $data, 'parkId' => $parkId]);
+            $this->logger->warning('ORK GetParkShortInfo failed', [
+                'parkId' => $parkId,
+                'httpStatus' => $httpStatus,
+                'request' => $request,
+                'response' => $data,
+                'rawBody' => $rawBody,
+            ]);
             return null;
 
         } catch (GuzzleException $e) {
-            $this->logger->error('ORK GetParkShortInfo exception', ['exception' => $e->getMessage()]);
+            $this->logger->error('ORK GetParkShortInfo exception', [
+                'parkId' => $parkId,
+                'request' => $request,
+                'exception' => $e->getMessage(),
+            ]);
             return null;
         }
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function extractParkRelatedFields(array $data): array
+    {
+        $fields = [];
+        foreach ($data as $key => $value) {
+            if (!is_string($key)) {
+                continue;
+            }
+            if (stripos($key, 'park') !== false || stripos($key, 'kingdom') !== false) {
+                $fields[$key] = $value;
+            }
+        }
+
+        return $fields;
     }
 }
