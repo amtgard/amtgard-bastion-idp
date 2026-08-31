@@ -34,6 +34,7 @@
     <div class="{% block container_class %}max-w-[800px]{% endblock %} mx-auto bg-white p-6 rounded-lg shadow-sm">
         {% block content %}{% endblock %}
     </div>
+    <p class="mt-6 text-center text-xs text-gray-400">{{ appVersion }}</p>
     {% block scripts %}{% endblock %}
 </body>
 </html>

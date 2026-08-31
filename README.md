@@ -49,6 +49,7 @@ The IDP provides specific endpoints for retrieving user data and validating sess
 This project requires a local `.env` with your development secrets. Copy `.env.example` to `.env`, fill in OAuth credentials and other values, then run commands from the **repository root**.
 
 ```bash
+./scripts/setup-git-hooks.sh   # once per clone — auto-updates VERSION on commit
 composer install
 docker compose -f docker/compose.dev.yml up -d --build
 docker compose -f docker/compose.dev.yml exec amtgardidpapp bash -lc \
@@ -60,6 +61,15 @@ The compose file lives under `docker/` but build context, volume mounts, and `en
 Server: http://localhost:37080/
 
 `.env` is gitignored. Production servers also keep a single `.env` on the host (never committed).
+
+### Versioning
+
+Each commit records an orderable build id in `VERSION` and `version.json` (format: `YYYY-MM-DD.<revision>`, e.g. `2026-06-19.847`). The app displays `YYYY-MM-DD.<revision>+<short-sha>` by reading the current git HEAD at runtime. The revision number increases with each commit on the branch; compare it to `main` to see if production is behind.
+
+- Enable locally: `./scripts/setup-git-hooks.sh` (once per clone)
+- Refresh manually: `./scripts/write-version.sh`
+- Production: `GET /version` returns JSON; page footers show the same string
+- Deploy: `install.sh` verifies `VERSION` matches the pulled commit
 
 ### Tests (PHPUnit in Docker)
 

@@ -61,6 +61,14 @@ chown_app() {
     run_priv chown -R "${WEB_USER}:${WEB_GROUP}" .
 }
 
+verify_version() {
+    if [[ ! -x "${ROOT}/scripts/write-version.sh" ]]; then
+        return
+    fi
+    echo "==> Verifying VERSION matches checked-out commit..."
+    "${ROOT}/scripts/write-version.sh" --check
+}
+
 pull_code() {
     if [[ "$INSTALL_SKIP_GIT_PULL" == "1" ]]; then
         echo "==> Skipping git pull (INSTALL_SKIP_GIT_PULL=1)."
@@ -70,6 +78,7 @@ pull_code() {
     git fetch origin "$GIT_BRANCH"
     git checkout "$GIT_BRANCH"
     git pull --ff-only origin "$GIT_BRANCH"
+    verify_version
     chown_app
 }
 

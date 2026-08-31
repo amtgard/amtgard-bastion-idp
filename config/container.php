@@ -24,6 +24,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\ScopeRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Utility\AppleLoginFeature;
+use Amtgard\IdP\Utility\BuildInfo;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
@@ -293,6 +294,7 @@ return [
         // field (name="_csrf_token") and CsrfMiddleware validates it on POST.
         $twig->addFunction(new TwigFunction('csrf_token', fn() => CsrfTokenManager::getOrCreate()));
         $twig->addGlobal('appleLoginEnabled', AppleLoginFeature::isEnabled());
+        $twig->addGlobal('appVersion', BuildInfo::getVersion());
         return $twig;
     },
 
