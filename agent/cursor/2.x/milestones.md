@@ -74,10 +74,10 @@ Capture **before** the lockfile moves (or use existing test literals as the gold
 
 ## M4 — Registries, parsers, validators
 
-- [ ] `OrnClaimRegistry`, `BuiltInOrkPolicyServices`, `ClientApplicationFormatRegistry`
-- [ ] `IamServiceFormatParser`: `toCatalogEntry()`, `ORN\OrnSegmentLabel`, catalog typehints
-- [ ] `IamServiceValidator`: `validateCustomPrefix()`
-- [ ] Confirm `encode()` / default format **strings** unchanged
+- [x] `OrnClaimRegistry`, `BuiltInOrkPolicyServices`, `ClientApplicationFormatRegistry`
+- [x] `IamServiceFormatParser`: `toCatalogEntry()`, `ORN\OrnSegmentLabel`, catalog typehints
+- [x] `IamServiceValidator`: `validateCustomPrefix()`
+- [x] Confirm `encode()` / default format **strings** unchanged
 - [ ] Re-run `tests/Utility/IamServiceFormatParserTest.php`, `BuiltInOrkPolicyServicesTest.php`, `ClientApplicationFormatRegistryTest.php`, `OrnDefinitionsTest.php`
 
 **Exit:** parse/register path compiles; format JSON goldens intact.

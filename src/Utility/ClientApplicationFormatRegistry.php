@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Utility;
 
-use Amtgard\IAM\OrkServices;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 
 final class ClientApplicationFormatRegistry
 {
-    /** @var array<string, list<OrkServices|string>> */
+    /** @var array<string, list<ServiceCatalog|string>> */
     private static array $formats = [];
 
     /**
-     * @param list<OrkServices|string> $provisoSlots
+     * @param list<ServiceCatalog|string> $provisoSlots
      */
     public static function register(string $serviceIdentifier, array $provisoSlots): void
     {
@@ -20,7 +20,7 @@ final class ClientApplicationFormatRegistry
     }
 
     /**
-     * @return list<OrkServices|string>
+     * @return list<ServiceCatalog|string>
      */
     public static function get(string $serviceIdentifier): array
     {
