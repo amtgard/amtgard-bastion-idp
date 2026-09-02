@@ -116,22 +116,26 @@ Capture **before** the lockfile moves (or use existing test literals as the gold
 
 ## M7 — Isolation & static analysis
 
-- [ ] Grep `src/` + `tests/`: no `OrkServices`, `toOrkServices`, `getServiceIdentifier`, `getProviso`, `validateCustomServiceName`, or claim `serviceFormat()` overrides
-- [ ] Grep: JSON / SQL still use `provisos`, `service_format`, `iam_service`
-- [ ] `composer stan` green
-- [ ] `composer cs` green if required by CI
+- [x] Grep `src/` + `tests/`: no `OrkServices`, `toOrkServices`, `getServiceIdentifier`, `getProviso`, `validateCustomServiceName`, or claim `serviceFormat()` overrides
+- [x] Grep: JSON / SQL still use `provisos`, `service_format`, `iam_service`
+- [x] `composer stan` green
+- [x] `composer cs` green if required by CI
 
 **Exit:** stan + isolation checks pass.
+
+**M7 notes:** Isolation greps clean in `src/` + `tests/` (IDP-owned `serviceFormatPayload` / `serviceFormatClient` remain). Wire keys still present. `composer cs` has no phpcs ruleset in this repo (not a CI gate). `composer stan -- --memory-limit=1G` reports only **pre-existing** issues: PHP 8.4 implicit-nullable on `getResourceMap(string $resource = null)` (matches 2.x parent `OrkResourceName`) and `ResourcesControllerTest::$userRepository`. Not changed — synonym-only / no unrelated refactors.
 
 ---
 
 ## M8 — Full PHPUnit
 
-- [ ] `composer test` green
-- [ ] No unexplained coverage drop if a gate exists
-- [ ] Spot-check: admin ORN, default format, Client IAM list payload shape `{ service, provisos, resource }`
+- [x] `composer test` green
+- [x] No unexplained coverage drop if a gate exists
+- [x] Spot-check: admin ORN, default format, Client IAM list payload shape `{ service, provisos, resource }`
 
 **Exit:** unit CI green.
+
+**M8 notes:** `docker compose -f docker/compose.dev.yml --profile test run --rm test` — 456 tests, 1773 assertions, OK (1 skipped). No coverage gate in this repo. Admin ORN / default format / `{ service, provisos, resource }` goldens still asserted.
 
 ---
 
