@@ -246,13 +246,13 @@ If implementation discovers a missing method, different default format, or `crea
 
 ## 9. Acceptance criteria (implementation complete when…)
 
-- [ ] `composer.json` requires `ork-iam ^2.1` (or `2.1.1`) and `ork-iam-orn-definitions ^2.0`; lock resolves on CI
-- [ ] No remaining `OrkServices`, `serviceFormat()` overrides, `toOrkServices()`, `getServiceIdentifier()`, `getProviso`, or `validateCustomServiceName` in `src/` / `tests/` (historical comments only if unavoidable)
-- [ ] HTTP JSON keys, OpenAPI property names, and stored column names unchanged
-- [ ] PHPUnit goldens for ORN strings / `Policy::toJson()` / `service_format` encode **byte-identical** to pre-rename capture
-- [ ] `UserAuthority` still evaluates `"Idp:0::::IDP/EditClient"`
-- [ ] `composer test` and `composer stan` green
-- [ ] No unrelated refactors (OAuth, Apple, VERSION, Client IAM feature work)
+- [x] `composer.json` requires `ork-iam ^2.1` (or `2.1.1`) and `ork-iam-orn-definitions ^2.0`; lock resolves on CI
+- [x] No remaining `OrkServices`, `serviceFormat()` overrides, `toOrkServices()`, `getServiceIdentifier()`, `getProviso`, or `validateCustomServiceName` in `src/` / `tests/` (historical comments only if unavoidable)
+- [x] HTTP JSON keys, OpenAPI property names, and stored column names unchanged
+- [x] PHPUnit goldens for ORN strings / `Policy::toJson()` / `service_format` encode **byte-identical** to pre-rename capture
+- [x] `UserAuthority` still evaluates `"Idp:0::::IDP/EditClient"`
+- [x] `composer test` and `composer stan` green
+- [x] No unrelated refactors (OAuth, Apple, VERSION, Client IAM feature work)
 
 ---
 
