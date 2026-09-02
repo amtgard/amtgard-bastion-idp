@@ -62,11 +62,11 @@ Capture **before** the lockfile moves (or use existing test literals as the gold
 
 ## M3 — IDP ORN subclasses + autoload register
 
-- [ ] `IdpFormat` / `ClientApplicationFormat`: `ornSegmentSchema()` + `ServiceCatalog`
-- [ ] `IdpClaim` / `IdpRequirement`: `public function ornSegmentSchema()`
-- [ ] `ClientApplicationClaim`: `ornSegmentSchema()` + `getPrefix()->name`
-- [ ] `src/register_orn_definitions.php`: `ServiceCatalog::Idp`
-- [ ] Do not change `getValidResourceMap` / `validResource` bodies
+- [x] `IdpFormat` / `ClientApplicationFormat`: `ornSegmentSchema()` + `ServiceCatalog`
+- [x] `IdpClaim` / `IdpRequirement`: `public function ornSegmentSchema()`
+- [x] `ClientApplicationClaim`: `ornSegmentSchema()` + `getPrefix()->name`
+- [x] `src/register_orn_definitions.php`: `ServiceCatalog::Idp`
+- [x] Do not change `getValidResourceMap` / `validResource` bodies
 
 **Exit:** IDP-owned classes compile against 2.x parents.
 

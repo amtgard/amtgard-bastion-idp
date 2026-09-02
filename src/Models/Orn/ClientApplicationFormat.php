@@ -2,18 +2,18 @@
 
 namespace Amtgard\IdP\Models\Orn;
 
-use Amtgard\IAM\OrkServices;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IAM\ORNFormat;
 
 class ClientApplicationFormat extends ORNFormat
 {
-    public static function serviceFormat(): array
+    public static function ornSegmentSchema(): array
     {
         return [
-            OrkServices::Configuration,
-            OrkServices::Game,
-            OrkServices::Kingdom,
-            OrkServices::Park,
+            ServiceCatalog::Configuration,
+            ServiceCatalog::Game,
+            ServiceCatalog::Kingdom,
+            ServiceCatalog::Park,
         ];
     }
 

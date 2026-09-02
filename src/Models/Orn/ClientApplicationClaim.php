@@ -8,9 +8,9 @@ use Amtgard\IdP\Utility\ClientApplicationFormatRegistry;
 
 class ClientApplicationClaim extends Claim
 {
-    protected function serviceFormat(): array
+    public function ornSegmentSchema(): array
     {
-        return ClientApplicationFormatRegistry::get($this->getServiceIdentifier()->name);
+        return ClientApplicationFormatRegistry::get($this->getPrefix()->name);
     }
 
     protected function getResourceMap(string $resource = null): array

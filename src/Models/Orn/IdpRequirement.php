@@ -10,9 +10,9 @@ class IdpRequirement extends Requirement
     /**
      * @inheritDoc
      */
-    protected function serviceFormat(): array
+    public function ornSegmentSchema(): array
     {
-        return IdpFormat::serviceFormat();
+        return IdpFormat::ornSegmentSchema();
     }
 
     protected function getResourceMap(string $resource = null): array
