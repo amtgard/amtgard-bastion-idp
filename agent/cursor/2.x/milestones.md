@@ -1,0 +1,176 @@
+# Work milestone checklist — ork-iam 2.x rename (IDP server)
+
+Ordered milestones for implementers. Check boxes in the **implementation** PR as work lands.
+
+**Design pack:** [README](./README.md) · [architecture](./architecture.md) · [detailed design](./detailed-design.md)  
+**Upstream:** [ork-iam MIGRATION-2.0.md](https://github.com/amtgard/ork-iam/blob/main/docs/MIGRATION-2.0.md)
+
+This pack is documents only. Do not implement inside the design commit.
+
+---
+
+## M0 — Preconditions
+
+- [ ] Confirm Packagist (or private Composer) serves `amtgard/ork-iam` **≥ 2.1.0** and `amtgard/ork-iam-orn-definitions` **≥ 2.0.0**
+- [ ] Confirm sibling facts still hold (or update design notes):
+  - [ ] `ork-iam` main = 2.x (through v2.1.1+); `1.x` branch has v1.4.1
+  - [ ] This IDP still pins `ork-iam` **v1.4.1** + orn-definitions `^0.9` until M2
+  - [ ] php-client 2.x remains wire-compatible; **do not** couple this PR to a client release
+- [ ] Confirm `ServiceCatalog::cases()` values still match 1.4.1 `OrkServices` (required for `BuiltInOrkPolicyServices` JWT inclusion)
+
+**Exit:** agreed base SHA + confirmed dependency availability.
+
+---
+
+## M1 — Branch cut
+
+- [ ] Create branch `feature/ork-iam-2.x-ontology` (or equivalent) from current `main` (or agreed base)
+- [ ] Open draft PR early with link to `agent/cursor/2.x/` and empty checklist copy of [detailed-design §9](./detailed-design.md#9-acceptance-criteria-implementation-complete-when)
+- [ ] Do **not** change sibling repos (`ork-iam`, `ork-iam-orn-definitions`, `amtgard-idp-php-client`)
+
+**Exit:** draft PR URL exists; working tree ready for goldens + dep bump.
+
+**This is the first implementation milestone.**
+
+---
+
+## M2 — Capture goldens, then composer bump
+
+Capture **before** the lockfile moves (or use existing test literals as the goldens — they already pin the bytes):
+
+- [ ] Record / confirm fixtures (do not “improve” them):
+  - [ ] ORNs: `Idp:0::::IDP/EditClient`, `Idp:0::::IDP/EditIdentity`, `ORK:0:::::ORK/AddKingdom`, `Skbc:0::::Officer/Approve`
+  - [ ] `IamServiceFormatParser::encode` → `["Configuration","tenant-id","Kingdom"]`
+  - [ ] Default `service_format` JSON list `["Configuration","Game","Kingdom","Park"]`
+  - [ ] JWT `policy` compare path in `tests/Utility/JwtTest.php` (same `Idp:…` policy strings)
+- [ ] Update `composer.json`:
+  - [ ] `"amtgard/ork-iam": "^2.1"` (or exact `2.1.1` if release train requires)
+  - [ ] `"amtgard/ork-iam-orn-definitions": "^2.0"`
+- [ ] Run `composer update amtgard/ork-iam amtgard/ork-iam-orn-definitions` (or full update if lock requires)
+- [ ] Confirm lockfile pins resolve to 2.x (not 1.4.1)
+- [ ] Expect compile failures — that is the signal for M3
+
+**Exit:** lockfile on 2.x; goldens saved; CI may be red until adapters land.
+
+---
+
+## M3 — IDP ORN subclasses + autoload register
+
+- [ ] `IdpFormat` / `ClientApplicationFormat`: `ornSegmentSchema()` + `ServiceCatalog`
+- [ ] `IdpClaim` / `IdpRequirement`: `public function ornSegmentSchema()`
+- [ ] `ClientApplicationClaim`: `ornSegmentSchema()` + `getPrefix()->name`
+- [ ] `src/register_orn_definitions.php`: `ServiceCatalog::Idp`
+- [ ] Do not change `getValidResourceMap` / `validResource` bodies
+
+**Exit:** IDP-owned classes compile against 2.x parents.
+
+---
+
+## M4 — Registries, parsers, validators
+
+- [ ] `OrnClaimRegistry`, `BuiltInOrkPolicyServices`, `ClientApplicationFormatRegistry`
+- [ ] `IamServiceFormatParser`: `toCatalogEntry()`, `ORN\OrnSegmentLabel`, catalog typehints
+- [ ] `IamServiceValidator`: `validateCustomPrefix()`
+- [ ] Confirm `encode()` / default format **strings** unchanged
+- [ ] Re-run `tests/Utility/IamServiceFormatParserTest.php`, `BuiltInOrkPolicyServicesTest.php`, `ClientApplicationFormatRegistryTest.php`, `OrnDefinitionsTest.php`
+
+**Exit:** parse/register path compiles; format JSON goldens intact.
+
+---
+
+## M5 — Policy, JWT, HTTP controllers (identifiers only)
+
+- [ ] `UserAuthority`: `ServiceCatalog::Idp`; ORN string unchanged
+- [ ] `UserPolicyClaimRepository`: catalog compares; `provisos` column / concatenate / list JSON keys unchanged
+- [ ] `ApiController`: constructor enum only
+- [ ] `ClientResourcesController`: payload mapper typehint only; OpenAPI `provisos` / `service_format` **untouched**
+- [ ] `AuthorizationJwtAssembler`: PHPDoc only
+- [ ] `Jwt.php` / `UserPolicy.php`: verify no 1.x names (likely no edit)
+
+**Exit:** mint / eval / Client IAM HTTP compile; no wire-key diffs in review.
+
+---
+
+## M6 — Tests rename + no-op proof
+
+- [ ] Mirror symbol renames in tests listed in [detailed-design §4.1](./detailed-design.md#41-must-change-compile--type-break-on-21)
+- [ ] Assert schema **method** names (`ornSegmentSchema`), not `serviceFormat`
+- [ ] **Fail this milestone if bytes differ** from M2 goldens:
+  - [ ] `UserPolicyClaimRepositoryTest` `toJson()` contains the same ORN strings (and not extra/missing)
+  - [ ] `IamServiceFormatParserTest` encode/parse JSON
+  - [ ] `ClientResourcesControllerTest` `service_format` arrays
+  - [ ] `JwtTest` / `ApiControllerTest` policy / requirement ORN literals
+- [ ] Do not rewrite tests to accept new wire
+
+**Exit:** focused IAM / Client IAM / JWT tests green and byte-identical.
+
+---
+
+## M7 — Isolation & static analysis
+
+- [ ] Grep `src/` + `tests/`: no `OrkServices`, `toOrkServices`, `getServiceIdentifier`, `getProviso`, `validateCustomServiceName`, or claim `serviceFormat()` overrides
+- [ ] Grep: JSON / SQL still use `provisos`, `service_format`, `iam_service`
+- [ ] `composer stan` green
+- [ ] `composer cs` green if required by CI
+
+**Exit:** stan + isolation checks pass.
+
+---
+
+## M8 — Full PHPUnit
+
+- [ ] `composer test` green
+- [ ] No unexplained coverage drop if a gate exists
+- [ ] Spot-check: admin ORN, default format, Client IAM list payload shape `{ service, provisos, resource }`
+
+**Exit:** unit CI green.
+
+---
+
+## M9 — Optional operator docs
+
+- [ ] `templates/api.md`: only if it names the **PHP** type `OrkServices`; keep every JSON example
+- [ ] Do not add VERSION / changelog product fiction
+- [ ] Do not edit `.cursor/plans`
+
+**Exit:** docs still describe the same HTTP API.
+
+---
+
+## M10 — PR ready; human merge / tag / deploy (optional, last)
+
+- [ ] Implementation PR description includes:
+  - [ ] Link to this design pack
+  - [ ] Link to upstream MIGRATION-2.0
+  - [ ] Checklist copy of [detailed-design §9](./detailed-design.md#9-acceptance-criteria-implementation-complete-when)
+  - [ ] Statement: **no wire change**; php-client 0.12 / 1.4.1 / 2.x unaware
+- [ ] No unrelated refactors
+- [ ] Reviewers: owner + anyone maintaining Client IAM / JWT consumers
+- [ ] **Human (optional):** merge when CI green
+- [ ] **Human (optional):** tag / deploy when the release train says so
+
+**Exit:** PR ready. Merge, tag, and deploy are **not** required for the agent to close the implementation branch.
+
+---
+
+## Suggested calendar order (summary)
+
+```
+M0 preconditions → M1 branch → M2 goldens + composer bump → M3 ORN subclasses
+  → M4 registries/parsers → M5 policy/JWT/HTTP → M6 tests + no-op proof
+  → M7 stan/isolation → M8 full PHPUnit → M9 optional docs → M10 PR / human
+```
+
+Typical effort: **1 focused day** if Packagist tags exist; longer if path-repo Composer or unexpected 2.x API mismatch (then **stop** — see detailed-design §8).
+
+---
+
+## Out of order / do not
+
+- [ ] ~~Implement the rename inside the design-docs change~~
+- [ ] ~~Modify `../ork-iam`, `../ork-iam-orn-definitions`, or `../amtgard-idp-php-client`~~
+- [ ] ~~Change IDP wire field names or ORN strings~~
+- [ ] ~~Adopt ClaimBuilder / PolicyDocument / new endpoints~~
+- [ ] ~~Shim vendor exception messages to 1.x wording~~
+- [ ] ~~VERSION / build-id / OAuth / Apple login work~~
+- [ ] ~~Force-push shared branches~~
