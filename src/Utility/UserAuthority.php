@@ -2,7 +2,7 @@
 
 namespace Amtgard\IdP\Utility;
 
-use Amtgard\IAM\OrkServices;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IdP\Models\Orn\IdpRequirement;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
@@ -21,7 +21,7 @@ class UserAuthority
     {
         try {
             $policy = $this->userPolicy->getUserPolicy($user);
-            $requirement = new IdpRequirement(OrkServices::Idp, "Idp:0::::IDP/EditClient");
+            $requirement = new IdpRequirement(ServiceCatalog::Idp, "Idp:0::::IDP/EditClient");
 
             return $policy->isAuthorized($requirement);
         } catch (Throwable $e) {

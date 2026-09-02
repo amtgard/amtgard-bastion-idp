@@ -86,12 +86,12 @@ Capture **before** the lockfile moves (or use existing test literals as the gold
 
 ## M5 — Policy, JWT, HTTP controllers (identifiers only)
 
-- [ ] `UserAuthority`: `ServiceCatalog::Idp`; ORN string unchanged
-- [ ] `UserPolicyClaimRepository`: catalog compares; `provisos` column / concatenate / list JSON keys unchanged
-- [ ] `ApiController`: constructor enum only
-- [ ] `ClientResourcesController`: payload mapper typehint only; OpenAPI `provisos` / `service_format` **untouched**
-- [ ] `AuthorizationJwtAssembler`: PHPDoc only
-- [ ] `Jwt.php` / `UserPolicy.php`: verify no 1.x names (likely no edit)
+- [x] `UserAuthority`: `ServiceCatalog::Idp`; ORN string unchanged
+- [x] `UserPolicyClaimRepository`: catalog compares; `provisos` column / concatenate / list JSON keys unchanged
+- [x] `ApiController`: constructor enum only
+- [x] `ClientResourcesController`: payload mapper typehint only; OpenAPI `provisos` / `service_format` **untouched**
+- [x] `AuthorizationJwtAssembler`: PHPDoc only
+- [x] `Jwt.php` / `UserPolicy.php`: verify no 1.x names (likely no edit)
 
 **Exit:** mint / eval / Client IAM HTTP compile; no wire-key diffs in review.
 

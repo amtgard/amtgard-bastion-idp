@@ -12,7 +12,7 @@ use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IAM\Allowance\Policy;
 use Amtgard\IAM\ClaimFactory;
-use Amtgard\IAM\OrkServices;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IdP\Utility\BuiltInOrkPolicyServices;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
 use Optional\Optional;
@@ -100,7 +100,7 @@ class UserPolicyClaimRepository
 
         try {
             $this->loadClaimsForUser($userDbId);
-            OrnClaimRegistry::registerForService(OrkServices::Idp->value);
+            OrnClaimRegistry::registerForService(ServiceCatalog::Idp->value);
 
             $policyClaims = [];
             while ($this->userClaims->next()) {
@@ -146,7 +146,7 @@ class UserPolicyClaimRepository
 
     /**
      * Authorization JWT policy includes:
-     * - all built-in {@see OrkServices} claims (ORK platform + shared applications)
+     * - all built-in {@see ServiceCatalog} claims (ORK platform + shared applications)
      * - custom integrator iam_service claims for the requesting OAuth client only
      */
     private function includeClaimInAuthorizationJwt(
@@ -211,7 +211,7 @@ class UserPolicyClaimRepository
 
     private function assertThirdPartyClaimHasClient(string $service, ?int $clientDbId): void
     {
-        if ($service === OrkServices::Idp->value) {
+        if ($service === ServiceCatalog::Idp->value) {
             return;
         }
 
