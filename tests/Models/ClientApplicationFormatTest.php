@@ -11,7 +11,7 @@ class ClientApplicationFormatTest extends TestCase
 {
     public function testServiceFormatReturnsDefaultSlots(): void
     {
-        $format = ClientApplicationFormat::serviceFormat();
+        $format = ClientApplicationFormat::ornSegmentSchema();
 
         $this->assertCount(4, $format);
     }

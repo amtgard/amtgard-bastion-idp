@@ -19,7 +19,7 @@ final class IamServiceValidator
             return null;
         }
 
-        OrnClassMap::validateCustomServiceName($iamService);
+        OrnClassMap::validateCustomPrefix($iamService);
 
         return $iamService;
     }

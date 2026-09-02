@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
-use Amtgard\IAM\OrkServices;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
@@ -510,7 +510,7 @@ class ClientResourcesController
         return [
             'iam_service' => $client->getIamService(),
             'service_format' => array_map(
-                static fn (OrkServices|string $slot): string => $slot instanceof OrkServices ? $slot->value : $slot,
+                static fn (ServiceCatalog|string $slot): string => $slot instanceof ServiceCatalog ? $slot->value : $slot,
                 $slots
             ),
             'is_default' => !$this->hasConfiguredServiceFormat($client),

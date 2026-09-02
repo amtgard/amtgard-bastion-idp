@@ -1003,7 +1003,7 @@ At runtime the IDP registers a dynamic ORN claim class for your service so ORK I
 An ORN has two different “service” concepts (see [amtgard/ork-iam](https://github.com/amtgard/ork-iam)):
 
 1. **Service prefix** — the leading segment (`Skbc` in `Skbc:0::::Officer/Approve`). Integrators get a **custom** prefix via `iam_service`.
-2. **Proviso slots** — the middle colon-separated segments that scope a claim (configuration id, kingdom id, park id, etc.). With **ORK IAM 1.3+**, slot names may be any non-empty string. Names that match the shared **`OrkServices` enum** normalize to those built-in labels; you may also define **custom** slot names (e.g. `tenant-id`, `org unit`).
+2. **Proviso slots** — the middle colon-separated segments that scope a claim (configuration id, kingdom id, park id, etc.). With **ORK IAM 1.3+**, slot names may be any non-empty string. Names that match the shared **built-in catalog labels** normalize to those labels; you may also define **custom** slot names (e.g. `tenant-id`, `org unit`).
 
 What is configurable per integrator is **which** slots you use and **in what order** (`iam_service_format`), plus your resource paths (`Officer/Approve`, etc.).
 
@@ -1025,7 +1025,7 @@ What is configurable per integrator is **which** slots you use and **in what ord
 ["tenant-id","Kingdom","event-series"]
 ```
 
-**Common built-in slot names** (ORK IAM `OrkServices` values — optional; use these when they match your domain):
+**Common built-in slot names** (ORK IAM catalog labels — optional; use these when they match your domain):
 
 `Configuration`, `Game`, `Kingdom`, `Park`, `Event`, `EventInstance`, `Mundane`, `Unit`, `ORK`, `Attendance`, `Awards`, `Audit`, `Cache`, `Tenant`, `Officer`, `Recommendations`, `Tournament`
 
@@ -1070,7 +1070,7 @@ Integrators can read and manage their proviso layout without an admin UI change:
 }
 ```
 
-Slot names must be non-empty strings accepted by ORK IAM (built-in `OrkServices` labels or custom names). After a successful POST or PUT, the IdP re-registers your ORN claim parser for the new layout.
+Slot names must be non-empty strings accepted by ORK IAM (built-in catalog labels or custom names). After a successful POST or PUT, the IdP re-registers your ORN claim parser for the new layout.
 
 ### What a third-party integrator can do
 

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b303e6ebdef63b2c63461e6c104bb7dc",
+    "content-hash": "6ebc7d318744b7595ade1768fc30ecf2",
     "packages": [
         {
             "name": "amtgard/active-record-orm",
@@ -183,16 +183,16 @@
         },
         {
             "name": "amtgard/ork-iam",
-            "version": "v1.4.1",
+            "version": "v2.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/amtgard/ork-iam.git",
-                "reference": "e74bbc8bfd50c186e3b5e7b83ea49936804f2fe9"
+                "reference": "ec118bfe61c9316bc9474082547aa27819dd4f2f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/amtgard/ork-iam/zipball/e74bbc8bfd50c186e3b5e7b83ea49936804f2fe9",
-                "reference": "e74bbc8bfd50c186e3b5e7b83ea49936804f2fe9",
+                "url": "https://api.github.com/repos/amtgard/ork-iam/zipball/ec118bfe61c9316bc9474082547aa27819dd4f2f",
+                "reference": "ec118bfe61c9316bc9474082547aa27819dd4f2f",
                 "shasum": ""
             },
             "require": {
@@ -213,7 +213,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-1.x": "1.4-dev"
+                    "dev-main": "2.1-dev"
                 }
             },
             "autoload": {
@@ -229,32 +229,37 @@
             "homepage": "https://github.com/amtgard/ork-iam",
             "support": {
                 "issues": "https://github.com/amtgard/ork-iam/issues",
-                "source": "https://github.com/amtgard/ork-iam/tree/v1.4.1"
+                "source": "https://github.com/amtgard/ork-iam/tree/v2.1.1"
             },
-            "time": "2026-06-13T19:50:26+00:00"
+            "time": "2026-06-13T19:50:42+00:00"
         },
         {
             "name": "amtgard/ork-iam-orn-definitions",
-            "version": "v0.9.0",
+            "version": "v2.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/amtgard/ork-iam-orn-definitions.git",
-                "reference": "6a619fa930db875c2a088c3281c7fe26d8840df1"
+                "reference": "eee636812583e10c2a67a9121869000414d58ee4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/amtgard/ork-iam-orn-definitions/zipball/6a619fa930db875c2a088c3281c7fe26d8840df1",
-                "reference": "6a619fa930db875c2a088c3281c7fe26d8840df1",
+                "url": "https://api.github.com/repos/amtgard/ork-iam-orn-definitions/zipball/eee636812583e10c2a67a9121869000414d58ee4",
+                "reference": "eee636812583e10c2a67a9121869000414d58ee4",
                 "shasum": ""
             },
             "require": {
-                "amtgard/ork-iam": "@dev",
+                "amtgard/ork-iam": "^2.1",
                 "php": "^8.3"
             },
             "require-dev": {
                 "twig/twig": "^3.21"
             },
             "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "2.0-dev"
+                }
+            },
             "autoload": {
                 "files": [
                     "src/register.php"
@@ -268,11 +273,12 @@
                 "MIT"
             ],
             "description": "ORN Definitions for ORK Services",
+            "homepage": "https://github.com/amtgard/ork-iam-orn-definitions",
             "support": {
                 "issues": "https://github.com/amtgard/ork-iam-orn-definitions/issues",
-                "source": "https://github.com/amtgard/ork-iam-orn-definitions/tree/v0.9.0"
+                "source": "https://github.com/amtgard/ork-iam-orn-definitions/tree/v2.0.0"
             },
-            "time": "2026-06-08T15:52:48+00:00"
+            "time": "2026-06-13T16:11:20+00:00"
         },
         {
             "name": "amtgard/phpunit-extensions",

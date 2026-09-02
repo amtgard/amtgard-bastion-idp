@@ -5,7 +5,7 @@ namespace Amtgard\IdP\Controllers\Api;
 
 use Amtgard\IAM\Allowance\Policy;
 use Amtgard\IAM\ClaimFactory;
-use Amtgard\IAM\OrkServices;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IAM\PolicyFactory;
 use Amtgard\IdP\Models\Orn\IdpRequirement;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -20,7 +20,7 @@ class ApiController
         $requirementString = $body['requirement'] ?? '';
 
         $policy = PolicyFactory::fromOrn(json_decode($policyJson, true));
-        $requirement = new IdpRequirement(OrkServices::Idp, $requirementString);
+        $requirement = new IdpRequirement(ServiceCatalog::Idp, $requirementString);
 
         $isAuthorized = $policy->isAuthorized($requirement);
 

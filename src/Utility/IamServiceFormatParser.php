@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Utility;
 
-use Amtgard\IAM\OrkServices;
-use Amtgard\IAM\Orn\OrnSegmentLabel;
+use Amtgard\IAM\Catalog\ServiceCatalog;
+use Amtgard\IAM\ORN\OrnSegmentLabel;
 
 final class IamServiceFormatParser
 {
     /**
-     * @return list<OrkServices|string>
+     * @return list<ServiceCatalog|string>
      */
     public static function parse(?string $json): array
     {
@@ -30,33 +30,33 @@ final class IamServiceFormatParser
             }
 
             $label = OrnSegmentLabel::from(trim($slot));
-            $format[] = $label->toOrkServices() ?? $label->name;
+            $format[] = $label->toCatalogEntry() ?? $label->name;
         }
 
         return $format;
     }
 
     /**
-     * @return list<OrkServices|string>
+     * @return list<ServiceCatalog|string>
      */
     public static function defaultFormat(): array
     {
         return [
-            OrkServices::Configuration,
-            OrkServices::Game,
-            OrkServices::Kingdom,
-            OrkServices::Park,
+            ServiceCatalog::Configuration,
+            ServiceCatalog::Game,
+            ServiceCatalog::Kingdom,
+            ServiceCatalog::Park,
         ];
     }
 
     /**
-     * @param list<OrkServices|string> $format
+     * @param list<ServiceCatalog|string> $format
      */
     public static function encode(array $format): string
     {
         return json_encode(
             array_map(
-                static fn (OrkServices|string $slot): string => $slot instanceof OrkServices ? $slot->value : $slot,
+                static fn (ServiceCatalog|string $slot): string => $slot instanceof ServiceCatalog ? $slot->value : $slot,
                 $format
             ),
             JSON_THROW_ON_ERROR

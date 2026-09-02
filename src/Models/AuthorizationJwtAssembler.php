@@ -21,7 +21,7 @@ use Throwable;
  * Facade over the steps needed to assemble an authorization JWT payload.
  *
  * Integrator JWTs include:
- * - policy: built-in {@see \Amtgard\IAM\OrkServices} claims, plus custom claims for the requesting client
+ * - policy: built-in {@see \Amtgard\IAM\Catalog\ServiceCatalog} claims, plus custom claims for the requesting client
  * - client_metadata: per-login blob for the requesting client only (when present)
  */
 final class AuthorizationJwtAssembler

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Utility;
 
-use Amtgard\IAM\OrkServices;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IdP\Utility\IamServiceFormatParser;
 use PHPUnit\Framework\TestCase;
 
@@ -17,12 +17,12 @@ class IamServiceFormatParserTest extends TestCase
         $this->assertSame(IamServiceFormatParser::defaultFormat(), IamServiceFormatParser::parse('   '));
     }
 
-    public function testParseNormalizesBuiltinOrkServicesLabels(): void
+    public function testParseNormalizesBuiltinServiceCatalogLabels(): void
     {
         $format = IamServiceFormatParser::parse('["Configuration","Kingdom","EventInstance"]');
 
         $this->assertSame(
-            [OrkServices::Configuration, OrkServices::Kingdom, OrkServices::EventInstance],
+            [ServiceCatalog::Configuration, ServiceCatalog::Kingdom, ServiceCatalog::EventInstance],
             $format
         );
     }
@@ -37,9 +37,9 @@ class IamServiceFormatParserTest extends TestCase
     public function testEncodeRoundTripsMixedBuiltinAndCustomSlots(): void
     {
         $format = [
-            OrkServices::Configuration,
+            ServiceCatalog::Configuration,
             'tenant-id',
-            OrkServices::Kingdom,
+            ServiceCatalog::Kingdom,
         ];
 
         $encoded = IamServiceFormatParser::encode($format);
