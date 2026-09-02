@@ -26,11 +26,13 @@ This pack is documents only. Do not implement inside the design commit.
 
 ## M1 — Branch cut
 
-- [ ] Create branch `feature/ork-iam-2.x-ontology` (or equivalent) from current `main` (or agreed base)
-- [ ] Open draft PR early with link to `agent/cursor/2.x/` and empty checklist copy of [detailed-design §9](./detailed-design.md#9-acceptance-criteria-implementation-complete-when)
-- [ ] Do **not** change sibling repos (`ork-iam`, `ork-iam-orn-definitions`, `amtgard-idp-php-client`)
+- [x] Create branch `feature/ork-iam-2.x-ontology` (or equivalent) from current `main` (or agreed base)
+- [x] Open draft PR early with link to `agent/cursor/2.x/` and empty checklist copy of [detailed-design §9](./detailed-design.md#9-acceptance-criteria-implementation-complete-when)
+- [x] Do **not** change sibling repos (`ork-iam`, `ork-iam-orn-definitions`, `amtgard-idp-php-client`)
 
 **Exit:** draft PR URL exists; working tree ready for goldens + dep bump.
+
+**M1 notes:** Draft PR https://github.com/amtgard/amtgard-bastion-idp/pull/66 from `feature/ork-iam-2.x-ontology` (stacked on `docs/ork-iam-2.x-pack` / `3e728fa`). Sibling repos untouched.
 
 **This is the first implementation milestone.**
 
