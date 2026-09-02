@@ -141,23 +141,25 @@ Capture **before** the lockfile moves (or use existing test literals as the gold
 
 ## M9 — Optional operator docs
 
-- [ ] `templates/api.md`: only if it names the **PHP** type `OrkServices`; keep every JSON example
-- [ ] Do not add VERSION / changelog product fiction
-- [ ] Do not edit `.cursor/plans`
+- [x] `templates/api.md`: only if it names the **PHP** type `OrkServices`; keep every JSON example
+- [x] Do not add VERSION / changelog product fiction
+- [x] Do not edit `.cursor/plans`
 
 **Exit:** docs still describe the same HTTP API.
+
+**M9 notes:** Replaced PHP type name `OrkServices` with “built-in catalog labels”. JSON examples, ORN strings, and keys `provisos` / `service_format` / `iam_service` unchanged.
 
 ---
 
 ## M10 — PR ready; human merge / tag / deploy (optional, last)
 
-- [ ] Implementation PR description includes:
-  - [ ] Link to this design pack
-  - [ ] Link to upstream MIGRATION-2.0
-  - [ ] Checklist copy of [detailed-design §9](./detailed-design.md#9-acceptance-criteria-implementation-complete-when)
-  - [ ] Statement: **no wire change**; php-client 0.12 / 1.4.1 / 2.x unaware
-- [ ] No unrelated refactors
-- [ ] Reviewers: owner + anyone maintaining Client IAM / JWT consumers
+- [x] Implementation PR description includes:
+  - [x] Link to this design pack
+  - [x] Link to upstream MIGRATION-2.0
+  - [x] Checklist copy of [detailed-design §9](./detailed-design.md#9-acceptance-criteria-implementation-complete-when)
+  - [x] Statement: **no wire change**; php-client 0.12 / 1.4.1 / 2.x unaware
+- [x] No unrelated refactors
+- [x] Reviewers: owner + anyone maintaining Client IAM / JWT consumers
 - [ ] **Human (optional):** merge when CI green
 - [ ] **Human (optional):** tag / deploy when the release train says so
 
