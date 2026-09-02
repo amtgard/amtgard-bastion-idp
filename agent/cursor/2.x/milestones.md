@@ -11,14 +11,16 @@ This pack is documents only. Do not implement inside the design commit.
 
 ## M0 — Preconditions
 
-- [ ] Confirm Packagist (or private Composer) serves `amtgard/ork-iam` **≥ 2.1.0** and `amtgard/ork-iam-orn-definitions` **≥ 2.0.0**
-- [ ] Confirm sibling facts still hold (or update design notes):
-  - [ ] `ork-iam` main = 2.x (through v2.1.1+); `1.x` branch has v1.4.1
-  - [ ] This IDP still pins `ork-iam` **v1.4.1** + orn-definitions `^0.9` until M2
-  - [ ] php-client 2.x remains wire-compatible; **do not** couple this PR to a client release
-- [ ] Confirm `ServiceCatalog::cases()` values still match 1.4.1 `OrkServices` (required for `BuiltInOrkPolicyServices` JWT inclusion)
+- [x] Confirm Packagist (or private Composer) serves `amtgard/ork-iam` **≥ 2.1.0** and `amtgard/ork-iam-orn-definitions` **≥ 2.0.0**
+- [x] Confirm sibling facts still hold (or update design notes):
+  - [x] `ork-iam` main = 2.x (through v2.1.1+); `1.x` branch has v1.4.1
+  - [x] This IDP still pins `ork-iam` **v1.4.1** + orn-definitions `^0.9` until M2
+  - [x] php-client 2.x remains wire-compatible; **do not** couple this PR to a client release
+- [x] Confirm `ServiceCatalog::cases()` values still match 1.4.1 `OrkServices` (required for `BuiltInOrkPolicyServices` JWT inclusion)
 
 **Exit:** agreed base SHA + confirmed dependency availability.
+
+**M0 notes (2026-09-02):** Packagist lists `ork-iam` through **v2.1.1** and `ork-iam-orn-definitions` **v2.0.0**. Sibling `ork-iam` `main` is at tag v2.1.1; `1.x` still has v1.4.1. IDP `composer.lock` is still `v1.4.1`. php-client already requires `ork-iam ^2.1` / orn-definitions `^2.0`. `ServiceCatalog::cases()` string values and order match 1.4.1 `OrkServices` (`ORK` … `Application`). Base SHA: `3e728fa` (main / PR 65).
 
 ---
 
