@@ -7,7 +7,7 @@ namespace Amtgard\IdP\Tests\Persistence;
 use Amtgard\ActiveRecordOrm\Configuration\DataAccessPolicy\UncachedDataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Entity\EntityMapper;
 use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
-use Amtgard\IAM\OrkServices;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
 use Amtgard\IdP\Utility\ClientApplicationFormatRegistry;
@@ -48,10 +48,10 @@ class UserPolicyClaimRepositoryTest extends TestCase
     protected function setUp(): void
     {
         ClientApplicationFormatRegistry::register('Skbc', [
-            \Amtgard\IAM\OrkServices::Configuration,
-            \Amtgard\IAM\OrkServices::Game,
-            \Amtgard\IAM\OrkServices::Kingdom,
-            \Amtgard\IAM\OrkServices::Park,
+            \Amtgard\IAM\Catalog\ServiceCatalog::Configuration,
+            \Amtgard\IAM\Catalog\ServiceCatalog::Game,
+            \Amtgard\IAM\Catalog\ServiceCatalog::Kingdom,
+            \Amtgard\IAM\Catalog\ServiceCatalog::Park,
         ]);
 
         $this->mapper = $this->createMock(EntityMapper::class);
@@ -115,7 +115,7 @@ class UserPolicyClaimRepositoryTest extends TestCase
         $mapper = new UserPolicyClaimRepositoryCursorMapper([
             ['service' => 'Skbc', 'client_id' => 5, 'provisos' => ':0::::', 'resource' => 'Officer/Approve'],
             ['service' => 'Skbc', 'client_id' => 6, 'provisos' => ':0::::', 'resource' => 'Officer/Deny'],
-            ['service' => OrkServices::Idp->value, 'client_id' => null, 'provisos' => ':0::::', 'resource' => 'IDP/EditClient'],
+            ['service' => ServiceCatalog::Idp->value, 'client_id' => null, 'provisos' => ':0::::', 'resource' => 'IDP/EditClient'],
         ]);
         $this->replaceMapper($mapper);
 
@@ -130,7 +130,7 @@ class UserPolicyClaimRepositoryTest extends TestCase
     public function testGetUserPolicyIncludesBuiltInOrkClaimsForAnyIntegrator(): void
     {
         $mapper = new UserPolicyClaimRepositoryCursorMapper([
-            ['service' => OrkServices::ORK->value, 'client_id' => 99, 'provisos' => ':0:::::', 'resource' => 'ORK/AddKingdom'],
+            ['service' => ServiceCatalog::ORK->value, 'client_id' => 99, 'provisos' => ':0:::::', 'resource' => 'ORK/AddKingdom'],
             ['service' => 'Skbc', 'client_id' => 5, 'provisos' => ':0::::', 'resource' => 'Officer/Approve'],
             ['service' => 'Skbc', 'client_id' => 6, 'provisos' => ':0::::', 'resource' => 'Officer/Deny'],
         ]);
@@ -150,7 +150,7 @@ class UserPolicyClaimRepositoryTest extends TestCase
     public function testGetUserPolicyIncludesIdpAndMatchingClientClaims(): void
     {
         $mapper = new UserPolicyClaimRepositoryCursorMapper([
-            ['service' => OrkServices::Idp->value, 'client_id' => null, 'provisos' => ':0::::', 'resource' => 'IDP/EditClient'],
+            ['service' => ServiceCatalog::Idp->value, 'client_id' => null, 'provisos' => ':0::::', 'resource' => 'IDP/EditClient'],
             ['service' => 'Skbc', 'client_id' => 5, 'provisos' => ':0::::', 'resource' => 'Officer/Approve'],
             ['service' => 'Skbc', 'client_id' => 6, 'provisos' => ':0::::', 'resource' => 'Officer/Deny'],
         ]);
@@ -196,8 +196,8 @@ class UserPolicyClaimRepositoryTest extends TestCase
         );
 
         $mapper = new UserPolicyClaimRepositoryCursorMapper([
-            ['service' => OrkServices::Idp->value, 'client_id' => null, 'provisos' => '0::::', 'resource' => 'IDP/EditClient'],
-            ['service' => OrkServices::Idp->value, 'client_id' => null, 'provisos' => ':0::::', 'resource' => 'IDP/EditIdentity'],
+            ['service' => ServiceCatalog::Idp->value, 'client_id' => null, 'provisos' => '0::::', 'resource' => 'IDP/EditClient'],
+            ['service' => ServiceCatalog::Idp->value, 'client_id' => null, 'provisos' => ':0::::', 'resource' => 'IDP/EditIdentity'],
         ]);
         $property = new \ReflectionProperty(UserPolicyClaimRepository::class, 'userClaims');
         $property->setAccessible(true);

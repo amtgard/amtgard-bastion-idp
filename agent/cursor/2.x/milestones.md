@@ -78,7 +78,7 @@ Capture **before** the lockfile moves (or use existing test literals as the gold
 - [x] `IamServiceFormatParser`: `toCatalogEntry()`, `ORN\OrnSegmentLabel`, catalog typehints
 - [x] `IamServiceValidator`: `validateCustomPrefix()`
 - [x] Confirm `encode()` / default format **strings** unchanged
-- [ ] Re-run `tests/Utility/IamServiceFormatParserTest.php`, `BuiltInOrkPolicyServicesTest.php`, `ClientApplicationFormatRegistryTest.php`, `OrnDefinitionsTest.php`
+- [x] Re-run `tests/Utility/IamServiceFormatParserTest.php`, `BuiltInOrkPolicyServicesTest.php`, `ClientApplicationFormatRegistryTest.php`, `OrnDefinitionsTest.php`
 
 **Exit:** parse/register path compiles; format JSON goldens intact.
 
@@ -99,16 +99,18 @@ Capture **before** the lockfile moves (or use existing test literals as the gold
 
 ## M6 — Tests rename + no-op proof
 
-- [ ] Mirror symbol renames in tests listed in [detailed-design §4.1](./detailed-design.md#41-must-change-compile--type-break-on-21)
-- [ ] Assert schema **method** names (`ornSegmentSchema`), not `serviceFormat`
-- [ ] **Fail this milestone if bytes differ** from M2 goldens:
-  - [ ] `UserPolicyClaimRepositoryTest` `toJson()` contains the same ORN strings (and not extra/missing)
-  - [ ] `IamServiceFormatParserTest` encode/parse JSON
-  - [ ] `ClientResourcesControllerTest` `service_format` arrays
-  - [ ] `JwtTest` / `ApiControllerTest` policy / requirement ORN literals
-- [ ] Do not rewrite tests to accept new wire
+- [x] Mirror symbol renames in tests listed in [detailed-design §4.1](./detailed-design.md#41-must-change-compile--type-break-on-21)
+- [x] Assert schema **method** names (`ornSegmentSchema`), not `serviceFormat`
+- [x] **Fail this milestone if bytes differ** from M2 goldens:
+  - [x] `UserPolicyClaimRepositoryTest` `toJson()` contains the same ORN strings (and not extra/missing)
+  - [x] `IamServiceFormatParserTest` encode/parse JSON
+  - [x] `ClientResourcesControllerTest` `service_format` arrays
+  - [x] `JwtTest` / `ApiControllerTest` policy / requirement ORN literals
+- [x] Do not rewrite tests to accept new wire
 
 **Exit:** focused IAM / Client IAM / JWT tests green and byte-identical.
+
+**M6 notes:** Focused PHPUnit filter green — 66 tests, 212 assertions. Goldens unchanged (`Idp:0::::IDP/EditClient`, `Idp:0::::IDP/EditIdentity`, `ORK:0:::::ORK/AddKingdom`, `Skbc:0::::Officer/Approve`, encode `["Configuration","tenant-id","Kingdom"]`).
 
 ---
 
