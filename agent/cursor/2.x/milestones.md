@@ -42,17 +42,19 @@ This pack is documents only. Do not implement inside the design commit.
 
 Capture **before** the lockfile moves (or use existing test literals as the goldens — they already pin the bytes):
 
-- [ ] Record / confirm fixtures (do not “improve” them):
-  - [ ] ORNs: `Idp:0::::IDP/EditClient`, `Idp:0::::IDP/EditIdentity`, `ORK:0:::::ORK/AddKingdom`, `Skbc:0::::Officer/Approve`
-  - [ ] `IamServiceFormatParser::encode` → `["Configuration","tenant-id","Kingdom"]`
-  - [ ] Default `service_format` JSON list `["Configuration","Game","Kingdom","Park"]`
-  - [ ] JWT `policy` compare path in `tests/Utility/JwtTest.php` (same `Idp:…` policy strings)
-- [ ] Update `composer.json`:
-  - [ ] `"amtgard/ork-iam": "^2.1"` (or exact `2.1.1` if release train requires)
-  - [ ] `"amtgard/ork-iam-orn-definitions": "^2.0"`
-- [ ] Run `composer update amtgard/ork-iam amtgard/ork-iam-orn-definitions` (or full update if lock requires)
-- [ ] Confirm lockfile pins resolve to 2.x (not 1.4.1)
-- [ ] Expect compile failures — that is the signal for M3
+- [x] Record / confirm fixtures (do not “improve” them):
+  - [x] ORNs: `Idp:0::::IDP/EditClient`, `Idp:0::::IDP/EditIdentity`, `ORK:0:::::ORK/AddKingdom`, `Skbc:0::::Officer/Approve`
+  - [x] `IamServiceFormatParser::encode` → `["Configuration","tenant-id","Kingdom"]`
+  - [x] Default `service_format` JSON list `["Configuration","Game","Kingdom","Park"]`
+  - [x] JWT `policy` compare path in `tests/Utility/JwtTest.php` (same `Idp:…` policy strings)
+- [x] Update `composer.json`:
+  - [x] `"amtgard/ork-iam": "^2.1"` (or exact `2.1.1` if release train requires)
+  - [x] `"amtgard/ork-iam-orn-definitions": "^2.0"`
+- [x] Run `composer update amtgard/ork-iam amtgard/ork-iam-orn-definitions` (or full update if lock requires)
+- [x] Confirm lockfile pins resolve to 2.x (not 1.4.1)
+- [x] Expect compile failures — that is the signal for M3
+
+**M2 notes:** Existing test literals are the goldens (unchanged). Lock resolved `amtgard/ork-iam` **v2.1.1** and `amtgard/ork-iam-orn-definitions` **v2.0.0**.
 
 **Exit:** lockfile on 2.x; goldens saved; CI may be red until adapters land.
 
