@@ -60,12 +60,12 @@ Human merge/tag/deploy is last.
 
 ## M4 — Worker CLI + isolated container
 
-- [ ] `JwtPvhRefreshService` + unit tests (no-op vs rotate `prev_pvh`)
-- [ ] `bin/jwt-pvh-worker.php`: bootstrap, redrive, subscribe, `callConsumers` + D17 backoff, SIGTERM
-- [ ] `docker/compose.worker.yml`
-- [ ] `install.sh` `ensure_jwt_worker` after migrate, before nginx switch; image tag from the slot just built
-- [ ] Dev: worker runnable (`compose.dev.yml` service **or** documented `exec php bin/jwt-pvh-worker.php`)
-- [ ] Worker uses CLI memory limit, shared Redis DB 0, MySQL via `host.docker.internal` in prod
+- [x] `JwtPvhRefreshService` + unit tests (no-op vs rotate `prev_pvh`)
+- [x] `bin/jwt-pvh-worker.php`: bootstrap, redrive, subscribe, `callConsumers` + D17 backoff, SIGTERM
+- [x] `docker/compose.worker.yml`
+- [x] `install.sh` `ensure_jwt_worker` after migrate, before nginx switch; image tag from the slot just built
+- [x] Dev: worker runnable (`compose.dev.yml` service **or** documented `exec php bin/jwt-pvh-worker.php`)
+- [x] Worker uses CLI memory limit, shared Redis DB 0, MySQL via `host.docker.internal` in prod
 
 **Exit:** Locally: validate 200 → job coalesces → worker no-op when claims unchanged; change a claim in DB (not via `DEL`) → next worker pass rotates → following validate 409 → `/resources/jwt` with session/access token → validate 200.
 

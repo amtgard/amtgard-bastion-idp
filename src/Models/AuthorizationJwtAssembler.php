@@ -68,6 +68,26 @@ final class AuthorizationJwtAssembler
     }
 
     /**
+     * Canonical policy_hash for (user, aud) using the same ORN register,
+     * UserPolicy::toPolicyJson, metadata, and Pvh::canonicalMetadata path as mint.
+     * Does not upsert a generation or sign a JWT.
+     *
+     * @return array{policy_hash: string, client_id: ?int}
+     */
+    public function computePolicyHashForAudience(EntityInterface $user, string $aud): array
+    {
+        $clientContext = $this->resolveClientContext($aud);
+        $loginDbId = $this->resolveLoginDbId($user, null);
+        $policyJson = $this->userPolicy->toPolicyJson($user, $clientContext->forClientDbId);
+        $metadata = $this->metadataForAudience($clientContext->forClientDbId, $loginDbId);
+
+        return [
+            'policy_hash' => Pvh::policyHash($aud, $policyJson, Pvh::canonicalMetadata($metadata)),
+            'client_id' => $clientContext->forClientDbId,
+        ];
+    }
+
+    /**
      * @param array<string, mixed> $claims
      */
     private function applyPvhClaim(

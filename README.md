@@ -58,6 +58,18 @@ docker compose -f docker/compose.dev.yml exec amtgardidpapp bash -lc \
 
 The compose file lives under `docker/` but build context, volume mounts, and `env_file` paths are written relative to that file so they resolve to the repo root. You do **not** need `--project-directory`. The project name is fixed as `amtgard-idp` so it reuses an existing dev database container if you already have one running.
 
+JWT PVH worker: Redis in dev is started inside the app container by `heartbeat.sh` (127.0.0.1). The reliable path is to run the CLI worker there:
+
+```bash
+docker compose -f docker/compose.dev.yml exec amtgardidpapp php /var/www/idp.amtgard.com/bin/jwt-pvh-worker.php
+```
+
+An optional `jwt-worker` compose service (profile `worker`) shares the app container network so it can reach that in-container Redis:
+
+```bash
+docker compose -f docker/compose.dev.yml --profile worker up -d jwt-worker
+```
+
 Server: http://localhost:37080/
 
 `.env` is gitignored. Production servers also keep a single `.env` on the host (never committed).
@@ -108,6 +120,8 @@ sudo ./install.sh   # builds inactive slot, migrates, switches host nginx
 
 Blue and green app containers share a separate Redis container (`amtgard-idp-sessions`) for PHP sessions (DB 1) and app queue/cache (DB 0) so deploys do not log users out or drop in-flight queue work. That container is started once and left running across slot switches.
 
+The JWT PVH refresh worker is a third Compose project (`amtgard-idp-worker`, container `amtgard-idp-jwt-worker`), not a blue/green slot. After Phinx migrate on the inactive slot, `install.sh` tags that slot's image as `amtgard-idp-jwt-worker:latest` and `up -d`s the worker before the health check / nginx switch. The worker stays up across cutover. Recreate it independently with `INSTALL_REBUILD_WORKER=1` (this is not tied to `INSTALL_REBUILD_SESSIONS`).
+
 Optional session store maintenance:
 
 ```bash
@@ -116,6 +130,9 @@ sudo INSTALL_RESET_SESSIONS=1 ./install.sh
 
 # Rebuild session container and wipe all persisted session data
 sudo INSTALL_REBUILD_SESSIONS=1 ./install.sh
+
+# Recreate the jwt-worker container (same image tag, force recreate)
+sudo INSTALL_REBUILD_WORKER=1 ./install.sh
 ```
 
 Host nginx configs: `host/nginx.blue.conf`, `host/nginx.green.conf`. Docker configs: `docker/`.

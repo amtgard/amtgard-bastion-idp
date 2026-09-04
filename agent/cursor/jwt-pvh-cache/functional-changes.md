@@ -4,6 +4,33 @@ One entry per functional (or milestone-required documentary) change. Newest mile
 
 ---
 
+## M4 — Isolated JWT PVH worker refreshes MySQL + Redis pvh
+
+- **Milestone:** M4
+- **File(s):** `src/Services/JwtPvhRefreshService.php`, `src/Models/AuthorizationJwtAssembler.php`, `src/Utility/CallConsumersBackoff.php`, `bin/jwt-pvh-worker.php`, `config/bootstrap.php`, `public/index.php`, `tests/Services/JwtPvhRefreshServiceTest.php`, `tests/Utility/CallConsumersBackoffTest.php`
+- **Prior state:** Validate 200 enqueued `{user_uuid, aud}` on `REDIS_PVH_QUEUE_NAME`. No consumer. Policy hash / generation rotation existed only on `/resources/jwt` mint.
+- **Post state:** CLI worker bootstraps the same PHP-DI container as FPM. On boot: `redrive` then `subscribe` + `callConsumers` loop with D17 backoff (0→1→2→…→100ms; hit resets to 0). Subscriber decodes JSON, `JwtPvhRefreshService` loads the user, reuses assembler ORN + `toPolicyJson` + canonical metadata, compares `policy_hash`. Equal → no Redis write. Differ → repo upsert (rotates `prev_pvh`) + `setPvhRecord`. Does not mint or sign a JWT. Processing failures log and **re-publish** the same key/message (library always `commit()`s; throw cannot withhold ack). SIGTERM finishes the current job and exits 0. CLI `memory_limit` 256M (not FPM 32M).
+- **Reasoning:** Freshness probe after the free validate hit (D2). Worker must not remint into an HTTP JWT (D1). Same hash path as mint so ORN registration bugs are not forked (D7).
+- **Security impact:** Worker is a privileged backend writer of generation + Redis pvh. No new public HTTP surface. Failure re-publish is at-least-once (duplicate rotate is idempotent on the same hash). Malformed payloads are dropped (not looped). Stolen-token window is unchanged: next successful worker pass after a claim change produces 409 on the old `pvh`.
+
+## M4 — Worker container is not a blue/green slot (D5)
+
+- **Milestone:** M4
+- **File(s):** `docker/compose.worker.yml`, `install.sh`, `docker/compose.dev.yml`, `README.md`
+- **Prior state:** Prod had blue/green app slots + isolated `amtgard-idp-sessions`. No worker project. Dev had no worker service.
+- **Post state:** Compose project `amtgard-idp-worker`, `container_name: amtgard-idp-jwt-worker`, `restart: unless-stopped`, shared `amtgard-idp-shared` network, `.env`/`keys`/`dev-keys` binds, `host.docker.internal`, command is PHP CLI worker (not `heartbeat.sh`). `install.sh` `ensure_jwt_worker` runs after migrate on the inactive slot and before health check / nginx switch: `docker tag` the slot image to `amtgard-idp-jwt-worker:latest` then `compose_worker up -d`. Worker is not stopped on slot switch. `INSTALL_REBUILD_WORKER=1` force-recreates it; `INSTALL_REBUILD_SESSIONS` does not. Dev: `jwt-worker` profile service (shares app network for in-container Redis) plus documented `docker compose exec amtgardidpapp php bin/jwt-pvh-worker.php`.
+- **Reasoning:** Same durability story as sessions Redis (D5). Worker image matches the schema just migrated. Recreate is independent of nginx cutover so the queue keeps draining.
+- **Security impact:** Worker reaches MySQL via `host.docker.internal` and Redis DB 0 on the sessions host — same trust boundary as the app slot. No extra published ports.
+
+## M4 — Milestone checklist
+
+- **Milestone:** M4
+- **File(s):** `agent/cursor/jwt-pvh-cache/milestones.md`
+- **Prior state:** M4 items unchecked.
+- **Post state:** M4 items checked. M5 (userinfo/middleware pvh) not started.
+- **Reasoning:** Orchestration bookkeeping.
+- **Security impact:** none
+
 ## M3 — `GET /resources/validate` serves pvh cache (D1, D2, D10, D12, D13)
 
 - **Milestone:** M3
