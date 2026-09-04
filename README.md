@@ -88,7 +88,9 @@ docker compose -f docker/compose.dev.yml exec amtgardidpapp bash -lc \
 
 ## Production
 
-Production uses blue-green Docker (blue on port 37080, green on 37081) behind host nginx.
+Production uses blue-green Docker (blue on port 37080, green on 37081) behind host nginx. Each slot is a separate Compose project and **image**: `install.sh` pulls `origin/main`, builds the inactive slot from that tree, health-checks it, then switches host nginx. The live slot keeps serving its previously built image until cutover.
+
+Host `.env`, `dev-keys/`, and `keys/` are bind-mounted into both containers (shared config and signing keys). Application code and `vendor/` are not. MySQL and the shared Redis container stay shared; Phinx migrations still run against the live database before nginx switches.
 
 **First deploy after upgrading install.sh — run twice:**
 
@@ -96,7 +98,7 @@ Production uses blue-green Docker (blue on port 37080, green on 37081) behind ho
 sudo ./install.sh
 ```
 
-Host: `git pull`, `chown`. Container: `composer install`, `phinx migrate`.
+Host: `git pull`, `chown`. Inactive slot: image build (code + `composer install`), `phinx migrate`, health check, nginx switch.
 
 **Routine deploys — run once:**
 

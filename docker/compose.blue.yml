@@ -4,3 +4,9 @@ services:
       - "37080:80"
     container_name: amtgard-idp-blue
     hostname: amtgard-idp-blue
+    volumes:
+      - amtgard-idp-blue-logs:/var/www/idp.amtgard.com/logs
+
+volumes:
+  amtgard-idp-blue-logs:
+    name: amtgard-idp-blue-logs

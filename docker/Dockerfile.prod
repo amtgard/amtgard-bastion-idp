@@ -24,6 +24,15 @@ RUN ln -s /etc/nginx/sites-available/idp.amtgard.com /etc/nginx/sites-enabled/id
 COPY docker/etc.memcached /etc/memcached.conf
 
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+WORKDIR /var/www/idp.amtgard.com
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
+COPY . .
+RUN mkdir -p logs config/cache/twig \
+    && chown -R www-data:www-data /var/www/idp.amtgard.com
 
 WORKDIR /var/www
 
