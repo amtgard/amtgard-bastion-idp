@@ -29,6 +29,8 @@ use Amtgard\IdP\Utility\BuildInfo;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\PvhQueueHandle;
+use Amtgard\IdP\Utility\PvhSetQueue;
 use Amtgard\IdP\Utility\Redis\PubSubRedisConfig;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisDataStructureConfig;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisHashSetFactory;
@@ -275,6 +277,23 @@ return [
         $config = $container->get(RedisDataStructureConfig::class);
         $queue = new SetQueue(PubSubRedisConfig::queueName(), $config, $hashSetFactory, $redrivableQueueFactory);
         return $queue;
+    },
+
+    PvhSetQueue::class => function (ContainerInterface $container) {
+        $hashSetFactory = new RedisHashSetFactory();
+        $redrivableQueueFactory = new RedisRedrivableQueueFactory();
+        $config = $container->get(RedisDataStructureConfig::class);
+
+        return new PvhSetQueue(PubSubRedisConfig::pvhQueueName(), $config, $hashSetFactory, $redrivableQueueFactory);
+    },
+
+    PvhQueueHandle::class => function (ContainerInterface $container) {
+        $queue = $container->get(PvhSetQueue::class);
+        $pubSub = $container->get(PubSubQueue::class);
+        $queueName = PubSubRedisConfig::pvhQueueName();
+        $pubSub->addQueue($queueName, $queue);
+
+        return PvhQueueHandle::builder()->handle($queueName)->build();
     },
 
     PubSubQueue::class => function (ContainerInterface $container) {

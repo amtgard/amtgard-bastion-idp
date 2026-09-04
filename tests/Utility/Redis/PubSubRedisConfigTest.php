@@ -14,7 +14,8 @@ class PubSubRedisConfigTest extends TestCase
             $_ENV['REDIS_PUBSUB_HOST'],
             $_ENV['REDIS_PUBSUB_PORT'],
             $_ENV['REDIS_PUBSUB_DB'],
-            $_ENV['REDIS_PUBSUB_QUEUE_NAME']
+            $_ENV['REDIS_PUBSUB_QUEUE_NAME'],
+            $_ENV['REDIS_PVH_QUEUE_NAME']
         );
     }
 
@@ -24,6 +25,7 @@ class PubSubRedisConfigTest extends TestCase
         $this->assertSame(6379, PubSubRedisConfig::port());
         $this->assertSame(0, PubSubRedisConfig::database());
         $this->assertSame('amtgard-idp', PubSubRedisConfig::queueName());
+        $this->assertSame('amtgard-idp-pvh', PubSubRedisConfig::pvhQueueName());
 
         $config = PubSubRedisConfig::dataStructureConfig()->getConfig();
         $this->assertSame('127.0.0.1', $config['host']);
@@ -41,6 +43,14 @@ class PubSubRedisConfigTest extends TestCase
         $this->assertSame(6380, PubSubRedisConfig::port());
         $this->assertSame(2, PubSubRedisConfig::database());
         $this->assertSame('amtgard-idp-prod', PubSubRedisConfig::queueName());
+    }
+
+    public function testPvhQueueNameDefaultsAndEnvOverride(): void
+    {
+        $this->assertSame('amtgard-idp-pvh', PubSubRedisConfig::pvhQueueName());
+
+        $_ENV['REDIS_PVH_QUEUE_NAME'] = 'amtgard-idp-pvh-prod';
+        $this->assertSame('amtgard-idp-pvh-prod', PubSubRedisConfig::pvhQueueName());
     }
 
     public function testDataStructureConfigFallsBackWhenPrimaryHostUnreachable(): void
@@ -77,9 +87,11 @@ class PubSubRedisConfigTest extends TestCase
     {
         $_ENV['REDIS_PUBSUB_HOST'] = '  amtgard-idp-sessions  ';
         $_ENV['REDIS_PUBSUB_QUEUE_NAME'] = '  amtgard-idp  ';
+        $_ENV['REDIS_PVH_QUEUE_NAME'] = '  amtgard-idp-pvh  ';
 
         $this->assertSame('amtgard-idp-sessions', PubSubRedisConfig::host());
         $this->assertSame('amtgard-idp', PubSubRedisConfig::queueName());
+        $this->assertSame('amtgard-idp-pvh', PubSubRedisConfig::pvhQueueName());
     }
 
     public function testLocalhostIsUsedDirectlyWithoutFallbackCandidate(): void

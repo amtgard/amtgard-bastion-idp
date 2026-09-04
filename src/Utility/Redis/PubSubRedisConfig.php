@@ -53,6 +53,11 @@ class PubSubRedisConfig
         return trim((string) ($_ENV['REDIS_PUBSUB_QUEUE_NAME'] ?? 'amtgard-idp'));
     }
 
+    public static function pvhQueueName(): string
+    {
+        return trim((string) ($_ENV['REDIS_PVH_QUEUE_NAME'] ?? 'amtgard-idp-pvh'));
+    }
+
     public static function dataStructureConfig(): RedisDataStructureConfig
     {
         $config = new RedisDataStructureConfig();

@@ -32,13 +32,13 @@ Human merge/tag/deploy is last.
 
 ## M2 — Redis cache and queue plumbing (still behind old validate)
 
-- [ ] Redis keys `pvh:{uuid}:{aud}`, JSON only (no `serialize`)
-- [ ] `queueUserValidation` publishes to `REDIS_PVH_QUEUE_NAME` with key `{uuid}:{aud}`
-- [ ] Prefix delete for logout
-- [ ] Keep presence publish on the existing queue
-- [ ] Container wiring: second SetQueue + handle
-- [ ] `.env.example` + `PubSubRedisConfig::pvhQueueName()`
-- [ ] `RedisCacheRepositoryTest` / wiring tests updated
+- [x] Redis keys `pvh:{uuid}:{aud}`, JSON only (no `serialize`)
+- [x] `queueUserValidation` publishes to `REDIS_PVH_QUEUE_NAME` with key `{uuid}:{aud}`
+- [x] Prefix delete for logout
+- [x] Keep presence publish on the existing queue
+- [x] Container wiring: second SetQueue + handle
+- [x] `.env.example` + `PubSubRedisConfig::pvhQueueName()`
+- [x] `RedisCacheRepositoryTest` / wiring tests updated
 
 **Exit:** No production behavior change required yet if LowLatency still uses old methods; prefer to land M3 in the same PR if the old `setUser(serialize(jwt))` path would fork too hard.
 

@@ -4,6 +4,60 @@ One entry per functional (or milestone-required documentary) change. Newest mile
 
 ---
 
+## M2 — PVH Redis JSON cache beside legacy serialize path
+
+- **Milestone:** M2
+- **File(s):** `src/Persistence/Server/Repositories/RedisCacheRepository.php`, `src/Utility/PvhCacheRecord.php`, `tests/Persistence/RedisCacheRepositoryTest.php`
+- **Prior state:** Cache was only `getUser`/`setUser`/`cacheValidatedUser` via `serialize()` at key=`userId`. `queueUserValidation` was an empty stub.
+- **Post state:** New `getPvhRecord`/`setPvhRecord` store JSON `{user_uuid, aud, email, pvh, prev_pvh}` at `pvh:{userUuid}:{aud}`. Legacy serialize methods are unchanged so LowLatency validate still uses today's path.
+- **Reasoning:** M3 needs a typed JSON record without ripping out the serialize cache that existing tests and logout/IAM still depend on.
+- **Security impact:** New keys are JSON only (no `unserialize` on the pvh path). Legacy `unserialize` remains until M7.
+
+## M2 — `invalidateUser` deletes legacy key and `pvh:{userId}:*`
+
+- **Milestone:** M2
+- **File(s):** `src/Persistence/Server/Repositories/RedisCacheRepository.php`
+- **Prior state:** `invalidateUser($userId)` only `DEL`ed the legacy key `$userId`.
+- **Post state:** Still `DEL`s `$userId` (logout/Client IAM keep clearing today's cache) **and** SCAN-deletes `pvh:{userId}:*` so future pvh records are cleared on the same call.
+- **Reasoning:** Logout must not leave audience-scoped pvh rows after M3 starts writing them. IAM claim paths still call this in M2 (M3 removes those `DEL`s).
+- **Security impact:** Broader delete on logout is intended. SCAN pattern uses the user UUID; UUID charset is not a glob injection.
+
+## M2 — `queueUserValidation` publishes on the dedicated PVH SetQueue
+
+- **Milestone:** M2
+- **File(s):** `src/Persistence/Server/Repositories/RedisCacheRepository.php`
+- **Prior state:** Empty stub `queueUserValidation(string $userId, string $userEmail)`. Nothing called it.
+- **Post state:** Signature is `(string $userUuid, string $aud)`. Publishes via v1.1.2 `PubSubQueue::publish($queueName, $key, $message)` with key `{userUuid}:{aud}` and JSON `{"user_uuid","aud"}` on `REDIS_PVH_QUEUE_NAME`. Not called from LowLatency this milestone.
+- **Reasoning:** Plumbing only; M3 will enqueue on validate 200. Presence `publish(userId, email)` on `REDIS_PUBSUB_QUEUE_NAME` is untouched (D8).
+- **Security impact:** none this milestone (no HTTP caller). Payload is identifiers only, no JWT.
+
+## M2 — Dedicated PVH SetQueue in PHP-DI
+
+- **Milestone:** M2
+- **File(s):** `config/container.php`, `src/Utility/PvhSetQueue.php`, `src/Utility/PvhQueueHandle.php`, `tests/Config/ContainerPubSubRedisWiringTest.php`
+- **Prior state:** One `SetQueue::class` + `PubSubQueueHandle` registered on the shared `PubSubQueue` for presence.
+- **Post state:** `PvhSetQueue` (subclass) and `PvhQueueHandle` are separate bindings. `PvhQueueHandle` factory `addQueue(pvhName, pvhSetQueue)` on the same `PubSubQueue`. Presence `SetQueue::class` / `PubSubQueueHandle` unchanged.
+- **Reasoning:** PHP-DI cannot bind two `SetQueue::class` instances. A dedicated type keeps presence and refresh queues from overloading each other (D8).
+- **Security impact:** none (wiring only). Wrong-queue publish would have mixed liveness with refresh; separate types prevent that.
+
+## M2 — `REDIS_PVH_QUEUE_NAME` config
+
+- **Milestone:** M2
+- **File(s):** `src/Utility/Redis/PubSubRedisConfig.php`, `.env.example`, `tests/Utility/Redis/PubSubRedisConfigTest.php`
+- **Prior state:** Only `REDIS_PUBSUB_QUEUE_NAME` (default `amtgard-idp`).
+- **Post state:** `PubSubRedisConfig::pvhQueueName()` reads `REDIS_PVH_QUEUE_NAME` default `amtgard-idp-pvh`. `.env.example` documents it as the refresh queue, not presence.
+- **Reasoning:** Worker (M4) and publishers must share one env name.
+- **Security impact:** none
+
+## M2 — Milestone checklist
+
+- **Milestone:** M2
+- **File(s):** `agent/cursor/jwt-pvh-cache/milestones.md`
+- **Prior state:** M2 items unchecked.
+- **Post state:** M2 items checked. Validate/jwt/userinfo still old behavior; `queueUserValidation` is not called from LowLatency.
+- **Reasoning:** Orchestration bookkeeping for the stacked implementation.
+- **Security impact:** none
+
 ## M1 — `Pvh` primitive (sticky generation id)
 
 - **Milestone:** M1
