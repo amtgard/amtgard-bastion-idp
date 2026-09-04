@@ -289,10 +289,8 @@ class ResourcesControllerTest extends TestCase
     {
         $_SESSION['user_id'] = 123;
 
-        $this->amtgardIdpJwt->expects($this->once())
-            ->method('buildAuthorizationJwt')
-            ->with($this->userEntity)
-            ->willReturn('jwt-val');
+        $this->amtgardIdpJwt->expects($this->never())
+            ->method('buildAuthorizationJwt');
 
         $orkProfile = new TestUserOrkProfileEntity();
         $this->orkProfileRepository->expects($this->once())
@@ -306,7 +304,7 @@ class ResourcesControllerTest extends TestCase
                 $data = json_decode($json, true);
                 return $data['id'] === '123' &&
                        $data['email'] === 'test@example.com' &&
-                       $data['jwt'] === 'jwt-val' &&
+                       !isset($data['jwt']) &&
                        $data['ork_profile']['username'] === 'orkuser';
             }));
 
@@ -318,10 +316,8 @@ class ResourcesControllerTest extends TestCase
     {
         $_SESSION['user_id'] = 123;
 
-        $this->amtgardIdpJwt->expects($this->once())
-            ->method('buildAuthorizationJwt')
-            ->with($this->userEntity)
-            ->willReturn('jwt-val');
+        $this->amtgardIdpJwt->expects($this->never())
+            ->method('buildAuthorizationJwt');
         $this->orkProfileRepository->expects($this->once())
             ->method('findByUserId')
             ->with(123)
@@ -332,7 +328,7 @@ class ResourcesControllerTest extends TestCase
                 $data = json_decode($json, true);
                 return $data['id'] === '123'
                     && $data['email'] === 'test@example.com'
-                    && $data['jwt'] === 'jwt-val'
+                    && !isset($data['jwt'])
                     && !isset($data['ork_profile']);
             }));
 

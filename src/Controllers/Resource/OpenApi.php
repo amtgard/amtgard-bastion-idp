@@ -29,7 +29,7 @@ use OpenApi\Attributes as OA;
     in: "header",
     scheme: "bearer",
     bearerFormat: "JWT",
-    description: "RS256 authorization JWT from GET /resources/jwt (used with /resources/userinfo and /resources/validate)"
+    description: "RS256 authorization JWT from GET /resources/jwt (used with /resources/userinfo and /resources/validate). Does not remint; 409 stale_token when pvh is one generation behind."
 )]
 #[OA\SecurityScheme(
     securityScheme: 'oauthAccessToken',

@@ -73,10 +73,10 @@ Human merge/tag/deploy is last.
 
 ## M5 — `userinfo` / middleware no longer remint or skip pvh
 
-- [ ] `CachedJwtLocalIdpAuthMiddleware` (and `ClientRestrictedAuthMiddleware` if applicable) use pvh compare
-- [ ] `userinfo` does not `buildAuthorizationJwt` every request
-- [ ] Middleware tests rewritten
-- [ ] `templates/api.md` + OpenAPI annotations: 409, remint well, compact token, validate response without `jwt`
+- [x] `CachedJwtLocalIdpAuthMiddleware` (and `ClientRestrictedAuthMiddleware` if applicable) use pvh compare
+- [x] `userinfo` does not `buildAuthorizationJwt` every request
+- [x] Middleware tests rewritten
+- [x] `templates/api.md` + OpenAPI annotations: 409, remint well, compact token, validate response without `jwt`
 
 **Exit:** Presenting only a stale authorization JWT cannot obtain a new JWT from userinfo. `/resources/jwt` still rejects authorization JWTs.
 

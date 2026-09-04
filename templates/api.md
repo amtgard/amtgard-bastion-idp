@@ -131,8 +131,8 @@ Exchange an authorization code or refresh token for access (and optionally refre
 
 After OAuth login, profile and IAM data use a **two-step elevation**:
 
-1. **`GET /resources/jwt`** — present your OAuth **access token** (or browser session) to obtain a signed RS256 **authorization JWT**.
-2. **`GET /resources/userinfo`** — present that **authorization JWT** (not the access token) to load the full profile.
+1. **`GET /resources/jwt`** — present your OAuth **access token** (or browser session) to obtain a signed RS256 **authorization JWT**. This is the **remint well** — the only resource endpoint that mints a new authorization JWT. It does **not** accept an authorization JWT.
+2. **`GET /resources/userinfo`** — present that **authorization JWT** (not the access token) to load the full profile. Does **not** remint.
 
 ```http
 Authorization: Bearer <authorization_jwt>
@@ -142,12 +142,12 @@ Browser-first-party apps may use the session cookie for step 1 instead of an acc
 
 #### <a href="/swagger#/default/getJwt" target="_self">Authorization JWT (`GET /resources/jwt`)</a>
 
-Elevates an OAuth access token (or authenticated session) to a signed RS256 authorization JWT containing IAM policy and optional `client_metadata`.
+Remint well: elevates an OAuth access token (or authenticated session) to a signed RS256 authorization JWT containing IAM policy, `pvh`, and optional `client_metadata`. Does **not** accept an authorization JWT — present an access token or session only.
 
 - **Method**: `GET`
 - **Auth**: `Authorization: Bearer <access_token>` from `/oauth/token`, or session cookie for browser apps
 - **Response Format**: `application/json`
-- **Use when**: You need the authorization JWT before calling `/resources/userinfo` or `/resources/validate`
+- **Use when**: First elevation after login, or after validate/userinfo return **409** `stale_token`. Do not call this with the authorization JWT you already hold.
 
 - **Example Response**:
 
@@ -157,16 +157,20 @@ Elevates an OAuth access token (or authenticated session) to a signed RS256 auth
 }
 ```
 
+The fat JWT includes `pvh` plus policy/identity claims. A compact heartbeat JWT (`sub`, `aud`, `iss`, `exp`, `pvh` only) is upcoming (M6); until then present the fat token from this endpoint on validate and userinfo.
+
 #### <a href="/swagger#/default/userinfo" target="_self">User Info (`GET /resources/userinfo`)</a>
 
-Retrieves the full profile of the authenticated user, including their linked Amtgard ORK profile (Mundane ID, persona, kingdom, park, image, dues status, etc.). This is the primary endpoint for loading user data after login.
+Retrieves the full profile of the authenticated user, including their linked Amtgard ORK profile (Mundane ID, persona, kingdom, park, image, dues status, etc.). This is the primary endpoint for loading user data after login. It does **not** remint a JWT.
 
 - **Method**: `GET`
 - **Auth**: `Authorization: Bearer <authorization_jwt>` from `/resources/jwt` — **not** the OAuth access token
 - **Response Format**: `application/json`
 - **Use when**: You need complete profile data — display name, email, ORK persona, park/kingdom, dues, heraldry, etc.
+- **409** `{ "error": "stale_token" }`: presented `pvh` is one generation behind. Remint at `GET /resources/jwt` with an access token or session. The 409 body does **not** include a JWT.
+- **401**: missing/invalid signature, expired token, unknown `pvh`, or **cache miss**. userinfo does not seed the pvh cache; `GET /resources/validate` is the heartbeat seed.
 
-The `jwt` field is the same RS256 **authorization JWT** you sent in the `Authorization` header (refreshed if needed). Decode it to access IAM policy and optional client metadata (see [Section 8](#8-client-iam--jwt-metadata-server-to-server)). Claims include:
+Decode the JWT you already hold (from `/resources/jwt`) for IAM policy and optional client metadata (see [Section 8](#8-client-iam--jwt-metadata-server-to-server)). Claims include:
 
 | Claim | Description |
 |-------|-------------|
@@ -180,9 +184,8 @@ The `jwt` field is the same RS256 **authorization JWT** you sent in the `Authori
 
 ```json
 {
-  "id": 123,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
   "email": "player@amtgard.com",
-  "jwt": "...",
   "ork_profile": {
     "mundane_id": 456,
     "username": "Amtgardian",
@@ -203,20 +206,22 @@ The `jwt` field is the same RS256 **authorization JWT** you sent in the `Authori
 
 #### <a href="/swagger#/default/validate" target="_self">Validate Token & Presence (`GET /resources/validate`)</a>
 
-A lightweight endpoint to confirm a session is still active and register user presence (heartbeat/liveness). Returns minimal identity data compared to `userinfo`.
+A lightweight endpoint to confirm a session is still active and register user presence (heartbeat/liveness). Returns minimal identity data compared to `userinfo`. Does **not** remint.
 
 - **Method**: `GET`
-- **Auth**: `Authorization: Bearer <authorization_jwt>` from `/resources/jwt`
+- **Auth**: `Authorization: Bearer <authorization_jwt>` from `/resources/jwt` (fat JWT today; compact `sub`/`aud`/`iss`/`exp`/`pvh` is upcoming)
 - **Response Format**: `application/json`
 - **Use when**: You need frequent, low-cost checks that a user is still online — for example presence indicators or activity heartbeats — without fetching the full profile each time.
+- **200**: `{ "id", "email" }` — no `jwt` by default. Temporary `?jwt=1` echoes the **presented** Bearer only (compat; never a remint).
+- **409** `{ "error": "stale_token" }`: presented `pvh` is one generation behind. Remint at `GET /resources/jwt`.
+- **401**: bad/missing signature, expired, unknown `pvh`. Cache miss on an otherwise valid token is a **200 seed** (heartbeat free hit) — userinfo does not seed.
 - **Note**: Also publishes a presence event to connected services via PubSub.
-- **Example Response**:
+- **Example Response** (200):
 
 ```json
 {
-  "id": 123,
-  "email": "player@amtgard.com",
-  "jwt": "..."
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "player@amtgard.com"
 }
 ```
 
@@ -558,9 +563,8 @@ interface OrkProfile {
 }
 
 interface UserProfile {
-  id: number;
+  id: string;
   email: string;
-  jwt: string;
   ork_profile?: OrkProfile;
 }
 
@@ -776,9 +780,9 @@ Call these after login. Elevate your access token to an authorization JWT first 
 
 | Endpoint | Method | Purpose | Called by |
 |----------|--------|---------|-----------|
-| `/resources/jwt` | GET | Exchange OAuth access token (or session) for authorization JWT | Your app/server after login |
-| `/resources/userinfo` | GET | Full user profile including ORK data and authorization JWT | Your app/server with authorization JWT |
-| `/resources/validate` | GET | Lightweight session heartbeat and presence registration | Your app with authorization JWT |
+| `/resources/jwt` | GET | Remint well: exchange OAuth access token (or session) for authorization JWT | Your app/server after login or after 409 |
+| `/resources/userinfo` | GET | Full user profile including ORK data (no reminted JWT) | Your app/server with authorization JWT |
+| `/resources/validate` | GET | Lightweight heartbeat and presence; 409 `stale_token` when `pvh` is one generation behind | Your app with authorization JWT |
 
 ### Client IAM API (confidential server-to-server)
 
@@ -1088,7 +1092,7 @@ Typical lifecycle:
 1. IdP admin registers your confidential client and assigns `iam_service` (+ optional format).
 2. User completes normal OAuth login to your app.
 3. Your **backend** (with client secret) adds policy claims when the user earns a role.
-4. Your app calls `GET /resources/jwt` → `GET /resources/userinfo`; decode JWT for `policy` and `client_metadata`.
+4. Your app calls `GET /resources/jwt` then `GET /resources/userinfo`; decode the JWT from `/resources/jwt` for `policy` and `client_metadata`.
 5. Your API handlers call `/api/is_authorized` or evaluate `policy` locally before sensitive actions.
 
 You **cannot** use Client IAM without an assigned `iam_service`. You **cannot** read or modify another client's claims or metadata.

@@ -4,6 +4,51 @@ One entry per functional (or milestone-required documentary) change. Newest mile
 
 ---
 
+## M5 — Shared `PvhGate` for 200 / 409 / 401
+
+- **Milestone:** M5
+- **File(s):** `src/Utility/PvhGate.php`, `src/Utility/PvhAccess.php`, `src/Controllers/Resource/LowLatencyController.php`, `tests/Utility/PvhGateTest.php`
+- **Prior state:** `LowLatencyController` owned the pvh/prev_pvh/fat-hash-prefix compare and wrote 409 `{error:"stale_token"}` inline. Middleware used `isUserInCache`.
+- **Post state:** `PvhGate::evaluate` / `evaluatePresented` returns `PvhAccess` (`Current` / `Previous` / `Unknown` / `Miss`). Fat JWTs without `pvh` still match `policy_hash` prefix to `hashPrefixHex`. `writeStaleToken` / `staleTokenResponse` emit 409 JSON. Validate uses the gate for the hit table and still seeds on `Miss` only.
+- **Reasoning:** One 409/401 table (D13) for validate and both Bearer middlewares. Avoid forked compare that would accept a stolen fat JWT on one path and reject it on another.
+- **Security impact:** Compare itself is unchanged from M3 validate. Sharing it is hygiene so userinfo/middleware cannot skip pvh or treat cache presence as success.
+
+## M5 — Middleware gates on pvh; cache miss is 401
+
+- **Milestone:** M5
+- **File(s):** `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php`, `src/Middleware/ClientRestrictedAuthMiddleware.php`, `tests/Middleware/CachedJwtLocalIdpAuthMiddlewareTest.php`, `tests/Middleware/ClientRestrictedAuthMiddlewareTest.php`
+- **Prior state:** Both used `isUserInCache($sub)` as success. Cache miss set session and `cacheValidatedUser` (ClientRestricted also called `ResourceServer::validateAuthenticatedRequest` — OAuth access-token API — with the RS256 authorization JWT). Session was set before the cache check on CachedJwt.
+- **Post state:** `getPvhRecord(sub, aud)` + `PvhGate`. Current (or fat hash-prefix match) → set session, handle. Previous → 409 `{error:"stale_token"}` (JSON response, not `HttpUnauthorizedException`). Miss or unknown → 401. No seed, no `cacheValidatedUser`, no `isUserInCache`. ClientRestricted keeps the session allowlist short-circuit; Bearer path never calls `validateAuthenticatedRequest`.
+- **Reasoning:** “User key exists” was not a generation check (D11). Session must be set only after current pvh. userinfo must not bootstrap a generation from a stolen token that never passed validate. ResourceServer is for OAuth access tokens, not authorization JWTs.
+- **Security impact:** **Authz behavior change.** A valid RS256 JWT is no longer enough for userinfo: Redis must have a current `pvh` for that `aud`. Stolen token that never hit validate cannot seed via userinfo (401). One-generation-behind is 409 with no JWT body. Unknown pvh is 401 (no fishing). Session cookie is still enough for ClientRestricted allowlisted `client_id` (unchanged first-party short-circuit).
+
+## M5 — `userinfo` returns profile only (D11)
+
+- **Milestone:** M5
+- **File(s):** `src/Controllers/Resource/ResourcesController.php`, `tests/Controllers/ResourcesControllerTest.php`
+- **Prior state:** Every successful userinfo called `buildAuthorizationJwt` and returned `{id, email, jwt, ork_profile?}`. Goldens recorded that remint.
+- **Post state:** `{id, email, ork_profile?}` only. `buildAuthorizationJwt` does not run on this path. Unauthenticated still 401. `/resources/jwt` remains the remint well and still rejects authorization JWTs (`OAuthAccessTokenElevationMiddleware` unchanged). `Jwt::validateJwtSignature` algorithm unchanged.
+- **Reasoning:** Authorization JWT is not a refresh token. Possession of a stale Bearer must not extend `exp` or pick up current policy without an access token/session at `/resources/jwt`.
+- **Security impact:** **Closes the remint-as-refresh hole.** A stolen authorization JWT can still read profile while `pvh` is current (same window as validate 200). It cannot obtain a new JWT from userinfo or from 409. Cache miss cannot bootstrap.
+
+## M5 — OpenAPI + `templates/api.md` remint well / 409 / compact upcoming
+
+- **Milestone:** M5
+- **File(s):** `src/Controllers/Resource/ResourcesController.php` (OA), `templates/api.md`
+- **Prior state:** userinfo OpenAPI required a reminted `jwt` and 401 only. Docs showed userinfo echoing/refreshing the JWT and validate 200 including `jwt`.
+- **Post state:** userinfo OA: `id` string, no `jwt` property, 409 `stale_token`. getJwt OA: remint well; does not accept authorization JWTs. Docs: remint well is GET `/resources/jwt`; validate 200 omits `jwt` (`?jwt=1` presented only); compact heartbeat mentioned as upcoming/M6.
+- **Reasoning:** Integrators must handle 409 + remint at `/resources/jwt`, not treat userinfo as token refresh.
+- **Security impact:** none (docs/contract). Clients that decoded `userinfo.jwt` must switch to the token from `/resources/jwt`.
+
+## M5 — Milestone checklist
+
+- **Milestone:** M5
+- **File(s):** `agent/cursor/jwt-pvh-cache/milestones.md`
+- **Prior state:** M5 items unchecked.
+- **Post state:** M5 items checked. M6 (compact heartbeat) not started.
+- **Reasoning:** Orchestration bookkeeping.
+- **Security impact:** none
+
 ## M4 — Isolated JWT PVH worker refreshes MySQL + Redis pvh
 
 - **Milestone:** M4

@@ -6,7 +6,9 @@ use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\Jwt;
 use Amtgard\IdP\Utility\Pvh;
+use Amtgard\IdP\Utility\PvhAccess;
 use Amtgard\IdP\Utility\PvhCacheRecord;
+use Amtgard\IdP\Utility\PvhGate;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\SetQueue\PubSubQueue;
 use OpenApi\Attributes as OA;
@@ -105,25 +107,21 @@ class LowLatencyController
         }
 
         $cached = $this->redisCacheRepository->getPvhRecord($tokenUserId, $aud);
-        if ($cached !== null) {
-            $match = $this->presentedMatchesCache($presentedPvh, $fatPolicyHash, $cached->getPvh());
-            if ($match) {
-                return $this->validateSuccess(
-                    $request,
-                    $response,
-                    $challengeJwt,
-                    $tokenUserId,
-                    $aud,
-                    $cached->getEmail()
-                );
-            }
-
-            $prevPvh = $cached->getPrevPvh();
-            if ($prevPvh !== null && $this->presentedMatchesCache($presentedPvh, $fatPolicyHash, $prevPvh)) {
-                $response->getBody()->write(json_encode(['error' => 'stale_token']));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(409);
-            }
-
+        $access = PvhGate::evaluatePresented($cached, $presentedPvh, $fatPolicyHash);
+        if ($access === PvhAccess::Current && $cached !== null) {
+            return $this->validateSuccess(
+                $request,
+                $response,
+                $challengeJwt,
+                $tokenUserId,
+                $aud,
+                $cached->getEmail()
+            );
+        }
+        if ($access === PvhAccess::Previous) {
+            return PvhGate::writeStaleToken($response);
+        }
+        if ($access === PvhAccess::Unknown) {
             throw new HttpUnauthorizedException($request, "Not authorized.");
         }
 
@@ -145,21 +143,6 @@ class LowLatencyController
             $aud,
             $email
         );
-    }
-
-    private function presentedMatchesCache(?string $presentedPvh, ?string $fatPolicyHash, string $cachedPvh): bool
-    {
-        if ($presentedPvh !== null) {
-            return hash_equals($cachedPvh, $presentedPvh);
-        }
-
-        if ($fatPolicyHash === null || !Pvh::isPvhHex($cachedPvh)) {
-            return false;
-        }
-
-        $presentedPrefix = bin2hex(substr($fatPolicyHash, 0, Pvh::HASH_PREFIX_BYTE_LENGTH));
-
-        return hash_equals(Pvh::hashPrefixHex($cachedPvh), $presentedPrefix);
     }
 
     private function validateSuccess(

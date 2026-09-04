@@ -5,9 +5,9 @@ namespace Amtgard\IdP\Middleware;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\AuthorizedClients;
-use Amtgard\IdP\Utility\CachedValidatedUserEntity;
 use Amtgard\IdP\Utility\Jwt;
-use Amtgard\IdP\Utility\Utility;
+use Amtgard\IdP\Utility\PvhAccess;
+use Amtgard\IdP\Utility\PvhGate;
 use League\OAuth2\Server\ResourceServer;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface;
@@ -49,24 +49,19 @@ class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
         $clientId = Optional::ofNullable($payload['aud'] ?? null)
             ->orElseThrow(new HttpUnauthorizedException($request, 'Not authorized.'));
 
-        if ($oauthUserId && $this->redisCacheRepository->isUserInCache($oauthUserId)) {
+        $cached = $this->redisCacheRepository->getPvhRecord((string) $oauthUserId, (string) $clientId);
+        $access = PvhGate::evaluate($cached, $payload);
+
+        if ($access === PvhAccess::Current) {
             $_SESSION['user_id'] = $oauthUserId;
             $_SESSION['client_id'] = $clientId;
             return $handler->handle($request);
         }
 
-        $_SESSION['user_id'] = $oauthUserId;
-        $_SESSION['client_id'] = $clientId;
-
-        $user = Utility::getAuthenticatedUser();
-        if ($user !== null) {
-            $this->redisCacheRepository->cacheValidatedUser(
-                $user->getUserId(),
-                $user->getEmail() ?? '',
-                $jwt
-            );
+        if ($access === PvhAccess::Previous) {
+            return PvhGate::staleTokenResponse();
         }
 
-        return $handler->handle($request);
+        throw new HttpUnauthorizedException($request, 'Not authorized.');
     }
 }
