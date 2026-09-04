@@ -213,6 +213,7 @@ install_app_in_slot() {
     local slot="$1"
     echo "==> Installing Composer dependencies in $(slot_container "$slot")..."
     read -r -a composer_flags <<< "$COMPOSER_FLAGS"
+    # Writes into this slot's container filesystem (code is copied into the image).
     exec_in_slot "$slot" "$WEB_USER" composer install "${composer_flags[@]}"
 
     echo "==> Running Phinx migrations (${PHINX_ENV}) in $(slot_container "$slot")..."
@@ -284,7 +285,7 @@ legacy_container_present() {
 
 build_and_start_slot() {
     local slot="$1"
-    echo "==> Building Docker image for ${slot}..."
+    echo "==> Building Docker image for ${slot} (app copied into image)..."
     compose_for_slot "$slot" build --pull
     echo "==> Starting ${slot} container..."
     compose_for_slot "$slot" up -d --remove-orphans

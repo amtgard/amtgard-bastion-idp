@@ -5,7 +5,11 @@ services:
       dockerfile: docker/Dockerfile.prod
     working_dir: /var/www
     volumes:
-      - .:/var/www/idp.amtgard.com
+      # App code is copied into the image so each slot keeps its own release.
+      # Only host secrets/config are shared across blue/green.
+      - ./.env:/var/www/idp.amtgard.com/.env:ro
+      - ./dev-keys:/var/www/idp.amtgard.com/dev-keys:ro
+      - ./keys:/var/www/idp.amtgard.com/keys:ro
     env_file:
       - .env
     environment:

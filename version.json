@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-09-02.168",
-  "date": "2026-09-02",
-  "revision": 168,
-  "branch": "feature/ork-iam-2.x-ontology"
+  "build_id": "2026-09-04.170",
+  "date": "2026-09-04",
+  "revision": 170,
+  "branch": "feature/isolated-prod-blue-green"
 }
