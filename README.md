@@ -102,7 +102,12 @@ docker compose -f docker/compose.dev.yml exec amtgardidpapp bash -lc \
 
 Production uses blue-green Docker (blue on port 37080, green on 37081) behind host nginx. Each slot is a separate Compose project and **image**: `install.sh` pulls `origin/main`, builds the inactive slot from that tree, health-checks it, then switches host nginx. The live slot keeps serving its previously built image until cutover.
 
-Host `.env`, `dev-keys/`, and `keys/` are bind-mounted into both containers (shared config and signing keys). Application code and `vendor/` are not. MySQL and the shared Redis container stay shared; Phinx migrations still run against the live database before nginx switches.
+Host `.env`, `dev-keys/`, and `keys/` are bind-mounted into both containers (shared config and signing keys). Application code and `vendor/` are not. **MySQL is host-owned** (production does not run a MySQL Docker volume). Phinx migrations still run against that live database before nginx switches.
+
+Two isolated Compose projects stay up across slot switches — they are not blue/green slots:
+
+- **Sessions Redis** (`amtgard-idp-sessions`): PHP sessions (DB 1) and app queue/cache (DB 0). Started once so deploys do not log users out or drop in-flight queue work.
+- **JWT PVH worker** (`amtgard-idp-worker`, container `amtgard-idp-jwt-worker`): CLI consumer of `REDIS_PVH_QUEUE_NAME` on the same Redis DB 0. Reaches host MySQL via `host.docker.internal`. After Phinx migrate on the inactive slot, `install.sh` tags that slot's image as `amtgard-idp-jwt-worker:latest` and `up -d`s the worker before the health check / nginx switch.
 
 **First deploy after upgrading install.sh — run twice:**
 
@@ -117,10 +122,6 @@ Host: `git pull`, `chown`. Inactive slot: image build (code + `composer install`
 ```bash
 sudo ./install.sh   # builds inactive slot, migrates, switches host nginx
 ```
-
-Blue and green app containers share a separate Redis container (`amtgard-idp-sessions`) for PHP sessions (DB 1) and app queue/cache (DB 0) so deploys do not log users out or drop in-flight queue work. That container is started once and left running across slot switches.
-
-The JWT PVH refresh worker is a third Compose project (`amtgard-idp-worker`, container `amtgard-idp-jwt-worker`), not a blue/green slot. After Phinx migrate on the inactive slot, `install.sh` tags that slot's image as `amtgard-idp-jwt-worker:latest` and `up -d`s the worker before the health check / nginx switch. The worker stays up across cutover. Recreate it independently with `INSTALL_REBUILD_WORKER=1` (this is not tied to `INSTALL_REBUILD_SESSIONS`).
 
 Optional session store maintenance:
 
@@ -145,9 +146,10 @@ cp .env.example .env
 
 ### Key Configuration Options
 - **Application**: `APP_URL`, `APP_ENV`, `APP_SECRET`
-- **Database**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — production `.env` must point at a host reachable from the blue/green containers (e.g. `host.docker.internal` when MySQL runs on the server).
-- **Sessions**: `SESSION_REDIS_HOST`, `SESSION_REDIS_PORT`, `SESSION_REDIS_DB` — point at the shared `amtgard-idp-sessions` container in production (DB 1).
-- **Pub/sub queue & cache**: `REDIS_PUBSUB_HOST`, `REDIS_PUBSUB_PORT`, `REDIS_PUBSUB_DB`, `REDIS_PUBSUB_QUEUE_NAME` — shared container in production (DB 0). Omit `REDIS_PUBSUB_HOST` locally to use in-container Redis.
+- **Database**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — production `.env` must point at the **host-owned** MySQL instance (e.g. `host.docker.internal`). Do not add a production MySQL Docker volume.
+- **Sessions**: `SESSION_REDIS_HOST`, `SESSION_REDIS_PORT`, `SESSION_REDIS_DB` — point at the isolated `amtgard-idp-sessions` container in production (DB 1).
+- **Pub/sub queue & cache**: `REDIS_PUBSUB_HOST`, `REDIS_PUBSUB_PORT`, `REDIS_PUBSUB_DB`, `REDIS_PUBSUB_QUEUE_NAME` — same sessions host in production (DB 0, presence). Omit `REDIS_PUBSUB_HOST` locally to use in-container Redis.
+- **JWT PVH refresh queue**: `REDIS_PVH_QUEUE_NAME` (default `amtgard-idp-pvh`) — consumed by `amtgard-idp-jwt-worker`, not the presence queue.
 - **OAuth**:
   - `OAUTH_PRIVATE_KEY` / `OAUTH_PUBLIC_KEY`: Paths to RSA keys for signing tokens.
   - `OAUTH_ENCRYPTION_KEY`: Key for encrypting auth codes.

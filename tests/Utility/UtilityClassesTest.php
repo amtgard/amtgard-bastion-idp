@@ -7,7 +7,6 @@ use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
 use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Utility\AuthorizedClients;
-use Amtgard\IdP\Utility\CachedValidatedUserEntity;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\UserAuthority;
@@ -23,44 +22,6 @@ class UtilityClassesTest extends TestCase
             ->build();
 
         $this->assertSame(['client-a', 'client-b'], $clients->getClientIds());
-    }
-
-    public function testCachedValidatedUserEntity(): void
-    {
-        $entity = CachedValidatedUserEntity::builder()
-            ->userId('user-1')
-            ->email('test@example.com')
-            ->jwt('jwt-string')
-            ->build();
-
-        $this->assertSame('user-1', $entity->getUserId());
-        $this->assertSame('test@example.com', $entity->getEmail());
-        $this->assertSame('jwt-string', $entity->getJwt());
-        $this->assertTrue($entity->hasJwt());
-    }
-
-    public function testCachedValidatedUserEntityWithoutJwt(): void
-    {
-        $entity = CachedValidatedUserEntity::builder()
-            ->userId('user-1')
-            ->email('test@example.com')
-            ->build();
-
-        $this->assertFalse($entity->hasJwt());
-        $this->assertNull($entity->getJwt());
-    }
-
-    public function testCachedValidatedUserEntitySurvivesUnserializeWithoutJwt(): void
-    {
-        $entity = CachedValidatedUserEntity::builder()
-            ->userId('user-1')
-            ->email('test@example.com')
-            ->build();
-
-        $restored = unserialize(serialize($entity));
-
-        $this->assertFalse($restored->hasJwt());
-        $this->assertNull($restored->getJwt());
     }
 
     public function testConstants(): void

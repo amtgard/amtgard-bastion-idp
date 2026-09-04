@@ -12,7 +12,6 @@ use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
-use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
@@ -72,7 +71,6 @@ class ResourcesControllerTest extends TestCase
     private $clientRepository;
     private $redisPubSubQueue;
     private $pubSubQueueHandle;
-    private $redisCacheRepository;
     private $database;
     private $orkService;
     private $orkProfileRepository;
@@ -100,7 +98,6 @@ class ResourcesControllerTest extends TestCase
         
         $this->redisPubSubQueue = $this->createMock(PubSubQueue::class);
         $this->pubSubQueueHandle = $this->createMock(PubSubQueueHandle::class);
-        $this->redisCacheRepository = $this->createMock(RedisCacheRepository::class);
         $this->database = $this->createMock(Database::class);
         $this->orkService = $this->createMock(OrkService::class);
         $this->orkProfileRepository = $this->createMock(UserOrkProfileRepository::class);
@@ -139,7 +136,6 @@ class ResourcesControllerTest extends TestCase
             $this->clientRepository,
             $this->redisPubSubQueue,
             $this->pubSubQueueHandle,
-            $this->redisCacheRepository,
             $this->database,
             $this->orkService,
             $this->orkProfileRepository,
@@ -261,10 +257,6 @@ class ResourcesControllerTest extends TestCase
             ->method('buildAuthorizationTokens')
             ->with($this->userEntity)
             ->willReturn(['jwt' => 'jwt-val', 'compact_jwt' => 'compact-val']);
-
-        $this->redisCacheRepository->expects($this->once())
-            ->method('cacheValidatedUser')
-            ->with('123', 'test@example.com', 'jwt-val');
 
         $this->stream->expects($this->once())
             ->method('write')

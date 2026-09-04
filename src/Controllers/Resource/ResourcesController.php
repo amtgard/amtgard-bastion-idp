@@ -9,7 +9,6 @@ use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
-use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
@@ -39,7 +38,6 @@ class ResourcesController
     private UserRepository $userRepository;
     private UserClientAuthorizationRepository $userClientAuthorizationRepository;
     private UserLoginRepository $userLoginRepository;
-    private RedisCacheRepository $redisCacheRepository;
     private AmtgardIdpJwt $amtgardIdpJwt;
     private UserAuthority $userAuthority;
 
@@ -51,7 +49,6 @@ class ResourcesController
         ClientRepositoryInterface $clientRepository,
         PubSubQueue $redisPubSubQueue,
         PubSubQueueHandle $pubSubQueueHandle,
-        RedisCacheRepository $redisCacheRepository,
         Database $database,
         OrkService $orkService,
         UserOrkProfileRepository $orkProfileRepository,
@@ -72,7 +69,6 @@ class ResourcesController
         $this->userRepository = $userRepository;
         $this->userClientAuthorizationRepository = $userClientAuthorizationRepository;
         $this->userLoginRepository = $userLoginRepository;
-        $this->redisCacheRepository = $redisCacheRepository;
         $this->amtgardIdpJwt = $amtgardIdpJwt;
         $this->userAuthority = $userAuthority;
     }
@@ -110,12 +106,6 @@ class ResourcesController
         }
 
         $tokens = $this->amtgardIdpJwt->buildAuthorizationTokens($user);
-
-        $this->redisCacheRepository->cacheValidatedUser(
-            $user->getUserId(),
-            $user->getEmail() ?? '',
-            $tokens['jwt']
-        );
 
         $response->getBody()->write(json_encode($tokens));
         return $response->withHeader('Content-Type', 'application/json');

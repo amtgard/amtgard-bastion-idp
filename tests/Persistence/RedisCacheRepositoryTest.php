@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Persistence;
 
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
-use Amtgard\IdP\Utility\CachedValidatedUserEntity;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\IdP\Utility\PvhQueueHandle;
 use Amtgard\SetQueue\PubSubQueue;
@@ -39,65 +38,6 @@ class RedisCacheRepositoryTest extends TestCase
         );
     }
 
-    public function testCacheValidatedUserStoresEntityWithJwt(): void
-    {
-        $this->redis->expects($this->once())
-            ->method('set')
-            ->with('user-1', $this->callback(function (string $serialized) {
-                $entity = unserialize($serialized);
-                return $entity instanceof CachedValidatedUserEntity
-                    && $entity->getUserId() === 'user-1'
-                    && $entity->getEmail() === 'test@example.com'
-                    && $entity->getJwt() === 'jwt-token'
-                    && $entity->hasJwt();
-            }));
-
-        $this->repository->cacheValidatedUser('user-1', 'test@example.com', 'jwt-token');
-    }
-
-    public function testGetUserReturnsCachedEntityWithoutJwt(): void
-    {
-        $entity = CachedValidatedUserEntity::builder()
-            ->userId('user-1')
-            ->email('test@example.com')
-            ->build();
-
-        $this->redis->expects($this->once())
-            ->method('get')
-            ->with('user-1')
-            ->willReturn(serialize($entity));
-
-        $result = $this->repository->getUser('user-1');
-
-        $this->assertInstanceOf(CachedValidatedUserEntity::class, $result);
-        $this->assertSame('user-1', $result->getUserId());
-        $this->assertSame('test@example.com', $result->getEmail());
-        $this->assertFalse($result->hasJwt());
-    }
-
-    public function testGetUserReturnsNullWhenNotCached(): void
-    {
-        $this->redis->expects($this->once())
-            ->method('get')
-            ->with('missing-user')
-            ->willReturn(false);
-
-        $this->assertNull($this->repository->getUser('missing-user'));
-    }
-
-    public function testIsUserInCache(): void
-    {
-        $this->redis->expects($this->once())
-            ->method('get')
-            ->with('user-1')
-            ->willReturn(serialize(CachedValidatedUserEntity::builder()
-                ->userId('user-1')
-                ->email('test@example.com')
-                ->build()));
-
-        $this->assertTrue($this->repository->isUserInCache('user-1'));
-    }
-
     public function testInvalidateUserDeletesLegacyKeyAndPvhKeys(): void
     {
         $redis = $this->createStub(Redis::class);
@@ -127,27 +67,6 @@ class RedisCacheRepositoryTest extends TestCase
         $this->makeRepository($redis, $this->pubSubQueue)->invalidateUser('user-1');
 
         $this->assertSame(['user-1', 'pvh:user-1:client-a', 'pvh:user-1:client-b'], $deleted);
-    }
-
-    public function testSetUserStoresSerializedEntity(): void
-    {
-        $entity = CachedValidatedUserEntity::builder()
-            ->userId('user-2')
-            ->email('other@example.com')
-            ->build();
-
-        $this->redis->expects($this->once())
-            ->method('set')
-            ->with('user-2', serialize($entity));
-
-        $this->repository->setUser($entity);
-    }
-
-    public function testGetUserReturnsNullForInvalidSerializedPayload(): void
-    {
-        $this->redis->method('get')->with('user-bad')->willReturn(serialize(['not', 'an', 'entity']));
-
-        $this->assertNull($this->repository->getUser('user-bad'));
     }
 
     public function testSetPvhRecordStoresJsonNotSerialize(): void

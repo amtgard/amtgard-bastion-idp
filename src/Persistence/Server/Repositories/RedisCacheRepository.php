@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Persistence\Server\Repositories;
 
-use Amtgard\IdP\Utility\CachedValidatedUserEntity;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\IdP\Utility\PvhQueueHandle;
 use Amtgard\SetQueue\PubSubQueue;
@@ -32,41 +31,6 @@ class RedisCacheRepository
         $this->pvhQueueHandle = $pvhQueueHandle;
     }
 
-    public function isUserInCache(string $userId): bool {
-        return $this->redis->get($userId) ? true : false;
-    }
-
-    public function getUser(string $userId): ?CachedValidatedUserEntity {
-        $cached = $this->redis->get($userId);
-        if (!$cached) {
-            return null;
-        }
-
-        $user = unserialize($cached);
-        if (!$user instanceof CachedValidatedUserEntity) {
-            return null;
-        }
-
-        if (method_exists($user, '__wakeup')) {
-            $user->__wakeup();
-        }
-
-        return $user;
-    }
-
-    public function setUser(CachedValidatedUserEntity $userEntity): void {
-        $this->redis->set($userEntity->getUserId(), serialize($userEntity));
-    }
-
-    public function cacheValidatedUser(string $userId, string $email, string $jwt): void
-    {
-        $this->setUser(CachedValidatedUserEntity::builder()
-            ->userId($userId)
-            ->email($email)
-            ->jwt($jwt)
-            ->build());
-    }
-
     public function getPvhRecord(string $userUuid, string $aud): ?PvhCacheRecord
     {
         $cached = $this->redis->get(self::pvhKey($userUuid, $aud));
@@ -83,9 +47,9 @@ class RedisCacheRepository
     }
 
     /**
-     * Deletes the legacy serialize cache key ($userId) so logout/IAM still
-     * clear today's validate path, and SCAN-deletes pvh:{userId}:* for the
-     * new JSON records.
+     * Logout-only: SCAN-deletes pvh:{userId}:* JSON records. Also DELs the
+     * leftover UUID key so pre-M7 serialize blobs do not survive logout.
+     * Client IAM claim/metadata paths must not call this.
      */
     public function invalidateUser(string $userId): void
     {

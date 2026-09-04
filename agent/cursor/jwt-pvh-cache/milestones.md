@@ -95,12 +95,12 @@ Human merge/tag/deploy is last.
 
 ## M7 — Proof and cleanup
 
-- [ ] No `serialize`/`unserialize` on the pvh cache
-- [ ] `queueUserValidation` no longer empty
-- [ ] Grep: Client IAM paths do not `invalidateUser` / `del` for claims
-- [ ] Presence publish still on 200 validate
-- [ ] Infection/phpstan/cs as required by repo
-- [ ] README production section: worker container next to sessions Redis
+- [x] No `serialize`/`unserialize` on the pvh cache
+- [x] `queueUserValidation` no longer empty
+- [x] Grep: Client IAM paths do not `invalidateUser` / `del` for claims
+- [x] Presence publish still on 200 validate
+- [x] Infection/phpstan/cs as required by repo
+- [x] README production section: worker container next to sessions Redis
 
 **Exit:** Ready for PR.
 

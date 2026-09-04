@@ -86,8 +86,7 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
             ->method('getPvhRecord')
             ->with(self::USER, self::CLIENT)
             ->willReturn(new PvhCacheRecord(self::USER, self::CLIENT, self::EMAIL, $pvh, null));
-        $this->redisCacheRepository->expects($this->never())->method('isUserInCache');
-        $this->redisCacheRepository->expects($this->never())->method('cacheValidatedUser');
+        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
 
         $this->handler->expects($this->once())
             ->method('handle')
@@ -141,7 +140,6 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
             ->method('getPvhRecord')
             ->with(self::USER, self::CLIENT)
             ->willReturn(null);
-        $this->redisCacheRepository->expects($this->never())->method('cacheValidatedUser');
         $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
         $this->handler->expects($this->never())->method('handle');
 
@@ -169,7 +167,7 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
             ->method('getPvhRecord')
             ->willReturn(new PvhCacheRecord(self::USER, self::CLIENT, self::EMAIL, $current, $prev));
         $this->handler->expects($this->never())->method('handle');
-        $this->redisCacheRepository->expects($this->never())->method('cacheValidatedUser');
+        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
 
         @session_start();
         $_SESSION = [];

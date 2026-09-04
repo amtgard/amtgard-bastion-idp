@@ -362,16 +362,13 @@ class LowLatencyControllerTest extends TestCase
         $this->assertSame($this->response, $this->controller->validate($this->request, $this->response));
     }
 
-    public function testValidateDoesNotCallLegacySerializeCache(): void
+    public function testValidateHitPublishesPresenceAndQueuesRefresh(): void
     {
         $pvh = $this->samplePvh();
         $jwt = $this->generateValidJwt(pvh: $pvh);
         $this->withBearer($jwt);
         $this->redisCacheRepository->method('getPvhRecord')
             ->willReturn(new PvhCacheRecord(self::USER_UUID, self::AUD, self::EMAIL, $pvh, null));
-        $this->redisCacheRepository->expects($this->never())->method('getUser');
-        $this->redisCacheRepository->expects($this->never())->method('setUser');
-        $this->redisCacheRepository->expects($this->never())->method('cacheValidatedUser');
         $this->expectSuccessSideEffects();
         $this->expectSuccessBody();
 

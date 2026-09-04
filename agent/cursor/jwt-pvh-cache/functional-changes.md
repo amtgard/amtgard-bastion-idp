@@ -4,6 +4,33 @@ One entry per functional (or milestone-required documentary) change. Newest mile
 
 ---
 
+## M7 — Remove serialize JWT cache stopgap (JSON pvh only)
+
+- **Milestone:** M7
+- **File(s):** `src/Persistence/Server/Repositories/RedisCacheRepository.php`, `src/Utility/CachedValidatedUserEntity.php` (deleted), `src/Controllers/Resource/ResourcesController.php`, `tests/Persistence/RedisCacheRepositoryTest.php`, `tests/Controllers/ResourcesControllerTest.php`, `tests/Utility/UtilityClassesTest.php`, `tests/Controllers/LowLatencyControllerTest.php`, `tests/Middleware/CachedJwtLocalIdpAuthMiddlewareTest.php`, `tests/Middleware/ClientRestrictedAuthMiddlewareTest.php`
+- **Prior state:** `getUser`/`setUser`/`cacheValidatedUser`/`isUserInCache` still `serialize()`d `CachedValidatedUserEntity` at Redis key=`userId`. `/resources/jwt` still wrote that leftover after M5 stopped reading it. M2 noted the path would remain until M7.
+- **Post state:** Those methods and `CachedValidatedUserEntity` are gone. `getJwt` only mints via `buildAuthorizationTokens` (assembler already `setPvhRecord` JSON). Cache API is `getPvhRecord`/`setPvhRecord` JSON only. `invalidateUser` remains logout-only: SCAN-deletes `pvh:{uuid}:*` and DELs the leftover UUID key so pre-M7 serialize blobs do not survive logout. OAuth session `serialize($authRequest)` in `OAuth2ServerController` is unchanged (not the pvh cache).
+- **Reasoning:** After M5, nothing authorized on the serialize blob. Keeping it forked a second cache that could be `DEL`d or recached independently of `pvh`.
+- **Security impact:** Logout still drops pvh keys. No HTTP caller reads `unserialize` of a JWT cache blob. Stolen-token window is still the pvh free-hit / worker rotate path.
+
+## M7 — README production: isolated worker next to sessions Redis
+
+- **Milestone:** M7
+- **File(s):** `README.md`
+- **Prior state:** Production section lumped “MySQL and the shared Redis container” and described the worker in a later paragraph.
+- **Post state:** Production states MySQL is host-owned (no prod MySQL Docker volume). Sessions Redis (`amtgard-idp-sessions`) and `amtgard-idp-jwt-worker` are listed as isolated Compose projects that stay up across slot switch. Config documents `REDIS_PVH_QUEUE_NAME`.
+- **Reasoning:** Operators must not treat the worker as a blue/green slot or assume a Docker MySQL volume in prod.
+- **Security impact:** none (docs). Same trust boundary already shipped in M4 (`host.docker.internal` + Redis DB 0).
+
+## M7 — Milestone checklist
+
+- **Milestone:** M7
+- **File(s):** `agent/cursor/jwt-pvh-cache/milestones.md`
+- **Prior state:** M7 items unchecked.
+- **Post state:** M7 items checked. M8 (human merge/deploy) not started.
+- **Reasoning:** Orchestration bookkeeping. Ready for PR; do not merge to main here.
+- **Security impact:** none
+
 ## M6 — Compact RS256 heartbeat JWT from `/resources/jwt`
 
 - **Milestone:** M6

@@ -110,8 +110,7 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
             ->with(self::USER, self::CLIENT)
             ->willReturn(new PvhCacheRecord(self::USER, self::CLIENT, self::EMAIL, $pvh, null));
         $this->resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
-        $this->redisCacheRepository->expects($this->never())->method('isUserInCache');
-        $this->redisCacheRepository->expects($this->never())->method('cacheValidatedUser');
+        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
 
         $this->handler->expects($this->once())
             ->method('handle')
@@ -139,7 +138,7 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
             ->method('getPvhRecord')
             ->willReturn(null);
         $this->resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
-        $this->redisCacheRepository->expects($this->never())->method('cacheValidatedUser');
+        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
         $this->handler->expects($this->never())->method('handle');
 
         $this->expectException(HttpUnauthorizedException::class);
