@@ -23,6 +23,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\RefreshTokenRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ScopeRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
 use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Utility\BuildInfo;
 use Amtgard\IdP\Utility\AuthorizedClients;
@@ -102,6 +103,10 @@ return [
 
     UserLoginClientRepository::class => function (EntityManager $em) {
         return $em->getRepository(UserLoginClientRepository::class);
+    },
+
+    UserJwtGenerationRepository::class => function (EntityManager $em) {
+        return $em->getRepository(UserJwtGenerationRepository::class);
     },
 
     EntityManager::class => function (ContainerInterface $container) {

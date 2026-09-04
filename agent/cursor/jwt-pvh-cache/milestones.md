@@ -20,11 +20,11 @@ Human merge/tag/deploy is last.
 
 ## M1 — `pvh` primitive + schema (no HTTP behavior change yet)
 
-- [ ] `Pvh` helper: sticky timestamp, `policy_hash` canonical string, hex encode/decode
-- [ ] Unit tests: identical policy ⇒ identical `policy_hash`; add claim ⇒ hash changes; delete claim ⇒ hash changes; metadata included; timestamp does not move on remint-with-same-hash
-- [ ] Phinx `user_jwt_generations` as specified
-- [ ] `UserJwtGenerationRepository` upsert/read
-- [ ] Repository tests against the test DB (or mapper mocks consistent with existing persistence tests)
+- [x] `Pvh` helper: sticky timestamp, `policy_hash` canonical string, hex encode/decode
+- [x] Unit tests: identical policy ⇒ identical `policy_hash`; add claim ⇒ hash changes; delete claim ⇒ hash changes; metadata included; timestamp does not move on remint-with-same-hash
+- [x] Phinx `user_jwt_generations` as specified
+- [x] `UserJwtGenerationRepository` upsert/read
+- [x] Repository tests against the test DB (or mapper mocks consistent with existing persistence tests)
 
 **Exit:** Migration applies on dev compose; helper tests green. Validate still old behavior.
 

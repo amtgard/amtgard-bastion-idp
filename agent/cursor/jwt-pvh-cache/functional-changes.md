@@ -4,6 +4,42 @@ One entry per functional (or milestone-required documentary) change. Newest mile
 
 ---
 
+## M1 — `Pvh` primitive (sticky generation id)
+
+- **Milestone:** M1
+- **File(s):** `src/Utility/Pvh.php`, `tests/Utility/PvhTest.php`
+- **Prior state:** No shared helper. Design specified `policy_hash` + time-leading `pvh` but nothing implemented.
+- **Post state:** `Pvh` hashes `aud \n Policy::toJson() \n canonical_metadata` as 32 raw SHA-256 bytes. `pvh` is 44-char lowercase hex (6-byte big-endian unix ms + first 16 bytes of the hash). `reuseOrMint` keeps the existing `pvh` when the hash is unchanged. Not wired into JWT mint or validate.
+- **Reasoning:** M3/M4 need one canonical encoder so remint and the worker agree on sticky timestamps (D7) without each inventing a hash.
+- **Security impact:** none this milestone (helper unused on HTTP). Future compact/fat JWTs will still be RS256; `pvh` is not an unsigned bearer.
+
+## M1 — `user_jwt_generations` table
+
+- **Milestone:** M1
+- **File(s):** `db/migrations/20260904200000_create_user_jwt_generations.php`
+- **Prior state:** No durable current/previous generation pointer. Validate/cache had no MySQL generation row (D9/D16).
+- **Post state:** Phinx table with `user_id`, `user_uuid`, nullable `client_id`, `aud`, `pvh`, `prev_pvh`, `policy_hash` BINARY(32), `updated_at`. UNIQUE `(user_uuid, aud)`, INDEX `pvh`, INDEX `user_id`. No JWT blob, no serialize.
+- **Reasoning:** Worker and `/resources/jwt` (later milestones) need an IDP-owned current pointer. Validate stays Redis.
+- **Security impact:** none this milestone (table unused on HTTP). BINARY hash is not a secret; it is a content fingerprint.
+
+## M1 — Generation entity/repository upsert
+
+- **Milestone:** M1
+- **File(s):** `src/Persistence/Server/Entities/Repository/UserJwtGeneration.php`, `src/Persistence/Server/Repositories/UserJwtGenerationRepository.php`, `tests/Persistence/UserJwtGenerationRepositoryTest.php`, `config/container.php`, `tests/Config/ContainerRepositoryWiringTest.php`
+- **Prior state:** No ORM type for generations. Container had no `UserJwtGenerationRepository` binding.
+- **Post state:** Entity/repo follow `#[EntityOf]`/`#[RepositoryOf]`. `findByUserUuidAndAud`; `upsert` leaves `pvh` when `policy_hash` matches, else `prev_pvh ← pvh` and mints a new `pvh`. Container resolves the repo from EntityManager. Not injected into controllers yet.
+- **Reasoning:** Same Active Record pattern as `user_login_client`. Sticky upsert is the D7 no-op the worker will call.
+- **Security impact:** none this milestone (no HTTP caller). Unique `(user_uuid, aud)` prevents duplicate current pointers.
+
+## M1 — Milestone checklist
+
+- **Milestone:** M1
+- **File(s):** `agent/cursor/jwt-pvh-cache/milestones.md`
+- **Prior state:** M1 items unchecked.
+- **Post state:** M1 items checked. Validate/jwt/userinfo still old behavior.
+- **Reasoning:** Orchestration bookkeeping for the stacked implementation.
+- **Security impact:** none
+
 ## M0 — Pre-change goldens recorded
 
 - **Milestone:** M0
