@@ -11,6 +11,23 @@ use RedisException;
  * Pub/sub queue and JWT validation cache Redis settings. Production blue-green
  * uses the shared amtgard-idp-sessions container; local dev defaults to
  * in-container Redis on 127.0.0.1.
+ *
+ * amtgard/redis-set-queue v1.1.2 method lock (composer.lock pin
+ * 86ac6f37cc93d5105c7eb1a92830943a977de399). Verified against
+ * vendor/amtgard/redis-set-queue/src/PubSubQueue.php. Upstream README still
+ * documents send()/pump(); those methods do not exist on this pin.
+ *
+ * Publisher:  publish(string $queueName, key, message, bool $replace = true)
+ * Register:   addQueue(string $queueName, SetQueueInterface $setQueue)
+ * Consumer:   subscribe($queueName, callable $callback, ?callable $failure)
+ *             redrive($queueName)
+ *             callConsumers($queueName, $count = 1)  — not pump()
+ *
+ * Library ack: success commit()s; subscriber exception still commit()s after
+ * failure handlers (callErrorHandlers). Worker cannot withhold ack by throwing.
+ *
+ * Worker poll (D17): wrap callConsumers in exponential backoff 0/1/2/…/100ms.
+ * Hit → sleep 0. Miss → sleep after the empty pull (0→1ms, then min(100, last*2)).
  */
 class PubSubRedisConfig
 {

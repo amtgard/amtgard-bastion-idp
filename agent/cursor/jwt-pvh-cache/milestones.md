@@ -10,11 +10,11 @@ Human merge/tag/deploy is last.
 
 ## M0 — Branch and goldens
 
-- [ ] Branch from current `main`
-- [ ] Record pre-change validate/userinfo/jwt fixtures: fat JWT claim set, validate 200 JSON shape, Client IAM 204-on-claim-add
-- [ ] Confirm `amtgard/redis-set-queue` **1.1.x** publisher method (`publish` vs `send`) and subscriber (`subscribe`/`pump`/`redrive`) against `vendor/` / upstream README
+- [x] Branch from current `main` — stacked as `stack/jwt-pvh-m0` off `feature/isolated-prod-blue-green` (design pack already on that base)
+- [x] Record pre-change validate/userinfo/jwt fixtures: fat JWT claim set, validate 200 JSON shape, Client IAM 204-on-claim-add — `goldens/pre-change.md`
+- [x] Confirm `amtgard/redis-set-queue` **1.1.2** publisher (`publish`, not `send`) and subscriber (`subscribe` / `redrive` / **`callConsumers`**, not `pump`) against `vendor/amtgard/redis-set-queue/src/PubSubQueue.php` (composer.lock pin `86ac6f37cc93d5105c7eb1a92830943a977de399`). Upstream README is stale.
 
-**Exit:** Method names locked in a comment on `PubSubRedisConfig` or the worker bootstrap.
+**Exit:** Method names locked in a comment on `PubSubRedisConfig`. D14/D15/D17 updated. No validate/jwt/userinfo behavior change.
 
 ---
 
@@ -61,7 +61,7 @@ Human merge/tag/deploy is last.
 ## M4 — Worker CLI + isolated container
 
 - [ ] `JwtPvhRefreshService` + unit tests (no-op vs rotate `prev_pvh`)
-- [ ] `bin/jwt-pvh-worker.php`: bootstrap, redrive, subscribe, pump, SIGTERM
+- [ ] `bin/jwt-pvh-worker.php`: bootstrap, redrive, subscribe, `callConsumers` + D17 backoff, SIGTERM
 - [ ] `docker/compose.worker.yml`
 - [ ] `install.sh` `ensure_jwt_worker` after migrate, before nginx switch; image tag from the slot just built
 - [ ] Dev: worker runnable (`compose.dev.yml` service **or** documented `exec php bin/jwt-pvh-worker.php`)

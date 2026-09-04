@@ -23,8 +23,8 @@ This is the implementer map: locked decisions, on-disk/on-wire shapes, and which
 | D11 | `userinfo` does not remint | Closes the “JWT as refresh” hole; remint well is `/resources/jwt` |
 | D12 | Validate does **not** require PHP session `user_id === sub` | Session cookie fights MTU; RS256 + `pvh` compare is the authz. Session remains optional for first-party browsers |
 | D13 | One-generation-behind (`presented === prev_pvh`) → 409; anything else mismatched → 401 | Do-over policy without a generic retry budget |
-| D14 | Library usage: publisher = existing `PubSubQueue` method used in `LowLatencyController` (`publish` on 1.1.x as wired today). Worker = `addQueue` + `redrive` + `subscribe` + `pump` loop per [redis-set-queue README](https://github.com/amtgard/redis-set-queue) | Confirm method names against the locked `composer.lock` at implement time (`publish` vs `send`) |
-| D15 | Worker runtime is a **plain PHP CLI `pump` loop** in `bin/jwt-pvh-worker.php`. Do **not** add Workerman, ReactPHP, RoadRunner, or Swoole for v1 | SetQueue already *is* the queue; Docker `restart: unless-stopped` + SIGTERM is the process manager. Workerman is only a suggested *host* in the library README |
+| D14 | Library usage (v1.1.2, lock `86ac6f37cc93d5105c7eb1a92830943a977de399`): publisher = `publish($queueName, $key, $message, $replace = true)` — **not** `send()`. Worker = `addQueue` + `redrive` + `subscribe` + **`callConsumers($queueName, $count = 1)`** loop. There is **no `pump()`**. Upstream README still shows `send`/`pump`; ignore it — `vendor/amtgard/redis-set-queue/src/PubSubQueue.php` is source of truth. Library `commit()`s on success **and** after subscriber-exception failure handlers | Locked in M0 against vendor + composer.lock. Comment on `PubSubRedisConfig` |
+| D15 | Worker runtime is a **plain PHP CLI `callConsumers` loop** in `bin/jwt-pvh-worker.php`. Do **not** add Workerman, ReactPHP, RoadRunner, or Swoole for v1 | SetQueue already *is* the queue; Docker `restart: unless-stopped` + SIGTERM is the process manager. Workerman is only a suggested *host* in the (stale) library README |
 | D16 | `user_jwt_generations` lives in the **IDP MySQL** (`DB_*` / Phinx), not ORK. New repository beside existing `src/Persistence/Server/Repositories/` | IDP already owns policy, OAuth, and users. ORK is HTTP + shared-secret JWT only |
 | D17 | Worker poll: exponential backoff **0 → 1 → 2 → … → 100ms**. Hit: process, reset sleep to **0**. Miss: if last sleep was 0 then 1ms, else `min(100, last * 2)` | Drain a burst at full speed; idle maxes at 10 polls/sec. Never a tight empty loop |
 
@@ -106,7 +106,7 @@ No TTL required for the pvh record (worker + remint are the writers). Logout del
 
 **Presence queue:** keep `REDIS_PUBSUB_QUEUE_NAME` / existing `publish` on 200. Worker does **not** consume presence.
 
-On worker boot: `redrive($queueName)` then `subscribe` + `pump` loop with **exponential backoff** (D17).
+On worker boot: `redrive($queueName)` then `subscribe` + `callConsumers` loop with **exponential backoff** (D17).
 
 ---
 
@@ -149,13 +149,13 @@ After mint: compute `policy_hash`/`pvh`, upsert `user_jwt_generations`, write Re
 
 ## 6. Worker process
 
-**Runtime (D15):** `amtgard/redis-set-queue` already provides pub/sub + set-dedup + redrive. Its README subscriber is a `do { $pubSub->pump($handle); usleep(...); } while (true);` loop. That is the worker.
+**Runtime (D15):** `amtgard/redis-set-queue` already provides pub/sub + set-dedup + redrive. v1.1.2 has **no `pump()`**; the worker is a `do { $pubSub->callConsumers($queueName); /* D17 backoff */ } while (true);` loop. Upstream README `pump`/`send` names are stale.
 
 Workerman is mentioned upstream only as an optional process host (`composer require workerman/workerman`). Alternatives in the same class: ReactPHP, Amp, RoadRunner, FrankenPHP, Swoole. This repo uses none of them. Docker Compose already keeps a long-lived process alive. Adding an event-loop framework would duplicate that, plus a new failure mode (reload vs image recreate).
 
 Scale-out later, if needed: N replicas of the same CLI container (SetQueue still one key per `{uuid,aud}`), not Workerman inside one container.
 
-Idle cost: after a miss streak, sleep is 100ms (~10 empty Redis dequeues/sec). After a hit, sleep is 0 so a backlog drains immediately; the next empty pump starts 1ms, 2ms, 4ms, … 100ms. Units are milliseconds (`usleep(ms * 1000)`). Cap is 100, not 128.
+Idle cost: after a miss streak, sleep is 100ms (~10 empty Redis dequeues/sec). After a hit, sleep is 0 so a backlog drains immediately; the next empty `callConsumers` starts 1ms, 2ms, 4ms, … 100ms. Units are milliseconds (`usleep(ms * 1000)`). Cap is 100, not 128.
 
 `bin/jwt-pvh-worker.php`:
 
@@ -167,7 +167,7 @@ Idle cost: after a miss streak, sleep is 100ms (~10 empty Redis dequeues/sec). A
    - Compute `policy_hash`.
    - If equal to MySQL `policy_hash`, commit/ack, **no Redis write**.
    - Else rotate `pvh`/`prev_pvh`, update MySQL, write Redis, ack.
-5. On exception: do **not** ack; rely on redrive. Log and continue.
+5. Library ack is not under worker control: v1.1.2 `commit()`s on success **and** after the failure handler if the subscriber throws. Log in the `subscribe` failure callback; do not fork the library. Poison-message strategy is a later concern.
 6. SIGTERM: finish current job, exit 0 (Compose `stop_grace_period` ~15s).
 
 Same image as prod app. **Command** overrides `heartbeat.sh`:
@@ -178,7 +178,7 @@ php /var/www/idp.amtgard.com/bin/jwt-pvh-worker.php
 
 Use **CLI** php.ini (do not inherit FPM `memory_limit = 32M` from `Dockerfile.prod` FPM pool). Worker needs headroom to build policies.
 
-Health: process stays in the `pump` loop. Optional: Redis key `pvh-worker:heartbeat` every N pumps for ops. No public HTTP port.
+Health: process stays in the `callConsumers` loop. Optional: Redis key `pvh-worker:heartbeat` every N `callConsumers` for ops. No public HTTP port.
 
 ---
 
@@ -224,7 +224,7 @@ First bootstrap: start worker after the first slot has an image (worker cannot s
 | File | What |
 |------|------|
 | `src/Controllers/Resource/LowLatencyController.php` | `pvh` compare, 200/409/401 table, enqueue refresh queue only on 200, stop recaching presented JWT as source of truth, drop session=`sub` requirement, stop returning `jwt` by default |
-| `src/Persistence/Server/Repositories/RedisCacheRepository.php` | JSON keys `pvh:{uuid}:{aud}`; implement `queueUserValidation` → SetQueue send/publish on **refresh** queue; `invalidateUser` becomes delete-by-prefix for logout; **remove** serialize/unserialize |
+| `src/Persistence/Server/Repositories/RedisCacheRepository.php` | JSON keys `pvh:{uuid}:{aud}`; implement `queueUserValidation` → SetQueue `publish` on **refresh** queue; `invalidateUser` becomes delete-by-prefix for logout; **remove** serialize/unserialize |
 | `src/Utility/CachedValidatedUserEntity.php` | Replace or slim to pvh record DTO |
 | `src/Utility/Jwt.php` | Compact parse; `pvhFromFatClaims()`; signature/`exp`/`iss`/`aud`/`sub`; retire policy `Policy::is()` from validate path |
 | `src/Models/AuthorizationJwtAssembler.php` | Add `pvh` claim; compute via shared `Pvh` helper |
