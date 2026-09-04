@@ -81,7 +81,7 @@ class ResourcesController
         path: '/resources/jwt',
         operationId: 'getJwt',
         summary: 'Elevate to an authorization JWT',
-        description: 'Remint well: exchange an OAuth access token (or browser session) for a signed RS256 authorization JWT containing IAM policy and optional client_metadata. Does not accept authorization JWTs. Use that JWT as Bearer on GET /resources/userinfo and GET /resources/validate.',
+        description: 'Remint well: exchange an OAuth access token (or browser session) for a signed RS256 authorization JWT containing IAM policy and optional client_metadata, plus a compact heartbeat JWT (sub, aud, iss, exp, pvh). Does not accept authorization JWTs. Use jwt or compact_jwt as Bearer on GET /resources/userinfo and GET /resources/validate.',
         security: [
             ['oauthAccessToken' => []],
         ],
@@ -93,7 +93,8 @@ class ResourcesController
                     mediaType: 'application/json',
                     schema: new OA\Schema(
                         properties: [
-                            new OA\Property(property: 'jwt', type: 'string'),
+                            new OA\Property(property: 'jwt', type: 'string', description: 'Fat RS256 authorization JWT (policy, identity, pvh). Integrator default.'),
+                            new OA\Property(property: 'compact_jwt', type: 'string', description: 'Compact RS256 heartbeat JWT (sub, aud, iss, exp, pvh). Same keys and exp as jwt.'),
                         ]
                     )
                 )
@@ -108,15 +109,15 @@ class ResourcesController
             return $response->withStatus(401);
         }
 
-        $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($user);
+        $tokens = $this->amtgardIdpJwt->buildAuthorizationTokens($user);
 
         $this->redisCacheRepository->cacheValidatedUser(
             $user->getUserId(),
             $user->getEmail() ?? '',
-            $jwt
+            $tokens['jwt']
         );
 
-        $response->getBody()->write(json_encode(['jwt' => $jwt]));
+        $response->getBody()->write(json_encode($tokens));
         return $response->withHeader('Content-Type', 'application/json');
     }
 

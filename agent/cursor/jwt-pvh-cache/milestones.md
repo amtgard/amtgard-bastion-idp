@@ -84,10 +84,10 @@ Human merge/tag/deploy is last.
 
 ## M6 — Compact heartbeat (can ship after M5)
 
-- [ ] Mint compact JWT alongside fat at `/resources/jwt` **or** document that clients derive compact from fat (`pvh` + standard claims) themselves
-- [ ] Validate accepts compact-only Bearer
-- [ ] Size check: compact RS256 token budget vs ~1 MTU with Host + Authorization (no session cookie) — record measured bytes in the PR
-- [ ] Compat: `?jwt=1` on validate documented as temporary if used
+- [x] Mint compact JWT alongside fat at `/resources/jwt` **or** document that clients derive compact from fat (`pvh` + standard claims) themselves
+- [x] Validate accepts compact-only Bearer
+- [x] Size check: compact RS256 token budget vs ~1 MTU with Host + Authorization (no session cookie) — record measured bytes in the PR
+- [x] Compat: `?jwt=1` on validate documented as temporary if used
 
 **Exit:** Heartbeat request without session cookie fits one Ethernet frame in the measured config, or the PR explains the remaining header tax (RS256 sig ~344 chars).
 

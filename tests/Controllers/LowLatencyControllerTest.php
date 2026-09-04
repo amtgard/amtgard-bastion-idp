@@ -150,6 +150,23 @@ class LowLatencyControllerTest extends TestCase
         $this->controller->validate($this->request, $this->response);
     }
 
+    public function testValidateCompactJwtCurrentPvhReturns200(): void
+    {
+        $pvh = $this->samplePvh();
+        $jwt = $this->generateCompactJwt($pvh);
+
+        $this->withBearer($jwt);
+        $this->redisCacheRepository->expects($this->once())
+            ->method('getPvhRecord')
+            ->with(self::USER_UUID, self::AUD)
+            ->willReturn(new PvhCacheRecord(self::USER_UUID, self::AUD, self::EMAIL, $pvh, null));
+        $this->expectSuccessSideEffects();
+        $this->expectSuccessBody();
+
+        $result = $this->controller->validate($this->request, $this->response);
+        $this->assertSame($this->response, $result);
+    }
+
     public function testValidateCacheHitCurrentPvhReturns200AndEnqueues(): void
     {
         $pvh = $this->samplePvh();
@@ -430,5 +447,30 @@ class LowLatencyControllerTest extends TestCase
         }
 
         return $builder->getToken($config->signer(), $config->signingKey())->toString();
+    }
+
+    private function generateCompactJwt(string $pvh): string
+    {
+        if (!file_exists('/tmp/private.key') || !file_exists('/tmp/public.key')) {
+            $this->fail('dev-keys were not copied to /tmp for JWT signing');
+        }
+
+        $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone("UTC"));
+        $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
+            new \Lcobucci\JWT\Signer\Rsa\Sha256(),
+            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/private.key'),
+            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/public.key')
+        );
+
+        $now = $clock->now();
+        $token = $config->builder()
+            ->issuedBy(AuthorizationJwtAssembler::ISSUER)
+            ->permittedFor(self::AUD)
+            ->relatedTo(self::USER_UUID)
+            ->expiresAt($now->modify('+1 hour'))
+            ->withClaim('pvh', $pvh)
+            ->getToken($config->signer(), $config->signingKey());
+
+        return $token->toString();
     }
 }

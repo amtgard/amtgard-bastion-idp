@@ -124,12 +124,32 @@ class ModelsTest extends TestCase
             $generationRepository,
             $redis,
         );
-        $jwtString = $idpJwt->buildAuthorizationJwt($user);
+        $tokens = $idpJwt->buildAuthorizationTokens($user);
+        $jwtString = $tokens['jwt'];
+        $compactString = $tokens['compact_jwt'];
 
         $this->assertIsString($jwtString);
+        $this->assertIsString($compactString);
         $payload = json_decode(base64_decode(strtr(explode('.', $jwtString)[1], '-_', '+/')), true);
         $this->assertSame(['tier' => 'gold'], $payload['client_metadata']);
         $this->assertSame($expectedPvh, $payload['pvh']);
+
+        $compactPayload = json_decode(base64_decode(strtr(explode('.', $compactString)[1], '-_', '+/')), true);
+        $this->assertSame($payload['sub'], $compactPayload['sub']);
+        $this->assertSame($payload['aud'], $compactPayload['aud']);
+        $this->assertSame($payload['iss'], $compactPayload['iss']);
+        $this->assertSame($payload['exp'], $compactPayload['exp']);
+        $this->assertSame($payload['pvh'], $compactPayload['pvh']);
+        $this->assertSame($payload['iat'], $compactPayload['iat']);
+        $this->assertArrayNotHasKey('policy', $compactPayload);
+        $this->assertArrayNotHasKey('email', $compactPayload);
+        $this->assertArrayNotHasKey('orkid', $compactPayload);
+        $this->assertArrayNotHasKey('challenge', $compactPayload);
+        $this->assertArrayNotHasKey('client_metadata', $compactPayload);
+        $this->assertSame(
+            ['sub', 'aud', 'iss', 'exp', 'pvh', 'iat'],
+            array_keys($compactPayload)
+        );
 
         // test validate
         $jwtChallenge->expects($this->once())
@@ -138,6 +158,32 @@ class ModelsTest extends TestCase
             ->willReturn(true);
 
         $this->assertTrue($idpJwt->validateJwtChallenge('some-jwt-string'));
+    }
+
+    public function testCompactClaimsOmitsFatOnlyFields(): void
+    {
+        $compact = \Amtgard\IdP\Models\AuthorizationJwtAssembler::compactClaims([
+            'iat' => 1,
+            'sub' => 'user-1',
+            'iss' => 'https://idp.amtgard.com',
+            'orkid' => 9,
+            'email' => 'a@b.c',
+            'policy' => '{}',
+            'challenge' => 'x',
+            'exp' => 2,
+            'aud' => 'client-1',
+            'client_metadata' => ['k' => 'v'],
+            'pvh' => 'abc',
+        ]);
+
+        $this->assertSame([
+            'sub' => 'user-1',
+            'aud' => 'client-1',
+            'iss' => 'https://idp.amtgard.com',
+            'exp' => 2,
+            'pvh' => 'abc',
+            'iat' => 1,
+        ], $compact);
     }
 
     public function testOAuthServerConfiguration(): void

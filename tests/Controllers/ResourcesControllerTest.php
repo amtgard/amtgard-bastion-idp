@@ -258,9 +258,9 @@ class ResourcesControllerTest extends TestCase
         $_SESSION['user_id'] = 123;
 
         $this->amtgardIdpJwt->expects($this->once())
-            ->method('buildAuthorizationJwt')
+            ->method('buildAuthorizationTokens')
             ->with($this->userEntity)
-            ->willReturn('jwt-val');
+            ->willReturn(['jwt' => 'jwt-val', 'compact_jwt' => 'compact-val']);
 
         $this->redisCacheRepository->expects($this->once())
             ->method('cacheValidatedUser')
@@ -268,7 +268,7 @@ class ResourcesControllerTest extends TestCase
 
         $this->stream->expects($this->once())
             ->method('write')
-            ->with(json_encode(['jwt' => 'jwt-val']));
+            ->with(json_encode(['jwt' => 'jwt-val', 'compact_jwt' => 'compact-val']));
 
         $result = $this->controller->getJwt($this->request, $this->response);
         $this->assertSame($this->response, $result);

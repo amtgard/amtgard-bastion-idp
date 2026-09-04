@@ -41,15 +41,25 @@ class AmtgardIdpJwt
         $this->redisCacheRepository = $redisCacheRepository;
     }
 
-    public function buildAuthorizationJwt(
+    /**
+     * Mint fat + compact RS256 tokens from one claim assembly (same `exp` / `pvh`).
+     *
+     * @return array{jwt: string, compact_jwt: string}
+     */
+    public function buildAuthorizationTokens(
         EntityInterface $user,
         ?string $oauthClientId = null,
         ?int $loginDbId = null
-    ): string {
+    ): array {
         $claims = $this->assembler->buildClaims($user, $oauthClientId, $loginDbId);
         $privateKey = file_get_contents($_ENV['OAUTH_PRIVATE_KEY']);
 
         $jwt = JWT::encode($claims, $privateKey, 'RS256');
+        $compactJwt = JWT::encode(
+            AuthorizationJwtAssembler::compactClaims($claims),
+            $privateKey,
+            'RS256'
+        );
 
         $generation = $this->assembler->lastGeneration();
         if ($generation !== null) {
@@ -62,7 +72,15 @@ class AmtgardIdpJwt
             ));
         }
 
-        return $jwt;
+        return ['jwt' => $jwt, 'compact_jwt' => $compactJwt];
+    }
+
+    public function buildAuthorizationJwt(
+        EntityInterface $user,
+        ?string $oauthClientId = null,
+        ?int $loginDbId = null
+    ): string {
+        return $this->buildAuthorizationTokens($user, $oauthClientId, $loginDbId)['jwt'];
     }
 
     public function validateJwtChallenge(string $jwt): bool

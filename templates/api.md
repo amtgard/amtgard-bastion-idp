@@ -153,11 +153,12 @@ Remint well: elevates an OAuth access token (or authenticated session) to a sign
 
 ```json
 {
-  "jwt": "eyJ..."
+  "jwt": "eyJ...",
+  "compact_jwt": "eyJ..."
 }
 ```
 
-The fat JWT includes `pvh` plus policy/identity claims. A compact heartbeat JWT (`sub`, `aud`, `iss`, `exp`, `pvh` only) is upcoming (M6); until then present the fat token from this endpoint on validate and userinfo.
+`jwt` is the fat RS256 authorization JWT (`pvh` plus policy/identity claims) — the integrator default. `compact_jwt` is an additive RS256 heartbeat token with claims `sub`, `aud`, `iss`, `exp`, `pvh` (and `iat`); same keys and `exp` as `jwt`. Present `compact_jwt` on validate to stay under one MTU. userinfo still accepts the fat token for policy/profile clients.
 
 #### <a href="/swagger#/default/userinfo" target="_self">User Info (`GET /resources/userinfo`)</a>
 
@@ -209,10 +210,10 @@ Decode the JWT you already hold (from `/resources/jwt`) for IAM policy and optio
 A lightweight endpoint to confirm a session is still active and register user presence (heartbeat/liveness). Returns minimal identity data compared to `userinfo`. Does **not** remint.
 
 - **Method**: `GET`
-- **Auth**: `Authorization: Bearer <authorization_jwt>` from `/resources/jwt` (fat JWT today; compact `sub`/`aud`/`iss`/`exp`/`pvh` is upcoming)
+- **Auth**: `Authorization: Bearer <authorization_jwt>` from `/resources/jwt` — fat `jwt` or compact `compact_jwt` (`sub`/`aud`/`iss`/`exp`/`pvh`)
 - **Response Format**: `application/json`
 - **Use when**: You need frequent, low-cost checks that a user is still online — for example presence indicators or activity heartbeats — without fetching the full profile each time.
-- **200**: `{ "id", "email" }` — no `jwt` by default. Temporary `?jwt=1` echoes the **presented** Bearer only (compat; never a remint).
+- **200**: `{ "id", "email" }` — no `jwt` by default. Temporary compat: `?jwt=1` echoes the **presented** Bearer only (never a remint; will be removed).
 - **409** `{ "error": "stale_token" }`: presented `pvh` is one generation behind. Remint at `GET /resources/jwt`.
 - **401**: bad/missing signature, expired, unknown `pvh`. Cache miss on an otherwise valid token is a **200 seed** (heartbeat free hit) — userinfo does not seed.
 - **Note**: Also publishes a presence event to connected services via PubSub.
@@ -780,7 +781,7 @@ Call these after login. Elevate your access token to an authorization JWT first 
 
 | Endpoint | Method | Purpose | Called by |
 |----------|--------|---------|-----------|
-| `/resources/jwt` | GET | Remint well: exchange OAuth access token (or session) for authorization JWT | Your app/server after login or after 409 |
+| `/resources/jwt` | GET | Remint well: exchange OAuth access token (or session) for fat `jwt` + compact `compact_jwt` | Your app/server after login or after 409 |
 | `/resources/userinfo` | GET | Full user profile including ORK data (no reminted JWT) | Your app/server with authorization JWT |
 | `/resources/validate` | GET | Lightweight heartbeat and presence; 409 `stale_token` when `pvh` is one generation behind | Your app with authorization JWT |
 

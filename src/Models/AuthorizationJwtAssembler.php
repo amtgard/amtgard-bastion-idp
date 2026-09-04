@@ -68,6 +68,26 @@ final class AuthorizationJwtAssembler
     }
 
     /**
+     * Compact heartbeat claims from a fat authorization payload.
+     * Only `sub`, `aud`, `iss`, `exp`, `pvh` (and `iat` when present on the fat token).
+     * `exp` is copied — do not extend on validate.
+     *
+     * @param array<string, mixed> $fatClaims
+     * @return array<string, mixed>
+     */
+    public static function compactClaims(array $fatClaims): array
+    {
+        $compact = [];
+        foreach (['sub', 'aud', 'iss', 'exp', 'pvh', 'iat'] as $key) {
+            if (array_key_exists($key, $fatClaims)) {
+                $compact[$key] = $fatClaims[$key];
+            }
+        }
+
+        return $compact;
+    }
+
+    /**
      * Canonical policy_hash for (user, aud) using the same ORN register,
      * UserPolicy::toPolicyJson, metadata, and Pvh::canonicalMetadata path as mint.
      * Does not upsert a generation or sign a JWT.

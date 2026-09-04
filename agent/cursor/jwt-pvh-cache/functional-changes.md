@@ -4,6 +4,24 @@ One entry per functional (or milestone-required documentary) change. Newest mile
 
 ---
 
+## M6 — Compact RS256 heartbeat JWT from `/resources/jwt`
+
+- **Milestone:** M6
+- **File(s):** `src/Models/AmtgardIdpJwt.php`, `src/Models/AuthorizationJwtAssembler.php`, `src/Controllers/Resource/ResourcesController.php`, `tests/Models/ModelsTest.php`, `tests/Controllers/ResourcesControllerTest.php`, `tests/Controllers/LowLatencyControllerTest.php`, `tests/Utility/CompactJwtSizeTest.php`, `templates/api.md`
+- **Prior state:** `GET /resources/jwt` returned only `{jwt}` (fat RS256). Validate already compared a presented `pvh` claim but clients had no compact token to send. Docs called compact “upcoming.”
+- **Post state:** One mint writes fat + compact from the same claims (`exp`/`pvh`/`iat` copied). Response is `{jwt, compact_jwt}`. Compact claims are only `sub`, `aud`, `iss`, `exp`, `pvh`, `iat` — no policy/email/orkid/challenge/client_metadata. Same RS256 keys; `validateJwtSignature` unchanged. Validate 200s a compact-only Bearer when Redis current `pvh` matches. Measured compact size **627** bytes (`goldens/compact-jwt-size.md`). `?jwt=1` documented as temporary compat.
+- **Reasoning:** Fat policy JWT is too large for a cookie-less heartbeat under one Ethernet MTU. Compact keeps the generation id on the wire without shrinking integrator `jwt`.
+- **Security impact:** Compact is still RS256 (not HS256). It carries no policy — authorization for userinfo/IAM stays on the fat token. Validate already authorized on `pvh` + sig + `sub`/`aud`/`iss`/`exp`; compact does not extend `exp`. Stolen compact works in the same free-hit window as a stolen fat token with current `pvh`.
+
+## M6 — Milestone checklist
+
+- **Milestone:** M6
+- **File(s):** `agent/cursor/jwt-pvh-cache/milestones.md`
+- **Prior state:** M6 items unchecked.
+- **Post state:** M6 items checked. M7 (proof/cleanup) not started.
+- **Reasoning:** Orchestration bookkeeping.
+- **Security impact:** none
+
 ## M5 — Shared `PvhGate` for 200 / 409 / 401
 
 - **Milestone:** M5
