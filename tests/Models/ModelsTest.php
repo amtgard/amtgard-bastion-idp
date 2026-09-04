@@ -9,10 +9,15 @@ use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Models\Orn\IdpClaim;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Common\Repositories\JwtChallenge;
+use Amtgard\IdP\Persistence\Server\Entities\Repository\UserJwtGeneration;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
 use Amtgard\IdP\Utility\LoginSession;
+use Amtgard\IdP\Utility\Pvh;
+use Amtgard\IdP\Utility\PvhCacheRecord;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -73,6 +78,42 @@ class ModelsTest extends TestCase
 
         $userLoginRepository = $this->createMock(UserLoginRepository::class);
 
+        $expectedHash = Pvh::policyHash(
+            'client-123',
+            '{"foo":"bar"}',
+            Pvh::canonicalMetadata(['tier' => 'gold'])
+        );
+        $expectedPvh = Pvh::encode(1_700_000_000_000, $expectedHash);
+        $generation = $this->createStub(UserJwtGeneration::class);
+        $generation->method('getUserUuid')->willReturn('user-123');
+        $generation->method('getAud')->willReturn('client-123');
+        $generation->method('getPvh')->willReturn($expectedPvh);
+        $generation->method('getPrevPvh')->willReturn(null);
+
+        $generationRepository = $this->createMock(UserJwtGenerationRepository::class);
+        $generationRepository->expects($this->once())
+            ->method('upsert')
+            ->with(
+                7,
+                'user-123',
+                99,
+                'client-123',
+                $expectedHash,
+                $this->isType('int')
+            )
+            ->willReturn($generation);
+
+        $redis = $this->createMock(RedisCacheRepository::class);
+        $redis->expects($this->once())
+            ->method('setPvhRecord')
+            ->with($this->callback(function (PvhCacheRecord $record) use ($expectedPvh): bool {
+                return $record->getUserUuid() === 'user-123'
+                    && $record->getAud() === 'client-123'
+                    && $record->getEmail() === 'test@example.com'
+                    && $record->getPvh() === $expectedPvh
+                    && $record->getPrevPvh() === null;
+            }));
+
         $idpJwt = new AmtgardIdpJwt(
             $userPolicy,
             $jwtChallenge,
@@ -80,12 +121,15 @@ class ModelsTest extends TestCase
             $metadataRepository,
             $userLoginRepository,
             $this->createMock(LoggerInterface::class),
+            $generationRepository,
+            $redis,
         );
         $jwtString = $idpJwt->buildAuthorizationJwt($user);
 
         $this->assertIsString($jwtString);
         $payload = json_decode(base64_decode(strtr(explode('.', $jwtString)[1], '-_', '+/')), true);
         $this->assertSame(['tier' => 'gold'], $payload['client_metadata']);
+        $this->assertSame($expectedPvh, $payload['pvh']);
 
         // test validate
         $jwtChallenge->expects($this->once())

@@ -19,6 +19,30 @@ final class Pvh
         return hash('sha256', $aud . "\n" . $policyJson . "\n" . $canonicalMetadata, true);
     }
 
+    /**
+     * Exact JWT client_metadata encoding used at mint: strings (base64 blobs) as-is,
+     * arrays/objects as JSON, absent/null as empty string. Do not include pvh.
+     */
+    public static function canonicalMetadata(mixed $metadata): string
+    {
+        if ($metadata === null) {
+            return '';
+        }
+        if (is_string($metadata)) {
+            return $metadata;
+        }
+        if (!is_array($metadata) && !is_object($metadata)) {
+            return '';
+        }
+
+        return json_encode($metadata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    public static function isPvhHex(string $pvh): bool
+    {
+        return strlen($pvh) === self::PVH_HEX_LENGTH && hex2bin($pvh) !== false;
+    }
+
     public static function policyHashToHex(string $policyHash): string
     {
         self::assertPolicyHash($policyHash);

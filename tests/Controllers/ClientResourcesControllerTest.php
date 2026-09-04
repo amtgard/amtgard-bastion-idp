@@ -14,7 +14,6 @@ use Amtgard\IdP\Controllers\Resource\ClientResourcesController;
 use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
-use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use PHPUnit\Framework\TestCase;
@@ -84,13 +83,9 @@ class ClientResourcesControllerTest extends TestCase
                 \Amtgard\IdP\Utility\ClientMetadataValidator::ENCODING_JSON
             );
 
-        $redis = $this->createMock(RedisCacheRepository::class);
-        $redis->expects($this->once())->method('invalidateUser')->with('uuid-123');
-
         $controller = $this->makeController(
             new ClientResourcesRequestResolver($userRepository, $userLoginRepository),
-            $metadataRepository,
-            $redis
+            $metadataRepository
         );
 
         $request = $this->createMock(ServerRequestInterface::class);
@@ -349,9 +344,9 @@ class ClientResourcesControllerTest extends TestCase
         );
     }
 
-    public function testAddPolicyClaimReturns204AndInvalidatesCache(): void
+    public function testAddPolicyClaimReturns204WithoutInvalidatingCache(): void
     {
-        [$user, $client, $resolver, $policyRepo, $redis] = $this->policyContext();
+        [$user, $client, $resolver, $policyRepo] = $this->policyContext();
         $policyRepo->expects($this->once())->method('addClaim')->with(
             10,
             'Skbc',
@@ -360,9 +355,8 @@ class ClientResourcesControllerTest extends TestCase
             10,
             5
         );
-        $redis->expects($this->once())->method('invalidateUser')->with('uuid-123');
 
-        $controller = $this->makeController($resolver, null, $redis, $policyRepo);
+        $controller = $this->makeController($resolver, null, $policyRepo);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -384,7 +378,7 @@ class ClientResourcesControllerTest extends TestCase
         [$user, $client, $resolver, $policyRepo] = $this->policyContext();
         $policyRepo->method('addClaim')->willThrowException(new \InvalidArgumentException('Invalid ORN claim'));
 
-        $controller = $this->makeController($resolver, null, null, $policyRepo);
+        $controller = $this->makeController($resolver, null, $policyRepo);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -404,11 +398,10 @@ class ClientResourcesControllerTest extends TestCase
 
     public function testDeletePolicyClaimReturns204(): void
     {
-        [$user, $client, $resolver, $policyRepo, $redis] = $this->policyContext();
+        [$user, $client, $resolver, $policyRepo] = $this->policyContext();
         $policyRepo->expects($this->once())->method('deleteClaim');
-        $redis->expects($this->once())->method('invalidateUser')->with('uuid-123');
 
-        $controller = $this->makeController($resolver, null, $redis, $policyRepo);
+        $controller = $this->makeController($resolver, null, $policyRepo);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')->willReturn($client);
         $request->method('getParsedBody')->willReturn([
@@ -430,7 +423,7 @@ class ClientResourcesControllerTest extends TestCase
             ['service' => 'Skbc', 'provisos' => ':0::::', 'resource' => 'Officer/Approve'],
         ]);
 
-        $controller = $this->makeController($resolver, null, null, $policyRepo);
+        $controller = $this->makeController($resolver, null, $policyRepo);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')->willReturn($client);
 
@@ -494,10 +487,8 @@ class ClientResourcesControllerTest extends TestCase
         [$user, $client, $resolver] = $this->policyContext();
         $metadataRepository = $this->createMock(UserLoginClientRepository::class);
         $metadataRepository->expects($this->once())->method('deleteMetadata')->with(42, 5);
-        $redis = $this->createMock(RedisCacheRepository::class);
-        $redis->expects($this->once())->method('invalidateUser')->with('uuid-123');
 
-        $controller = $this->makeController($resolver, $metadataRepository, $redis);
+        $controller = $this->makeController($resolver, $metadataRepository);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')->willReturn($client);
         $request->method('getQueryParams')->willReturn(['login_id' => '42']);
@@ -539,7 +530,7 @@ class ClientResourcesControllerTest extends TestCase
     }
 
     /**
-     * @return array{0: object, 1: Client, 2: ClientResourcesRequestResolver, 3: UserPolicyClaimRepository, 4?: RedisCacheRepository}
+     * @return array{0: object, 1: Client, 2: ClientResourcesRequestResolver, 3: UserPolicyClaimRepository}
      */
     private function policyContext(): array
     {
@@ -561,9 +552,8 @@ class ClientResourcesControllerTest extends TestCase
 
         $resolver = new ClientResourcesRequestResolver($userRepository, $userLoginRepository);
         $policyRepo = $this->createMock(UserPolicyClaimRepository::class);
-        $redis = $this->createMock(RedisCacheRepository::class);
 
-        return [$user, $client, $resolver, $policyRepo, $redis];
+        return [$user, $client, $resolver, $policyRepo];
     }
 
     private function serviceFormatClient(): Client
@@ -581,7 +571,6 @@ class ClientResourcesControllerTest extends TestCase
     private function makeController(
         ?ClientResourcesRequestResolver $resolver = null,
         ?UserLoginClientRepository $metadataRepository = null,
-        ?RedisCacheRepository $redis = null,
         ?UserPolicyClaimRepository $policyRepository = null,
     ): ClientResourcesController {
         return new ClientResourcesController(
@@ -592,7 +581,6 @@ class ClientResourcesControllerTest extends TestCase
             ),
             $policyRepository ?? $this->createMock(UserPolicyClaimRepository::class),
             $metadataRepository ?? $this->createMock(UserLoginClientRepository::class),
-            $redis ?? $this->createMock(RedisCacheRepository::class),
         );
     }
 

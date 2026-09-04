@@ -10,7 +10,6 @@ use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
-use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use Amtgard\IdP\Utility\ClientMetadataValidator;
@@ -30,7 +29,6 @@ class ClientResourcesController
         private ClientResourcesRequestResolver $requestResolver,
         private UserPolicyClaimRepository $policyClaimRepository,
         private UserLoginClientRepository $metadataRepository,
-        private RedisCacheRepository $redisCacheRepository,
     ) {}
 
     #[OA\Post(
@@ -75,7 +73,6 @@ class ClientResourcesController
                 $user->getId(),
                 $client->getId()
             );
-            $this->invalidateUserCache($user);
         } catch (\InvalidArgumentException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
         }
@@ -122,7 +119,6 @@ class ClientResourcesController
                 $this->trimmedClaimPart($body['provisos'] ?? null),
                 $this->trimmedClaimPart($body['resource'] ?? null)
             );
-            $this->invalidateUserCache($user);
         } catch (\InvalidArgumentException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
         }
@@ -203,7 +199,6 @@ class ClientResourcesController
                 $prepared['payload'],
                 $prepared['encoding']
             );
-            $this->invalidateUserCache($context['user']);
         } catch (\InvalidArgumentException|\JsonException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
         }
@@ -277,7 +272,6 @@ class ClientResourcesController
         }
 
         $this->metadataRepository->deleteMetadata($context['loginId'], $client->getId());
-        $this->invalidateUserCache($context['user']);
 
         return $response->withStatus(204);
     }
@@ -447,11 +441,6 @@ class ClientResourcesController
     private function trimmedClaimPart(mixed $value): string
     {
         return trim((string) ($value ?? ''));
-    }
-
-    private function invalidateUserCache(UserEntity $user): void
-    {
-        $this->redisCacheRepository->invalidateUser($user->getUserId());
     }
 
     private function json(Response $response, array $payload, int $status = 200): Response

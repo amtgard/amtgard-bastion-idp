@@ -4,6 +4,51 @@ One entry per functional (or milestone-required documentary) change. Newest mile
 
 ---
 
+## M3 — `GET /resources/validate` serves pvh cache (D1, D2, D10, D12, D13)
+
+- **Milestone:** M3
+- **File(s):** `src/Controllers/Resource/LowLatencyController.php`, `src/Utility/Jwt.php`, `tests/Controllers/LowLatencyControllerTest.php`
+- **Prior state:** Validate required PHP session `user_id === sub` (401 otherwise). Compared the presented JWT to a serialized `CachedValidatedUserEntity` via `Jwt::validateJwt` (aud/iss/exp + `Policy::is` walk). Cache miss recached the presented JWT (`setUser` serialize). 200 body was `{id, email, jwt}` with the cached token. Presence publish ran on 200. `queueUserValidation` was not called. No 409. OpenAPI documented `jwt` as required and 401 only.
+- **Post state:** Auth is RS256 (`Jwt::getBearerJwt` + `validateJwtSignature` + `parseJwt`) plus required `sub`/`aud` and `iss === https://idp.amtgard.com`. No session check. Presented `pvh` (44-char hex) is compared to Redis `pvh:{sub}:{aud}`; fat JWTs without `pvh` compare `policy_hash` prefix to `hashPrefixHex(cached.pvh)` / prev. Table: bad sig / bad iss / expired → 401 no enqueue no write; hit current → 200 `{id, email}` + `queueUserValidation(sub,aud)` no write; hit prev → 409 `{error:"stale_token"}` no enqueue; hit neither → 401; miss + otherwise valid → 200, seed current=presented or `Pvh::encode(nowMs, policyHash)`, prev=null, enqueue. `?jwt=1` echoes the **presented** token only. Presence `publish(handle, userId, email)` unchanged on 200. Does not call `Jwt::validateJwt`, `setUser`, or `cacheValidatedUser`.
+- **Reasoning:** Authorization JWT is not a refresh token (D1). Session cookie fought MTU (D12). One-generation 409 is the do-over; unknown pvh is 401 (D13). Enqueue only on 200 so the worker (M4) refreshes after the free hit (D2). Fat tokens stay valid during compatibility (D10).
+- **Security impact:** **Authz behavior change.** Possession of a valid RS256 JWT is enough for validate; a stolen Bearer no longer also needs the PHP session cookie. Stolen fat JWT still works until `exp` **and** until the free hit is consumed (accepted eventual-consistency window). 409 never remints and never returns a JWT. 401/409 never enqueue. Unknown pvh is 401 (no fishing). RS256 algorithm and `LooseValidAt` exp check are unchanged. `Policy::is` is no longer an authorization gate on this path — generation id is. Issuer is now a hard compare to the assembler constant (previously iss was only compared to the cached token’s iss, and test tokens used `http://localhost`).
+
+## M3 — Fat JWT mint adds `pvh`; remint upserts generation + Redis JSON
+
+- **Milestone:** M3
+- **File(s):** `src/Models/AuthorizationJwtAssembler.php`, `src/Models/AmtgardIdpJwt.php`, `src/Utility/Pvh.php`, `tests/Models/ModelsTest.php`
+- **Prior state:** Assembler claims had no `pvh`. `AmtgardIdpJwt::buildAuthorizationJwt` encoded assembler claims and returned. `GET /resources/jwt` additionally `cacheValidatedUser` (serialize at user UUID). No MySQL generation write on mint.
+- **Post state:** After audience/metadata claims, assembler hashes `aud \n policy JSON \n canonical_metadata` (no `pvh` in the hash), `UserJwtGenerationRepository::upsert` (sticky `pvh` when `policy_hash` matches), and sets claim `pvh` from the row. After RS256 encode, `AmtgardIdpJwt` `setPvhRecord` with `{user_uuid, aud, email, pvh, prev_pvh}` from that row. `getJwt` still `cacheValidatedUser` (legacy key for userinfo middleware until M5). Same `pvh` on remint-with-unchanged-hash; new JWT bytes (`iat`/`exp`/`challenge`).
+- **Reasoning:** Remint well must write the durable pointer and Redis current so the next validate can 200/409. Sticky upsert is D7. Additive `pvh` claim; old clients ignore unknown claims. Social/userinfo remint paths that call `buildAuthorizationJwt` also persist generation+pvh Redis (same mint function).
+- **Security impact:** New claim is inside the existing RS256 payload — not an unsigned bearer. Remint still requires access token or session (`OAuthAccessTokenElevationMiddleware` unchanged; authorization JWTs still rejected on `/resources/jwt`). Writing Redis on every mint (including userinfo remint) is a cache write, not a new credential. Legacy serialize cache on `getJwt` is unchanged so M5 middleware is not broken early.
+
+## M3 — Client IAM no longer `DEL`s cache on claim/metadata mutation (D3, D4)
+
+- **Milestone:** M3
+- **File(s):** `src/Controllers/Resource/ClientResourcesController.php`, `tests/Controllers/ClientResourcesControllerTest.php`
+- **Prior state:** `addPolicyClaim`, `deletePolicyClaim`, `upsertUserMetadata`, and `deleteUserMetadata` called `invalidateUserCache` → Redis `DEL` of the user UUID key (and, since M2, SCAN `pvh:{uuid}:*`).
+- **Post state:** Those four paths still write/delete MySQL. They do not call `invalidateUser` / `DEL`. `RedisCacheRepository` is no longer a constructor dependency. Logout still calls `invalidateUser` (legacy key + SCAN pvh keys).
+- **Reasoning:** `DEL` was the stopgap that recached stale tokens on the next miss (D3). Enqueue-on-mutation would refresh before the next validate and eat the free hit (D4). Logout must still drop cache so a logged-out user is 401, not a 409 loop.
+- **Security impact:** **Authz timing change, not a permission change.** After add/revoke/metadata, Redis may still hold the previous `pvh` until a successful validate enqueues the worker (M4) or `/resources/jwt` remints. The next validate with the old token is the free hit (200); the following heartbeat with the same `pvh` is 409 once the worker rotates. Stolen tokens in that window still work — documented accepted window. IAM HTTP JSON keys and DB writes are unchanged. No enqueue on mutation.
+
+## M3 — Logout prefix delete unchanged (M2 already sufficient)
+
+- **Milestone:** M3
+- **File(s):** `src/Controllers/Client/AuthController.php` (no code change)
+- **Prior state:** Logout called `invalidateUser($sessionUserId)`. M2 already `DEL`s the legacy key and SCAN-deletes `pvh:{userId}:*`.
+- **Post state:** Same call. No additional prefix or MySQL generation delete this milestone (next jwt recreates the row).
+- **Reasoning:** Design prefers drop Redis; next `/resources/jwt` recreates. Avoid 409-loop after logout: cache miss + no session/access token at remint → 401.
+- **Security impact:** none this milestone (logout already cleared pvh keys). Logged-out validate with a still-unexpired JWT would 200-and-seed on cold cache (free hit) — same class of eventual-consistency window as a cold cache miss; remint still requires access token/session.
+
+## M3 — Milestone checklist
+
+- **Milestone:** M3
+- **File(s):** `agent/cursor/jwt-pvh-cache/milestones.md`
+- **Prior state:** M3 items unchecked.
+- **Post state:** M3 items checked. Worker (M4) and userinfo/middleware pvh (M5) not started.
+- **Reasoning:** Orchestration bookkeeping.
+- **Security impact:** none
+
 ## M2 — PVH Redis JSON cache beside legacy serialize path
 
 - **Milestone:** M2

@@ -114,6 +114,25 @@ class PvhTest extends TestCase
         $this->assertNotSame($existing, Pvh::reuseOrMint($hash, $existing, null, $nowMs));
     }
 
+    public function testCanonicalMetadataEncodesArraysAndPassesStringsThrough(): void
+    {
+        $this->assertSame('', Pvh::canonicalMetadata(null));
+        $this->assertSame('abc123', Pvh::canonicalMetadata('abc123'));
+        $this->assertSame('{"role":"x"}', Pvh::canonicalMetadata(['role' => 'x']));
+        $this->assertSame(
+            Pvh::policyHash(self::AUD, self::POLICY_A, '{"role":"x"}'),
+            Pvh::policyHash(self::AUD, self::POLICY_A, Pvh::canonicalMetadata(['role' => 'x']))
+        );
+    }
+
+    public function testIsPvhHex(): void
+    {
+        $pvh = Pvh::encode(1_700_000_000_000, Pvh::policyHash(self::AUD, self::POLICY_A));
+        $this->assertTrue(Pvh::isPvhHex($pvh));
+        $this->assertFalse(Pvh::isPvhHex('short'));
+        $this->assertFalse(Pvh::isPvhHex(str_repeat('z', 44)));
+    }
+
     public function testDifferentHashesAtSameMillisecondProduceDifferentPvh(): void
     {
         $hashA = Pvh::policyHash(self::AUD, self::POLICY_A);

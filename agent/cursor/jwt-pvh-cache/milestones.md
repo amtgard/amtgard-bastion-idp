@@ -46,13 +46,13 @@ Human merge/tag/deploy is last.
 
 ## M3 — Validate + jwt remint + stop `DEL`
 
-- [ ] `LowLatencyController`: table in detailed-design §5 (200 / 409 / 401, enqueue on 200 only, no session requirement, no remint, no default `jwt` in body)
-- [ ] Fat JWT without `pvh`: compute from claims
-- [ ] `GET /resources/jwt`: write generation + Redis; reuse `pvh` when `policy_hash` unchanged
-- [ ] Assembler adds `pvh` claim on fat JWT
-- [ ] Remove `invalidateUserCache` from Client IAM claim/metadata paths
-- [ ] Logout: prefix Redis delete
-- [ ] Rewrite `LowLatencyControllerTest`, `ClientResourcesControllerTest` expectations, `JwtTest` as needed
+- [x] `LowLatencyController`: table in detailed-design §5 (200 / 409 / 401, enqueue on 200 only, no session requirement, no remint, no default `jwt` in body)
+- [x] Fat JWT without `pvh`: compute from claims
+- [x] `GET /resources/jwt`: write generation + Redis; reuse `pvh` when `policy_hash` unchanged
+- [x] Assembler adds `pvh` claim on fat JWT
+- [x] Remove `invalidateUserCache` from Client IAM claim/metadata paths
+- [x] Logout: prefix Redis delete
+- [x] Rewrite `LowLatencyControllerTest`, `ClientResourcesControllerTest` expectations, `JwtTest` as needed
 
 **Exit:** PHPUnit green. Manual: validate 200 twice with unchanged policy does not rotate `pvh` in Redis after a worker no-op (worker may still be stubbed if M4 is next).
 
