@@ -37,7 +37,11 @@ class UserJwtGenerationRepository extends Repository implements EntityRepository
         return $row;
     }
 
-    public function upsert(
+    /**
+     * Write the (user_uuid, aud) generation for this policy_hash.
+     * Missing row → insert. Same hash → keep pvh (sticky). New hash → prev_pvh ← pvh.
+     */
+    public function saveForPolicyHash(
         int $userId,
         string $userUuid,
         ?int $clientId,

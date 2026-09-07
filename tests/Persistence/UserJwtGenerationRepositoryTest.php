@@ -84,7 +84,7 @@ class UserJwtGenerationRepositoryTest extends TestCase
         $this->assertSame('client-a', $fields['aud']);
     }
 
-    public function testUpsertCreatesRowWhenMissing(): void
+    public function testSaveForPolicyHashCreatesRowWhenMissing(): void
     {
         $hash = Pvh::policyHash('client-a', '["orn:a"]', '');
         $nowMs = 1_700_000_000_000;
@@ -102,7 +102,7 @@ class UserJwtGenerationRepositoryTest extends TestCase
                 return $row;
             });
 
-        $result = $repository->upsert(7, 'user-uuid', 3, 'client-a', $hash, $nowMs);
+        $result = $repository->saveForPolicyHash(7, 'user-uuid', 3, 'client-a', $hash, $nowMs);
 
         $this->assertInstanceOf(UserJwtGeneration::class, $persisted);
         $this->assertSame($persisted, $result);
@@ -114,7 +114,7 @@ class UserJwtGenerationRepositoryTest extends TestCase
         $this->assertNull($persisted->getPrevPvh());
     }
 
-    public function testUpsertLeavesPvhWhenPolicyHashUnchanged(): void
+    public function testSaveForPolicyHashLeavesPvhWhenPolicyHashUnchanged(): void
     {
         $hash = Pvh::policyHash('client-a', '["orn:a"]', '');
         $encodedAtMs = 1_700_000_000_000;
@@ -122,25 +122,16 @@ class UserJwtGenerationRepositoryTest extends TestCase
         $existingPvh = Pvh::encode($encodedAtMs, $hash);
         $existingPrevPvh = str_repeat('b', 44);
 
-        $row = new class extends UserJwtGeneration {
-            public string $pvh;
-            public ?string $prevPvh = null;
-            public string $policyHash;
-            public ?string $updatedAt = null;
-
-            public function getPvh(): string
-            {
-                return $this->pvh;
-            }
-
-            public function getPolicyHash(): string
-            {
-                return $this->policyHash;
-            }
-        };
-        $row->pvh = $existingPvh;
-        $row->prevPvh = $existingPrevPvh;
-        $row->policyHash = $hash;
+        $row = UserJwtGeneration::builder()
+            ->userId(7)
+            ->userUuid('user-uuid')
+            ->clientId(3)
+            ->aud('client-a')
+            ->pvh($existingPvh)
+            ->prevPvh($existingPrevPvh)
+            ->policyHash($hash)
+            ->updatedAt('2024-01-01 00:00:00')
+            ->build();
 
         $repository = $this->getMockBuilder(UserJwtGenerationRepository::class)
             ->onlyMethods(['clear', 'find', 'next', 'getCurrent', 'persist', '__set'])
@@ -151,7 +142,7 @@ class UserJwtGenerationRepositoryTest extends TestCase
         $repository->expects($this->once())->method('getCurrent')->willReturn($row);
         $repository->expects($this->once())->method('persist')->with($row)->willReturn($row);
 
-        $result = $repository->upsert(7, 'user-uuid', 3, 'client-a', $hash, $nowMs);
+        $result = $repository->saveForPolicyHash(7, 'user-uuid', 3, 'client-a', $hash, $nowMs);
 
         $this->assertSame($row, $result);
         $this->assertSame($existingPvh, $row->pvh);
@@ -161,32 +152,23 @@ class UserJwtGenerationRepositoryTest extends TestCase
         $this->assertNotSame(Pvh::encode($nowMs, $hash), $row->pvh);
     }
 
-    public function testUpsertRotatesPrevPvhWhenPolicyHashChanges(): void
+    public function testSaveForPolicyHashRotatesPrevPvhWhenPolicyHashChanges(): void
     {
         $oldHash = Pvh::policyHash('client-a', '["orn:a"]', '');
         $newHash = Pvh::policyHash('client-a', '["orn:b"]', '');
         $nowMs = 1_800_000_000_000;
         $existingPvh = str_repeat('a', 44);
 
-        $row = new class extends UserJwtGeneration {
-            public string $pvh;
-            public ?string $prevPvh = null;
-            public string $policyHash;
-            public ?string $updatedAt = null;
-
-            public function getPvh(): string
-            {
-                return $this->pvh;
-            }
-
-            public function getPolicyHash(): string
-            {
-                return $this->policyHash;
-            }
-        };
-        $row->pvh = $existingPvh;
-        $row->prevPvh = null;
-        $row->policyHash = $oldHash;
+        $row = UserJwtGeneration::builder()
+            ->userId(7)
+            ->userUuid('user-uuid')
+            ->clientId(3)
+            ->aud('client-a')
+            ->pvh($existingPvh)
+            ->prevPvh(null)
+            ->policyHash($oldHash)
+            ->updatedAt('2024-01-01 00:00:00')
+            ->build();
 
         $repository = $this->getMockBuilder(UserJwtGenerationRepository::class)
             ->onlyMethods(['clear', 'find', 'next', 'getCurrent', 'persist', '__set'])
@@ -197,7 +179,7 @@ class UserJwtGenerationRepositoryTest extends TestCase
         $repository->expects($this->once())->method('getCurrent')->willReturn($row);
         $repository->expects($this->once())->method('persist')->with($row)->willReturn($row);
 
-        $result = $repository->upsert(7, 'user-uuid', 3, 'client-a', $newHash, $nowMs);
+        $result = $repository->saveForPolicyHash(7, 'user-uuid', 3, 'client-a', $newHash, $nowMs);
 
         $this->assertSame($row, $result);
         $this->assertSame($existingPvh, $row->prevPvh);

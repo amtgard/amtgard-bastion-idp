@@ -43,49 +43,4 @@ class UserJwtGeneration extends RepositoryEntity
 
     #[Field('updated_at')]
     private string $updatedAt;
-
-    public function getId(): int
-    {
-        return $this->id;
-    }
-
-    public function getUserId(): int
-    {
-        return $this->userId;
-    }
-
-    public function getUserUuid(): string
-    {
-        return $this->userUuid;
-    }
-
-    public function getClientId(): ?int
-    {
-        return $this->clientId;
-    }
-
-    public function getAud(): string
-    {
-        return $this->aud;
-    }
-
-    public function getPvh(): string
-    {
-        return $this->pvh;
-    }
-
-    public function getPrevPvh(): ?string
-    {
-        return $this->prevPvh;
-    }
-
-    public function getPolicyHash(): string
-    {
-        return $this->policyHash;
-    }
-
-    public function getUpdatedAt(): string
-    {
-        return $this->updatedAt;
-    }
 }

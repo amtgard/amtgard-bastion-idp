@@ -38,15 +38,14 @@ class JwtPvhRefreshServiceTest extends TestCase
     public function testNoopWhenPolicyHashMatchesDoesNotWriteRedis(): void
     {
         $hash = $this->canonicalHash();
-        $existing = $this->createStub(UserJwtGeneration::class);
-        $existing->method('getPolicyHash')->willReturn($hash);
+        $existing = $this->generation(policyHash: $hash);
 
         $generationRepository = $this->createMock(UserJwtGenerationRepository::class);
         $generationRepository->expects($this->once())
             ->method('findByUserUuidAndAud')
             ->with(self::USER_UUID, self::AUD)
             ->willReturn($existing);
-        $generationRepository->expects($this->never())->method('upsert');
+        $generationRepository->expects($this->never())->method('saveForPolicyHash');
 
         $redis = $this->createMock(RedisCacheRepository::class);
         $redis->expects($this->never())->method('setPvhRecord');
@@ -63,14 +62,12 @@ class JwtPvhRefreshServiceTest extends TestCase
         $oldPvh = str_repeat('a', 44);
         $newPvh = Pvh::encode(1_800_000_000_000, $newHash);
 
-        $existing = $this->createStub(UserJwtGeneration::class);
-        $existing->method('getPolicyHash')->willReturn($oldHash);
-
-        $rotated = $this->createStub(UserJwtGeneration::class);
-        $rotated->method('getUserUuid')->willReturn(self::USER_UUID);
-        $rotated->method('getAud')->willReturn(self::AUD);
-        $rotated->method('getPvh')->willReturn($newPvh);
-        $rotated->method('getPrevPvh')->willReturn($oldPvh);
+        $existing = $this->generation(policyHash: $oldHash);
+        $rotated = $this->generation(
+            policyHash: $newHash,
+            pvh: $newPvh,
+            prevPvh: $oldPvh,
+        );
 
         $generationRepository = $this->createMock(UserJwtGenerationRepository::class);
         $generationRepository->expects($this->once())
@@ -78,7 +75,7 @@ class JwtPvhRefreshServiceTest extends TestCase
             ->with(self::USER_UUID, self::AUD)
             ->willReturn($existing);
         $generationRepository->expects($this->once())
-            ->method('upsert')
+            ->method('saveForPolicyHash')
             ->with(
                 7,
                 self::USER_UUID,
@@ -115,7 +112,7 @@ class JwtPvhRefreshServiceTest extends TestCase
 
         $generationRepository = $this->createMock(UserJwtGenerationRepository::class);
         $generationRepository->expects($this->never())->method('findByUserUuidAndAud');
-        $generationRepository->expects($this->never())->method('upsert');
+        $generationRepository->expects($this->never())->method('saveForPolicyHash');
 
         $redis = $this->createMock(RedisCacheRepository::class);
         $redis->expects($this->never())->method('setPvhRecord');
@@ -132,6 +129,25 @@ class JwtPvhRefreshServiceTest extends TestCase
             JwtPvhRefreshResult::UserMissing,
             $service->refresh(self::USER_UUID, self::AUD)
         );
+    }
+
+    private function generation(
+        string $policyHash,
+        string $pvh = 'current-pvh-placeholder-44-chars-xxxxxxxx',
+        ?string $prevPvh = null,
+    ): UserJwtGeneration {
+        $row = (new \ReflectionClass(UserJwtGeneration::class))->newInstanceWithoutConstructor();
+        $userUuid = self::USER_UUID;
+        $aud = self::AUD;
+        \Closure::bind(function () use ($userUuid, $aud, $policyHash, $pvh, $prevPvh): void {
+            $this->userUuid = $userUuid;
+            $this->aud = $aud;
+            $this->pvh = $pvh;
+            $this->prevPvh = $prevPvh;
+            $this->policyHash = $policyHash;
+        }, $row, UserJwtGeneration::class)();
+
+        return $row;
     }
 
     private function canonicalHash(): string

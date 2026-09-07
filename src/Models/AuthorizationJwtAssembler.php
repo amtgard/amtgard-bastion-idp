@@ -90,7 +90,7 @@ final class AuthorizationJwtAssembler
     /**
      * Canonical policy_hash for (user, aud) using the same ORN register,
      * UserPolicy::toPolicyJson, metadata, and Pvh::canonicalMetadata path as mint.
-     * Does not upsert a generation or sign a JWT.
+     * Does not persist a generation or sign a JWT.
      *
      * @return array{policy_hash: string, client_id: ?int}
      */
@@ -131,7 +131,7 @@ final class AuthorizationJwtAssembler
             Pvh::canonicalMetadata($claims['client_metadata'] ?? null)
         );
         $nowMs = (int) floor(microtime(true) * 1000);
-        $row = $this->generationRepository->upsert(
+        $row = $this->generationRepository->saveForPolicyHash(
             (int) $user->id,
             (string) $user->userId,
             $clientContext->forClientDbId,

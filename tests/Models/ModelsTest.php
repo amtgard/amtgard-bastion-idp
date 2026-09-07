@@ -84,15 +84,16 @@ class ModelsTest extends TestCase
             Pvh::canonicalMetadata(['tier' => 'gold'])
         );
         $expectedPvh = Pvh::encode(1_700_000_000_000, $expectedHash);
-        $generation = $this->createStub(UserJwtGeneration::class);
-        $generation->method('getUserUuid')->willReturn('user-123');
-        $generation->method('getAud')->willReturn('client-123');
-        $generation->method('getPvh')->willReturn($expectedPvh);
-        $generation->method('getPrevPvh')->willReturn(null);
+        $generation = $this->jwtGeneration([
+            'userUuid' => 'user-123',
+            'aud' => 'client-123',
+            'pvh' => $expectedPvh,
+            'prevPvh' => null,
+        ]);
 
         $generationRepository = $this->createMock(UserJwtGenerationRepository::class);
         $generationRepository->expects($this->once())
-            ->method('upsert')
+            ->method('saveForPolicyHash')
             ->with(
                 7,
                 'user-123',
@@ -210,5 +211,17 @@ class ModelsTest extends TestCase
     {
         $claim = \Amtgard\IAM\ClaimFactory::createOrn("Idp:0::::IDP/EditClient");
         $this->assertInstanceOf(IdpClaim::class, $claim);
+    }
+
+    private function jwtGeneration(array $fields): UserJwtGeneration
+    {
+        $row = (new \ReflectionClass(UserJwtGeneration::class))->newInstanceWithoutConstructor();
+        \Closure::bind(function () use ($fields): void {
+            foreach ($fields as $name => $value) {
+                $this->$name = $value;
+            }
+        }, $row, UserJwtGeneration::class)();
+
+        return $row;
     }
 }

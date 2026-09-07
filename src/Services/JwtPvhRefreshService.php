@@ -59,7 +59,7 @@ final class JwtPvhRefreshService
         }
 
         $nowMs = (int) floor(microtime(true) * 1000);
-        $row = $this->generationRepository->upsert(
+        $row = $this->generationRepository->saveForPolicyHash(
             (int) $user->id,
             (string) $user->userId,
             $snapshot['client_id'],
