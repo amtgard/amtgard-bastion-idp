@@ -120,4 +120,36 @@ class Jwt
         return null;
     }
 
+    /**
+     * Presented compact/fat `pvh` claim when it is 44-char hex. Otherwise null (use fat-claim hash).
+     *
+     * @param array<string, mixed> $payload
+     */
+    public static function presentedPvhClaim(array $payload): ?string
+    {
+        $pvh = $payload['pvh'] ?? null;
+        if (!is_string($pvh) || !Pvh::isPvhHex($pvh)) {
+            return null;
+        }
+
+        return $pvh;
+    }
+
+    /**
+     * 32 raw-byte policy_hash from fat JWT claims. Null when aud or policy JSON is missing.
+     * Does not include a `pvh` claim in the hash.
+     *
+     * @param array<string, mixed> $payload
+     */
+    public static function policyHashFromFatClaims(array $payload): ?string
+    {
+        $aud = $payload['aud'] ?? null;
+        $policyJson = $payload['policy'] ?? null;
+        if (!is_string($aud) || $aud === '' || !is_string($policyJson)) {
+            return null;
+        }
+
+        return Pvh::policyHash($aud, $policyJson, Pvh::canonicalMetadata($payload['client_metadata'] ?? null));
+    }
+
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Config;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use PHPUnit\Framework\TestCase;
 
@@ -43,5 +44,27 @@ class ContainerRepositoryWiringTest extends TestCase
         $this->expectExceptionMessage('$entityMapper must not be accessed before initialization');
 
         $repository->getMetadataForJwt(1, 2);
+    }
+
+    public function testContainerDefinesUserJwtGenerationRepositoryWiring(): void
+    {
+        $definitions = require __DIR__ . '/../../config/container.php';
+
+        $this->assertArrayHasKey(UserJwtGenerationRepository::class, $definitions);
+    }
+
+    public function testUserJwtGenerationRepositoryIsResolvedFromEntityManager(): void
+    {
+        $repository = $this->createStub(UserJwtGenerationRepository::class);
+        $entityManager = $this->createMock(EntityManager::class);
+        $entityManager->expects($this->once())
+            ->method('getRepository')
+            ->with(UserJwtGenerationRepository::class)
+            ->willReturn($repository);
+
+        $definitions = require __DIR__ . '/../../config/container.php';
+        $resolved = $definitions[UserJwtGenerationRepository::class]($entityManager);
+
+        $this->assertSame($repository, $resolved);
     }
 }

@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+use Amtgard\IdP\Handlers\ApiAwareErrorHandler;
 use Amtgard\IdP\Handlers\NotFoundErrorHandler;
 use Amtgard\IdP\Middleware\SessionMiddleware;
 use Amtgard\IdP\Middleware\JsonBodyParserMiddleware;
@@ -33,6 +34,13 @@ return function (App $app) {
     $logger = $app->getContainer()->get(LoggerInterface::class);
 
     $errorMiddleware = $app->addErrorMiddleware($displayErrorDetails, true, true, $logger);
+    $errorMiddleware->setDefaultErrorHandler(
+        new ApiAwareErrorHandler(
+            $app->getCallableResolver(),
+            $app->getResponseFactory(),
+            $logger
+        )
+    );
     $errorMiddleware->setErrorHandler(
         HttpNotFoundException::class,
         new NotFoundErrorHandler(

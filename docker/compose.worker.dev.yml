@@ -1,0 +1,30 @@
+# Overlay on compose.worker.yml. Start with scripts/dev-up.sh.
+services:
+  jwt-worker:
+    image: amtgard-idp-dev
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    volumes:
+      - .:/var/www/idp.amtgard.com
+    environment:
+      - ENVIRONMENT=DEV
+      - XDEBUG_MODE=off
+    command:
+      - php
+      - -d
+      - xdebug.mode=off
+      - -d
+      - memory_limit=256M
+      - /var/www/idp.amtgard.com/bin/jwt-pvh-worker.php
+    networks:
+      - amtgard-idp-shared
+      - amtgard-idp-net
+
+networks:
+  amtgard-idp-shared:
+    name: amtgard-idp-shared
+    external: true
+  amtgard-idp-net:
+    name: amtgard-idp-net
+    external: true

@@ -7,7 +7,8 @@ use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Middleware\CachedJwtLocalIdpAuthMiddleware;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\AuthorizedClients;
-use Amtgard\IdP\Utility\CachedValidatedUserEntity;
+use Amtgard\IdP\Utility\Pvh;
+use Amtgard\IdP\Utility\PvhCacheRecord;
 use League\OAuth2\Server\ResourceServer;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -16,30 +17,13 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpUnauthorizedException;
 
-class CachedJwtTestUserEntity extends \Amtgard\IdP\Persistence\Client\Entities\UserEntity
-{
-    private string $testUserId;
-    private string $testEmail;
-
-    public function __construct(string $userId, string $email)
-    {
-        $this->testUserId = $userId;
-        $this->testEmail = $email;
-    }
-
-    public function getUserId(): string
-    {
-        return $this->testUserId;
-    }
-
-    public function getEmail(): string
-    {
-        return $this->testEmail;
-    }
-}
-
 class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
 {
+    private const USER = 'user-123';
+    private const CLIENT = 'client-1';
+    private const EMAIL = 'test@example.com';
+    private const POLICY = '[]';
+
     private $entityManager;
     private $logger;
     private $redisCacheRepository;
@@ -90,17 +74,19 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
         $this->middleware->process($this->request, $this->handler);
     }
 
-    public function testProcessSuccessWithCacheHit(): void
+    public function testProcessSuccessWhenCurrentPvhMatches(): void
     {
-        $jwt = $this->generateValidJwt('user-123', 'client-1');
+        $pvh = $this->samplePvh();
+        $jwt = $this->generateValidJwt(self::USER, self::CLIENT, $pvh);
         $this->request->method('getHeaderLine')
             ->with('Authorization')
             ->willReturn("Bearer {$jwt}");
 
         $this->redisCacheRepository->expects($this->once())
-            ->method('isUserInCache')
-            ->with('user-123')
-            ->willReturn(true);
+            ->method('getPvhRecord')
+            ->with(self::USER, self::CLIENT)
+            ->willReturn(new PvhCacheRecord(self::USER, self::CLIENT, self::EMAIL, $pvh, null));
+        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
 
         $this->handler->expects($this->once())
             ->method('handle')
@@ -112,48 +98,22 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
 
         $result = $this->middleware->process($this->request, $this->handler);
         $this->assertSame($this->response, $result);
-        $this->assertSame('user-123', $_SESSION['user_id']);
-        $this->assertSame('client-1', $_SESSION['client_id']);
+        $this->assertSame(self::USER, $_SESSION['user_id']);
+        $this->assertSame(self::CLIENT, $_SESSION['client_id']);
     }
 
-    public function testProcessSuccessWithCacheMiss(): void
+    public function testProcessSuccessWhenFatJwtHashPrefixMatches(): void
     {
-        $jwt = $this->generateValidJwt('user-123', 'client-1');
+        $hash = Pvh::policyHash(self::CLIENT, self::POLICY, '');
+        $current = Pvh::encode(1_700_000_000_000, $hash);
+        $jwt = $this->generateValidJwt(self::USER, self::CLIENT, null, self::POLICY);
         $this->request->method('getHeaderLine')
             ->with('Authorization')
             ->willReturn("Bearer {$jwt}");
 
         $this->redisCacheRepository->expects($this->once())
-            ->method('isUserInCache')
-            ->with('user-123')
-            ->willReturn(false);
-
-        $userEntity = new CachedJwtTestUserEntity('user-123', 'test@example.com');
-
-        $oauthUser = \Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser::builder()
-            ->identifier('user-123')
-            ->userEntity($userEntity)
-            ->build();
-
-        $userRepo = $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class);
-        $userRepo->method('getUserEntityById')
-            ->with('user-123')
-            ->willReturn($oauthUser);
-
-        $this->entityManager->method('getRepository')
-            ->with(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class)
-            ->willReturn($userRepo);
-
-        $this->resourceServer->expects($this->never())
-            ->method('validateAuthenticatedRequest');
-
-        $this->redisCacheRepository->expects($this->once())
-            ->method('cacheValidatedUser')
-            ->with(
-                'user-123',
-                'test@example.com',
-                $this->isType('string')
-            );
+            ->method('getPvhRecord')
+            ->willReturn(new PvhCacheRecord(self::USER, self::CLIENT, self::EMAIL, $current, null));
 
         $this->handler->expects($this->once())
             ->method('handle')
@@ -165,11 +125,90 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
 
         $result = $this->middleware->process($this->request, $this->handler);
         $this->assertSame($this->response, $result);
-        $this->assertSame('user-123', $_SESSION['user_id']);
-        $this->assertSame('client-1', $_SESSION['client_id']);
+        $this->assertSame(self::USER, $_SESSION['user_id']);
     }
 
-    private function generateValidJwt(string $userId, string $clientId): string
+    public function testProcessCacheMissReturns401AndDoesNotSeed(): void
+    {
+        $pvh = $this->samplePvh();
+        $jwt = $this->generateValidJwt(self::USER, self::CLIENT, $pvh);
+        $this->request->method('getHeaderLine')
+            ->with('Authorization')
+            ->willReturn("Bearer {$jwt}");
+
+        $this->redisCacheRepository->expects($this->once())
+            ->method('getPvhRecord')
+            ->with(self::USER, self::CLIENT)
+            ->willReturn(null);
+        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
+        $this->handler->expects($this->never())->method('handle');
+
+        @session_start();
+        $_SESSION = [];
+
+        try {
+            $this->middleware->process($this->request, $this->handler);
+            $this->fail('expected HttpUnauthorizedException');
+        } catch (HttpUnauthorizedException) {
+            $this->assertArrayNotHasKey('user_id', $_SESSION);
+        }
+    }
+
+    public function testProcessPrevPvhReturns409StaleToken(): void
+    {
+        $current = $this->samplePvh(1_700_000_000_001);
+        $prev = $this->samplePvh(1_700_000_000_000);
+        $jwt = $this->generateValidJwt(self::USER, self::CLIENT, $prev);
+        $this->request->method('getHeaderLine')
+            ->with('Authorization')
+            ->willReturn("Bearer {$jwt}");
+
+        $this->redisCacheRepository->expects($this->once())
+            ->method('getPvhRecord')
+            ->willReturn(new PvhCacheRecord(self::USER, self::CLIENT, self::EMAIL, $current, $prev));
+        $this->handler->expects($this->never())->method('handle');
+        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
+
+        @session_start();
+        $_SESSION = [];
+
+        $result = $this->middleware->process($this->request, $this->handler);
+        $this->assertSame(409, $result->getStatusCode());
+        $this->assertSame(['error' => 'stale_token'], json_decode((string) $result->getBody(), true));
+        $this->assertArrayNotHasKey('user_id', $_SESSION);
+    }
+
+    public function testProcessUnknownPvhReturns401(): void
+    {
+        $jwt = $this->generateValidJwt(self::USER, self::CLIENT, $this->samplePvh(1_800_000_000_000));
+        $this->request->method('getHeaderLine')
+            ->with('Authorization')
+            ->willReturn("Bearer {$jwt}");
+
+        $this->redisCacheRepository->expects($this->once())
+            ->method('getPvhRecord')
+            ->willReturn(new PvhCacheRecord(
+                self::USER,
+                self::CLIENT,
+                self::EMAIL,
+                $this->samplePvh(1_700_000_000_001),
+                $this->samplePvh(1_700_000_000_000)
+            ));
+        $this->handler->expects($this->never())->method('handle');
+
+        @session_start();
+        $_SESSION = [];
+
+        $this->expectException(HttpUnauthorizedException::class);
+        $this->middleware->process($this->request, $this->handler);
+    }
+
+    private function samplePvh(int $nowMs = 1_700_000_000_000): string
+    {
+        return Pvh::encode($nowMs, Pvh::policyHash(self::CLIENT, self::POLICY, ''));
+    }
+
+    private function generateValidJwt(string $userId, string $clientId, ?string $pvh = null, ?string $policy = null): string
     {
         $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone("UTC"));
         $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
@@ -179,13 +218,18 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
         );
 
         $now = $clock->now();
-        $token = $config->builder()
+        $builder = $config->builder()
             ->issuedBy('http://localhost')
             ->permittedFor($clientId)
             ->relatedTo($userId)
-            ->expiresAt($now->modify('+1 hour'))
-            ->getToken($config->signer(), $config->signingKey());
+            ->expiresAt($now->modify('+1 hour'));
+        if ($pvh !== null) {
+            $builder = $builder->withClaim('pvh', $pvh);
+        }
+        if ($policy !== null) {
+            $builder = $builder->withClaim('policy', $policy);
+        }
 
-        return $token->toString();
+        return $builder->getToken($config->signer(), $config->signingKey())->toString();
     }
 }

@@ -23,11 +23,14 @@ use Amtgard\IdP\Persistence\Server\Repositories\RefreshTokenRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ScopeRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
 use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Utility\BuildInfo;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\PvhQueueHandle;
+use Amtgard\IdP\Utility\PvhSetQueue;
 use Amtgard\IdP\Utility\Redis\PubSubRedisConfig;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisDataStructureConfig;
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisHashSetFactory;
@@ -102,6 +105,10 @@ return [
 
     UserLoginClientRepository::class => function (EntityManager $em) {
         return $em->getRepository(UserLoginClientRepository::class);
+    },
+
+    UserJwtGenerationRepository::class => function (EntityManager $em) {
+        return $em->getRepository(UserJwtGenerationRepository::class);
     },
 
     EntityManager::class => function (ContainerInterface $container) {
@@ -270,6 +277,23 @@ return [
         $config = $container->get(RedisDataStructureConfig::class);
         $queue = new SetQueue(PubSubRedisConfig::queueName(), $config, $hashSetFactory, $redrivableQueueFactory);
         return $queue;
+    },
+
+    PvhSetQueue::class => function (ContainerInterface $container) {
+        $hashSetFactory = new RedisHashSetFactory();
+        $redrivableQueueFactory = new RedisRedrivableQueueFactory();
+        $config = $container->get(RedisDataStructureConfig::class);
+
+        return new PvhSetQueue(PubSubRedisConfig::pvhQueueName(), $config, $hashSetFactory, $redrivableQueueFactory);
+    },
+
+    PvhQueueHandle::class => function (ContainerInterface $container) {
+        $queue = $container->get(PvhSetQueue::class);
+        $pubSub = $container->get(PubSubQueue::class);
+        $queueName = PubSubRedisConfig::pvhQueueName();
+        $pubSub->addQueue($queueName, $queue);
+
+        return PvhQueueHandle::builder()->handle($queueName)->build();
     },
 
     PubSubQueue::class => function (ContainerInterface $container) {

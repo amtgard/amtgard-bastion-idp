@@ -7,6 +7,8 @@ use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Middleware\ClientRestrictedAuthMiddleware;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\AuthorizedClients;
+use Amtgard\IdP\Utility\Pvh;
+use Amtgard\IdP\Utility\PvhCacheRecord;
 use League\OAuth2\Server\ResourceServer;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -15,30 +17,13 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpUnauthorizedException;
 
-class ClientRestrictedTestUserEntity extends \Amtgard\IdP\Persistence\Client\Entities\UserEntity
-{
-    private string $testUserId;
-    private string $testEmail;
-
-    public function __construct(string $userId, string $email)
-    {
-        $this->testUserId = $userId;
-        $this->testEmail = $email;
-    }
-
-    public function getUserId(): string
-    {
-        return $this->testUserId;
-    }
-
-    public function getEmail(): string
-    {
-        return $this->testEmail;
-    }
-}
-
 class ClientRestrictedAuthMiddlewareTest extends TestCase
 {
+    private const USER = 'user-123';
+    private const CLIENT = 'valid-client';
+    private const EMAIL = 'test@example.com';
+    private const POLICY = '[]';
+
     private $entityManager;
     private $logger;
     private $resourceServer;
@@ -85,7 +70,8 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
         @session_start();
         $_SESSION['client_id'] = 'valid-client';
 
-
+        $this->redisCacheRepository->expects($this->never())->method('getPvhRecord');
+        $this->resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
 
         $this->handler->expects($this->once())
             ->method('handle')
@@ -108,20 +94,23 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
         $this->middleware->process($this->request, $this->handler);
     }
 
-    public function testProcessSuccessWithCacheHit(): void
+    public function testProcessSuccessWhenCurrentPvhMatches(): void
     {
         @session_start();
-        $_SESSION['client_id'] = 'invalid-client'; // Force checking JWT
+        $_SESSION['client_id'] = 'invalid-client';
 
-        $jwt = $this->generateValidJwt('user-123', 'valid-client');
+        $pvh = $this->samplePvh();
+        $jwt = $this->generateValidJwt(self::USER, self::CLIENT, $pvh);
         $this->request->method('getHeaderLine')
             ->with('Authorization')
             ->willReturn("Bearer {$jwt}");
 
         $this->redisCacheRepository->expects($this->once())
-            ->method('isUserInCache')
-            ->with('user-123')
-            ->willReturn(true);
+            ->method('getPvhRecord')
+            ->with(self::USER, self::CLIENT)
+            ->willReturn(new PvhCacheRecord(self::USER, self::CLIENT, self::EMAIL, $pvh, null));
+        $this->resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
+        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
 
         $this->handler->expects($this->once())
             ->method('handle')
@@ -130,67 +119,61 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
 
         $result = $this->middleware->process($this->request, $this->handler);
         $this->assertSame($this->response, $result);
+        $this->assertSame(self::USER, $_SESSION['user_id']);
+        $this->assertSame(self::CLIENT, $_SESSION['client_id']);
     }
 
-    public function testProcessSuccessWithCacheMiss(): void
+    public function testProcessCacheMissReturns401AndDoesNotCallResourceServer(): void
     {
         @session_start();
-        $_SESSION['client_id'] = 'invalid-client'; // Force checking JWT
+        $_SESSION['client_id'] = 'invalid-client';
 
-        $jwt = $this->generateValidJwt('user-123', 'valid-client');
+        $pvh = $this->samplePvh();
+        $jwt = $this->generateValidJwt(self::USER, self::CLIENT, $pvh);
         $this->request->method('getHeaderLine')
             ->with('Authorization')
             ->willReturn("Bearer {$jwt}");
 
         $this->redisCacheRepository->expects($this->once())
-            ->method('isUserInCache')
-            ->with('user-123')
-            ->willReturn(false);
+            ->method('getPvhRecord')
+            ->willReturn(null);
+        $this->resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
+        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
+        $this->handler->expects($this->never())->method('handle');
 
-        $validatedRequest = $this->createMock(ServerRequestInterface::class);
-        $validatedRequest->method('getAttribute')->with('oauth_user_id')->willReturn('user-123');
-
-        $this->resourceServer->expects($this->once())
-            ->method('validateAuthenticatedRequest')
-            ->with($this->request)
-            ->willReturn($validatedRequest);
-
-        $userEntity = new ClientRestrictedTestUserEntity('user-123', 'test@example.com');
-
-        $oauthUser = \Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser::builder()
-            ->identifier('user-123')
-            ->userEntity($userEntity)
-            ->build();
-
-        $userRepo = $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class);
-        $userRepo->method('getUserEntityById')
-            ->with('user-123')
-            ->willReturn($oauthUser);
-
-        $this->entityManager->method('getRepository')
-            ->with(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class)
-            ->willReturn($userRepo);
-
-        $this->redisCacheRepository->expects($this->once())
-            ->method('cacheValidatedUser')
-            ->with(
-                'user-123',
-                'test@example.com',
-                $this->isType('string')
-            );
-
-        $this->handler->expects($this->once())
-            ->method('handle')
-            ->with($validatedRequest)
-            ->willReturn($this->response);
-
-        $result = $this->middleware->process($this->request, $this->handler);
-        $this->assertSame($this->response, $result);
-        $this->assertSame('user-123', $_SESSION['user_id']);
-        $this->assertSame('valid-client', $_SESSION['client_id']);
+        $this->expectException(HttpUnauthorizedException::class);
+        $this->middleware->process($this->request, $this->handler);
     }
 
-    private function generateValidJwt(string $userId, string $clientId): string
+    public function testProcessPrevPvhReturns409StaleToken(): void
+    {
+        @session_start();
+        $_SESSION['client_id'] = 'invalid-client';
+
+        $current = $this->samplePvh(1_700_000_000_001);
+        $prev = $this->samplePvh(1_700_000_000_000);
+        $jwt = $this->generateValidJwt(self::USER, self::CLIENT, $prev);
+        $this->request->method('getHeaderLine')
+            ->with('Authorization')
+            ->willReturn("Bearer {$jwt}");
+
+        $this->redisCacheRepository->expects($this->once())
+            ->method('getPvhRecord')
+            ->willReturn(new PvhCacheRecord(self::USER, self::CLIENT, self::EMAIL, $current, $prev));
+        $this->resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
+        $this->handler->expects($this->never())->method('handle');
+
+        $result = $this->middleware->process($this->request, $this->handler);
+        $this->assertSame(409, $result->getStatusCode());
+        $this->assertSame(['error' => 'stale_token'], json_decode((string) $result->getBody(), true));
+    }
+
+    private function samplePvh(int $nowMs = 1_700_000_000_000): string
+    {
+        return Pvh::encode($nowMs, Pvh::policyHash(self::CLIENT, self::POLICY, ''));
+    }
+
+    private function generateValidJwt(string $userId, string $clientId, ?string $pvh = null): string
     {
         $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone("UTC"));
         $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
@@ -205,6 +188,7 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
             ->permittedFor($clientId)
             ->relatedTo($userId)
             ->expiresAt($now->modify('+1 hour'))
+            ->withClaim('pvh', $pvh)
             ->getToken($config->signer(), $config->signingKey());
 
         return $token->toString();

@@ -1,0 +1,24 @@
+services:
+  jwt-worker:
+    image: amtgard-idp-jwt-worker:latest
+    container_name: amtgard-idp-jwt-worker
+    hostname: amtgard-idp-jwt-worker
+    restart: unless-stopped
+    stop_grace_period: 15s
+    working_dir: /var/www/idp.amtgard.com
+    command: ["php", "-d", "memory_limit=256M", "/var/www/idp.amtgard.com/bin/jwt-pvh-worker.php"]
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/var/www/idp.amtgard.com/.env:ro
+      - ./dev-keys:/var/www/idp.amtgard.com/dev-keys:ro
+      - ./keys:/var/www/idp.amtgard.com/keys:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - amtgard-idp-shared
+
+networks:
+  amtgard-idp-shared:
+    name: amtgard-idp-shared
+    external: true

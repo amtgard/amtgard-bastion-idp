@@ -9,10 +9,15 @@ use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Models\Orn\IdpClaim;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Common\Repositories\JwtChallenge;
+use Amtgard\IdP\Persistence\Server\Entities\Repository\UserJwtGeneration;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
 use Amtgard\IdP\Utility\LoginSession;
+use Amtgard\IdP\Utility\Pvh;
+use Amtgard\IdP\Utility\PvhCacheRecord;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -73,6 +78,43 @@ class ModelsTest extends TestCase
 
         $userLoginRepository = $this->createMock(UserLoginRepository::class);
 
+        $expectedHash = Pvh::policyHash(
+            'client-123',
+            '{"foo":"bar"}',
+            Pvh::canonicalMetadata(['tier' => 'gold'])
+        );
+        $expectedPvh = Pvh::encode(1_700_000_000_000, $expectedHash);
+        $generation = $this->jwtGeneration([
+            'userUuid' => 'user-123',
+            'aud' => 'client-123',
+            'pvh' => $expectedPvh,
+            'prevPvh' => null,
+        ]);
+
+        $generationRepository = $this->createMock(UserJwtGenerationRepository::class);
+        $generationRepository->expects($this->once())
+            ->method('saveForPolicyHash')
+            ->with(
+                7,
+                'user-123',
+                99,
+                'client-123',
+                $expectedHash,
+                $this->isType('int')
+            )
+            ->willReturn($generation);
+
+        $redis = $this->createMock(RedisCacheRepository::class);
+        $redis->expects($this->once())
+            ->method('setPvhRecord')
+            ->with($this->callback(function (PvhCacheRecord $record) use ($expectedPvh): bool {
+                return $record->getUserUuid() === 'user-123'
+                    && $record->getAud() === 'client-123'
+                    && $record->getEmail() === 'test@example.com'
+                    && $record->getPvh() === $expectedPvh
+                    && $record->getPrevPvh() === null;
+            }));
+
         $idpJwt = new AmtgardIdpJwt(
             $userPolicy,
             $jwtChallenge,
@@ -80,12 +122,35 @@ class ModelsTest extends TestCase
             $metadataRepository,
             $userLoginRepository,
             $this->createMock(LoggerInterface::class),
+            $generationRepository,
+            $redis,
         );
-        $jwtString = $idpJwt->buildAuthorizationJwt($user);
+        $tokens = $idpJwt->buildAuthorizationTokens($user);
+        $jwtString = $tokens['jwt'];
+        $compactString = $tokens['compact_jwt'];
 
         $this->assertIsString($jwtString);
+        $this->assertIsString($compactString);
         $payload = json_decode(base64_decode(strtr(explode('.', $jwtString)[1], '-_', '+/')), true);
         $this->assertSame(['tier' => 'gold'], $payload['client_metadata']);
+        $this->assertSame($expectedPvh, $payload['pvh']);
+
+        $compactPayload = json_decode(base64_decode(strtr(explode('.', $compactString)[1], '-_', '+/')), true);
+        $this->assertSame($payload['sub'], $compactPayload['sub']);
+        $this->assertSame($payload['aud'], $compactPayload['aud']);
+        $this->assertSame($payload['iss'], $compactPayload['iss']);
+        $this->assertSame($payload['exp'], $compactPayload['exp']);
+        $this->assertSame($payload['pvh'], $compactPayload['pvh']);
+        $this->assertSame($payload['iat'], $compactPayload['iat']);
+        $this->assertArrayNotHasKey('policy', $compactPayload);
+        $this->assertArrayNotHasKey('email', $compactPayload);
+        $this->assertArrayNotHasKey('orkid', $compactPayload);
+        $this->assertArrayNotHasKey('challenge', $compactPayload);
+        $this->assertArrayNotHasKey('client_metadata', $compactPayload);
+        $this->assertSame(
+            ['sub', 'aud', 'iss', 'exp', 'pvh', 'iat'],
+            array_keys($compactPayload)
+        );
 
         // test validate
         $jwtChallenge->expects($this->once())
@@ -94,6 +159,32 @@ class ModelsTest extends TestCase
             ->willReturn(true);
 
         $this->assertTrue($idpJwt->validateJwtChallenge('some-jwt-string'));
+    }
+
+    public function testCompactClaimsOmitsFatOnlyFields(): void
+    {
+        $compact = \Amtgard\IdP\Models\AuthorizationJwtAssembler::compactClaims([
+            'iat' => 1,
+            'sub' => 'user-1',
+            'iss' => 'https://idp.amtgard.com',
+            'orkid' => 9,
+            'email' => 'a@b.c',
+            'policy' => '{}',
+            'challenge' => 'x',
+            'exp' => 2,
+            'aud' => 'client-1',
+            'client_metadata' => ['k' => 'v'],
+            'pvh' => 'abc',
+        ]);
+
+        $this->assertSame([
+            'sub' => 'user-1',
+            'aud' => 'client-1',
+            'iss' => 'https://idp.amtgard.com',
+            'exp' => 2,
+            'pvh' => 'abc',
+            'iat' => 1,
+        ], $compact);
     }
 
     public function testOAuthServerConfiguration(): void
@@ -120,5 +211,17 @@ class ModelsTest extends TestCase
     {
         $claim = \Amtgard\IAM\ClaimFactory::createOrn("Idp:0::::IDP/EditClient");
         $this->assertInstanceOf(IdpClaim::class, $claim);
+    }
+
+    private function jwtGeneration(array $fields): UserJwtGeneration
+    {
+        $row = (new \ReflectionClass(UserJwtGeneration::class))->newInstanceWithoutConstructor();
+        \Closure::bind(function () use ($fields): void {
+            foreach ($fields as $name => $value) {
+                $this->$name = $value;
+            }
+        }, $row, UserJwtGeneration::class)();
+
+        return $row;
     }
 }

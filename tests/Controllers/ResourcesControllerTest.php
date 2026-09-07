@@ -12,7 +12,6 @@ use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
-use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
@@ -72,7 +71,6 @@ class ResourcesControllerTest extends TestCase
     private $clientRepository;
     private $redisPubSubQueue;
     private $pubSubQueueHandle;
-    private $redisCacheRepository;
     private $database;
     private $orkService;
     private $orkProfileRepository;
@@ -100,7 +98,6 @@ class ResourcesControllerTest extends TestCase
         
         $this->redisPubSubQueue = $this->createMock(PubSubQueue::class);
         $this->pubSubQueueHandle = $this->createMock(PubSubQueueHandle::class);
-        $this->redisCacheRepository = $this->createMock(RedisCacheRepository::class);
         $this->database = $this->createMock(Database::class);
         $this->orkService = $this->createMock(OrkService::class);
         $this->orkProfileRepository = $this->createMock(UserOrkProfileRepository::class);
@@ -139,7 +136,6 @@ class ResourcesControllerTest extends TestCase
             $this->clientRepository,
             $this->redisPubSubQueue,
             $this->pubSubQueueHandle,
-            $this->redisCacheRepository,
             $this->database,
             $this->orkService,
             $this->orkProfileRepository,
@@ -258,17 +254,13 @@ class ResourcesControllerTest extends TestCase
         $_SESSION['user_id'] = 123;
 
         $this->amtgardIdpJwt->expects($this->once())
-            ->method('buildAuthorizationJwt')
+            ->method('buildAuthorizationTokens')
             ->with($this->userEntity)
-            ->willReturn('jwt-val');
-
-        $this->redisCacheRepository->expects($this->once())
-            ->method('cacheValidatedUser')
-            ->with('123', 'test@example.com', 'jwt-val');
+            ->willReturn(['jwt' => 'jwt-val', 'compact_jwt' => 'compact-val']);
 
         $this->stream->expects($this->once())
             ->method('write')
-            ->with(json_encode(['jwt' => 'jwt-val']));
+            ->with(json_encode(['jwt' => 'jwt-val', 'compact_jwt' => 'compact-val']));
 
         $result = $this->controller->getJwt($this->request, $this->response);
         $this->assertSame($this->response, $result);
@@ -289,10 +281,8 @@ class ResourcesControllerTest extends TestCase
     {
         $_SESSION['user_id'] = 123;
 
-        $this->amtgardIdpJwt->expects($this->once())
-            ->method('buildAuthorizationJwt')
-            ->with($this->userEntity)
-            ->willReturn('jwt-val');
+        $this->amtgardIdpJwt->expects($this->never())
+            ->method('buildAuthorizationJwt');
 
         $orkProfile = new TestUserOrkProfileEntity();
         $this->orkProfileRepository->expects($this->once())
@@ -306,7 +296,7 @@ class ResourcesControllerTest extends TestCase
                 $data = json_decode($json, true);
                 return $data['id'] === '123' &&
                        $data['email'] === 'test@example.com' &&
-                       $data['jwt'] === 'jwt-val' &&
+                       !isset($data['jwt']) &&
                        $data['ork_profile']['username'] === 'orkuser';
             }));
 
@@ -318,10 +308,8 @@ class ResourcesControllerTest extends TestCase
     {
         $_SESSION['user_id'] = 123;
 
-        $this->amtgardIdpJwt->expects($this->once())
-            ->method('buildAuthorizationJwt')
-            ->with($this->userEntity)
-            ->willReturn('jwt-val');
+        $this->amtgardIdpJwt->expects($this->never())
+            ->method('buildAuthorizationJwt');
         $this->orkProfileRepository->expects($this->once())
             ->method('findByUserId')
             ->with(123)
@@ -332,7 +320,7 @@ class ResourcesControllerTest extends TestCase
                 $data = json_decode($json, true);
                 return $data['id'] === '123'
                     && $data['email'] === 'test@example.com'
-                    && $data['jwt'] === 'jwt-val'
+                    && !isset($data['jwt'])
                     && !isset($data['ork_profile']);
             }));
 

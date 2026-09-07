@@ -34,12 +34,17 @@ INSTALL_SKIP_CHOWN="${INSTALL_SKIP_CHOWN:-0}"
 INSTALL_SKIP_HOST_NGINX="${INSTALL_SKIP_HOST_NGINX:-0}"
 INSTALL_RESET_SESSIONS="${INSTALL_RESET_SESSIONS:-0}"
 INSTALL_REBUILD_SESSIONS="${INSTALL_REBUILD_SESSIONS:-0}"
+INSTALL_REBUILD_WORKER="${INSTALL_REBUILD_WORKER:-0}"
 
 SESSIONS_CONTAINER="${SESSIONS_CONTAINER:-amtgard-idp-sessions}"
 SESSIONS_COMPOSE_PROJECT="${SESSIONS_COMPOSE_PROJECT:-amtgard-idp-sessions}"
 SESSIONS_COMPOSE_SERVICE="${SESSIONS_COMPOSE_SERVICE:-sessions}"
 SESSIONS_NETWORK="${SESSIONS_NETWORK:-amtgard-idp-shared}"
 SESSION_REDIS_DB="${SESSION_REDIS_DB:-1}"
+
+WORKER_CONTAINER="${WORKER_CONTAINER:-amtgard-idp-jwt-worker}"
+WORKER_COMPOSE_PROJECT="${WORKER_COMPOSE_PROJECT:-amtgard-idp-worker}"
+WORKER_IMAGE="${WORKER_IMAGE:-amtgard-idp-jwt-worker:latest}"
 
 run_priv() {
     if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
@@ -151,6 +156,12 @@ compose_sessions() {
         "$@"
 }
 
+compose_worker() {
+    docker compose --project-directory "$ROOT" -p "$WORKER_COMPOSE_PROJECT" \
+        -f docker/compose.worker.yml \
+        "$@"
+}
+
 ensure_sessions_network() {
     if docker network inspect "$SESSIONS_NETWORK" >/dev/null 2>&1; then
         return
@@ -189,6 +200,40 @@ ensure_sessions_store() {
     if [[ "$INSTALL_RESET_SESSIONS" == "1" ]]; then
         flush_sessions_store
     fi
+}
+
+tag_slot_image_as_worker() {
+    local slot="$1"
+    local container
+    container="$(slot_container "$slot")"
+    if ! docker inspect "$container" >/dev/null 2>&1; then
+        echo "install.sh: cannot tag worker image; container ${container} not found." >&2
+        return 1
+    fi
+    local image_id
+    image_id="$(docker inspect -f '{{.Image}}' "$container")"
+    echo "==> Tagging ${container} image as ${WORKER_IMAGE}..."
+    docker tag "$image_id" "$WORKER_IMAGE"
+}
+
+ensure_jwt_worker() {
+    local slot="$1"
+
+    if [[ ! -f "${ROOT}/docker/compose.worker.yml" ]]; then
+        return
+    fi
+
+    ensure_sessions_network
+    tag_slot_image_as_worker "$slot"
+
+    if [[ "$INSTALL_REBUILD_WORKER" == "1" ]]; then
+        echo "==> Recreating jwt worker (${WORKER_CONTAINER}, INSTALL_REBUILD_WORKER=1)..."
+        compose_worker up -d --force-recreate
+        return
+    fi
+
+    echo "==> Ensuring jwt pvh worker is running (${WORKER_CONTAINER})..."
+    compose_worker up -d
 }
 
 container_running() {
@@ -304,6 +349,7 @@ bootstrap_blue_green() {
 
     build_and_start_slot "$slot"
     install_app_in_slot "$slot"
+    ensure_jwt_worker "$slot"
     health_check_port "$slot" "$(slot_port "$slot")"
     activate_nginx_slot "$slot"
     write_active_slot "$slot"
@@ -324,6 +370,7 @@ deploy_blue_green() {
     echo "==> Blue-green deploy to inactive slot: ${target} (active: ${active})..."
     build_and_start_slot "$target"
     install_app_in_slot "$target"
+    ensure_jwt_worker "$target"
     health_check_port "$target" "$(slot_port "$target")"
     write_previous_slot "$active"
     activate_nginx_slot "$target"

@@ -9,10 +9,13 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
 use Amtgard\IdP\Persistence\Common\Repositories\JwtChallenge;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
+use Amtgard\IdP\Persistence\Server\Entities\Repository\UserJwtGeneration;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
+use Amtgard\IdP\Utility\Pvh;
 use Optional\Optional;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -26,6 +29,10 @@ use Throwable;
  */
 final class AuthorizationJwtAssembler
 {
+    public const ISSUER = 'https://idp.amtgard.com';
+
+    private ?UserJwtGeneration $lastGeneration = null;
+
     public function __construct(
         private UserPolicy $userPolicy,
         private JwtChallenge $jwtChallenge,
@@ -33,6 +40,7 @@ final class AuthorizationJwtAssembler
         private UserLoginClientRepository $metadataRepository,
         private UserLoginRepository $userLoginRepository,
         private LoggerInterface $logger,
+        private UserJwtGenerationRepository $generationRepository,
     ) {}
 
     /**
@@ -49,8 +57,91 @@ final class AuthorizationJwtAssembler
 
         $claims = $this->baseClaims($user, $clientContext->forClientDbId);
         $this->applyAudienceClaims($claims, $audience, $clientContext, $resolvedLoginDbId);
+        $this->lastGeneration = $this->applyPvhClaim($claims, $user, $clientContext);
 
         return $claims;
+    }
+
+    public function lastGeneration(): ?UserJwtGeneration
+    {
+        return $this->lastGeneration;
+    }
+
+    /**
+     * Compact heartbeat claims from a fat authorization payload.
+     * Only `sub`, `aud`, `iss`, `exp`, `pvh` (and `iat` when present on the fat token).
+     * `exp` is copied — do not extend on validate.
+     *
+     * @param array<string, mixed> $fatClaims
+     * @return array<string, mixed>
+     */
+    public static function compactClaims(array $fatClaims): array
+    {
+        $compact = [];
+        foreach (['sub', 'aud', 'iss', 'exp', 'pvh', 'iat'] as $key) {
+            if (array_key_exists($key, $fatClaims)) {
+                $compact[$key] = $fatClaims[$key];
+            }
+        }
+
+        return $compact;
+    }
+
+    /**
+     * Canonical policy_hash for (user, aud) using the same ORN register,
+     * UserPolicy::toPolicyJson, metadata, and Pvh::canonicalMetadata path as mint.
+     * Does not persist a generation or sign a JWT.
+     *
+     * @return array{policy_hash: string, client_id: ?int}
+     */
+    public function computePolicyHashForAudience(EntityInterface $user, string $aud): array
+    {
+        $clientContext = $this->resolveClientContext($aud);
+        $loginDbId = $this->resolveLoginDbId($user, null);
+        $policyJson = $this->userPolicy->toPolicyJson($user, $clientContext->forClientDbId);
+        $metadata = $this->metadataForAudience($clientContext->forClientDbId, $loginDbId);
+
+        return [
+            'policy_hash' => Pvh::policyHash($aud, $policyJson, Pvh::canonicalMetadata($metadata)),
+            'client_id' => $clientContext->forClientDbId,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $claims
+     */
+    private function applyPvhClaim(
+        array &$claims,
+        EntityInterface $user,
+        AuthorizationClientContext $clientContext
+    ): ?UserJwtGeneration {
+        $aud = $claims['aud'] ?? null;
+        if (!is_string($aud) || $aud === '') {
+            return null;
+        }
+
+        $policyJson = $claims['policy'] ?? '';
+        if (!is_string($policyJson)) {
+            $policyJson = '';
+        }
+
+        $policyHash = Pvh::policyHash(
+            $aud,
+            $policyJson,
+            Pvh::canonicalMetadata($claims['client_metadata'] ?? null)
+        );
+        $nowMs = (int) floor(microtime(true) * 1000);
+        $row = $this->generationRepository->saveForPolicyHash(
+            (int) $user->id,
+            (string) $user->userId,
+            $clientContext->forClientDbId,
+            $aud,
+            $policyHash,
+            $nowMs
+        );
+        $claims['pvh'] = $row->getPvh();
+
+        return $row;
     }
 
     public function validateJwtChallenge(string $jwt): bool
@@ -102,7 +193,7 @@ final class AuthorizationJwtAssembler
         return [
             'iat' => time(),
             'sub' => $user->userId,
-            'iss' => 'https://idp.amtgard.com',
+            'iss' => self::ISSUER,
             'orkid' => $user->orkUserId,
             'orkuser' => $user->username,
             'email' => $user->email,

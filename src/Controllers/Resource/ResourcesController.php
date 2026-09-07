@@ -9,7 +9,6 @@ use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
-use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
@@ -39,7 +38,6 @@ class ResourcesController
     private UserRepository $userRepository;
     private UserClientAuthorizationRepository $userClientAuthorizationRepository;
     private UserLoginRepository $userLoginRepository;
-    private RedisCacheRepository $redisCacheRepository;
     private AmtgardIdpJwt $amtgardIdpJwt;
     private UserAuthority $userAuthority;
 
@@ -51,7 +49,6 @@ class ResourcesController
         ClientRepositoryInterface $clientRepository,
         PubSubQueue $redisPubSubQueue,
         PubSubQueueHandle $pubSubQueueHandle,
-        RedisCacheRepository $redisCacheRepository,
         Database $database,
         OrkService $orkService,
         UserOrkProfileRepository $orkProfileRepository,
@@ -72,7 +69,6 @@ class ResourcesController
         $this->userRepository = $userRepository;
         $this->userClientAuthorizationRepository = $userClientAuthorizationRepository;
         $this->userLoginRepository = $userLoginRepository;
-        $this->redisCacheRepository = $redisCacheRepository;
         $this->amtgardIdpJwt = $amtgardIdpJwt;
         $this->userAuthority = $userAuthority;
     }
@@ -81,7 +77,7 @@ class ResourcesController
         path: '/resources/jwt',
         operationId: 'getJwt',
         summary: 'Elevate to an authorization JWT',
-        description: 'Exchange an OAuth access token (or browser session) for a signed RS256 authorization JWT containing IAM policy and optional client_metadata. Use that JWT as Bearer on GET /resources/userinfo.',
+        description: 'Remint well: exchange an OAuth access token (or browser session) for a signed RS256 authorization JWT containing IAM policy and optional client_metadata, plus a compact heartbeat JWT (sub, aud, iss, exp, pvh). Does not accept authorization JWTs. Use jwt or compact_jwt as Bearer on GET /resources/userinfo and GET /resources/validate.',
         security: [
             ['oauthAccessToken' => []],
         ],
@@ -93,7 +89,8 @@ class ResourcesController
                     mediaType: 'application/json',
                     schema: new OA\Schema(
                         properties: [
-                            new OA\Property(property: 'jwt', type: 'string'),
+                            new OA\Property(property: 'jwt', type: 'string', description: 'Fat RS256 authorization JWT (policy, identity, pvh). Integrator default.'),
+                            new OA\Property(property: 'compact_jwt', type: 'string', description: 'Compact RS256 heartbeat JWT (sub, aud, iss, exp, pvh). Same keys and exp as jwt.'),
                         ]
                     )
                 )
@@ -108,15 +105,9 @@ class ResourcesController
             return $response->withStatus(401);
         }
 
-        $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($user);
+        $tokens = $this->amtgardIdpJwt->buildAuthorizationTokens($user);
 
-        $this->redisCacheRepository->cacheValidatedUser(
-            $user->getUserId(),
-            $user->getEmail() ?? '',
-            $jwt
-        );
-
-        $response->getBody()->write(json_encode(['jwt' => $jwt]));
+        $response->getBody()->write(json_encode($tokens));
         return $response->withHeader('Content-Type', 'application/json');
     }
 
@@ -124,7 +115,7 @@ class ResourcesController
         path: '/resources/userinfo',
         operationId: 'userinfo',
         summary: 'Get user information',
-        description: 'Requires the RS256 authorization JWT from GET /resources/jwt — not an OAuth access token.',
+        description: 'Requires the RS256 authorization JWT from GET /resources/jwt — not an OAuth access token. Does not remint; obtain a new JWT from GET /resources/jwt. Cache miss is 401 (validate is the heartbeat seed). One generation behind is 409 stale_token.',
         security: [['bearerAuth' => []]],
         responses: [
             new OA\Response(
@@ -134,13 +125,8 @@ class ResourcesController
                     mediaType: 'application/json',
                     schema: new OA\Schema(
                         properties: [
-                            new OA\Property(property: 'id', type: 'integer'),
+                            new OA\Property(property: 'id', type: 'string', description: 'IDP user UUID'),
                             new OA\Property(property: 'email', type: 'string'),
-                            new OA\Property(
-                                property: 'jwt',
-                                type: 'string',
-                                description: 'RS256 authorization JWT (same token sent in Authorization header). Decode for policy, client_metadata, sub, aud. See /docs Section 8.'
-                            ),
                             new OA\Property(
                                 property: 'ork_profile',
                                 type: 'object',
@@ -164,6 +150,15 @@ class ResourcesController
                     )
                 )
             ),
+            new OA\Response(
+                response: 409,
+                description: 'Presented pvh is one generation behind',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'error', type: 'string', example: 'stale_token'),
+                    ]
+                )
+            ),
             new OA\Response(response: 401, description: 'Unauthorized'),
         ]
     )]
@@ -174,12 +169,9 @@ class ResourcesController
             return $response->withStatus(401);
         }
 
-        $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($user);
-
         $userData = [
             'id' => $user->getUserId(),
             'email' => $user->getEmail(),
-            'jwt' => $jwt
         ];
 
         $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
