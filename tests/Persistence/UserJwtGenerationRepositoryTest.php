@@ -57,10 +57,11 @@ class UserJwtGenerationRepositoryTest extends TestCase
         };
 
         $repository = $this->getMockBuilder(UserJwtGenerationRepository::class)
-            ->onlyMethods(['clear', 'find', 'getCurrent', '__set'])
+            ->onlyMethods(['clear', 'find', 'next', 'getCurrent', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->method('find')->willReturn(1);
+        $repository->method('next')->willReturn(true);
         $repository->method('getCurrent')->willReturn($row);
 
         $this->assertSame($row, $repository->findByUserUuidAndAud('user-uuid', 'client-a'));
@@ -123,9 +124,9 @@ class UserJwtGenerationRepositoryTest extends TestCase
 
         $row = new class extends UserJwtGeneration {
             public string $pvh;
-            public ?string $prev_pvh = null;
-            public string $policy_hash;
-            public ?\DateTimeImmutable $updated_at = null;
+            public ?string $prevPvh = null;
+            public string $policyHash;
+            public ?string $updatedAt = null;
 
             public function getPvh(): string
             {
@@ -134,18 +135,19 @@ class UserJwtGenerationRepositoryTest extends TestCase
 
             public function getPolicyHash(): string
             {
-                return $this->policy_hash;
+                return $this->policyHash;
             }
         };
         $row->pvh = $existingPvh;
-        $row->prev_pvh = $existingPrevPvh;
-        $row->policy_hash = $hash;
+        $row->prevPvh = $existingPrevPvh;
+        $row->policyHash = $hash;
 
         $repository = $this->getMockBuilder(UserJwtGenerationRepository::class)
-            ->onlyMethods(['clear', 'find', 'getCurrent', 'persist', '__set'])
+            ->onlyMethods(['clear', 'find', 'next', 'getCurrent', 'persist', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->expects($this->once())->method('find')->willReturn(1);
+        $repository->expects($this->once())->method('next')->willReturn(true);
         $repository->expects($this->once())->method('getCurrent')->willReturn($row);
         $repository->expects($this->once())->method('persist')->with($row)->willReturn($row);
 
@@ -153,9 +155,9 @@ class UserJwtGenerationRepositoryTest extends TestCase
 
         $this->assertSame($row, $result);
         $this->assertSame($existingPvh, $row->pvh);
-        $this->assertSame($existingPrevPvh, $row->prev_pvh);
-        $this->assertSame($hash, $row->policy_hash);
-        $this->assertInstanceOf(\DateTimeImmutable::class, $row->updated_at);
+        $this->assertSame($existingPrevPvh, $row->prevPvh);
+        $this->assertSame($hash, $row->policyHash);
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) $row->updatedAt);
         $this->assertNotSame(Pvh::encode($nowMs, $hash), $row->pvh);
     }
 
@@ -168,9 +170,9 @@ class UserJwtGenerationRepositoryTest extends TestCase
 
         $row = new class extends UserJwtGeneration {
             public string $pvh;
-            public ?string $prev_pvh = null;
-            public string $policy_hash;
-            public ?\DateTimeImmutable $updated_at = null;
+            public ?string $prevPvh = null;
+            public string $policyHash;
+            public ?string $updatedAt = null;
 
             public function getPvh(): string
             {
@@ -179,27 +181,28 @@ class UserJwtGenerationRepositoryTest extends TestCase
 
             public function getPolicyHash(): string
             {
-                return $this->policy_hash;
+                return $this->policyHash;
             }
         };
         $row->pvh = $existingPvh;
-        $row->prev_pvh = null;
-        $row->policy_hash = $oldHash;
+        $row->prevPvh = null;
+        $row->policyHash = $oldHash;
 
         $repository = $this->getMockBuilder(UserJwtGenerationRepository::class)
-            ->onlyMethods(['clear', 'find', 'getCurrent', 'persist', '__set'])
+            ->onlyMethods(['clear', 'find', 'next', 'getCurrent', 'persist', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->expects($this->once())->method('find')->willReturn(1);
+        $repository->expects($this->once())->method('next')->willReturn(true);
         $repository->expects($this->once())->method('getCurrent')->willReturn($row);
         $repository->expects($this->once())->method('persist')->with($row)->willReturn($row);
 
         $result = $repository->upsert(7, 'user-uuid', 3, 'client-a', $newHash, $nowMs);
 
         $this->assertSame($row, $result);
-        $this->assertSame($existingPvh, $row->prev_pvh);
+        $this->assertSame($existingPvh, $row->prevPvh);
         $this->assertSame(Pvh::encode($nowMs, $newHash), $row->pvh);
-        $this->assertSame($newHash, $row->policy_hash);
-        $this->assertInstanceOf(\DateTimeImmutable::class, $row->updated_at);
+        $this->assertSame($newHash, $row->policyHash);
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) $row->updatedAt);
     }
 }

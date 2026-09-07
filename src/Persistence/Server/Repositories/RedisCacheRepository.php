@@ -66,11 +66,17 @@ class RedisCacheRepository
 
     public function queueUserValidation(string $userUuid, string $aud): void
     {
+        $queue = $this->pvhQueueHandle->getHandle();
         $this->pubSubQueue->publish(
-            $this->pvhQueueHandle->getHandle(),
+            $queue,
             $userUuid . ':' . $aud,
             json_encode(['user_uuid' => $userUuid, 'aud' => $aud], JSON_THROW_ON_ERROR)
         );
+        $this->logger->notice('jwt pvh enqueue', [
+            'user_uuid' => $userUuid,
+            'aud' => $aud,
+            'queue' => $queue,
+        ]);
     }
 
     public static function pvhKey(string $userUuid, string $aud): string

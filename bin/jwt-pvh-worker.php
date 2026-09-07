@@ -3,6 +3,7 @@
 
 declare(strict_types=1);
 
+use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Services\JwtPvhRefreshService;
 use Amtgard\IdP\Utility\CallConsumersBackoff;
 use Amtgard\IdP\Utility\PvhQueueHandle;
@@ -38,6 +39,10 @@ if (function_exists('pcntl_async_signals') && function_exists('pcntl_signal')) {
     pcntl_signal(SIGINT, $stop);
 }
 
+$logger->notice('jwt pvh worker started', [
+    'queue' => $queueName,
+]);
+
 $pubSub->redrive($queueName);
 
 $processed = false;
@@ -60,6 +65,14 @@ $pubSub->subscribe($queueName, function ($key, $message) use ($pubSub, $queueNam
             return;
         }
 
+        $logger->notice('jwt pvh worker dequeued', [
+            'key' => $key,
+            'user_uuid' => $payload['user_uuid'],
+            'aud' => $payload['aud'],
+        ]);
+        // Long-running CLI: AARO identity-map would otherwise keep the first
+        // user_jwt_generations row forever and miss MySQL policy_hash changes.
+        EntityManager::getManager()->clearAll();
         $service->refresh($payload['user_uuid'], $payload['aud']);
     } catch (Throwable $e) {
         $logger->error('jwt pvh worker job failed; re-publishing', [

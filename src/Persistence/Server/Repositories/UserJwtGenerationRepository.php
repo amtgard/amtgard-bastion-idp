@@ -28,7 +28,7 @@ class UserJwtGenerationRepository extends Repository implements EntityRepository
         $this->clear();
         $this->user_uuid = $userUuid;
         $this->aud = $aud;
-        if ($this->find() === 0) {
+        if ($this->find() === 0 || !$this->next()) {
             return null;
         }
 
@@ -45,20 +45,15 @@ class UserJwtGenerationRepository extends Repository implements EntityRepository
         string $policyHash,
         int $nowMs
     ): UserJwtGeneration {
-        $now = new \DateTimeImmutable();
-
-        $this->clear();
-        $this->user_uuid = $userUuid;
-        $this->aud = $aud;
-        if ($this->find() > 0) {
-            /** @var UserJwtGeneration $existing */
-            $existing = $this->getCurrent();
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $existing = $this->findByUserUuidAndAud($userUuid, $aud);
+        if ($existing !== null) {
             if (!hash_equals($existing->getPolicyHash(), $policyHash)) {
-                $existing->prev_pvh = $existing->getPvh();
+                $existing->prevPvh = $existing->getPvh();
                 $existing->pvh = Pvh::encode($nowMs, $policyHash);
-                $existing->policy_hash = $policyHash;
+                $existing->policyHash = $policyHash;
             }
-            $existing->updated_at = $now;
+            $existing->updatedAt = $now;
             $this->persist($existing);
             return $existing;
         }

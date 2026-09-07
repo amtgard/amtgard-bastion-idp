@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
-use Slim\Exception\HttpUnauthorizedException;
+use Psr\Log\LoggerInterface;
 
 class LowLatencyControllerTest extends TestCase
 {
@@ -61,7 +61,8 @@ class LowLatencyControllerTest extends TestCase
         $this->controller = new LowLatencyController(
             $this->redisCacheRepository,
             $this->redisPubSubQueue,
-            $this->pubSubQueueHandle
+            $this->pubSubQueueHandle,
+            $this->createStub(LoggerInterface::class)
         );
     }
 
@@ -75,10 +76,9 @@ class LowLatencyControllerTest extends TestCase
         $this->redisCacheRepository->expects($this->never())->method('getPvhRecord');
         $this->redisCacheRepository->expects($this->never())->method('queueUserValidation');
         $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
+        $this->expectUnauthorizedJson();
 
-        $this->expectException(HttpUnauthorizedException::class);
-
-        $this->controller->validate($this->request, $this->response);
+        $this->assertSame($this->response, $this->controller->validate($this->request, $this->response));
     }
 
     public function testValidateSucceedsWithoutSession(): void
@@ -109,9 +109,9 @@ class LowLatencyControllerTest extends TestCase
             ->with('Authorization')
             ->willReturn('Bearer invalid.jwt.string');
 
-        $this->expectException(HttpUnauthorizedException::class);
+        $this->expectUnauthorizedJson();
 
-        $this->controller->validate($this->request, $this->response);
+        $this->assertSame($this->response, $this->controller->validate($this->request, $this->response));
     }
 
     public function testValidateThrowsUnauthorizedWhenIssuerMismatch(): void
@@ -121,10 +121,9 @@ class LowLatencyControllerTest extends TestCase
         $this->redisCacheRepository->expects($this->never())->method('getPvhRecord');
         $this->redisCacheRepository->expects($this->never())->method('queueUserValidation');
         $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
+        $this->expectUnauthorizedJson();
 
-        $this->expectException(HttpUnauthorizedException::class);
-
-        $this->controller->validate($this->request, $this->response);
+        $this->assertSame($this->response, $this->controller->validate($this->request, $this->response));
     }
 
     public function testValidateThrowsUnauthorizedWhenExpired(): void
@@ -133,10 +132,9 @@ class LowLatencyControllerTest extends TestCase
         $this->withBearer($jwt);
         $this->redisCacheRepository->expects($this->never())->method('getPvhRecord');
         $this->redisCacheRepository->expects($this->never())->method('queueUserValidation');
+        $this->expectUnauthorizedJson();
 
-        $this->expectException(HttpUnauthorizedException::class);
-
-        $this->controller->validate($this->request, $this->response);
+        $this->assertSame($this->response, $this->controller->validate($this->request, $this->response));
     }
 
     public function testValidateThrowsUnauthorizedWhenSubMissing(): void
@@ -144,10 +142,9 @@ class LowLatencyControllerTest extends TestCase
         $jwt = $this->generateValidJwt(sub: '');
         $this->withBearer($jwt);
         $this->redisCacheRepository->expects($this->never())->method('getPvhRecord');
+        $this->expectUnauthorizedJson();
 
-        $this->expectException(HttpUnauthorizedException::class);
-
-        $this->controller->validate($this->request, $this->response);
+        $this->assertSame($this->response, $this->controller->validate($this->request, $this->response));
     }
 
     public function testValidateCompactJwtCurrentPvhReturns200(): void
@@ -222,10 +219,10 @@ class LowLatencyControllerTest extends TestCase
             ));
         $this->redisCacheRepository->expects($this->never())->method('queueUserValidation');
         $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
+        $this->redisPubSubQueue->expects($this->never())->method('publish');
+        $this->expectUnauthorizedJson();
 
-        $this->expectException(HttpUnauthorizedException::class);
-
-        $this->controller->validate($this->request, $this->response);
+        $this->assertSame($this->response, $this->controller->validate($this->request, $this->response));
     }
 
     public function testValidateCacheMissSeedsPresentedPvhAndReturns200(): void
@@ -381,6 +378,14 @@ class LowLatencyControllerTest extends TestCase
             ->method('getHeaderLine')
             ->with('Authorization')
             ->willReturn('Bearer ' . $jwt);
+    }
+
+    private function expectUnauthorizedJson(): void
+    {
+        $this->stream->expects($this->once())
+            ->method('write')
+            ->with(json_encode(['error' => 'unauthorized']));
+        $this->response->expects($this->once())->method('withStatus')->with(401);
     }
 
     private function expectSuccessSideEffects(): void

@@ -46,29 +46,23 @@ The IDP provides specific endpoints for retrieving user data and validating sess
 
 ## Development
 
-This project requires a local `.env` with your development secrets. Copy `.env.example` to `.env`, fill in OAuth credentials and other values, then run commands from the **repository root**.
+Local Docker uses the same three Compose projects as production (sessions, one web slot, jwt-worker). The web and worker overlays add `Dockerfile.dev`, a repo bind-mount, Xdebug on the web container (host port 41093), and a local MariaDB (`amtgard-idp-db`, volume `amtgard-idp_data-db`). Copy `.env.example` to `.env`, fill in secrets, then from the **repository root**:
 
 ```bash
 ./scripts/setup-git-hooks.sh   # once per clone — auto-updates VERSION on commit
 composer install
-docker compose -f docker/compose.dev.yml up -d --build
-docker compose -f docker/compose.dev.yml exec amtgardidpapp bash -lc \
+./scripts/dev-up.sh
+docker exec amtgard-idp bash -lc \
   "cd /var/www/idp.amtgard.com && vendor/robmorgan/phinx/bin/phinx migrate"
 ```
 
-The compose file lives under `docker/` but build context, volume mounts, and `env_file` paths are written relative to that file so they resolve to the repo root. You do **not** need `--project-directory`. The project name is fixed as `amtgard-idp` so it reuses an existing dev database container if you already have one running.
+`scripts/dev-up.sh` creates `amtgard-idp-shared` if needed, then `up -d`s:
 
-JWT PVH worker: Redis in dev is started inside the app container by `heartbeat.sh` (127.0.0.1). The reliable path is to run the CLI worker there:
+1. `amtgard-idp-sessions` — `docker/compose.sessions.yml` (`amtgard-idp-sessions`)
+2. `amtgard-idp` — `compose.prod.yml` + `compose.blue.yml` + `compose.dev.yml` (`amtgard-idp` on 37080, `amtgard-idp-db` on 36306)
+3. `amtgard-idp-worker` — `compose.worker.yml` + `compose.worker.dev.yml` (`amtgard-idp-jwt-worker`)
 
-```bash
-docker compose -f docker/compose.dev.yml exec amtgardidpapp php /var/www/idp.amtgard.com/bin/jwt-pvh-worker.php
-```
-
-An optional `jwt-worker` compose service (profile `worker`) shares the app container network so it can reach that in-container Redis:
-
-```bash
-docker compose -f docker/compose.dev.yml --profile worker up -d jwt-worker
-```
+Do not start a second worker with `exec php bin/jwt-pvh-worker.php` in the app container. Do not `docker compose down -v` (that deletes `amtgard-idp_data-db`).
 
 Server: http://localhost:37080/
 
@@ -85,16 +79,16 @@ Each commit records an orderable build id in `VERSION` and `version.json` (forma
 
 ### Tests (PHPUnit in Docker)
 
-PHPUnit requires PHP 8.4 (matches `composer.json`). Run the suite in the dev container:
+PHPUnit requires PHP 8.4 (matches `composer.json`). After `./scripts/dev-up.sh`:
 
 ```bash
-docker compose -f docker/compose.dev.yml --profile test run --rm test
+./scripts/dev-up.sh test
 ```
 
-Or against a running app container:
+Or against the running app container:
 
 ```bash
-docker compose -f docker/compose.dev.yml exec amtgardidpapp bash -lc \
+docker exec amtgard-idp bash -lc \
   "cd /var/www/idp.amtgard.com && composer test"
 ```
 
@@ -146,9 +140,9 @@ cp .env.example .env
 
 ### Key Configuration Options
 - **Application**: `APP_URL`, `APP_ENV`, `APP_SECRET`
-- **Database**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — production `.env` must point at the **host-owned** MySQL instance (e.g. `host.docker.internal`). Do not add a production MySQL Docker volume.
-- **Sessions**: `SESSION_REDIS_HOST`, `SESSION_REDIS_PORT`, `SESSION_REDIS_DB` — point at the isolated `amtgard-idp-sessions` container in production (DB 1).
-- **Pub/sub queue & cache**: `REDIS_PUBSUB_HOST`, `REDIS_PUBSUB_PORT`, `REDIS_PUBSUB_DB`, `REDIS_PUBSUB_QUEUE_NAME` — same sessions host in production (DB 0, presence). Omit `REDIS_PUBSUB_HOST` locally to use in-container Redis.
+- **Database**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — local Docker uses `amtgard-idp-db`. Production `.env` must point at the **host-owned** MySQL instance (e.g. `host.docker.internal`). Do not add a production MySQL Docker volume.
+- **Sessions**: `SESSION_REDIS_HOST`, `SESSION_REDIS_PORT`, `SESSION_REDIS_DB` — `amtgard-idp-sessions` in local Docker and production (DB 1).
+- **Pub/sub queue & cache**: `REDIS_PUBSUB_HOST`, `REDIS_PUBSUB_PORT`, `REDIS_PUBSUB_DB`, `REDIS_PUBSUB_QUEUE_NAME` — same sessions host (DB 0, presence).
 - **JWT PVH refresh queue**: `REDIS_PVH_QUEUE_NAME` (default `amtgard-idp-pvh`) — consumed by `amtgard-idp-jwt-worker`, not the presence queue.
 - **OAuth**:
   - `OAUTH_PRIVATE_KEY` / `OAUTH_PUBLIC_KEY`: Paths to RSA keys for signing tokens.

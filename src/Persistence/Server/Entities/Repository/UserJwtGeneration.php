@@ -42,7 +42,7 @@ class UserJwtGeneration extends RepositoryEntity
     private string $policyHash;
 
     #[Field('updated_at')]
-    private \DateTimeInterface $updatedAt;
+    private string $updatedAt;
 
     public function getId(): int
     {
@@ -84,7 +84,7 @@ class UserJwtGeneration extends RepositoryEntity
         return $this->policyHash;
     }
 
-    public function getUpdatedAt(): \DateTimeInterface
+    public function getUpdatedAt(): string
     {
         return $this->updatedAt;
     }

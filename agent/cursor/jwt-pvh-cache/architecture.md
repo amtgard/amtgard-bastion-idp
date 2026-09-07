@@ -76,7 +76,7 @@ The PVH worker must follow the **sessions** pattern, not the app-slot pattern:
 - During `install.sh`: Redis stays up → migrate on the **inactive** app slot → recreate worker from the new image → health-check app → nginx switch. The worker restart is seconds; Redis retains unacked SetQueue entries (`redrive` on boot).
 - Do **not** run the worker inside `heartbeat.sh` of a web slot. That dies with the inactive slot and duplicates if both slots run.
 
-Dev: a `jwt-worker` service on `compose.dev.yml` with the same bind mount as the app, command `php bin/jwt-pvh-worker.php`.
+Dev: same three Compose projects as prod (`scripts/dev-up.sh`); web overlay bind-mounts the repo and adds MariaDB; worker overlay bind-mounts the repo and joins `amtgard-idp-net` for `amtgard-idp-db`.
 
 ## 6. `pvh` is a generation id, not “hash of now”
 

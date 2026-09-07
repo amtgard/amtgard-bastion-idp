@@ -49,6 +49,12 @@ final class JwtPvhRefreshService
         $existing = $this->generationRepository->findByUserUuidAndAud($userUuid, $aud);
 
         if ($existing !== null && hash_equals($existing->getPolicyHash(), $snapshot['policy_hash'])) {
+            $this->logger->notice('jwt pvh refresh noop', [
+                'user_uuid' => $userUuid,
+                'aud' => $aud,
+                'pvh' => $existing->getPvh(),
+            ]);
+
             return JwtPvhRefreshResult::Noop;
         }
 
@@ -69,6 +75,13 @@ final class JwtPvhRefreshService
             $row->getPvh(),
             $row->getPrevPvh(),
         ));
+
+        $this->logger->notice('jwt pvh refresh rotated', [
+            'user_uuid' => $userUuid,
+            'aud' => $aud,
+            'pvh' => $row->getPvh(),
+            'prev_pvh' => $row->getPrevPvh(),
+        ]);
 
         return JwtPvhRefreshResult::Rotated;
     }

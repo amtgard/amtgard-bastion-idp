@@ -62,13 +62,23 @@ final class PvhGate
 
     public static function writeStaleToken(ResponseInterface $response): ResponseInterface
     {
-        $response->getBody()->write(json_encode(['error' => 'stale_token']));
+        return self::writeJsonError($response, 'stale_token', 409);
+    }
 
-        return $response->withHeader('Content-Type', 'application/json')->withStatus(409);
+    public static function writeUnauthorized(ResponseInterface $response): ResponseInterface
+    {
+        return self::writeJsonError($response, 'unauthorized', 401);
     }
 
     public static function staleTokenResponse(): ResponseInterface
     {
         return self::writeStaleToken((new ResponseFactory())->createResponse());
+    }
+
+    private static function writeJsonError(ResponseInterface $response, string $error, int $status): ResponseInterface
+    {
+        $response->getBody()->write(json_encode(['error' => $error]));
+
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }
 }

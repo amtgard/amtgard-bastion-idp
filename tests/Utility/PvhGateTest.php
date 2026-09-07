@@ -97,6 +97,16 @@ class PvhGateTest extends TestCase
         $this->assertSame(['error' => 'stale_token'], json_decode((string) $result->getBody(), true));
     }
 
+    public function testWriteUnauthorizedIs401Json(): void
+    {
+        $response = (new ResponseFactory())->createResponse();
+        $result = PvhGate::writeUnauthorized($response);
+
+        $this->assertSame(401, $result->getStatusCode());
+        $this->assertSame('application/json', $result->getHeaderLine('Content-Type'));
+        $this->assertSame(['error' => 'unauthorized'], json_decode((string) $result->getBody(), true));
+    }
+
     private function record(string $pvh, ?string $prevPvh): PvhCacheRecord
     {
         return new PvhCacheRecord(self::USER, self::AUD, self::EMAIL, $pvh, $prevPvh);

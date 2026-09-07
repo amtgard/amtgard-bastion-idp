@@ -14,22 +14,25 @@ use Amtgard\SetQueue\PubSubQueue;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Slim\Exception\HttpUnauthorizedException;
+use Psr\Log\LoggerInterface;
 
 class LowLatencyController
 {
     private RedisCacheRepository $redisCacheRepository;
     private PubSubQueue $redisPubSubQueue;
     private PubSubQueueHandle $pubSubQueueHandle;
+    private LoggerInterface $logger;
 
     public function __construct(
         RedisCacheRepository $redisCacheRepository,
         PubSubQueue $redisPubSubQueue,
-        PubSubQueueHandle $pubSubQueueHandle
+        PubSubQueueHandle $pubSubQueueHandle,
+        LoggerInterface $logger
     ) {
         $this->redisCacheRepository = $redisCacheRepository;
         $this->redisPubSubQueue = $redisPubSubQueue;
         $this->pubSubQueueHandle = $pubSubQueueHandle;
+        $this->logger = $logger;
     }
 
     #[OA\Get(
@@ -74,7 +77,15 @@ class LowLatencyController
                     ]
                 )
             ),
-            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthorized',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'error', type: 'string', example: 'unauthorized'),
+                    ]
+                )
+            ),
         ]
     )]
     public function validate(Request $request, Response $response): Response
@@ -82,33 +93,38 @@ class LowLatencyController
         $challengeJwt = Jwt::getBearerJwt($request);
 
         if (!$challengeJwt || !Jwt::validateJwtSignature($challengeJwt)) {
-            throw new HttpUnauthorizedException($request, "Not authorized.");
+            return PvhGate::writeUnauthorized($response);
         }
 
         $payload = Jwt::parseJwt($challengeJwt);
         if (!is_array($payload)) {
-            throw new HttpUnauthorizedException($request, "Not authorized.");
+            return PvhGate::writeUnauthorized($response);
         }
 
         $tokenUserId = isset($payload['sub']) ? (string) $payload['sub'] : '';
         $aud = isset($payload['aud']) && is_string($payload['aud']) ? $payload['aud'] : '';
         if ($tokenUserId === '' || $aud === '') {
-            throw new HttpUnauthorizedException($request, "Not authorized.");
+            return PvhGate::writeUnauthorized($response);
         }
 
         if (($payload['iss'] ?? null) !== AuthorizationJwtAssembler::ISSUER) {
-            throw new HttpUnauthorizedException($request, "Not authorized.");
+            return PvhGate::writeUnauthorized($response);
         }
 
         $presentedPvh = Jwt::presentedPvhClaim($payload);
         $fatPolicyHash = $presentedPvh === null ? Jwt::policyHashFromFatClaims($payload) : null;
         if ($presentedPvh === null && $fatPolicyHash === null) {
-            throw new HttpUnauthorizedException($request, "Not authorized.");
+            return PvhGate::writeUnauthorized($response);
         }
 
         $cached = $this->redisCacheRepository->getPvhRecord($tokenUserId, $aud);
         $access = PvhGate::evaluatePresented($cached, $presentedPvh, $fatPolicyHash);
         if ($access === PvhAccess::Current && $cached !== null) {
+            $this->logger->notice('jwt validate current', [
+                'user_uuid' => $tokenUserId,
+                'aud' => $aud,
+                'pvh' => $cached->getPvh(),
+            ]);
             return $this->validateSuccess(
                 $request,
                 $response,
@@ -119,14 +135,31 @@ class LowLatencyController
             );
         }
         if ($access === PvhAccess::Previous) {
+            $this->logger->notice('jwt validate stale_token', [
+                'user_uuid' => $tokenUserId,
+                'aud' => $aud,
+                'presented_pvh' => $presentedPvh,
+                'current_pvh' => $cached?->getPvh(),
+                'prev_pvh' => $cached?->getPrevPvh(),
+            ]);
             return PvhGate::writeStaleToken($response);
         }
         if ($access === PvhAccess::Unknown) {
-            throw new HttpUnauthorizedException($request, "Not authorized.");
+            $this->logger->notice('jwt validate unknown pvh', [
+                'user_uuid' => $tokenUserId,
+                'aud' => $aud,
+                'presented_pvh' => $presentedPvh,
+            ]);
+            return PvhGate::writeUnauthorized($response);
         }
 
         $seedPvh = $presentedPvh ?? Pvh::encode((int) floor(microtime(true) * 1000), $fatPolicyHash);
         $email = isset($payload['email']) && is_string($payload['email']) ? $payload['email'] : '';
+        $this->logger->notice('jwt validate cache miss seeded', [
+            'user_uuid' => $tokenUserId,
+            'aud' => $aud,
+            'pvh' => $seedPvh,
+        ]);
         $this->redisCacheRepository->setPvhRecord(new PvhCacheRecord(
             $tokenUserId,
             $aud,

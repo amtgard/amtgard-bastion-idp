@@ -1,63 +1,43 @@
+# Overlay on compose.prod.yml + compose.blue.yml. Start with scripts/dev-up.sh.
 name: amtgard-idp
 
 services:
   amtgardidpapp:
+    image: amtgard-idp-dev
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile.dev
     ports:
-      - "37080:80"
       - "41093:9003"
-    working_dir: /var/www
     volumes:
-      - ..:/var/www/idp.amtgard.com
-    env_file:
-      - ../.env
+      - .:/var/www/idp.amtgard.com
     environment:
       - ENVIRONMENT=DEV
     container_name: amtgard-idp
+    hostname: amtgard-idp
     depends_on:
       - amtgardidpdb
-    networks:
-      - amtgard-idp-net
-    hostname: amtgard-idp-app
-
-  jwt-worker:
-    profiles: ["worker"]
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.dev
-    working_dir: /var/www/idp.amtgard.com
-    volumes:
-      - ..:/var/www/idp.amtgard.com
-    env_file:
-      - ../.env
-    environment:
-      - ENVIRONMENT=DEV
-    command: ["php", "-d", "memory_limit=256M", "bin/jwt-pvh-worker.php"]
-    depends_on:
-      - amtgardidpapp
-      - amtgardidpdb
-    # Share the app container network so 127.0.0.1 Redis from heartbeat.sh is reachable.
-    network_mode: "service:amtgardidpapp"
-    restart: unless-stopped
 
   test:
     profiles: ["test"]
+    image: amtgard-idp-dev
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile.dev
     working_dir: /var/www/idp.amtgard.com
     volumes:
-      - ..:/var/www/idp.amtgard.com
+      - .:/var/www/idp.amtgard.com
     env_file:
-      - ../.env
+      - .env
     environment:
       - ENVIRONMENT=DEV
+      - XDEBUG_MODE=off
     entrypoint: ["bash", "-lc"]
     command: ["composer test"]
     depends_on:
       - amtgardidpdb
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - amtgard-idp-net
 
@@ -76,12 +56,14 @@ services:
     volumes:
       - data-db:/var/lib/mysql
     container_name: amtgard-idp-db
+    hostname: amtgard-idp-db
     networks:
       - amtgard-idp-net
-    hostname: amtgard-idp-db
 
 volumes:
-  data-db: {}
+  data-db:
+    name: amtgard-idp_data-db
 
 networks:
   amtgard-idp-net:
+    name: amtgard-idp-net
