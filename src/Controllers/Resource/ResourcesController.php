@@ -115,7 +115,7 @@ class ResourcesController
         path: '/resources/userinfo',
         operationId: 'userinfo',
         summary: 'Get user information',
-        description: 'Requires the RS256 authorization JWT from GET /resources/jwt — not an OAuth access token. Does not remint; obtain a new JWT from GET /resources/jwt. Cache miss is 401 (validate is the heartbeat seed). One generation behind is 409 stale_token.',
+        description: 'Accepts an RS256 authorization JWT (pvh/policy) or a League OAuth access token. Authorization JWT cache miss seeds Redis for that aud; one generation behind is 409 stale_token. OAuth access tokens are validated by the resource server. Does not remint.',
         security: [['bearerAuth' => []]],
         responses: [
             new OA\Response(

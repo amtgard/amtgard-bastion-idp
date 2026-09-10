@@ -9,10 +9,22 @@ use Slim\Psr7\Factory\ResponseFactory;
 
 /**
  * Shared pvh compare for validate, userinfo middleware, and client-restricted Bearer.
- * Current → proceed; previous → 409 stale_token; unknown/miss → 401 (validate seeds miss itself).
+ * Current → proceed; previous → 409 stale_token; unknown → 401; miss → seed (validate and auth middleware).
  */
 final class PvhGate
 {
+    public static function missSeedRecord(
+        string $userUuid,
+        string $aud,
+        string $email,
+        ?string $presentedPvh,
+        ?string $fatPolicyHash
+    ): PvhCacheRecord {
+        $seedPvh = $presentedPvh ?? Pvh::encode((int) floor(microtime(true) * 1000), $fatPolicyHash);
+
+        return new PvhCacheRecord($userUuid, $aud, $email, $seedPvh, null);
+    }
+
     /**
      * @param array<string, mixed> $payload
      */

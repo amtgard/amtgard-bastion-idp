@@ -47,6 +47,19 @@ class RedisCacheRepository
     }
 
     /**
+     * Pre-M7 serialize blob at key=user UUID (not pvh:{uuid}:{aud}).
+     */
+    public function hasLegacyUserEntry(string $userUuid): bool
+    {
+        return (bool) $this->redis->exists($userUuid);
+    }
+
+    public function deleteLegacyUserEntry(string $userUuid): void
+    {
+        $this->redis->del($userUuid);
+    }
+
+    /**
      * Logout-only: SCAN-deletes pvh:{userId}:* JSON records. Also DELs the
      * leftover UUID key so pre-M7 serialize blobs do not survive logout.
      * Client IAM claim/metadata paths must not call this.

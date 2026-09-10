@@ -3,8 +3,13 @@
 namespace Amtgard\IdP\Controllers\Server;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
-use Amtgard\IdP\Utility\Security\RedirectValidator;
+use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
+use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
+use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
+use Amtgard\IdP\Utility\Constants;
+use Amtgard\IdP\Utility\Security\RedirectValidator;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\Exception\OAuthServerException;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -31,6 +36,8 @@ class OAuth2ServerController
     protected LoggerInterface $logger;
     protected ResourceServer $resourceServer;
     protected UserClientAuthorizationRepository $userClientAuthorizationRepository;
+    private AmtgardIdpJwt $amtgardIdpJwt;
+    private RedisCacheRepository $redisCacheRepository;
 
     public function __construct(
         LoggerInterface $logger,
@@ -41,7 +48,9 @@ class OAuth2ServerController
         ScopeRepositoryInterface $scopeRepository,
         UserRepositoryInterface $userRepository,
         ResourceServer $resourceServer,
-        UserClientAuthorizationRepository $userClientAuthorizationRepository
+        UserClientAuthorizationRepository $userClientAuthorizationRepository,
+        AmtgardIdpJwt $amtgardIdpJwt,
+        RedisCacheRepository $redisCacheRepository
     ) {
         $this->logger = $logger;
         $this->view = $view;
@@ -51,6 +60,8 @@ class OAuth2ServerController
         $this->userRepository = $userRepository;
         $this->resourceServer = $resourceServer;
         $this->userClientAuthorizationRepository = $userClientAuthorizationRepository;
+        $this->amtgardIdpJwt = $amtgardIdpJwt;
+        $this->redisCacheRepository = $redisCacheRepository;
     }
 
     public function token(Request $request, Response $response): Response
@@ -325,6 +336,8 @@ class OAuth2ServerController
 
     private function finalizeAuthorization(AuthorizationRequest $authRequest, Response $response)
     {
+        $this->seedPvhAudiences($authRequest);
+
         $authRequest->setAuthorizationApproved(true);
 
         $response = $this->authorizationServer->completeAuthorizationRequest($authRequest, $response);
@@ -337,6 +350,66 @@ class OAuth2ServerController
         }
 
         return $response;
+    }
+
+    /**
+     * Ensure Redis has pvh:{uuid}:{aud} for the first-party IDP client and the
+     * OAuth RP. Skip when both already exist (middleware owns valid/stale).
+     * Legacy UUID serialize keys trigger a remint of any missing audience.
+     */
+    private function seedPvhAudiences(AuthorizationRequest $authRequest): void
+    {
+        $user = $this->resolveIdpUser($authRequest);
+        $userUuid = $user?->getUserId();
+        if ($user === null || !is_string($userUuid) || $userUuid === '') {
+            $this->logger->warning('oauth pvh seed skipped: user not resolved');
+            return;
+        }
+        $idpAud = Constants::$AMTGARD_IDP_CLIENT_ID;
+        $clientAud = $authRequest->getClient()->getIdentifier();
+        $legacy = $this->redisCacheRepository->hasLegacyUserEntry($userUuid);
+
+        $audiences = [$idpAud];
+        if (is_string($clientAud) && $clientAud !== '' && $clientAud !== $idpAud) {
+            $audiences[] = $clientAud;
+        }
+
+        foreach ($audiences as $aud) {
+            $hasPvh = $this->redisCacheRepository->getPvhRecord($userUuid, $aud) !== null;
+            if ($hasPvh && !$legacy) {
+                continue;
+            }
+            $this->amtgardIdpJwt->buildAuthorizationTokens($user, $aud);
+            $this->logger->notice('oauth pvh seeded', [
+                'user_uuid' => $userUuid,
+                'aud' => $aud,
+                'legacy' => $legacy,
+            ]);
+        }
+
+        if ($legacy) {
+            $this->redisCacheRepository->deleteLegacyUserEntry($userUuid);
+        }
+    }
+
+    private function resolveIdpUser(AuthorizationRequest $authRequest): ?UserEntity
+    {
+        $oauthUser = $authRequest->getUser();
+        if ($oauthUser instanceof OAuthUser) {
+            return $oauthUser->getUserEntity();
+        }
+
+        $identifier = $_SESSION['user_id'] ?? $oauthUser?->getIdentifier();
+        if ($identifier === null || $identifier === '') {
+            return null;
+        }
+
+        $loaded = $this->userRepository->getUserEntityById((string) $identifier);
+        if ($loaded instanceof OAuthUser) {
+            return $loaded->getUserEntity();
+        }
+
+        return $loaded instanceof UserEntity ? $loaded : null;
     }
 
     public function authorizePost(Request $request, Response $response): Response

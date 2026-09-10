@@ -33,11 +33,15 @@ class OAuthAccessTokenElevationMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        if (Jwt::validateJwtRequest($request) !== null) {
-            throw new HttpUnauthorizedException(
-                $request,
-                'Authorization JWTs are used with /resources/userinfo. Present an OAuth access token or session here.'
-            );
+        $bearer = Jwt::getBearerJwt($request);
+        if ($bearer !== null && Jwt::validateJwtSignature($bearer) !== null) {
+            $payload = Jwt::parseJwt($bearer);
+            if (is_array($payload) && Jwt::isAuthorizationPayload($payload)) {
+                throw new HttpUnauthorizedException(
+                    $request,
+                    'Authorization JWTs are used with /resources/userinfo. Present an OAuth access token or session here.'
+                );
+            }
         }
 
         $session = $request->getAttribute('session');

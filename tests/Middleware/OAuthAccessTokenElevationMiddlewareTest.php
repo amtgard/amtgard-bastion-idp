@@ -104,13 +104,44 @@ class OAuthAccessTokenElevationMiddlewareTest extends TestCase
 
     public function testProcessRejectsAuthorizationJwtBearer(): void
     {
-        $jwt = $this->generateValidJwt('user-123', 'valid-client');
+        $jwt = $this->generateAuthorizationJwt('user-123', 'valid-client');
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getHeaderLine')->with('Authorization')->willReturn("Bearer {$jwt}");
         $request->method('getAttribute')->with('session')->willReturn(['client_id' => 'valid-client']);
 
         $this->expectException(HttpUnauthorizedException::class);
         $this->makeMiddleware()->process($request, $this->createMock(RequestHandlerInterface::class));
+    }
+
+    public function testProcessElevatesOAuthAccessTokenJwtViaResourceServer(): void
+    {
+        $jwt = $this->generateOAuthAccessTokenJwt('uuid-user', 'valid-client');
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getHeaderLine')->with('Authorization')->willReturn("Bearer {$jwt}");
+        $request->method('getAttribute')->with('session')->willReturn(['client_id' => 'valid-client']);
+
+        $validated = $this->createMock(ServerRequestInterface::class);
+        $validated->method('getAttribute')->willReturnCallback(function (string $name) {
+            return match ($name) {
+                'oauth_user_id' => 'uuid-user',
+                'oauth_client_id' => 'valid-client',
+                default => null,
+            };
+        });
+
+        $resourceServer = $this->createMock(ResourceServer::class);
+        $resourceServer->expects($this->once())
+            ->method('validateAuthenticatedRequest')
+            ->with($request)
+            ->willReturn($validated);
+
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects($this->once())->method('handle')->with($validated)->willReturn($this->createMock(ResponseInterface::class));
+
+        $this->makeMiddleware($resourceServer)->process($request, $handler);
+
+        $this->assertSame('uuid-user', $_SESSION['user_id']);
+        $this->assertSame('valid-client', $_SESSION['client_id']);
     }
 
     public function testProcessRequiresBearerWhenSessionHasNoUserId(): void
@@ -143,7 +174,7 @@ class OAuthAccessTokenElevationMiddlewareTest extends TestCase
         );
     }
 
-    private function generateValidJwt(string $userId, string $clientId): string
+    private function generateAuthorizationJwt(string $userId, string $clientId): string
     {
         $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone('UTC'));
         $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
@@ -153,13 +184,41 @@ class OAuthAccessTokenElevationMiddlewareTest extends TestCase
         );
 
         $now = $clock->now();
-        $token = $config->builder()
+        $pvh = \Amtgard\IdP\Utility\Pvh::encode(
+            1_700_000_000_000,
+            \Amtgard\IdP\Utility\Pvh::policyHash($clientId, '[]', '')
+        );
+
+        return $config->builder()
             ->issuedBy('http://localhost')
             ->permittedFor($clientId)
             ->relatedTo($userId)
             ->expiresAt($now->modify('+1 hour'))
-            ->getToken($config->signer(), $config->signingKey());
+            ->withClaim('pvh', $pvh)
+            ->getToken($config->signer(), $config->signingKey())
+            ->toString();
+    }
 
-        return $token->toString();
+    private function generateOAuthAccessTokenJwt(string $userId, string $clientId): string
+    {
+        $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone('UTC'));
+        $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
+            new \Lcobucci\JWT\Signer\Rsa\Sha256(),
+            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/private.key'),
+            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/public.key')
+        );
+
+        $now = $clock->now();
+
+        return $config->builder()
+            ->permittedFor($clientId)
+            ->identifiedBy('jti-access-token')
+            ->relatedTo($userId)
+            ->issuedAt($now)
+            ->canOnlyBeUsedAfter($now)
+            ->expiresAt($now->modify('+1 hour'))
+            ->withClaim('scopes', ['profile', 'email'])
+            ->getToken($config->signer(), $config->signingKey())
+            ->toString();
     }
 }

@@ -117,6 +117,15 @@ Host: `git pull`, `chown`. Inactive slot: image build (code + `composer install`
 sudo ./install.sh   # builds inactive slot, migrates, switches host nginx
 ```
 
+**Roll back to a known-good commit** (detached HEAD; next unpinned `install.sh` returns to `origin/main`):
+
+```bash
+sudo ./install.sh 9f3c1ab
+# or: sudo INSTALL_GIT_REF=9f3c1ab ./install.sh
+```
+
+That rebuilds the inactive slot from that tree and recreates the jwt-worker so it matches. Phinx does **not** reverse migrations.
+
 Optional session store maintenance:
 
 ```bash

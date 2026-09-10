@@ -5,7 +5,13 @@ namespace Amtgard\IdP\Tests\Controllers;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
+use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
+use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
+use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
+use Amtgard\IdP\Utility\Constants;
+use Amtgard\IdP\Utility\PvhCacheRecord;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\Exception\OAuthServerException;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -62,6 +68,8 @@ class OAuth2ServerControllerTest extends TestCase
     private $userRepository;
     private $resourceServer;
     private $userClientAuthorizationRepository;
+    private $amtgardIdpJwt;
+    private $redisCacheRepository;
     private $request;
     private $response;
     private $stream;
@@ -81,6 +89,8 @@ class OAuth2ServerControllerTest extends TestCase
         $this->userRepository = $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class);
         $this->resourceServer = $this->createMock(ResourceServer::class);
         $this->userClientAuthorizationRepository = $this->createMock(UserClientAuthorizationRepository::class);
+        $this->amtgardIdpJwt = $this->createMock(AmtgardIdpJwt::class);
+        $this->redisCacheRepository = $this->createMock(RedisCacheRepository::class);
 
         $this->request = $this->createMock(ServerRequestInterface::class);
         $this->response = $this->createMock(ResponseInterface::class);
@@ -100,8 +110,37 @@ class OAuth2ServerControllerTest extends TestCase
             $this->scopeRepository,
             $this->userRepository,
             $this->resourceServer,
-            $this->userClientAuthorizationRepository
+            $this->userClientAuthorizationRepository,
+            $this->amtgardIdpJwt,
+            $this->redisCacheRepository
         );
+    }
+
+    private function makeIdpUser(string $uuid = 'user-uuid-1'): OAuthUser
+    {
+        $user = new class ($uuid) extends UserEntity {
+            private string $uuid;
+
+            public function __construct(string $uuid)
+            {
+                $this->uuid = $uuid;
+            }
+
+            public function getUserId(): string
+            {
+                return $this->uuid;
+            }
+        };
+
+        return OAuthUser::builder()
+            ->identifier($uuid)
+            ->userEntity($user)
+            ->build();
+    }
+
+    private function pvhRecord(string $uuid, string $aud): PvhCacheRecord
+    {
+        return new PvhCacheRecord($uuid, $aud, 'user@example.com', str_repeat('a', 44), null);
     }
 
     public function testTokenFlowSuccess(): void
@@ -392,21 +431,28 @@ class OAuth2ServerControllerTest extends TestCase
         $this->assertSame($this->response, $result);
     }
 
-    public function testAuthorizeSuccess(): void
+    public function testAuthorizeSuccessSkipsMintWhenBothPvhPresent(): void
     {
-        $_SESSION['user_id'] = 123;
+        $_SESSION['user_id'] = 'user-uuid-1';
         $_SESSION['approved'] = true;
 
         $clientMock = $this->createMock(ClientEntityInterface::class);
-        $clientMock->method('getIdentifier')->willReturn('client-1');
-
-        $userMock = $this->createMock(UserEntityInterface::class);
-
-        $authRequest = new TestAuthorizationRequest($clientMock, $userMock);
+        $clientMock->method('getIdentifier')->willReturn('skbc');
+        $oauthUser = $this->makeIdpUser();
+        $authRequest = new TestAuthorizationRequest($clientMock, $oauthUser);
 
         $this->authorizationServer->expects($this->once())
             ->method('validateAuthorizationRequest')
             ->willReturn($authRequest);
+
+        $this->redisCacheRepository->method('hasLegacyUserEntry')->with('user-uuid-1')->willReturn(false);
+        $this->redisCacheRepository->method('getPvhRecord')->willReturnCallback(
+            function (string $uuid, string $aud) {
+                return $this->pvhRecord($uuid, $aud);
+            }
+        );
+        $this->amtgardIdpJwt->expects($this->never())->method('buildAuthorizationTokens');
+        $this->redisCacheRepository->expects($this->never())->method('deleteLegacyUserEntry');
 
         $this->authorizationServer->expects($this->once())
             ->method('completeAuthorizationRequest')
@@ -415,6 +461,92 @@ class OAuth2ServerControllerTest extends TestCase
 
         $result = $this->controller->authorize($this->request, $this->response);
         $this->assertSame($this->response, $result);
+    }
+
+    public function testAuthorizeSuccessSeedsBothAudiencesWhenRedisEmpty(): void
+    {
+        $_SESSION['user_id'] = 'user-uuid-1';
+        $_SESSION['approved'] = true;
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('skbc');
+        $oauthUser = $this->makeIdpUser();
+        $authRequest = new TestAuthorizationRequest($clientMock, $oauthUser);
+
+        $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
+        $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
+
+        $this->redisCacheRepository->method('hasLegacyUserEntry')->willReturn(false);
+        $this->redisCacheRepository->method('getPvhRecord')->willReturn(null);
+
+        $minted = [];
+        $this->amtgardIdpJwt->expects($this->exactly(2))
+            ->method('buildAuthorizationTokens')
+            ->willReturnCallback(function ($user, ?string $aud = null) use (&$minted, $oauthUser) {
+                $this->assertSame($oauthUser->getUserEntity(), $user);
+                $minted[] = $aud;
+                return ['jwt' => 'fat', 'compact_jwt' => 'compact'];
+            });
+
+        $this->controller->authorize($this->request, $this->response);
+
+        $this->assertSame([Constants::$AMTGARD_IDP_CLIENT_ID, 'skbc'], $minted);
+    }
+
+    public function testAuthorizeSuccessSeedsBothAudiencesWhenLegacyKeyExists(): void
+    {
+        $_SESSION['user_id'] = 'user-uuid-1';
+        $_SESSION['approved'] = true;
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('skbc');
+        $oauthUser = $this->makeIdpUser();
+        $authRequest = new TestAuthorizationRequest($clientMock, $oauthUser);
+
+        $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
+        $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
+
+        $this->redisCacheRepository->method('hasLegacyUserEntry')->with('user-uuid-1')->willReturn(true);
+        $this->redisCacheRepository->method('getPvhRecord')->willReturn(null);
+        $this->redisCacheRepository->expects($this->once())
+            ->method('deleteLegacyUserEntry')
+            ->with('user-uuid-1');
+
+        $this->amtgardIdpJwt->expects($this->exactly(2))
+            ->method('buildAuthorizationTokens');
+
+        $this->controller->authorize($this->request, $this->response);
+    }
+
+    public function testAuthorizeSuccessSeedsMissingClientAudienceOnly(): void
+    {
+        $_SESSION['user_id'] = 'user-uuid-1';
+        $_SESSION['approved'] = true;
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('skbc');
+        $oauthUser = $this->makeIdpUser();
+        $authRequest = new TestAuthorizationRequest($clientMock, $oauthUser);
+
+        $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
+        $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
+
+        $this->redisCacheRepository->method('hasLegacyUserEntry')->willReturn(false);
+        $this->redisCacheRepository->method('getPvhRecord')->willReturnCallback(
+            function (string $uuid, string $aud) {
+                if ($aud === Constants::$AMTGARD_IDP_CLIENT_ID) {
+                    return $this->pvhRecord($uuid, $aud);
+                }
+                return null;
+            }
+        );
+
+        $this->amtgardIdpJwt->expects($this->once())
+            ->method('buildAuthorizationTokens')
+            ->with($oauthUser->getUserEntity(), 'skbc')
+            ->willReturn(['jwt' => 'fat', 'compact_jwt' => 'compact']);
+
+        $this->controller->authorize($this->request, $this->response);
     }
 
     public function testAuthorizeOAuthException(): void
