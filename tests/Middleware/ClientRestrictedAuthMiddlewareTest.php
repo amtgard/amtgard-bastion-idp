@@ -123,7 +123,7 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
         $this->assertSame(self::CLIENT, $_SESSION['client_id']);
     }
 
-    public function testProcessCacheMissReturns401AndDoesNotCallResourceServer(): void
+    public function testProcessCacheMissSeedsPresentedPvhAndProceeds(): void
     {
         @session_start();
         $_SESSION['client_id'] = 'invalid-client';
@@ -137,12 +137,24 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
         $this->redisCacheRepository->expects($this->once())
             ->method('getPvhRecord')
             ->willReturn(null);
+        $this->redisCacheRepository->expects($this->once())
+            ->method('setPvhRecord')
+            ->with($this->callback(function (PvhCacheRecord $record) use ($pvh): bool {
+                return $record->getUserUuid() === self::USER
+                    && $record->getAud() === self::CLIENT
+                    && $record->getPvh() === $pvh
+                    && $record->getPrevPvh() === null;
+            }));
         $this->resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
-        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
-        $this->handler->expects($this->never())->method('handle');
+        $this->handler->expects($this->once())
+            ->method('handle')
+            ->with($this->request)
+            ->willReturn($this->response);
 
-        $this->expectException(HttpUnauthorizedException::class);
-        $this->middleware->process($this->request, $this->handler);
+        $result = $this->middleware->process($this->request, $this->handler);
+        $this->assertSame($this->response, $result);
+        $this->assertSame(self::USER, $_SESSION['user_id']);
+        $this->assertSame(self::CLIENT, $_SESSION['client_id']);
     }
 
     public function testProcessPrevPvhReturns409StaleToken(): void

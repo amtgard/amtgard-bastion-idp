@@ -18,6 +18,17 @@ class PvhGateTest extends TestCase
     private const EMAIL = 'test@example.com';
     private const POLICY = '[]';
 
+    public function testMissSeedRecordUsesPresentedPvh(): void
+    {
+        $pvh = $this->samplePvh();
+        $record = PvhGate::missSeedRecord(self::USER, self::AUD, self::EMAIL, $pvh, null);
+
+        $this->assertSame(self::USER, $record->getUserUuid());
+        $this->assertSame(self::AUD, $record->getAud());
+        $this->assertSame($pvh, $record->getPvh());
+        $this->assertNull($record->getPrevPvh());
+    }
+
     public function testEvaluateMissWhenCacheEmpty(): void
     {
         $this->assertSame(

@@ -144,6 +144,25 @@ class RedisCacheRepositoryTest extends TestCase
         $this->assertNull($this->repository->getPvhRecord('uuid-1', 'client-a'));
     }
 
+    public function testHasLegacyUserEntry(): void
+    {
+        $this->redis->expects($this->once())
+            ->method('exists')
+            ->with('uuid-1')
+            ->willReturn(1);
+
+        $this->assertTrue($this->repository->hasLegacyUserEntry('uuid-1'));
+    }
+
+    public function testDeleteLegacyUserEntry(): void
+    {
+        $this->redis->expects($this->once())
+            ->method('del')
+            ->with('uuid-1');
+
+        $this->repository->deleteLegacyUserEntry('uuid-1');
+    }
+
     public function testQueueUserValidationPublishesToPvhQueue(): void
     {
         $pubSubQueue = $this->createMock(PubSubQueue::class);

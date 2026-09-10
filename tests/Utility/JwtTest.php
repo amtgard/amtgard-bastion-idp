@@ -196,4 +196,21 @@ class JwtTest extends TestCase
             ->willReturn('');
         $this->assertNull(Jwt::validateJwtRequest($request2));
     }
+
+    public function testIsAuthorizationPayload(): void
+    {
+        $pvh = \Amtgard\IdP\Utility\Pvh::encode(
+            1_700_000_000_000,
+            \Amtgard\IdP\Utility\Pvh::policyHash('skbc', '[]', '')
+        );
+
+        $this->assertTrue(Jwt::isAuthorizationPayload(['pvh' => $pvh]));
+        $this->assertTrue(Jwt::isAuthorizationPayload(['aud' => 'skbc', 'policy' => '[]']));
+        $this->assertFalse(Jwt::isAuthorizationPayload([
+            'aud' => 'skbc',
+            'sub' => 'user-1',
+            'jti' => 'access-jti',
+            'scopes' => ['profile', 'email'],
+        ]));
+    }
 }

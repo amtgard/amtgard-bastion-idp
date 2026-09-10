@@ -5,9 +5,7 @@ namespace Amtgard\IdP\Controllers\Resource;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\Jwt;
-use Amtgard\IdP\Utility\Pvh;
 use Amtgard\IdP\Utility\PvhAccess;
-use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\IdP\Utility\PvhGate;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\SetQueue\PubSubQueue;
@@ -153,20 +151,14 @@ class LowLatencyController
             return PvhGate::writeUnauthorized($response);
         }
 
-        $seedPvh = $presentedPvh ?? Pvh::encode((int) floor(microtime(true) * 1000), $fatPolicyHash);
         $email = isset($payload['email']) && is_string($payload['email']) ? $payload['email'] : '';
+        $seeded = PvhGate::missSeedRecord($tokenUserId, $aud, $email, $presentedPvh, $fatPolicyHash);
         $this->logger->notice('jwt validate cache miss seeded', [
             'user_uuid' => $tokenUserId,
             'aud' => $aud,
-            'pvh' => $seedPvh,
+            'pvh' => $seeded->getPvh(),
         ]);
-        $this->redisCacheRepository->setPvhRecord(new PvhCacheRecord(
-            $tokenUserId,
-            $aud,
-            $email,
-            $seedPvh,
-            null
-        ));
+        $this->redisCacheRepository->setPvhRecord($seeded);
 
         return $this->validateSuccess(
             $request,

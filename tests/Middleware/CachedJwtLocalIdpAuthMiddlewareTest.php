@@ -128,7 +128,7 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
         $this->assertSame(self::USER, $_SESSION['user_id']);
     }
 
-    public function testProcessCacheMissReturns401AndDoesNotSeed(): void
+    public function testProcessCacheMissSeedsPresentedPvhAndProceeds(): void
     {
         $pvh = $this->samplePvh();
         $jwt = $this->generateValidJwt(self::USER, self::CLIENT, $pvh);
@@ -140,18 +140,63 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
             ->method('getPvhRecord')
             ->with(self::USER, self::CLIENT)
             ->willReturn(null);
-        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
-        $this->handler->expects($this->never())->method('handle');
+        $this->redisCacheRepository->expects($this->once())
+            ->method('setPvhRecord')
+            ->with($this->callback(function (PvhCacheRecord $record) use ($pvh): bool {
+                return $record->getUserUuid() === self::USER
+                    && $record->getAud() === self::CLIENT
+                    && $record->getPvh() === $pvh
+                    && $record->getPrevPvh() === null;
+            }));
+        $this->resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
+        $this->handler->expects($this->once())
+            ->method('handle')
+            ->with($this->request)
+            ->willReturn($this->response);
 
         @session_start();
         $_SESSION = [];
 
-        try {
-            $this->middleware->process($this->request, $this->handler);
-            $this->fail('expected HttpUnauthorizedException');
-        } catch (HttpUnauthorizedException) {
-            $this->assertArrayNotHasKey('user_id', $_SESSION);
-        }
+        $result = $this->middleware->process($this->request, $this->handler);
+        $this->assertSame($this->response, $result);
+        $this->assertSame(self::USER, $_SESSION['user_id']);
+        $this->assertSame(self::CLIENT, $_SESSION['client_id']);
+    }
+
+    public function testProcessOAuthAccessTokenFallsBackToResourceServer(): void
+    {
+        $jwt = $this->generateOAuthAccessTokenJwt(self::USER, 'skbc');
+        $this->request->method('getHeaderLine')
+            ->with('Authorization')
+            ->willReturn("Bearer {$jwt}");
+
+        $this->redisCacheRepository->expects($this->never())->method('getPvhRecord');
+        $this->redisCacheRepository->expects($this->never())->method('setPvhRecord');
+
+        $validated = $this->createMock(ServerRequestInterface::class);
+        $validated->method('getAttribute')->willReturnCallback(function (string $name) {
+            return match ($name) {
+                'oauth_user_id' => self::USER,
+                'oauth_client_id' => 'skbc',
+                default => null,
+            };
+        });
+        $this->resourceServer->expects($this->once())
+            ->method('validateAuthenticatedRequest')
+            ->with($this->request)
+            ->willReturn($validated);
+        $this->handler->expects($this->once())
+            ->method('handle')
+            ->with($validated)
+            ->willReturn($this->response);
+
+        @session_start();
+        $_SESSION = [];
+
+        $result = $this->middleware->process($this->request, $this->handler);
+        $this->assertSame($this->response, $result);
+        $this->assertSame(self::USER, $_SESSION['user_id']);
+        $this->assertSame('skbc', $_SESSION['client_id']);
     }
 
     public function testProcessPrevPvhReturns409StaleToken(): void
@@ -231,5 +276,28 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
         }
 
         return $builder->getToken($config->signer(), $config->signingKey())->toString();
+    }
+
+    private function generateOAuthAccessTokenJwt(string $userId, string $clientId): string
+    {
+        $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone("UTC"));
+        $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
+            new \Lcobucci\JWT\Signer\Rsa\Sha256(),
+            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/private.key'),
+            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/public.key')
+        );
+
+        $now = $clock->now();
+
+        return $config->builder()
+            ->permittedFor($clientId)
+            ->identifiedBy('jti-access-token')
+            ->relatedTo($userId)
+            ->issuedAt($now)
+            ->canOnlyBeUsedAfter($now)
+            ->expiresAt($now->modify('+1 hour'))
+            ->withClaim('scopes', ['profile', 'email'])
+            ->getToken($config->signer(), $config->signingKey())
+            ->toString();
     }
 }

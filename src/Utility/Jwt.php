@@ -121,6 +121,18 @@ class Jwt
     }
 
     /**
+     * Authorization JWT (fat or compact) vs a League OAuth access token JWT.
+     * Access tokens share the RS256 keys but have no `pvh` and no `policy`.
+     *
+     * @param array<string, mixed> $payload
+     */
+    public static function isAuthorizationPayload(array $payload): bool
+    {
+        return self::presentedPvhClaim($payload) !== null
+            || self::policyHashFromFatClaims($payload) !== null;
+    }
+
+    /**
      * Presented compact/fat `pvh` claim when it is 44-char hex. Otherwise null (use fat-claim hash).
      *
      * @param array<string, mixed> $payload

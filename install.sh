@@ -35,6 +35,7 @@ INSTALL_SKIP_HOST_NGINX="${INSTALL_SKIP_HOST_NGINX:-0}"
 INSTALL_RESET_SESSIONS="${INSTALL_RESET_SESSIONS:-0}"
 INSTALL_REBUILD_SESSIONS="${INSTALL_REBUILD_SESSIONS:-0}"
 INSTALL_REBUILD_WORKER="${INSTALL_REBUILD_WORKER:-0}"
+INSTALL_GIT_REF="${INSTALL_GIT_REF:-}"
 
 SESSIONS_CONTAINER="${SESSIONS_CONTAINER:-amtgard-idp-sessions}"
 SESSIONS_COMPOSE_PROJECT="${SESSIONS_COMPOSE_PROJECT:-amtgard-idp-sessions}"
@@ -74,13 +75,75 @@ verify_version() {
     "${ROOT}/scripts/write-version.sh" --check
 }
 
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [commit-sha]
+
+With no argument, fast-forward ${GIT_BRANCH} and deploy that tip.
+With a 7–40 character hex SHA, fetch and check out that commit (detached HEAD)
+then blue-green deploy it — use this to roll back a bad release.
+
+  sudo ./install.sh
+  sudo ./install.sh 9f3c1ab
+  sudo INSTALL_GIT_REF=9f3c1ab ./install.sh
+
+Pinned deploys recreate the jwt-worker so it matches the rolled-back image.
+Phinx migrate is not rolled back; only application code/images move.
+EOF
+}
+
+is_commit_sha() {
+    [[ "$1" =~ ^[0-9a-fA-F]{7,40}$ ]]
+}
+
+resolve_commit() {
+    local ref="$1"
+    if git cat-file -e "${ref}^{commit}" 2>/dev/null; then
+        git rev-parse --verify "${ref}^{commit}"
+        return
+    fi
+    echo "==> Fetching ${ref} from origin..."
+    git fetch --tags origin "$ref" || git fetch origin "$ref"
+    if git cat-file -e "${ref}^{commit}" 2>/dev/null; then
+        git rev-parse --verify "${ref}^{commit}"
+        return
+    fi
+    if [[ "$(git rev-parse --is-shallow-repository 2>/dev/null || echo false)" == "true" ]]; then
+        echo "==> Deepening shallow clone to find ${ref}..."
+        git fetch --unshallow origin || git fetch --deepen=500 origin
+    fi
+    if git cat-file -e "${ref}^{commit}" 2>/dev/null; then
+        git rev-parse --verify "${ref}^{commit}"
+        return
+    fi
+    echo "install.sh: commit '${ref}' not found after fetch." >&2
+    exit 1
+}
+
 pull_code() {
     if [[ "$INSTALL_SKIP_GIT_PULL" == "1" ]]; then
         echo "==> Skipping git pull (INSTALL_SKIP_GIT_PULL=1)."
         return
     fi
-    echo "==> Pulling latest from ${GIT_BRANCH}..."
+
+    echo "==> Fetching ${GIT_BRANCH} from origin..."
     git fetch origin "$GIT_BRANCH"
+
+    if [[ -n "$INSTALL_GIT_REF" ]]; then
+        if ! is_commit_sha "$INSTALL_GIT_REF"; then
+            echo "install.sh: INSTALL_GIT_REF must be a 7–40 character hex commit SHA." >&2
+            exit 1
+        fi
+        local resolved
+        resolved="$(resolve_commit "$INSTALL_GIT_REF")"
+        echo "==> Rolling back to ${resolved} (detached HEAD; next unpinned install returns to ${GIT_BRANCH})..."
+        git checkout --detach "$resolved"
+        verify_version
+        chown_app
+        return
+    fi
+
+    echo "==> Pulling latest from ${GIT_BRANCH}..."
     git checkout "$GIT_BRANCH"
     git pull --ff-only origin "$GIT_BRANCH"
     verify_version
@@ -399,6 +462,29 @@ install_blue_green() {
 }
 
 main() {
+    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+        usage
+        exit 0
+    fi
+
+    if [[ $# -gt 1 ]]; then
+        usage >&2
+        exit 1
+    fi
+
+    if [[ $# -eq 1 ]]; then
+        if ! is_commit_sha "$1"; then
+            echo "install.sh: argument must be a 7–40 character hex commit SHA." >&2
+            usage >&2
+            exit 1
+        fi
+        INSTALL_GIT_REF="$1"
+    fi
+
+    if [[ -n "$INSTALL_GIT_REF" && "$INSTALL_REBUILD_WORKER" != "0" ]]; then
+        INSTALL_REBUILD_WORKER=1
+    fi
+
     if ! command -v docker >/dev/null 2>&1; then
         echo "install.sh: docker is required but not installed." >&2
         exit 1
