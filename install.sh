@@ -67,12 +67,24 @@ chown_app() {
     run_priv chown -R "${WEB_USER}:${WEB_GROUP}" .
 }
 
+discard_local_version_files() {
+    git restore --worktree --source=HEAD -- VERSION version.json 2>/dev/null \
+        || git checkout -- VERSION version.json 2>/dev/null \
+        || true
+}
+
 verify_version() {
     if [[ ! -x "${ROOT}/scripts/write-version.sh" ]]; then
         return
     fi
     echo "==> Verifying VERSION matches checked-out commit..."
-    "${ROOT}/scripts/write-version.sh" --check
+    if "${ROOT}/scripts/write-version.sh" --check; then
+        return
+    fi
+    # GitHub merge commits increment rev-list --count without restamping VERSION
+    # (see 8c5cd0b: expected 186, file still 185). Do not abort the deploy.
+    echo "==> VERSION is behind HEAD (typical after a merge). Restamping the working tree for this image..."
+    "${ROOT}/scripts/write-version.sh"
 }
 
 usage() {
@@ -125,6 +137,9 @@ pull_code() {
         echo "==> Skipping git pull (INSTALL_SKIP_GIT_PULL=1)."
         return
     fi
+
+    # Drop a restamp from a previous deploy so checkout/pull are not blocked.
+    discard_local_version_files
 
     echo "==> Fetching ${GIT_BRANCH} from origin..."
     git fetch origin "$GIT_BRANCH"
