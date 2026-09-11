@@ -398,7 +398,7 @@ Use Builder for new action classes.
 
 ## Milestone L — Dependencies & tests
 
-### L1 — Composer cleanup
+### L1 — Composer cleanup ✅
 
 | File | Lines | Change |
 |------|-------|--------|
