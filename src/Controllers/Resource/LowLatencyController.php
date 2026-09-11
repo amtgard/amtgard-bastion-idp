@@ -112,8 +112,9 @@ final class LowLatencyController
             return PvhGate::writeUnauthorized($response);
         }
 
-        $presentedPvh = Jwt::presentedPvhClaim($payload);
-        $fatPolicyHash = $presentedPvh === null ? Jwt::policyHashFromFatClaims($payload) : null;
+        $pvhContext = Jwt::presentedPvhContext($payload);
+        $presentedPvh = $pvhContext['presented'];
+        $fatPolicyHash = $pvhContext['fatPolicyHash'];
         if ($presentedPvh === null && $fatPolicyHash === null) {
             return PvhGate::writeUnauthorized($response);
         }
@@ -154,8 +155,7 @@ final class LowLatencyController
             return PvhGate::writeUnauthorized($response);
         }
 
-        $email = isset($payload['email']) && is_string($payload['email']) ? $payload['email'] : '';
-        $seeded = PvhGate::missSeedRecord($tokenUserId, $aud, $email, $presentedPvh, $fatPolicyHash);
+        $seeded = PvhGate::missSeedRecord($tokenUserId, $aud, Jwt::emailClaim($payload), $presentedPvh, $fatPolicyHash);
         $this->logger->notice('jwt validate cache miss seeded', [
             'user_uuid' => $tokenUserId,
             'aud' => $aud,
@@ -169,7 +169,7 @@ final class LowLatencyController
             $challengeJwt,
             $tokenUserId,
             $aud,
-            $email
+            Jwt::emailClaim($payload)
         );
     }
 

@@ -10,7 +10,7 @@
 |-----------|--------|--------|--------|-------|
 | L1 | `stack/style-refactor-L1` | done | `15c179c` | Removed symfony/cache (5 pkgs); direct `jedibc/optional` ^1.0; Slim resolves |
 | A | `stack/style-refactor-A` | done | `2574926` | strict_types on 53 legacy `src/` files; 11 leaf classes `final`; strict fallout (`ClientRepository` bool, session user_id casts); PHPUnit `dg/bypass-finals` + bootstrap for final mocks; stan 7 errors / `composer cs -- src` exit 2 unchanged vs L1; infection blocked by PHPUnit exit 1 on warnings (pre-existing) |
-| C | `stack/style-refactor-C` | pending | | Firebase JWT + claim helpers |
+| C | `stack/style-refactor-C` | done | `b272b2b` | Firebase JWT verify in `Jwt.php`; `emailClaim` + `presentedPvhContext`; call sites deduped; no Lcobucci in `src/`; PHPUnit green; stan 7 errors unchanged vs A; `composer cs -- src` exit 2 unchanged vs A; infection blocked by PHPUnit warnings (pre-existing) |
 | H | `stack/style-refactor-H` | pending | | FirebaseJwtTestFactory |
 | D | `stack/style-refactor-D` | pending | | PVH auth dedup |
 | E | `stack/style-refactor-E` | pending | | PVH Redis projection |

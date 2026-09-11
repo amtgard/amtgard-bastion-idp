@@ -5,14 +5,9 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Utility;
 
-use Amtgard\IAM\ClaimFactory;
 use Amtgard\IAM\PolicyFactory;
-use Lcobucci\Clock\SystemClock;
-use Lcobucci\JWT\Configuration;
-use Lcobucci\JWT\Signer\Key\InMemory;
-use Lcobucci\JWT\Signer\Rsa\Sha256;
-use Lcobucci\JWT\Validation\Constraint\LooseValidAt;
-use Lcobucci\JWT\Validation\Constraint\SignedWith;
+use Firebase\JWT\JWT as FirebaseJwt;
+use Firebase\JWT\Key;
 use Optional\Optional;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -76,28 +71,13 @@ final class Jwt
 
     public static function validateJwtSignature(string $putativeJwt): ?string {
         try {
-            $config = Configuration::forAsymmetricSigner(
-                new Sha256(),
-                InMemory::file($_ENV['OAUTH_PRIVATE_KEY']),
-                InMemory::file($_ENV['OAUTH_PUBLIC_KEY'])
-            );
+            $publicKey = file_get_contents($_ENV['OAUTH_PUBLIC_KEY']);
+            FirebaseJwt::decode($putativeJwt, new Key($publicKey, 'RS256'));
 
-            $token = $config->parser()->parse($putativeJwt);
-
-            $clock = new SystemClock(new \DateTimeZone("UTC"));
-            $constraints = [
-                new SignedWith($config->signer(), $config->verificationKey()),
-                new LooseValidAt($clock)
-            ];
-
-            if ($config->validator()->validate($token, ...$constraints)) {
-                return $putativeJwt;
-            }
-
-        } catch (\Exception $exc) {
+            return $putativeJwt;
+        } catch (\Exception) {
             return null;
         }
-        return null;
     }
 
     public static function validateJwtRequest(ServerRequestInterface $request): ?string {
@@ -109,6 +89,10 @@ final class Jwt
         return null;
     }
 
+    /**
+     * Payload extraction without signature verification (used for challenge compare and post-verify reads).
+     * Verified Bearer tokens should use validateJwtSignature before trusting claims.
+     */
     public static function parseJwt(string $jwt): ?array {
         // Remove Bearer prefix if present for parsing
         if (preg_match('/Bearer\s+(.*)$/i', $jwt, $matches)) {
@@ -121,6 +105,16 @@ final class Jwt
             return json_decode(base64_decode(str_replace(['-', '_'], ['+', '/'], $tokenParts[1])), true);
         }
         return null;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public static function emailClaim(array $payload): string
+    {
+        $email = $payload['email'] ?? null;
+
+        return is_string($email) ? $email : '';
     }
 
     /**
@@ -151,6 +145,21 @@ final class Jwt
     }
 
     /**
+     * @param array<string, mixed> $payload
+     *
+     * @return array{presented: ?string, fatPolicyHash: ?string}
+     */
+    public static function presentedPvhContext(array $payload): array
+    {
+        $presented = self::presentedPvhClaim($payload);
+
+        return [
+            'presented' => $presented,
+            'fatPolicyHash' => self::fatPolicyHashForPresentedContext($presented, $payload),
+        ];
+    }
+
+    /**
      * 32 raw-byte policy_hash from fat JWT claims. Null when aud or policy JSON is missing.
      * Does not include a `pvh` claim in the hash.
      *
@@ -165,6 +174,18 @@ final class Jwt
         }
 
         return Pvh::policyHash($aud, $policyJson, Pvh::canonicalMetadata($payload['client_metadata'] ?? null));
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private static function fatPolicyHashForPresentedContext(?string $presentedPvh, array $payload): ?string
+    {
+        if ($presentedPvh !== null) {
+            return null;
+        }
+
+        return self::policyHashFromFatClaims($payload);
     }
 
 }

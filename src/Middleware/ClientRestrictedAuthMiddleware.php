@@ -76,13 +76,13 @@ final class ClientRestrictedAuthMiddleware implements MiddlewareInterface
         }
 
         if ($access === PvhAccess::Miss) {
-            $email = isset($payload['email']) && is_string($payload['email']) ? $payload['email'] : '';
+            $pvhContext = Jwt::presentedPvhContext($payload);
             $this->redisCacheRepository->setPvhRecord(PvhGate::missSeedRecord(
                 (string) $oauthUserId,
                 (string) $clientId,
-                $email,
-                Jwt::presentedPvhClaim($payload),
-                Jwt::presentedPvhClaim($payload) === null ? Jwt::policyHashFromFatClaims($payload) : null
+                Jwt::emailClaim($payload),
+                $pvhContext['presented'],
+                $pvhContext['fatPolicyHash']
             ));
 
             return $this->proceed((string) $oauthUserId, (string) $clientId, $request, $handler);

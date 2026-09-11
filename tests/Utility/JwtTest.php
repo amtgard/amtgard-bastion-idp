@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Utility;
 
 use Amtgard\IdP\Utility\Jwt;
+use Firebase\JWT\JWT as FirebaseJwt;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -158,21 +159,12 @@ class JwtTest extends TestCase
             $this->markTestSkipped('Keys are missing');
         }
 
-        $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone("UTC"));
-        $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
-            new \Lcobucci\JWT\Signer\Rsa\Sha256(),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/private.key'),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/public.key')
-        );
-
-        $now = $clock->now();
-        $token = $config->builder()
-            ->issuedBy('http://localhost')
-            ->permittedFor('client-1')
-            ->expiresAt($now->modify('+1 hour'))
-            ->getToken($config->signer(), $config->signingKey());
-
-        $jwtStr = $token->toString();
+        $privateKey = file_get_contents('/tmp/private.key');
+        $jwtStr = FirebaseJwt::encode([
+            'iss' => 'http://localhost',
+            'aud' => 'client-1',
+            'exp' => time() + 3600,
+        ], $privateKey, 'RS256');
 
         $this->assertSame($jwtStr, Jwt::validateJwtSignature($jwtStr));
 
