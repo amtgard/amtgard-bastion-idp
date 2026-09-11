@@ -14,7 +14,7 @@
 | H | `stack/style-refactor-H` | done | `97b0a4a` | `FirebaseJwtTestFactory`; Lcobucci removed from `tests/`; PHPUnit green; stan 7 errors unchanged vs C; `composer cs -- src tests` exit 2 unchanged vs C; infection blocked by PHPUnit warnings (pre-existing) |
 | D | `stack/style-refactor-D` | done | `0b60fd0` | `PvhAuthorizationGate` + `OAuthAccessTokenFallback`; middleware/controller dedup; PHPUnit green; stan 7 errors unchanged vs H; `composer cs -- src` exit 2 unchanged vs H; infection blocked by PHPUnit warnings (pre-existing) |
 | E | `stack/style-refactor-E` | done | `92389cd` | `PvhCacheRecord::fromGeneration`; JwtPvhRefreshService Optional + debug; PHPUnit green; stan 7 errors unchanged vs D; `composer cs -- src` exit 2 unchanged vs D; infection blocked by PHPUnit warnings (pre-existing) |
-| G | `stack/style-refactor-G` | pending | | Basic auth dedup |
+| G | `stack/style-refactor-G` | done | `ec8d0e8` | `AllowListedConfidentialClientAuthenticator`; middleware + `ConfidentialClientAuthenticator` dedup; PHPUnit green; stan 7 errors unchanged vs E; `composer cs -- src tests` exit 2 unchanged vs E; infection blocked by PHPUnit warnings (pre-existing) |
 | B | `stack/style-refactor-B` | pending | | enums over booleans |
 | F | `stack/style-refactor-F` | pending | | DI + EM bootstrap test |
 | I | `stack/style-refactor-I` | pending | | OAuth social template |
