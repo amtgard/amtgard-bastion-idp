@@ -8,7 +8,7 @@
 
 | Milestone | Branch | Status | Commit | Notes |
 |-----------|--------|--------|--------|-------|
-| L1 | `stack/style-refactor-L1` | done | `40a637a` | Removed symfony/cache (5 pkgs); direct `jedibc/optional` ^1.0; Slim resolves |
+| L1 | `stack/style-refactor-L1` | done | `15c179c` | Removed symfony/cache (5 pkgs); direct `jedibc/optional` ^1.0; Slim resolves |
 | A | `stack/style-refactor-A` | pending | | strict_types + final sweep |
 | C | `stack/style-refactor-C` | pending | | Firebase JWT + claim helpers |
 | H | `stack/style-refactor-H` | pending | | FirebaseJwtTestFactory |
