@@ -22,6 +22,8 @@ final class FirebaseJwtTestFactory
         string $privateKeyPath = self::DEFAULT_PRIVATE_KEY_PATH,
         string $publicKeyPath = self::DEFAULT_PUBLIC_KEY_PATH,
     ): void {
+        OAuthTestEnvironment::restorePhpUnitOAuthKeys();
+
         $devKeysDir = dirname(__DIR__, 2) . '/dev-keys';
         if (!file_exists($privateKeyPath) && file_exists($devKeysDir . '/private.key')) {
             @copy($devKeysDir . '/private.key', $privateKeyPath);

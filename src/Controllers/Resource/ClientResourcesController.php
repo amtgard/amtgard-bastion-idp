@@ -366,13 +366,15 @@ class ClientResourcesController
 
     private function requireUser(mixed $idpUserId, Response $response): UserEntity|Response
     {
-        if (!$this->hasNonEmptyPublicId($idpUserId)) {
-            return $this->jsonError($response, 'idp_user_id is required', 400);
-        }
-
         return $this->requestResolver->findUserByPublicId($idpUserId)
             ->map(fn (UserEntity $user) => $user)
-            ->orElseGet(fn () => $this->jsonError($response, 'unknown idp_user_id', 404));
+            ->orElseGet(function () use ($idpUserId, $response) {
+                $normalized = is_string($idpUserId) ? trim($idpUserId) : '';
+
+                return $normalized === ''
+                    ? $this->jsonError($response, 'idp_user_id is required', 400)
+                    : $this->jsonError($response, 'unknown idp_user_id', 404);
+            });
     }
 
     /**
@@ -410,27 +412,15 @@ class ClientResourcesController
      */
     private function requireLoginForUser(mixed $loginId, UserEntity $user, Response $response): array|Response
     {
-        if (!$this->hasPositiveInteger($loginId)) {
-            return $this->jsonError($response, 'login_id is required', 400);
-        }
-
         return $this->requestResolver->findLoginIdForUser($loginId, $user->getId())
             ->map(fn (int $resolvedLoginId) => ['user' => $user, 'loginId' => $resolvedLoginId])
-            ->orElseGet(fn () => $this->jsonError($response, 'unknown login_id for user', 404));
-    }
+            ->orElseGet(function () use ($loginId, $response) {
+                if (!is_numeric($loginId) || (int) $loginId <= 0) {
+                    return $this->jsonError($response, 'login_id is required', 400);
+                }
 
-    private function hasNonEmptyPublicId(mixed $idpUserId): bool
-    {
-        return Optional::ofNullable(is_string($idpUserId) ? trim($idpUserId) : null)
-            ->filter(fn (string $normalized) => $normalized !== '')
-            ->isPresent();
-    }
-
-    private function hasPositiveInteger(mixed $value): bool
-    {
-        return Optional::ofNullable(is_numeric($value) ? (int) $value : null)
-            ->filter(fn (int $resolved) => $resolved > 0)
-            ->isPresent();
+                return $this->jsonError($response, 'unknown login_id for user', 404);
+            });
     }
 
     private function trimmedClaimPart(mixed $value): string

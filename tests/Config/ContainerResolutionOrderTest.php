@@ -10,6 +10,7 @@ use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Tests\Support\OAuthTestEnvironment;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Throwable;
@@ -39,6 +40,12 @@ final class ContainerResolutionOrderTest extends TestCase
         $_ENV['DISCORD_REDIRECT_URI'] = $_ENV['DISCORD_REDIRECT_URI'] ?? 'http://localhost:8080/auth/discord/callback';
 
         $this->container = require dirname(__DIR__, 2) . '/config/bootstrap.php';
+    }
+
+    protected function tearDown(): void
+    {
+        OAuthTestEnvironment::restorePhpUnitOAuthKeys();
+        parent::tearDown();
     }
 
     public function testCoreServicesResolveWithoutEntityManagerCtorOrdering(): void

@@ -73,7 +73,7 @@ final class Jwt
     public static function validateJwtSignature(string $putativeJwt, ?LoggerInterface $logger = null): ?string {
         $failureReason = null;
         try {
-            $publicKey = file_get_contents($_ENV['OAUTH_PUBLIC_KEY']);
+            $publicKey = OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY');
             FirebaseJwt::decode($putativeJwt, new Key($publicKey, 'RS256'));
         } catch (\Throwable $e) {
             $failureReason = $e->getMessage();

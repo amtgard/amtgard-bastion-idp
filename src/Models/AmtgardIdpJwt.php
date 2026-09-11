@@ -7,6 +7,7 @@ namespace Amtgard\IdP\Models;
 
 use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Utility\OAuthKeyMaterial;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Getter;
@@ -32,7 +33,7 @@ final class AmtgardIdpJwt
         ?int $loginDbId = null
     ): array {
         $claims = $this->assembler->buildClaims($user, $oauthClientId, $loginDbId);
-        $privateKey = file_get_contents($_ENV['OAUTH_PRIVATE_KEY']);
+        $privateKey = OAuthKeyMaterial::readFromEnv('OAUTH_PRIVATE_KEY');
 
         $jwt = JWT::encode($claims, $privateKey, 'RS256');
         $compactJwt = JWT::encode(

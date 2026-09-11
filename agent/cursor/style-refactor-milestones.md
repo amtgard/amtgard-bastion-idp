@@ -22,5 +22,9 @@
 | K | `stack/style-refactor-K` | done | `e528b66` | `JsonResponseBody` + `QueueHandleTrait`; PvhGate/ClientResources/LowLatency JSON dedup; PHPUnit +4 tests; stan 3 errors unchanged vs J; cs exit 2 unchanged vs J; infection green |
 | M | `stack/style-refactor-M` | done | `a0009aa` | PVH gate / validate / JWT sig / social OAuth / client IAM / BaseAuth structured logging; stan 3 unchanged vs K; cs exit 2; infection green |
 | N | `stack/style-refactor-N` | done | `4f02c34` | OrnClaimRegistry table-driven |
+| H-iam | `stack/style-refactor-N` (tip) | done | (see tip) | Client IAM validation dedup via `ClientResourcesRequestResolver` only (plan “Milestone H” IAM section) |
+| fix-green | `stack/style-refactor-N` (tip) | done | (see tip) | Restore PHPUnit OAuth keys after container bootstrap; `OAuthKeyMaterial`; full suite green; PHPStan ORN nullable fixes |
 
-**Orchestrator:** update this table when each milestone completes (`Status`: `done`, `Commit`: short SHA).
+**Stack tip:** `stack/style-refactor-N` — run `git branchless smartlog` for full spine.
+
+**Orchestrator:** [Style refactor orchestrator](67cd2aa8-e040-4cee-9be6-39a9c28b618a) completed milestones L1–N; follow-up commits on N address suite + IAM dedup.
