@@ -22,8 +22,8 @@
 | K | `stack/style-refactor-K` | done | `e528b66` | `JsonResponseBody` + `QueueHandleTrait`; PvhGate/ClientResources/LowLatency JSON dedup; PHPUnit +4 tests; stan 3 errors unchanged vs J; cs exit 2 unchanged vs J; infection green |
 | M | `stack/style-refactor-M` | done | `a0009aa` | PVH gate / validate / JWT sig / social OAuth / client IAM / BaseAuth structured logging; stan 3 unchanged vs K; cs exit 2; infection green |
 | N | `stack/style-refactor-N` | done | `4f02c34` | OrnClaimRegistry table-driven |
-| H-iam | `stack/style-refactor-N` (tip) | done | (see tip) | Client IAM validation dedup via `ClientResourcesRequestResolver` only (plan “Milestone H” IAM section) |
-| fix-green | `stack/style-refactor-N` (tip) | done | (see tip) | Restore PHPUnit OAuth keys after container bootstrap; `OAuthKeyMaterial`; full suite green; PHPStan ORN nullable fixes |
+| H-iam | `stack/style-refactor-N` (tip) | done | `a4eace7` | Client IAM validation dedup via `ClientResourcesRequestResolver` only (plan “Milestone H” IAM section) |
+| fix-green | `stack/style-refactor-N` (tip) | done | `a4eace7` | Restore PHPUnit OAuth keys after container bootstrap; `OAuthKeyMaterial`; 527 PHPUnit green; PHPStan clean (512M); infection green |
 
 **Stack tip:** `stack/style-refactor-N` — run `git branchless smartlog` for full spine.
 
