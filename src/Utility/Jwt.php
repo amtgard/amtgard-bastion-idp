@@ -10,6 +10,7 @@ use Firebase\JWT\JWT as FirebaseJwt;
 use Firebase\JWT\Key;
 use Optional\Optional;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 
 final class Jwt
 {
@@ -69,23 +70,37 @@ final class Jwt
         return true;
     }
 
-    public static function validateJwtSignature(string $putativeJwt): ?string {
+    public static function validateJwtSignature(string $putativeJwt, ?LoggerInterface $logger = null): ?string {
+        $failureReason = null;
         try {
             $publicKey = file_get_contents($_ENV['OAUTH_PUBLIC_KEY']);
             FirebaseJwt::decode($putativeJwt, new Key($publicKey, 'RS256'));
+        } catch (\Throwable $e) {
+            $failureReason = $e->getMessage();
+        }
 
-            return $putativeJwt;
-        } catch (\Exception) {
+        if ($failureReason !== null) {
+            $logger?->debug('jwt signature validation failed', [
+                'reason' => $failureReason,
+            ]);
+
             return null;
         }
+
+        return $putativeJwt;
     }
 
-    public static function validateJwtRequest(ServerRequestInterface $request): ?string {
+    public static function validateJwtRequest(
+        ServerRequestInterface $request,
+        ?LoggerInterface $logger = null,
+    ): ?string {
         $optionalJwt = Optional::ofNullable(self::getBearerJwt($request));
         if ($optionalJwt->isPresent()) {
             $putativeJwt = $optionalJwt->get();
-            return self::validateJwtSignature($putativeJwt);
+
+            return self::validateJwtSignature($putativeJwt, $logger);
         }
+
         return null;
     }
 

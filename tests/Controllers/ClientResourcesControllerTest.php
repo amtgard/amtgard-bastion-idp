@@ -543,6 +543,7 @@ class ClientResourcesControllerTest extends TestCase
 
         $client = new class extends Client {
             public function getId(): int { return 5; }
+            public function getIdentifier(): string { return 'app-client'; }
             public function getIamService(): ?string { return 'Skbc'; }
         };
 

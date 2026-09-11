@@ -2,6 +2,13 @@
 
 Concise execution log for stack milestones (newest first).
 
+## M — `stack/style-refactor-M`
+
+- **M1:** Structured logging — `PvhAuthorizationGate` outcome + `client_id`; `LowLatencyController` validate reject debug + notice context; `Jwt::validateJwtSignature` failure reason at debug (logger isolated from verify catch).
+- **M2:** `OAuthSocialCallbackHandler` provider / `provider_user_id` / `email_sha256`; `ClientResourcesController` policy claim mutations; `BaseAuthController` context arrays (no email in log message).
+- **M3:** JWT middleware passes logger into `validateJwtRequest`; `ClientResourcesControllerTest` policy client stub `getIdentifier`.
+- **Verify:** PHPUnit 527; stan 3 unchanged vs K; `composer cs -- src tests` exit 2 unchanged vs K; infection green.
+
 ## K — `stack/style-refactor-K`
 
 - **K1:** `JsonResponseBody::write` / `writeError`; `PvhGate`, `ClientResourcesController`, `LowLatencyController` share encoder + Content-Type.

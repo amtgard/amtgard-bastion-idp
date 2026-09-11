@@ -36,7 +36,7 @@ class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $jwt = Optional::ofNullable(Jwt::validateJwtRequest($request))
+        $jwt = Optional::ofNullable(Jwt::validateJwtRequest($request, $this->logger))
             ->orElseThrow(new HttpUnauthorizedException($request, 'Authorization JWT required. Obtain one from GET /resources/jwt first.'));
 
         $payload = Optional::ofNullable(Jwt::parseJwt($jwt))
@@ -62,7 +62,9 @@ class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
             'cached jwt local idp pvh auth', [
             'user_uuid' => $userUuid,
             'aud' => $aud,
+            'client_id' => $aud,
             'access' => $access?->name,
+            'outcome' => $outcome->name,
             ]
         );
 

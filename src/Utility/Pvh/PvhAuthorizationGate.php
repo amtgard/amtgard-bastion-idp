@@ -39,14 +39,16 @@ final class PvhAuthorizationGate
         $access = PvhGate::evaluate($cached, $payload);
         $this->lastAccess = $access;
 
-        $this->logDebug($userUuid, $aud, $access);
-
-        return match ($access) {
+        $outcome = match ($access) {
             PvhAccess::Current => $this->proceedFromCurrent($cached),
             PvhAccess::Previous => PvhGateOutcome::StaleToken,
             PvhAccess::Miss => $this->proceedFromMiss($userUuid, $aud, $payload),
             PvhAccess::Unknown => PvhGateOutcome::Unauthorized,
         };
+
+        $this->logGateOutcome($userUuid, $aud, $access, $outcome);
+
+        return $outcome;
     }
 
     public function lastAccess(): ?PvhAccess
@@ -87,19 +89,30 @@ final class PvhAuthorizationGate
         return PvhGateOutcome::Proceed;
     }
 
-    protected function logDebug(string $userUuid, string $aud, PvhAccess $access): void
-    {
+    protected function logGateOutcome(
+        string $userUuid,
+        string $aud,
+        PvhAccess $access,
+        PvhGateOutcome $outcome,
+    ): void {
         if ($this->logger === null) {
             return;
         }
 
-        $this->logger->debug(
-            'pvh authorization gate',
-            [
-                'user_uuid' => $userUuid,
-                'aud' => $aud,
-                'access' => $access->name,
-            ]
-        );
+        $context = [
+            'user_uuid' => $userUuid,
+            'aud' => $aud,
+            'client_id' => $aud,
+            'access' => $access->name,
+            'outcome' => $outcome->name,
+        ];
+
+        if ($outcome === PvhGateOutcome::Proceed && $access === PvhAccess::Miss) {
+            $this->logger->info('pvh authorization gate', $context);
+
+            return;
+        }
+
+        $this->logger->debug('pvh authorization gate', $context);
     }
 }

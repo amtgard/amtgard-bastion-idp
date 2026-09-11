@@ -88,30 +88,46 @@ final class LowLatencyController
     {
         $challengeJwt = Jwt::getBearerJwt($request);
 
-        if (!$challengeJwt || !Jwt::validateJwtSignature($challengeJwt)) {
-            return PvhGate::writeUnauthorized($response);
+        if ($challengeJwt === null) {
+            return $this->rejectValidate($response, 'missing_bearer');
+        }
+
+        if (Jwt::validateJwtSignature($challengeJwt, $this->logger) === null) {
+            return $this->rejectValidate($response, 'invalid_signature');
         }
 
         $payload = Jwt::parseJwt($challengeJwt);
         if (!is_array($payload)) {
-            return PvhGate::writeUnauthorized($response);
+            return $this->rejectValidate($response, 'invalid_payload');
         }
 
         $tokenUserId = isset($payload['sub']) ? (string) $payload['sub'] : '';
         $aud = isset($payload['aud']) && is_string($payload['aud']) ? $payload['aud'] : '';
         if ($tokenUserId === '' || $aud === '') {
-            return PvhGate::writeUnauthorized($response);
+            return $this->rejectValidate($response, 'missing_sub_or_aud', [
+                'user_uuid' => $tokenUserId !== '' ? $tokenUserId : null,
+                'aud' => $aud !== '' ? $aud : null,
+                'client_id' => $aud !== '' ? $aud : null,
+            ]);
         }
 
         if (($payload['iss'] ?? null) !== AuthorizationJwtAssembler::ISSUER) {
-            return PvhGate::writeUnauthorized($response);
+            return $this->rejectValidate($response, 'invalid_issuer', [
+                'user_uuid' => $tokenUserId,
+                'aud' => $aud,
+                'client_id' => $aud,
+            ]);
         }
 
         $pvhContext = Jwt::presentedPvhContext($payload);
         $presentedPvh = $pvhContext['presented'];
         $fatPolicyHash = $pvhContext['fatPolicyHash'];
         if ($presentedPvh === null && $fatPolicyHash === null) {
-            return PvhGate::writeUnauthorized($response);
+            return $this->rejectValidate($response, 'missing_pvh_context', [
+                'user_uuid' => $tokenUserId,
+                'aud' => $aud,
+                'client_id' => $aud,
+            ]);
         }
 
         $outcome = $this->pvhAuthorizationGate->evaluateAndSeed($tokenUserId, $aud, $payload);
@@ -125,6 +141,7 @@ final class LowLatencyController
                     'jwt validate current', [
                     'user_uuid' => $tokenUserId,
                     'aud' => $aud,
+                    'client_id' => $aud,
                     'pvh' => $resolved->getPvh(),
                     ]
                 );
@@ -143,6 +160,7 @@ final class LowLatencyController
                 'jwt validate cache miss seeded', [
                 'user_uuid' => $tokenUserId,
                 'aud' => $aud,
+                'client_id' => $aud,
                 'pvh' => $resolved?->getPvh(),
                 ]
             );
@@ -162,6 +180,7 @@ final class LowLatencyController
                 'jwt validate stale_token', [
                 'user_uuid' => $tokenUserId,
                 'aud' => $aud,
+                'client_id' => $aud,
                 'presented_pvh' => $presentedPvh,
                 'current_pvh' => $cached?->getPvh(),
                 'prev_pvh' => $cached?->getPrevPvh(),
@@ -175,9 +194,20 @@ final class LowLatencyController
             'jwt validate unknown pvh', [
             'user_uuid' => $tokenUserId,
             'aud' => $aud,
+            'client_id' => $aud,
             'presented_pvh' => $presentedPvh,
             ]
         );
+
+        return PvhGate::writeUnauthorized($response);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function rejectValidate(Response $response, string $reason, array $context = []): Response
+    {
+        $this->logger->debug('jwt validate rejected', array_merge(['reason' => $reason], $context));
 
         return PvhGate::writeUnauthorized($response);
     }

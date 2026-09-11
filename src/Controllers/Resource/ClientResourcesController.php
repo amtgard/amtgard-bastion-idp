@@ -74,6 +74,11 @@ class ClientResourcesController
             return $this->jsonError($response, $e->getMessage(), 400);
         }
 
+        $this->logger->info('client iam policy claim added', [
+            'client_id' => $client->getIdentifier(),
+            'idp_user_id' => $user->getUserId(),
+        ]);
+
         return $response->withStatus(204);
     }
 
@@ -119,6 +124,11 @@ class ClientResourcesController
         } catch (\InvalidArgumentException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
         }
+
+        $this->logger->info('client iam policy claim deleted', [
+            'client_id' => $client->getIdentifier(),
+            'idp_user_id' => $user->getUserId(),
+        ]);
 
         return $response->withStatus(204);
     }

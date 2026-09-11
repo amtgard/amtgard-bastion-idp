@@ -33,7 +33,9 @@ class BaseAuthController
         AuthorizationFinalizeRedirect $redirectPolicy = AuthorizationFinalizeRedirect::ReturningUserWithStoredRedirect,
     ): ResponseInterface
     {
-        $this->logger->info("User is authenticated; setting session for " . $login->user->getEmail());
+        $this->logger->info('User authenticated; setting session', [
+            'user_id' => $login->user->getUserId(),
+        ]);
         $_SESSION['client_id'] = Constants::$AMTGARD_IDP_CLIENT_ID;
         $_SESSION['user_id'] = $login->user->getUserId();
         $_SESSION['user_email'] = $login->user->getEmail();
@@ -47,7 +49,9 @@ class BaseAuthController
         $routeContext = RouteContext::fromRequest($request);
         $routeParser = $routeContext->getRouteParser();
 
-        $this->logger->info("Building JWT for " . $login->user->getEmail());
+        $this->logger->info('Building authorization JWT', [
+            'user_id' => $login->user->getUserId(),
+        ]);
         $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($login->user);
 
         $profileUrl = $routeParser->urlFor('resources.profile');
@@ -60,7 +64,10 @@ class BaseAuthController
                 : $profileUrl,
         };
 
-        $this->logger->info("Redirecting user for " . $login->user->getEmail());
+        $this->logger->info('Redirecting user after authorization', [
+            'user_id' => $login->user->getUserId(),
+            'redirect_policy' => $redirectPolicy->name,
+        ]);
         return $response
             ->withHeader('Location', $finalizeUrl)
             ->withStatus(302);

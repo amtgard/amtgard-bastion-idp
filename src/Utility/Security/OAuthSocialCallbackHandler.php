@@ -57,12 +57,14 @@ final class OAuthSocialCallbackHandler
         }
 
         try {
-            $this->logger->info($this->providerName . ' sign-in callback started');
+            $this->logger->info('oauth social sign-in callback started', [
+                'provider' => $this->providerName,
+            ]);
 
             $token = ($this->fetchToken)($callbackParams);
             $userData = ($this->mapUserData)($token);
 
-            $this->logger->debug($this->providerName . ' user data: ' . json_encode($userData));
+            $this->logger->debug('oauth social provider profile resolved', $this->oauthProfileLogContext($userData));
 
             $redirectPolicy = AuthorizationFinalizeRedirect::ReturningUserWithStoredRedirect;
             $resolveUser = $this->resolveUser;
@@ -71,7 +73,11 @@ final class OAuthSocialCallbackHandler
 
             return $finalizeAuthorization($login, $redirectPolicy);
         } catch (\Exception $e) {
-            $this->logger->error($this->providerName . ' authentication error: ' . $e->getTraceAsString());
+            $this->logger->error('oauth social authentication error', [
+                'provider' => $this->providerName,
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
 
             $response->getBody()->write(
                 ScriptAlertResponse::alertAndRedirect($e->getMessage(), $this->errorRedirectPath)
@@ -79,5 +85,22 @@ final class OAuthSocialCallbackHandler
 
             return $response;
         }
+    }
+
+    /**
+     * @param array<string, mixed> $userData
+     *
+     * @return array{provider: string, provider_user_id: ?string, email_sha256: ?string}
+     */
+    private function oauthProfileLogContext(array $userData): array
+    {
+        $email = $userData['email'] ?? null;
+        $providerUserId = $userData['sub'] ?? $userData['id'] ?? null;
+
+        return [
+            'provider' => $this->providerName,
+            'provider_user_id' => is_string($providerUserId) && $providerUserId !== '' ? $providerUserId : null,
+            'email_sha256' => is_string($email) && $email !== '' ? hash('sha256', $email) : null,
+        ];
     }
 }
