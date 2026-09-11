@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
@@ -18,7 +21,7 @@ use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpUnauthorizedException;
 
-class ClientRestrictedAuthMiddleware implements MiddlewareInterface
+final class ClientRestrictedAuthMiddleware implements MiddlewareInterface
 {
     protected ResourceServer $resourceServer;
     protected LoggerInterface $logger;

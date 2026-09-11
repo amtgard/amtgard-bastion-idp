@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Models\Orn;
 
 use Amtgard\IAM\Requirement\Requirement;

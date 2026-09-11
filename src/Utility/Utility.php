@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Utility;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
@@ -8,7 +11,7 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
 use Optional\Optional;
 
-class Utility
+final class Utility
 {
     public static function userIsAuthenticated() {
         return isset($_SESSION) && array_key_exists('user_id', $_SESSION);
@@ -25,7 +28,7 @@ class Utility
 
         $userRepo = EntityManager::getManager()->getRepository(UserRepository::class);
         /** @var OAuthUser $user */
-        $user = $userRepo->getUserEntityById($_SESSION['user_id']);
+        $user = $userRepo->getUserEntityById((string) $_SESSION['user_id']);
         return Optional::ofNullable($user)
             ->map(fn($u) => $u->getUserEntity())
             ->orElse(null);

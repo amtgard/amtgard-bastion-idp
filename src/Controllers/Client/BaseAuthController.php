@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Controllers\Client;
 
 use Amtgard\IdP\Models\AmtgardIdpJwt;

@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Middleware;
 
 use Psr\Http\Message\ResponseInterface as Response;
@@ -8,7 +11,7 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use Slim\Psr7\Response as SlimResponse;
 
-class ManagementMiddleware implements MiddlewareInterface
+final class ManagementMiddleware implements MiddlewareInterface
 {
     public function process(Request $request, RequestHandler $handler): Response
     {

@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\ActiveRecordOrm\EntityManager;

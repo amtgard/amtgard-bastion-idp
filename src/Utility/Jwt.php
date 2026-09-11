@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Utility;
 
 use Amtgard\IAM\ClaimFactory;
@@ -13,7 +16,7 @@ use Lcobucci\JWT\Validation\Constraint\SignedWith;
 use Optional\Optional;
 use Psr\Http\Message\ServerRequestInterface;
 
-class Jwt
+final class Jwt
 {
 
     public static function getBearerJwt(ServerRequestInterface $request): ?string {

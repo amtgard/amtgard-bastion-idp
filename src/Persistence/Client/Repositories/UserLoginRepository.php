@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Persistence\Client\Repositories;
 
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;

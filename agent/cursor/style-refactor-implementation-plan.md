@@ -31,6 +31,8 @@
 
 ## Milestone A — `strict_types` + `final` (legacy sweep)
 
+**Status:** done on branch `stack/style-refactor-A` (see [style-refactor-milestones.md](./style-refactor-milestones.md)).
+
 **Goal:** All production PHP under `src/` uses strict types; mark leaf classes `final` where safe.
 
 ### A1 — Files missing `declare(strict_types=1)` (add as line 2 after `<?php`)

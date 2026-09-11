@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
@@ -14,7 +17,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 
-class LowLatencyController
+final class LowLatencyController
 {
     private RedisCacheRepository $redisCacheRepository;
     private PubSubQueue $redisPubSubQueue;

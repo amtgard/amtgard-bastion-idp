@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
@@ -22,7 +25,7 @@ use Slim\Exception\HttpUnauthorizedException;
  * EntityManager is the first parameter purely so autowiring configures the ORM
  * singleton before ClientRepository resolves; it is not used directly here.
  */
-class ConfidentialClientBasicAuthMiddleware implements MiddlewareInterface
+final class ConfidentialClientBasicAuthMiddleware implements MiddlewareInterface
 {
     public function __construct(
         EntityManager $entityManager,

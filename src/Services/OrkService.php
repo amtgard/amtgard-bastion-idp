@@ -1,12 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Services;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Log\LoggerInterface;
 
-class OrkService
+final class OrkService
 {
     private const BASE_URL = 'https://ork.amtgard.com/orkservice/Json/index.php';
 

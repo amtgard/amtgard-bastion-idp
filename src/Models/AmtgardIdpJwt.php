@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Models;
 
 use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
@@ -14,7 +17,7 @@ use Amtgard\IdP\Utility\PvhCacheRecord;
 use Firebase\JWT\JWT;
 use Psr\Log\LoggerInterface;
 
-class AmtgardIdpJwt
+final class AmtgardIdpJwt
 {
     private AuthorizationJwtAssembler $assembler;
     private RedisCacheRepository $redisCacheRepository;

@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Utility;
 
 use Amtgard\IAM\Catalog\ServiceCatalog;
@@ -9,7 +12,7 @@ use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
-class UserAuthority
+final class UserAuthority
 {
     public function __construct(
         private UserPolicy $userPolicy,

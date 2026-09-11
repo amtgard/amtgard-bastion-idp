@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Controllers\Server;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
@@ -97,7 +100,7 @@ class OAuth2ServerController
                         $clientEntity = $this->clientRepository->fetchBy('identifier', $clientId);
 
                         if (isset($_SESSION['user_id']) && $clientEntity) {
-                            $this->userClientAuthorizationRepository->authorize($_SESSION['user_id'], $clientEntity->getId());
+                            $this->userClientAuthorizationRepository->authorize((string) $_SESSION['user_id'], $clientEntity->getId());
                         }
                     }
 
@@ -187,7 +190,7 @@ class OAuth2ServerController
 
             if (!$this->userIsAuthenticated($authRequest)) {
                 if (isset($_SESSION['user_id'])) {
-                    $user = $this->userRepository->getUserEntityById($_SESSION['user_id']);
+                    $user = $this->userRepository->getUserEntityById((string) $_SESSION['user_id']);
                     if ($user === null) {
                         // Drop only the stale user reference; keep authRequest so login can resume OAuth.
                         unset($_SESSION['user_id']);
@@ -314,7 +317,7 @@ class OAuth2ServerController
     private function requestUserAuthorizationOfClient(AuthorizationRequest $authRequest, Response $response)
     {
         $authRequest->setUser(
-            $this->userRepository->getUserEntityById($_SESSION['user_id'])
+            $this->userRepository->getUserEntityById((string) $_SESSION['user_id'])
         );
 
         $_SESSION['authRequest'] = serialize($authRequest);
