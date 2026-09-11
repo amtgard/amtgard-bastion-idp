@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-09-10.187",
+  "build_id": "2026-09-10.189",
   "date": "2026-09-10",
-  "revision": 187,
-  "branch": "fix/install-version-after-merge"
+  "revision": 189,
+  "branch": "style-refactor"
 }
