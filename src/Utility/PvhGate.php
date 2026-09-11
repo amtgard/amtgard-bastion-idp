@@ -88,8 +88,6 @@ final class PvhGate
 
     private static function writeJsonError(ResponseInterface $response, string $error, int $status): ResponseInterface
     {
-        $response->getBody()->write(json_encode(['error' => $error]));
-
-        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
+        return JsonResponseBody::writeError($response, $error, $status);
     }
 }

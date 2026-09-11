@@ -19,7 +19,7 @@
 | F | `stack/style-refactor-F` | done | `40e2901` | AmtgardIdpJwt Builder DI; CurrentUserResolver; ContainerResolutionOrderTest; EM ctor hacks removed |
 | I | `stack/style-refactor-I` | done | `ff8b2c8` | OAuthSocialCallbackHandler + OAuthSocialRedirectSessionStore; social controllers thin wrappers; createUserFromOAuthProfile + createLoginFromProvider + createUserFromDiscordData; PHPUnit social/repo tests green; stan 3 errors unchanged vs F; cs exit 2 unchanged vs F |
 | J | `stack/style-refactor-J` | done | `8410130` | OAuth2ServerController → OAuth*Action + OAuthSessionAuthRequestStore; ResourcesUserinfoService + OrkService park resolve; ClientIamPolicyService/ClientIamMetadataService; UserPolicyClaimReader/Writer + ClaimOrnValidator; PvhQueueMessage; PHPUnit OAuth/resources/client/policy/Pvh tests green; stan 3 errors unchanged vs I; cs exit 2 unchanged vs I; infection green |
-| K | `stack/style-refactor-K` | pending | | JSON helpers + queue handles |
+| K | `stack/style-refactor-K` | done | `e528b66` | `JsonResponseBody` + `QueueHandleTrait`; PvhGate/ClientResources/LowLatency JSON dedup; PHPUnit +4 tests; stan 3 errors unchanged vs J; cs exit 2 unchanged vs J; infection green |
 | M | `stack/style-refactor-M` | pending | | logging pass |
 | N | `stack/style-refactor-N` | pending | | OrnClaimRegistry table-driven |
 

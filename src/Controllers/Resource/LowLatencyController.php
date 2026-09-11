@@ -7,6 +7,7 @@ namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Utility\JsonResponseBody;
 use Amtgard\IdP\Utility\Jwt;
 use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
 use Amtgard\IdP\Utility\Pvh\PvhGateOutcome;
@@ -202,7 +203,6 @@ final class LowLatencyController
             $userData['jwt'] = $presentedJwt;
         }
 
-        $response->getBody()->write(json_encode($userData));
-        return $response->withHeader('Content-Type', 'application/json');
+        return JsonResponseBody::write($response, $userData);
     }
 }

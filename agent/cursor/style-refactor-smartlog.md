@@ -2,6 +2,12 @@
 
 Concise execution log for stack milestones (newest first).
 
+## K — `stack/style-refactor-K`
+
+- **K1:** `JsonResponseBody::write` / `writeError`; `PvhGate`, `ClientResourcesController`, `LowLatencyController` share encoder + Content-Type.
+- **K2:** `QueueHandleTrait` (Builder + Getter + `$handle`); `PubSubQueueHandle` / `PvhQueueHandle` thin DI types; container wiring unchanged.
+- **Verify:** PHPUnit 527 (26 errors / 3 failures pre-existing vs J); stan 3 unchanged; cs exit 2 unchanged; infection green.
+
 ## J — `stack/style-refactor-J`
 
 - **J1:** `OAuth2ServerController` delegates to `OAuthTokenAction`, `OAuthApproveAction`, `OAuthAuthorizeAction`, `OAuthFlowErrorRenderer`, `OAuthSessionAuthRequestStore` (routes unchanged).

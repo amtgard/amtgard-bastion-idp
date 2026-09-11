@@ -12,6 +12,7 @@ use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Services\ClientIamMetadataService;
 use Amtgard\IdP\Services\ClientIamPolicyService;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
+use Amtgard\IdP\Utility\JsonResponseBody;
 use Amtgard\IdP\Utility\IamServiceFormatParser;
 use Amtgard\IdP\Utility\IamServiceFormatValidator;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
@@ -429,13 +430,12 @@ class ClientResourcesController
 
     private function json(Response $response, array $payload, int $status = 200): Response
     {
-        $response->getBody()->write(json_encode($payload));
-        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
+        return JsonResponseBody::write($response, $payload, $status);
     }
 
     private function jsonError(Response $response, string $message, int $status): Response
     {
-        return $this->json($response, ['error' => $message], $status);
+        return JsonResponseBody::writeError($response, $message, $status);
     }
 
     private function saveServiceFormat(Request $request, Response $response, Client $client): Response
