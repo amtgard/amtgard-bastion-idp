@@ -7,6 +7,7 @@ namespace Amtgard\IdP\Services;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use Optional\Optional;
 use Psr\Log\LoggerInterface;
 
 final class OrkService
@@ -167,6 +168,44 @@ final class OrkService
             ]);
             return null;
         }
+    }
+
+    /**
+     * @param array<string, mixed> $playerData
+     * @return array<string, mixed>|null
+     */
+    public function resolveParkDataFromPlayer(array $playerData, int $userId, string $flow): ?array
+    {
+        $parkIdRaw = $playerData['ParkId'] ?? null;
+        $parkIdOpt = Optional::ofNullable($parkIdRaw)
+            ->map(fn ($v) => (int) $v)
+            ->filter(fn (int $id) => $id > 0);
+
+        $this->logger->info("{$flow}: resolving park data from player", [
+            'userId' => $userId,
+            'mundaneId' => $playerData['MundaneId'] ?? null,
+            'parkIdKeyPresent' => array_key_exists('ParkId', $playerData),
+            'parkIdRaw' => $parkIdRaw,
+            'parkIdResolved' => $parkIdOpt->orElse(null),
+            'parkRelatedFields' => $this->extractParkRelatedFields($playerData),
+        ]);
+
+        if (!$parkIdOpt->isPresent()) {
+            return null;
+        }
+
+        $parkId = $parkIdOpt->get();
+        $parkData = $this->getParkShortInfo($parkId);
+
+        if ($parkData === null) {
+            $this->logger->warning("{$flow}: park lookup returned no data", [
+                'userId' => $userId,
+                'mundaneId' => $playerData['MundaneId'] ?? null,
+                'parkIdResolved' => $parkId,
+            ]);
+        }
+
+        return $parkData;
     }
 
     /**

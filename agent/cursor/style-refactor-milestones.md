@@ -18,7 +18,7 @@
 | B | `stack/style-refactor-B` | done | `bc4bf99` | `ConfidentialClientAuthMode` + `AuthorizationFinalizeRedirect`; middleware/social/auth call sites; PHPUnit green; stan 7 errors unchanged vs G; `composer cs -- src tests` exit 2 unchanged vs G; infection green |
 | F | `stack/style-refactor-F` | done | `40e2901` | AmtgardIdpJwt Builder DI; CurrentUserResolver; ContainerResolutionOrderTest; EM ctor hacks removed |
 | I | `stack/style-refactor-I` | done | `ff8b2c8` | OAuthSocialCallbackHandler + OAuthSocialRedirectSessionStore; social controllers thin wrappers; createUserFromOAuthProfile + createLoginFromProvider + createUserFromDiscordData; PHPUnit social/repo tests green; stan 3 errors unchanged vs F; cs exit 2 unchanged vs F |
-| J | `stack/style-refactor-J` | pending | | large class splits |
+| J | `stack/style-refactor-J` | done | `8410130` | OAuth2ServerController → OAuth*Action + OAuthSessionAuthRequestStore; ResourcesUserinfoService + OrkService park resolve; ClientIamPolicyService/ClientIamMetadataService; UserPolicyClaimReader/Writer + ClaimOrnValidator; PvhQueueMessage; PHPUnit OAuth/resources/client/policy/Pvh tests green; stan 3 errors unchanged vs I; cs exit 2 unchanged vs I; infection green |
 | K | `stack/style-refactor-K` | pending | | JSON helpers + queue handles |
 | M | `stack/style-refactor-M` | pending | | logging pass |
 | N | `stack/style-refactor-N` | pending | | OrnClaimRegistry table-driven |

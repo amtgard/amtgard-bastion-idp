@@ -4,6 +4,11 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Controllers;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Controllers\Server\OAuth\OAuthApproveAction;
+use Amtgard\IdP\Controllers\Server\OAuth\OAuthAuthorizeAction;
+use Amtgard\IdP\Controllers\Server\OAuth\OAuthFlowErrorRenderer;
+use Amtgard\IdP\Controllers\Server\OAuth\OAuthSessionAuthRequestStore;
+use Amtgard\IdP\Controllers\Server\OAuth\OAuthTokenAction;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
@@ -101,17 +106,42 @@ class OAuth2ServerControllerTest extends TestCase
         $this->response->method('withStatus')->willReturnSelf();
         $this->response->method('withBody')->willReturnSelf();
 
+        $errorRenderer = OAuthFlowErrorRenderer::builder()
+            ->logger($this->logger)
+            ->view($this->view)
+            ->build();
+        $authRequestStore = new OAuthSessionAuthRequestStore();
+
+        $tokenAction = OAuthTokenAction::builder()
+            ->authorizationServer($this->authorizationServer)
+            ->errorRenderer($errorRenderer)
+            ->build();
+
+        $approveAction = OAuthApproveAction::builder()
+            ->clientRepository($this->clientRepository)
+            ->userClientAuthorizationRepository($this->userClientAuthorizationRepository)
+            ->authRequestStore($authRequestStore)
+            ->errorRenderer($errorRenderer)
+            ->view($this->view)
+            ->build();
+
+        $authorizeAction = OAuthAuthorizeAction::builder()
+            ->authorizationServer($this->authorizationServer)
+            ->clientRepository($this->clientRepository)
+            ->userRepository($this->userRepository)
+            ->userClientAuthorizationRepository($this->userClientAuthorizationRepository)
+            ->authRequestStore($authRequestStore)
+            ->errorRenderer($errorRenderer)
+            ->logger($this->logger)
+            ->amtgardIdpJwt($this->amtgardIdpJwt)
+            ->redisCacheRepository($this->redisCacheRepository)
+            ->build();
+
         $this->controller = new OAuth2ServerController(
-            $this->logger,
-            $this->view,
-            $this->authorizationServer,
-            $this->clientRepository,
-            $this->scopeRepository,
-            $this->userRepository,
-            $this->resourceServer,
-            $this->userClientAuthorizationRepository,
-            $this->amtgardIdpJwt,
-            $this->redisCacheRepository
+            $tokenAction,
+            $approveAction,
+            $authorizeAction,
+            $authRequestStore,
         );
     }
 

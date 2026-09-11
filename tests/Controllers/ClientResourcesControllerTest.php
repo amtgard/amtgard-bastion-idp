@@ -14,6 +14,8 @@ use Amtgard\IdP\Controllers\Resource\ClientResourcesController;
 use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
+use Amtgard\IdP\Services\ClientIamMetadataService;
+use Amtgard\IdP\Services\ClientIamPolicyService;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use PHPUnit\Framework\TestCase;
@@ -573,14 +575,17 @@ class ClientResourcesControllerTest extends TestCase
         ?UserLoginClientRepository $metadataRepository = null,
         ?UserPolicyClaimRepository $policyRepository = null,
     ): ClientResourcesController {
+        $policyRepo = $policyRepository ?? $this->createMock(UserPolicyClaimRepository::class);
+        $metadataRepo = $metadataRepository ?? $this->createMock(UserLoginClientRepository::class);
+
         return new ClientResourcesController(
             $this->createMock(LoggerInterface::class),
             $resolver ?? new ClientResourcesRequestResolver(
                 $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class),
                 $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository::class),
             ),
-            $policyRepository ?? $this->createMock(UserPolicyClaimRepository::class),
-            $metadataRepository ?? $this->createMock(UserLoginClientRepository::class),
+            ClientIamPolicyService::builder()->policyClaimRepository($policyRepo)->build(),
+            ClientIamMetadataService::builder()->metadataRepository($metadataRepo)->build(),
         );
     }
 

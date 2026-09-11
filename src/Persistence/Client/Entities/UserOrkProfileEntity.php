@@ -259,4 +259,26 @@ class UserOrkProfileEntity extends RepositoryEntity
     {
         $this->updatedAt = $updatedAt;
     }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toUserinfoProfileArray(): array
+    {
+        return [
+            'mundane_id' => $this->getMundaneId(),
+            'username' => $this->getUsername(),
+            'persona' => $this->getPersona(),
+            'suspended' => (bool) $this->getSuspended(),
+            'suspended_at' => $this->getSuspendedAt()?->format('Y-m-d'),
+            'suspended_until' => $this->getSuspendedUntil()?->format('Y-m-d'),
+            'park_id' => $this->getParkId(),
+            'park_name' => $this->getParkName(),
+            'kingdom_id' => $this->getKingdomId(),
+            'kingdom_name' => $this->getKingdomName(),
+            'image' => $this->getImage(),
+            'heraldry' => $this->getHeraldry(),
+            'dues_through' => $this->getDuesThrough()?->format('Y-m-d'),
+        ];
+    }
 }

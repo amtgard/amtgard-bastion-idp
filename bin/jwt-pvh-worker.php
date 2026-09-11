@@ -6,6 +6,7 @@ declare(strict_types=1);
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Services\JwtPvhRefreshService;
 use Amtgard\IdP\Utility\CallConsumersBackoff;
+use Amtgard\IdP\Utility\Pvh\PvhQueueMessage;
 use Amtgard\IdP\Utility\PvhQueueHandle;
 use Amtgard\SetQueue\PubSubQueue;
 use Psr\Log\LoggerInterface;
@@ -48,44 +49,32 @@ $pubSub->redrive($queueName);
 $processed = false;
 $pubSub->subscribe($queueName, function ($key, $message) use ($pubSub, $queueName, $service, $logger, &$processed): void {
     $processed = true;
-    $payload = null;
+    $parsed = PvhQueueMessage::fromJson((string) $message);
+    if (!$parsed->isPresent()) {
+        $logger->error('jwt pvh worker dropped malformed message', [
+            'key' => $key,
+        ]);
+
+        return;
+    }
+
+    $queueMessage = $parsed->get();
     try {
-        $payload = json_decode((string) $message, true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($payload)
-            || !isset($payload['user_uuid'], $payload['aud'])
-            || !is_string($payload['user_uuid'])
-            || !is_string($payload['aud'])
-            || $payload['user_uuid'] === ''
-            || $payload['aud'] === ''
-        ) {
-            $logger->error('jwt pvh worker dropped malformed message', [
-                'key' => $key,
-            ]);
-
-            return;
-        }
-
         $logger->notice('jwt pvh worker dequeued', [
             'key' => $key,
-            'user_uuid' => $payload['user_uuid'],
-            'aud' => $payload['aud'],
+            'user_uuid' => $queueMessage->getUserUuid(),
+            'aud' => $queueMessage->getAud(),
         ]);
         // Long-running CLI: AARO identity-map would otherwise keep the first
         // user_jwt_generations row forever and miss MySQL policy_hash changes.
         EntityManager::getManager()->clearAll();
-        $service->refresh($payload['user_uuid'], $payload['aud']);
+        $service->refresh($queueMessage->getUserUuid(), $queueMessage->getAud());
     } catch (Throwable $e) {
         $logger->error('jwt pvh worker job failed; re-publishing', [
             'key' => $key,
             'detail' => $e->getMessage(),
         ]);
-        $republishKey = $key;
-        if (isset($payload) && is_array($payload) && isset($payload['user_uuid'], $payload['aud'])
-            && is_string($payload['user_uuid']) && is_string($payload['aud'])
-        ) {
-            $republishKey = $payload['user_uuid'] . ':' . $payload['aud'];
-        }
-        $pubSub->publish($queueName, $republishKey, (string) $message);
+        $pubSub->publish($queueName, $queueMessage->publishKey(), (string) $message);
     }
 });
 

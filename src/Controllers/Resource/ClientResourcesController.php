@@ -8,11 +8,10 @@ use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
-use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
-use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
+use Amtgard\IdP\Services\ClientIamMetadataService;
+use Amtgard\IdP\Services\ClientIamPolicyService;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
-use Amtgard\IdP\Utility\ClientMetadataValidator;
 use Amtgard\IdP\Utility\IamServiceFormatParser;
 use Amtgard\IdP\Utility\IamServiceFormatValidator;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
@@ -27,8 +26,8 @@ class ClientResourcesController
     public function __construct(
         private LoggerInterface $logger,
         private ClientResourcesRequestResolver $requestResolver,
-        private UserPolicyClaimRepository $policyClaimRepository,
-        private UserLoginClientRepository $metadataRepository,
+        private ClientIamPolicyService $iamPolicyService,
+        private ClientIamMetadataService $iamMetadataService,
     ) {}
 
     #[OA\Post(
@@ -64,14 +63,11 @@ class ClientResourcesController
         }
 
         try {
-            OrnClaimRegistry::registerForClient($client);
-            $this->policyClaimRepository->addClaim(
-                $user->getId(),
-                (string) $client->getIamService(),
+            $this->iamPolicyService->addClaim(
+                $client,
+                $user,
                 $this->trimmedClaimPart($body['provisos'] ?? null),
                 $this->trimmedClaimPart($body['resource'] ?? null),
-                $user->getId(),
-                $client->getId()
             );
         } catch (\InvalidArgumentException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
@@ -113,11 +109,11 @@ class ClientResourcesController
         }
 
         try {
-            $this->policyClaimRepository->deleteClaim(
-                $user->getId(),
-                (string) $client->getIamService(),
+            $this->iamPolicyService->deleteClaim(
+                $client,
+                $user,
                 $this->trimmedClaimPart($body['provisos'] ?? null),
-                $this->trimmedClaimPart($body['resource'] ?? null)
+                $this->trimmedClaimPart($body['resource'] ?? null),
             );
         } catch (\InvalidArgumentException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
@@ -145,11 +141,7 @@ class ClientResourcesController
             return $user;
         }
 
-        $claims = $this->policyClaimRepository->listClaimsForUser(
-            $user->getId(),
-            $client->getIamService(),
-            $client->getId()
-        );
+        $claims = $this->iamPolicyService->listClaims($client, $user);
 
         return $this->json($response, ['claims' => $claims]);
     }
@@ -188,16 +180,12 @@ class ClientResourcesController
         }
 
         try {
-            $prepared = ClientMetadataValidator::prepare(
-                $body['metadata'] ?? null,
-                isset($body['encoding']) ? (string) $body['encoding'] : null
-            );
-            $this->metadataRepository->upsertMetadata(
-                $context['user']->getId(),
+            $this->iamMetadataService->upsert(
+                $client,
+                $context['user'],
                 $context['loginId'],
-                $client->getId(),
-                $prepared['payload'],
-                $prepared['encoding']
+                $body['metadata'] ?? null,
+                isset($body['encoding']) ? (string) $body['encoding'] : null,
             );
         } catch (\InvalidArgumentException|\JsonException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
@@ -233,14 +221,10 @@ class ClientResourcesController
             return $context;
         }
 
-        $stored = $this->metadataRepository->getMetadata($context['loginId'], $client->getId());
+        $stored = $this->iamMetadataService->get($client, $context['user'], $context['loginId']);
 
         return Optional::ofNullable($stored)
-            ->map(fn (array $metadataRow) => $this->json($response, [
-                'login_id' => $context['loginId'],
-                'metadata' => $metadataRow['metadata'],
-                'encoding' => $metadataRow['encoding'],
-            ]))
+            ->map(fn (array $metadataRow) => $this->json($response, $metadataRow))
             ->orElseGet(fn () => $this->jsonError($response, 'metadata not found', 404));
     }
 
@@ -271,7 +255,7 @@ class ClientResourcesController
             return $context;
         }
 
-        $this->metadataRepository->deleteMetadata($context['loginId'], $client->getId());
+        $this->iamMetadataService->delete($client, $context['loginId']);
 
         return $response->withStatus(204);
     }
