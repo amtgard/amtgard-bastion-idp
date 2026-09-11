@@ -8,11 +8,11 @@ use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
-use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
-use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
+use Amtgard\IdP\Services\ClientIamMetadataService;
+use Amtgard\IdP\Services\ClientIamPolicyService;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
-use Amtgard\IdP\Utility\ClientMetadataValidator;
+use Amtgard\IdP\Utility\JsonResponseBody;
 use Amtgard\IdP\Utility\IamServiceFormatParser;
 use Amtgard\IdP\Utility\IamServiceFormatValidator;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
@@ -27,8 +27,8 @@ class ClientResourcesController
     public function __construct(
         private LoggerInterface $logger,
         private ClientResourcesRequestResolver $requestResolver,
-        private UserPolicyClaimRepository $policyClaimRepository,
-        private UserLoginClientRepository $metadataRepository,
+        private ClientIamPolicyService $iamPolicyService,
+        private ClientIamMetadataService $iamMetadataService,
     ) {}
 
     #[OA\Post(
@@ -64,18 +64,20 @@ class ClientResourcesController
         }
 
         try {
-            OrnClaimRegistry::registerForClient($client);
-            $this->policyClaimRepository->addClaim(
-                $user->getId(),
-                (string) $client->getIamService(),
+            $this->iamPolicyService->addClaim(
+                $client,
+                $user,
                 $this->trimmedClaimPart($body['provisos'] ?? null),
                 $this->trimmedClaimPart($body['resource'] ?? null),
-                $user->getId(),
-                $client->getId()
             );
         } catch (\InvalidArgumentException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
         }
+
+        $this->logger->info('client iam policy claim added', [
+            'client_id' => $client->getIdentifier(),
+            'idp_user_id' => $user->getUserId(),
+        ]);
 
         return $response->withStatus(204);
     }
@@ -113,15 +115,20 @@ class ClientResourcesController
         }
 
         try {
-            $this->policyClaimRepository->deleteClaim(
-                $user->getId(),
-                (string) $client->getIamService(),
+            $this->iamPolicyService->deleteClaim(
+                $client,
+                $user,
                 $this->trimmedClaimPart($body['provisos'] ?? null),
-                $this->trimmedClaimPart($body['resource'] ?? null)
+                $this->trimmedClaimPart($body['resource'] ?? null),
             );
         } catch (\InvalidArgumentException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
         }
+
+        $this->logger->info('client iam policy claim deleted', [
+            'client_id' => $client->getIdentifier(),
+            'idp_user_id' => $user->getUserId(),
+        ]);
 
         return $response->withStatus(204);
     }
@@ -145,11 +152,7 @@ class ClientResourcesController
             return $user;
         }
 
-        $claims = $this->policyClaimRepository->listClaimsForUser(
-            $user->getId(),
-            $client->getIamService(),
-            $client->getId()
-        );
+        $claims = $this->iamPolicyService->listClaims($client, $user);
 
         return $this->json($response, ['claims' => $claims]);
     }
@@ -188,16 +191,12 @@ class ClientResourcesController
         }
 
         try {
-            $prepared = ClientMetadataValidator::prepare(
-                $body['metadata'] ?? null,
-                isset($body['encoding']) ? (string) $body['encoding'] : null
-            );
-            $this->metadataRepository->upsertMetadata(
-                $context['user']->getId(),
+            $this->iamMetadataService->upsert(
+                $client,
+                $context['user'],
                 $context['loginId'],
-                $client->getId(),
-                $prepared['payload'],
-                $prepared['encoding']
+                $body['metadata'] ?? null,
+                isset($body['encoding']) ? (string) $body['encoding'] : null,
             );
         } catch (\InvalidArgumentException|\JsonException $e) {
             return $this->jsonError($response, $e->getMessage(), 400);
@@ -233,14 +232,10 @@ class ClientResourcesController
             return $context;
         }
 
-        $stored = $this->metadataRepository->getMetadata($context['loginId'], $client->getId());
+        $stored = $this->iamMetadataService->get($client, $context['user'], $context['loginId']);
 
         return Optional::ofNullable($stored)
-            ->map(fn (array $metadataRow) => $this->json($response, [
-                'login_id' => $context['loginId'],
-                'metadata' => $metadataRow['metadata'],
-                'encoding' => $metadataRow['encoding'],
-            ]))
+            ->map(fn (array $metadataRow) => $this->json($response, $metadataRow))
             ->orElseGet(fn () => $this->jsonError($response, 'metadata not found', 404));
     }
 
@@ -271,7 +266,7 @@ class ClientResourcesController
             return $context;
         }
 
-        $this->metadataRepository->deleteMetadata($context['loginId'], $client->getId());
+        $this->iamMetadataService->delete($client, $context['loginId']);
 
         return $response->withStatus(204);
     }
@@ -371,13 +366,15 @@ class ClientResourcesController
 
     private function requireUser(mixed $idpUserId, Response $response): UserEntity|Response
     {
-        if (!$this->hasNonEmptyPublicId($idpUserId)) {
-            return $this->jsonError($response, 'idp_user_id is required', 400);
-        }
-
         return $this->requestResolver->findUserByPublicId($idpUserId)
             ->map(fn (UserEntity $user) => $user)
-            ->orElseGet(fn () => $this->jsonError($response, 'unknown idp_user_id', 404));
+            ->orElseGet(function () use ($idpUserId, $response) {
+                $normalized = is_string($idpUserId) ? trim($idpUserId) : '';
+
+                return $normalized === ''
+                    ? $this->jsonError($response, 'idp_user_id is required', 400)
+                    : $this->jsonError($response, 'unknown idp_user_id', 404);
+            });
     }
 
     /**
@@ -415,27 +412,15 @@ class ClientResourcesController
      */
     private function requireLoginForUser(mixed $loginId, UserEntity $user, Response $response): array|Response
     {
-        if (!$this->hasPositiveInteger($loginId)) {
-            return $this->jsonError($response, 'login_id is required', 400);
-        }
-
         return $this->requestResolver->findLoginIdForUser($loginId, $user->getId())
             ->map(fn (int $resolvedLoginId) => ['user' => $user, 'loginId' => $resolvedLoginId])
-            ->orElseGet(fn () => $this->jsonError($response, 'unknown login_id for user', 404));
-    }
+            ->orElseGet(function () use ($loginId, $response) {
+                if (!is_numeric($loginId) || (int) $loginId <= 0) {
+                    return $this->jsonError($response, 'login_id is required', 400);
+                }
 
-    private function hasNonEmptyPublicId(mixed $idpUserId): bool
-    {
-        return Optional::ofNullable(is_string($idpUserId) ? trim($idpUserId) : null)
-            ->filter(fn (string $normalized) => $normalized !== '')
-            ->isPresent();
-    }
-
-    private function hasPositiveInteger(mixed $value): bool
-    {
-        return Optional::ofNullable(is_numeric($value) ? (int) $value : null)
-            ->filter(fn (int $resolved) => $resolved > 0)
-            ->isPresent();
+                return $this->jsonError($response, 'unknown login_id for user', 404);
+            });
     }
 
     private function trimmedClaimPart(mixed $value): string
@@ -445,13 +430,12 @@ class ClientResourcesController
 
     private function json(Response $response, array $payload, int $status = 200): Response
     {
-        $response->getBody()->write(json_encode($payload));
-        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
+        return JsonResponseBody::write($response, $payload, $status);
     }
 
     private function jsonError(Response $response, string $message, int $status): Response
     {
-        return $this->json($response, ['error' => $message], $status);
+        return JsonResponseBody::writeError($response, $message, $status);
     }
 
     private function saveServiceFormat(Request $request, Response $response, Client $client): Response

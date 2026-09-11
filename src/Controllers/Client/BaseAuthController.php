@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Controllers\Client;
 
 use Amtgard\IdP\Models\AmtgardIdpJwt;
@@ -23,9 +26,16 @@ class BaseAuthController
         $this->amtgardIdpJwt = $amtgardIdpJwt;
     }
 
-    protected function finalizeAuthorization(UserLoginEntity $login, ServerRequestInterface $request, ResponseInterface $response, bool $isNewUser = false): ResponseInterface
+    protected function finalizeAuthorization(
+        UserLoginEntity $login,
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        AuthorizationFinalizeRedirect $redirectPolicy = AuthorizationFinalizeRedirect::ReturningUserWithStoredRedirect,
+    ): ResponseInterface
     {
-        $this->logger->info("User is authenticated; setting session for " . $login->user->getEmail());
+        $this->logger->info('User authenticated; setting session', [
+            'user_id' => $login->user->getUserId(),
+        ]);
         $_SESSION['client_id'] = Constants::$AMTGARD_IDP_CLIENT_ID;
         $_SESSION['user_id'] = $login->user->getUserId();
         $_SESSION['user_email'] = $login->user->getEmail();
@@ -39,17 +49,25 @@ class BaseAuthController
         $routeContext = RouteContext::fromRequest($request);
         $routeParser = $routeContext->getRouteParser();
 
-        $this->logger->info("Building JWT for " . $login->user->getEmail());
+        $this->logger->info('Building authorization JWT', [
+            'user_id' => $login->user->getUserId(),
+        ]);
         $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($login->user);
 
         $profileUrl = $routeParser->urlFor('resources.profile');
         $storedRedirect = RedirectValidator::sanitizeOrNull($_SESSION['redirect'] ?? null);
 
-        $finalizeUrl = ($storedRedirect !== null && !$isNewUser)
-            ? ($storedRedirect . "?jwt=$jwt")
-            : $profileUrl;
+        $finalizeUrl = match ($redirectPolicy) {
+            AuthorizationFinalizeRedirect::NewUserProfile => $profileUrl,
+            AuthorizationFinalizeRedirect::ReturningUserWithStoredRedirect => $storedRedirect !== null
+                ? ($storedRedirect . "?jwt=$jwt")
+                : $profileUrl,
+        };
 
-        $this->logger->info("Redirecting user for " . $login->user->getEmail());
+        $this->logger->info('Redirecting user after authorization', [
+            'user_id' => $login->user->getUserId(),
+            'redirect_policy' => $redirectPolicy->name,
+        ]);
         return $response
             ->withHeader('Location', $finalizeUrl)
             ->withStatus(302);

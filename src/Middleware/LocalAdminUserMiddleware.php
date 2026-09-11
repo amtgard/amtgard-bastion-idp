@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Middleware;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Models\Orn\IdpRequirement;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
@@ -21,7 +20,7 @@ class LocalAdminUserMiddleware implements MiddlewareInterface
     private UserRepository $userRepository;
     private UserAuthority $userAuthority;
 
-    public function __construct(EntityManager $entityManager, UserRepository $userRepository, UserAuthority $userAuthority)
+    public function __construct(UserRepository $userRepository, UserAuthority $userAuthority)
     {
         $this->userRepository = $userRepository;
         $this->userAuthority = $userAuthority;

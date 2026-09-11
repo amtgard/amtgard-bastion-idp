@@ -26,19 +26,42 @@ class OrnClaimRegistry
 
     public static function registerForService(string $service): void
     {
-        if ($service === ServiceCatalog::Idp->value) {
-            return;
-        }
+        foreach (self::serviceClaimExtensionTable() as $rule) {
+            if ($rule['when']($service)) {
+                if ($rule['action'] === 'register') {
+                    OrnClassMap::registerClaim($service, ClientApplicationClaim::class);
+                }
 
-        if (OrnClassMap::isRegistered($service)) {
-            return;
+                return;
+            }
         }
+    }
 
-        // Built-in enum names are owned by orn-definitions; only custom strings become ClientApplicationClaim.
-        if (ServiceCatalog::tryFrom($service) !== null) {
-            return;
-        }
-
-        OrnClassMap::registerClaim($service, ClientApplicationClaim::class);
+    /**
+     * First matching rule wins: built-in catalog and already-registered prefixes are no-ops;
+     * otherwise register {@see ClientApplicationClaim} for custom integrator service names.
+     *
+     * @return list<array{when: callable(string): bool, action: 'noop'|'register'}>
+     */
+    private static function serviceClaimExtensionTable(): array
+    {
+        return [
+            [
+                'when' => static fn (string $service): bool => $service === ServiceCatalog::Idp->value,
+                'action' => 'noop',
+            ],
+            [
+                'when' => static fn (string $service): bool => OrnClassMap::isRegistered($service),
+                'action' => 'noop',
+            ],
+            [
+                'when' => static fn (string $service): bool => BuiltInOrkPolicyServices::isBuiltIn($service),
+                'action' => 'noop',
+            ],
+            [
+                'when' => static fn (string $service): bool => true,
+                'action' => 'register',
+            ],
+        ];
     }
 }

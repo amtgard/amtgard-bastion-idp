@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Controllers\Management;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
@@ -29,7 +32,6 @@ class ManagementController
     public function __construct(
         LoggerInterface $logger,
         TwigEnvironment $twig,
-        EntityManager $entityManager,
         AccessTokenRepositoryInterface $accessTokenRepository,
         RefreshTokenRepositoryInterface $refreshTokenRepository,
         AuthCodeRepositoryInterface $authCodeRepository,

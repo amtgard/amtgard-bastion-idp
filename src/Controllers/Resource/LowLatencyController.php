@@ -1,10 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Utility\JsonResponseBody;
 use Amtgard\IdP\Utility\Jwt;
+use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
+use Amtgard\IdP\Utility\Pvh\PvhGateOutcome;
 use Amtgard\IdP\Utility\PvhAccess;
 use Amtgard\IdP\Utility\PvhGate;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
@@ -14,23 +20,15 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 
-class LowLatencyController
+final class LowLatencyController
 {
-    private RedisCacheRepository $redisCacheRepository;
-    private PubSubQueue $redisPubSubQueue;
-    private PubSubQueueHandle $pubSubQueueHandle;
-    private LoggerInterface $logger;
-
     public function __construct(
-        RedisCacheRepository $redisCacheRepository,
-        PubSubQueue $redisPubSubQueue,
-        PubSubQueueHandle $pubSubQueueHandle,
-        LoggerInterface $logger
+        private RedisCacheRepository $redisCacheRepository,
+        private PubSubQueue $redisPubSubQueue,
+        private PubSubQueueHandle $pubSubQueueHandle,
+        private PvhAuthorizationGate $pvhAuthorizationGate,
+        private LoggerInterface $logger,
     ) {
-        $this->redisCacheRepository = $redisCacheRepository;
-        $this->redisPubSubQueue = $redisPubSubQueue;
-        $this->pubSubQueueHandle = $pubSubQueueHandle;
-        $this->logger = $logger;
     }
 
     #[OA\Get(
@@ -90,84 +88,128 @@ class LowLatencyController
     {
         $challengeJwt = Jwt::getBearerJwt($request);
 
-        if (!$challengeJwt || !Jwt::validateJwtSignature($challengeJwt)) {
-            return PvhGate::writeUnauthorized($response);
+        if ($challengeJwt === null) {
+            return $this->rejectValidate($response, 'missing_bearer');
+        }
+
+        if (Jwt::validateJwtSignature($challengeJwt, $this->logger) === null) {
+            return $this->rejectValidate($response, 'invalid_signature');
         }
 
         $payload = Jwt::parseJwt($challengeJwt);
         if (!is_array($payload)) {
-            return PvhGate::writeUnauthorized($response);
+            return $this->rejectValidate($response, 'invalid_payload');
         }
 
         $tokenUserId = isset($payload['sub']) ? (string) $payload['sub'] : '';
         $aud = isset($payload['aud']) && is_string($payload['aud']) ? $payload['aud'] : '';
         if ($tokenUserId === '' || $aud === '') {
-            return PvhGate::writeUnauthorized($response);
+            return $this->rejectValidate($response, 'missing_sub_or_aud', [
+                'user_uuid' => $tokenUserId !== '' ? $tokenUserId : null,
+                'aud' => $aud !== '' ? $aud : null,
+                'client_id' => $aud !== '' ? $aud : null,
+            ]);
         }
 
         if (($payload['iss'] ?? null) !== AuthorizationJwtAssembler::ISSUER) {
-            return PvhGate::writeUnauthorized($response);
-        }
-
-        $presentedPvh = Jwt::presentedPvhClaim($payload);
-        $fatPolicyHash = $presentedPvh === null ? Jwt::policyHashFromFatClaims($payload) : null;
-        if ($presentedPvh === null && $fatPolicyHash === null) {
-            return PvhGate::writeUnauthorized($response);
-        }
-
-        $cached = $this->redisCacheRepository->getPvhRecord($tokenUserId, $aud);
-        $access = PvhGate::evaluatePresented($cached, $presentedPvh, $fatPolicyHash);
-        if ($access === PvhAccess::Current && $cached !== null) {
-            $this->logger->notice('jwt validate current', [
+            return $this->rejectValidate($response, 'invalid_issuer', [
                 'user_uuid' => $tokenUserId,
                 'aud' => $aud,
-                'pvh' => $cached->getPvh(),
+                'client_id' => $aud,
             ]);
+        }
+
+        $pvhContext = Jwt::presentedPvhContext($payload);
+        $presentedPvh = $pvhContext['presented'];
+        $fatPolicyHash = $pvhContext['fatPolicyHash'];
+        if ($presentedPvh === null && $fatPolicyHash === null) {
+            return $this->rejectValidate($response, 'missing_pvh_context', [
+                'user_uuid' => $tokenUserId,
+                'aud' => $aud,
+                'client_id' => $aud,
+            ]);
+        }
+
+        $outcome = $this->pvhAuthorizationGate->evaluateAndSeed($tokenUserId, $aud, $payload);
+        $access = $this->pvhAuthorizationGate->lastAccess();
+        $cached = $this->pvhAuthorizationGate->lastCachedRecord();
+
+        if ($outcome === PvhGateOutcome::Proceed) {
+            $resolved = $this->pvhAuthorizationGate->lastResolvedRecord();
+            if ($access === PvhAccess::Current && $resolved !== null) {
+                $this->logger->notice(
+                    'jwt validate current', [
+                    'user_uuid' => $tokenUserId,
+                    'aud' => $aud,
+                    'client_id' => $aud,
+                    'pvh' => $resolved->getPvh(),
+                    ]
+                );
+
+                return $this->validateSuccess(
+                    $request,
+                    $response,
+                    $challengeJwt,
+                    $tokenUserId,
+                    $aud,
+                    $resolved->getEmail()
+                );
+            }
+
+            $this->logger->notice(
+                'jwt validate cache miss seeded', [
+                'user_uuid' => $tokenUserId,
+                'aud' => $aud,
+                'client_id' => $aud,
+                'pvh' => $resolved?->getPvh(),
+                ]
+            );
+
             return $this->validateSuccess(
                 $request,
                 $response,
                 $challengeJwt,
                 $tokenUserId,
                 $aud,
-                $cached->getEmail()
+                Jwt::emailClaim($payload)
             );
         }
-        if ($access === PvhAccess::Previous) {
-            $this->logger->notice('jwt validate stale_token', [
+
+        if ($outcome === PvhGateOutcome::StaleToken) {
+            $this->logger->notice(
+                'jwt validate stale_token', [
                 'user_uuid' => $tokenUserId,
                 'aud' => $aud,
+                'client_id' => $aud,
                 'presented_pvh' => $presentedPvh,
                 'current_pvh' => $cached?->getPvh(),
                 'prev_pvh' => $cached?->getPrevPvh(),
-            ]);
+                ]
+            );
+
             return PvhGate::writeStaleToken($response);
         }
-        if ($access === PvhAccess::Unknown) {
-            $this->logger->notice('jwt validate unknown pvh', [
-                'user_uuid' => $tokenUserId,
-                'aud' => $aud,
-                'presented_pvh' => $presentedPvh,
-            ]);
-            return PvhGate::writeUnauthorized($response);
-        }
 
-        $email = isset($payload['email']) && is_string($payload['email']) ? $payload['email'] : '';
-        $seeded = PvhGate::missSeedRecord($tokenUserId, $aud, $email, $presentedPvh, $fatPolicyHash);
-        $this->logger->notice('jwt validate cache miss seeded', [
+        $this->logger->notice(
+            'jwt validate unknown pvh', [
             'user_uuid' => $tokenUserId,
             'aud' => $aud,
-            'pvh' => $seeded->getPvh(),
-        ]);
-        $this->redisCacheRepository->setPvhRecord($seeded);
-
-        return $this->validateSuccess(
-            $request,
-            $response,
-            $challengeJwt,
-            $tokenUserId,
-            $aud,
-            $email
+            'client_id' => $aud,
+            'presented_pvh' => $presentedPvh,
+            ]
         );
+
+        return PvhGate::writeUnauthorized($response);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function rejectValidate(Response $response, string $reason, array $context = []): Response
+    {
+        $this->logger->debug('jwt validate rejected', array_merge(['reason' => $reason], $context));
+
+        return PvhGate::writeUnauthorized($response);
     }
 
     private function validateSuccess(
@@ -191,7 +233,6 @@ class LowLatencyController
             $userData['jwt'] = $presentedJwt;
         }
 
-        $response->getBody()->write(json_encode($userData));
-        return $response->withHeader('Content-Type', 'application/json');
+        return JsonResponseBody::write($response, $userData);
     }
 }

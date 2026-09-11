@@ -45,29 +45,42 @@ class UserRepository extends Repository implements EntityRepositoryInterface, Us
         return $this->configureNewUser($email, $firstName, $lastName);
     }
 
+    public function createUserFromOAuthProfile(string $email, string $firstName, string $lastName): UserEntity
+    {
+        return $this->configureNewUser($email, $firstName, $lastName);
+    }
+
     public function createUserFromGoogleData(array $googleData): UserEntity {
-        $user = $this->configureNewUser($googleData['email'], $googleData['given_name'], $googleData['family_name']);
-        $user->setUserId(Uuid::uuid4()->toString());
-        EntityManager::getManager()->persist($user);
-        return $user;
+        return $this->createUserFromOAuthProfile(
+            $googleData['email'],
+            $googleData['given_name'],
+            $googleData['family_name']
+        );
     }
 
     public function createUserFromFacebookData(array $facebookData): UserEntity {
-        $user = $this->configureNewUser($facebookData['email'], $facebookData['first_name'], $facebookData['last_name']);
-        $user->setUserId(Uuid::uuid4()->toString());
-        EntityManager::getManager()->persist($user);
-        return $user;
+        return $this->createUserFromOAuthProfile(
+            $facebookData['email'],
+            $facebookData['first_name'],
+            $facebookData['last_name']
+        );
+    }
+
+    public function createUserFromDiscordData(array $discordData): UserEntity
+    {
+        return $this->createUserFromOAuthProfile(
+            $discordData['email'],
+            $discordData['username'] ?? '',
+            ''
+        );
     }
 
     public function createUserFromAppleData(array $appleData): UserEntity {
-        $user = $this->configureNewUser(
+        return $this->createUserFromOAuthProfile(
             $appleData['email'],
             $appleData['given_name'] ?? '',
             $appleData['family_name'] ?? ''
         );
-        $user->setUserId(Uuid::uuid4()->toString());
-        EntityManager::getManager()->persist($user);
-        return $user;
     }
 
     public function findUserByUserId(string $userId): ?UserEntity {

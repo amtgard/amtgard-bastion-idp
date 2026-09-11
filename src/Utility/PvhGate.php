@@ -30,10 +30,9 @@ final class PvhGate
      */
     public static function evaluate(?PvhCacheRecord $cached, array $payload): PvhAccess
     {
-        $presentedPvh = Jwt::presentedPvhClaim($payload);
-        $fatPolicyHash = $presentedPvh === null ? Jwt::policyHashFromFatClaims($payload) : null;
+        $pvhContext = Jwt::presentedPvhContext($payload);
 
-        return self::evaluatePresented($cached, $presentedPvh, $fatPolicyHash);
+        return self::evaluatePresented($cached, $pvhContext['presented'], $pvhContext['fatPolicyHash']);
     }
 
     public static function evaluatePresented(
@@ -89,8 +88,6 @@ final class PvhGate
 
     private static function writeJsonError(ResponseInterface $response, string $error, int $status): ResponseInterface
     {
-        $response->getBody()->write(json_encode(['error' => $error]));
-
-        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
+        return JsonResponseBody::writeError($response, $error, $status);
     }
 }

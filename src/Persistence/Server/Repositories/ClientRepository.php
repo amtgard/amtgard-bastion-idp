@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Persistence\Server\Repositories;
 
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
@@ -96,9 +99,9 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
 
         return Optional::ofNullable($client)
             ->map(function ($client) use ($clientSecret, $grantType, $self) {
-                $gate = hash_equals((string) $client->getClientEntity()->getClientSecret(), (string) $clientSecret);
-                $gate &= $self->validateGrant($client, $grantType);
-                return $gate;
+                $secretValid = hash_equals((string) $client->getClientEntity()->getClientSecret(), (string) $clientSecret);
+
+                return $secretValid && $self->validateGrant($client, $grantType);
             })
             ->orElse(false);
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Persistence\Server\Repositories;
 
+use Amtgard\IdP\Utility\Pvh\PvhQueueMessage;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\IdP\Utility\PvhQueueHandle;
 use Amtgard\SetQueue\PubSubQueue;
@@ -82,8 +83,8 @@ class RedisCacheRepository
         $queue = $this->pvhQueueHandle->getHandle();
         $this->pubSubQueue->publish(
             $queue,
-            $userUuid . ':' . $aud,
-            json_encode(['user_uuid' => $userUuid, 'aud' => $aud], JSON_THROW_ON_ERROR)
+            PvhQueueMessage::builder()->userUuid($userUuid)->aud($aud)->build()->publishKey(),
+            PvhQueueMessage::encode($userUuid, $aud)
         );
         $this->logger->notice('jwt pvh enqueue', [
             'user_uuid' => $userUuid,

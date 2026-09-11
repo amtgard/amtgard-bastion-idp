@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Controllers\Resource;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
@@ -11,9 +13,10 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Services\OrkService;
+use Amtgard\IdP\Services\ResourcesUserinfoService;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 use Amtgard\IdP\Utility\UserAuthority;
-use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
 use Amtgard\IdP\Utility\Security\RedirectValidator;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -40,10 +43,11 @@ class ResourcesController
     private UserLoginRepository $userLoginRepository;
     private AmtgardIdpJwt $amtgardIdpJwt;
     private UserAuthority $userAuthority;
+    private CurrentUserResolverInterface $currentUserResolver;
+    private ResourcesUserinfoService $userinfoService;
 
 
     public function __construct(
-        EntityManager $em,
         LoggerInterface $logger,
         TwigEnvironment $twig,
         ClientRepositoryInterface $clientRepository,
@@ -56,7 +60,9 @@ class ResourcesController
         UserClientAuthorizationRepository $userClientAuthorizationRepository,
         UserLoginRepository $userLoginRepository,
         AmtgardIdpJwt $amtgardIdpJwt,
-        UserAuthority $userAuthority
+        UserAuthority $userAuthority,
+        CurrentUserResolverInterface $currentUserResolver,
+        ResourcesUserinfoService $userinfoService,
     ) {
         $this->logger = $logger;
         $this->twig = $twig;
@@ -71,6 +77,8 @@ class ResourcesController
         $this->userLoginRepository = $userLoginRepository;
         $this->amtgardIdpJwt = $amtgardIdpJwt;
         $this->userAuthority = $userAuthority;
+        $this->currentUserResolver = $currentUserResolver;
+        $this->userinfoService = $userinfoService;
     }
 
     #[OA\Get(
@@ -100,7 +108,7 @@ class ResourcesController
     )]
     public function getJwt(Request $request, Response $response): Response
     {
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withStatus(401);
         }
@@ -164,36 +172,12 @@ class ResourcesController
     )]
     public function userinfo(Request $request, Response $response): Response
     {
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withStatus(401);
         }
 
-        $userData = [
-            'id' => $user->getUserId(),
-            'email' => $user->getEmail(),
-        ];
-
-        $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
-        if ($orkProfile) {
-            $userData['ork_profile'] = [
-                'mundane_id' => $orkProfile->getMundaneId(),
-                'username' => $orkProfile->getUsername(),
-                'persona' => $orkProfile->getPersona(),
-                'suspended' => (bool) $orkProfile->getSuspended(),
-                'suspended_at' => $orkProfile->getSuspendedAt()?->format('Y-m-d'),
-                'suspended_until' => $orkProfile->getSuspendedUntil()?->format('Y-m-d'),
-                'park_id' => $orkProfile->getParkId(),
-                'park_name' => $orkProfile->getParkName(),
-                'kingdom_id' => $orkProfile->getKingdomId(),
-                'kingdom_name' => $orkProfile->getKingdomName(),
-                'image' => $orkProfile->getImage(),
-                'heraldry' => $orkProfile->getHeraldry(),
-                'dues_through' => $orkProfile->getDuesThrough()?->format('Y-m-d')
-            ];
-        }
-
-        $response->getBody()->write(json_encode($userData));
+        $response->getBody()->write(json_encode($this->userinfoService->buildPayload($user)));
         return $response->withHeader('Content-Type', 'application/json');
     }
 
@@ -226,7 +210,7 @@ class ResourcesController
     )]
     public function authorizations(Request $request, Response $response): Response
     {
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withStatus(401);
         }
@@ -251,7 +235,7 @@ class ResourcesController
         $error = $params['error'] ?? null;
         $success = $params['success'] ?? null;
 
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
 
         $orkProfile = null;
         $userLogins = [];
@@ -288,7 +272,7 @@ class ResourcesController
         $username = $params['username'] ?? '';
         $password = $params['password'] ?? '';
 
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withHeader('Location', '/auth/login')->withStatus(302);
         }
@@ -308,7 +292,7 @@ class ResourcesController
             return $response->withHeader('Location', '/resources/profile?error=ork_player_failed')->withStatus(302);
         }
 
-        $parkData = $this->fetchOrkParkData($playerData, $user->getId(), 'LinkORK');
+        $parkData = $this->orkService->resolveParkDataFromPlayer($playerData, $user->getId(), 'LinkORK');
 
         $this->orkProfileRepository->saveOrUpdateProfile($playerData, $parkData, $token, $user->getId());
 
@@ -324,7 +308,7 @@ class ResourcesController
 
     public function refreshOrkAccount(Request $request, Response $response): Response
     {
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withHeader('Location', '/auth/login')->withStatus(302);
         }
@@ -351,7 +335,7 @@ class ResourcesController
             return $response->withHeader('Location', '/resources/profile?error=ork_refresh_failed')->withStatus(302);
         }
 
-        $parkData = $this->fetchOrkParkData($playerData, $user->getId(), 'RefreshORK');
+        $parkData = $this->orkService->resolveParkDataFromPlayer($playerData, $user->getId(), 'RefreshORK');
 
         $this->orkProfileRepository->saveOrUpdateProfile($playerData, $parkData, $token, $user->getId());
 
@@ -464,7 +448,7 @@ class ResourcesController
     public function revokeAuthorization(Request $request, Response $response): Response
     {
         /** @var UserEntity $user */
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withHeader('Location', '/auth/login')->withStatus(302);
         }
@@ -486,50 +470,4 @@ class ResourcesController
         return $response->withHeader('Location', '/resources/profile?success=revoked')->withStatus(302);
     }
 
-    /**
-     * @param array<string, mixed> $playerData
-     */
-    private function fetchOrkParkData(array $playerData, int $userId, string $flow): ?array
-    {
-        $parkIdRaw = $playerData['ParkId'] ?? null;
-        $parkIdOpt = Optional::ofNullable($parkIdRaw)
-            ->map(fn($v) => (int) $v)
-            ->filter(fn(int $id) => $id > 0);
-
-        $parkRelatedFields = [];
-        foreach ($playerData as $key => $value) {
-            if (!is_string($key)) {
-                continue;
-            }
-            if (stripos($key, 'park') !== false || stripos($key, 'kingdom') !== false) {
-                $parkRelatedFields[$key] = $value;
-            }
-        }
-
-        $this->logger->info("{$flow}: resolving park data from player", [
-            'userId' => $userId,
-            'mundaneId' => $playerData['MundaneId'] ?? null,
-            'parkIdKeyPresent' => array_key_exists('ParkId', $playerData),
-            'parkIdRaw' => $parkIdRaw,
-            'parkIdResolved' => $parkIdOpt->orElse(null),
-            'parkRelatedFields' => $parkRelatedFields,
-        ]);
-
-        if (!$parkIdOpt->isPresent()) {
-            return null;
-        }
-
-        $parkId = $parkIdOpt->get();
-        $parkData = $this->orkService->getParkShortInfo($parkId);
-
-        if ($parkData === null) {
-            $this->logger->warning("{$flow}: park lookup returned no data", [
-                'userId' => $userId,
-                'mundaneId' => $playerData['MundaneId'] ?? null,
-                'parkIdResolved' => $parkId,
-            ]);
-        }
-
-        return $parkData;
-    }
 }

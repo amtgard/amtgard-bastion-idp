@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Models\Orn;
 
 use Amtgard\IAM\Requirement\Requirement;
@@ -15,7 +18,7 @@ class IdpRequirement extends Requirement
         return IdpFormat::ornSegmentSchema();
     }
 
-    protected function getResourceMap(string $resource = null): array
+    protected function getResourceMap(?string $resource = null): array
     {
         return IdpFormat::getValidResourceMap($resource);
     }

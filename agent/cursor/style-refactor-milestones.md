@@ -1,0 +1,30 @@
+# Style refactor — milestone status
+
+**Base branch:** `style-refactor` (tracks `origin/main` at plan commit).
+
+**Stack naming:** `stack/style-refactor-<milestone>` (git-branchless), e.g. `stack/style-refactor-L1` stacked on previous milestone branch.
+
+**Execution order:** L1 → A → C → H → D → E → G → B → F → I → J → K → M → N (see `style-refactor-implementation-plan.md`).
+
+| Milestone | Branch | Status | Commit | Notes |
+|-----------|--------|--------|--------|-------|
+| L1 | `stack/style-refactor-L1` | done | `15c179c` | Removed symfony/cache (5 pkgs); direct `jedibc/optional` ^1.0; Slim resolves |
+| A | `stack/style-refactor-A` | done | `2574926` | strict_types on 53 legacy `src/` files; 11 leaf classes `final`; strict fallout (`ClientRepository` bool, session user_id casts); PHPUnit `dg/bypass-finals` + bootstrap for final mocks; stan 7 errors / `composer cs -- src` exit 2 unchanged vs L1; infection blocked by PHPUnit exit 1 on warnings (pre-existing) |
+| C | `stack/style-refactor-C` | done | `bb1778b` | Firebase JWT verify in `Jwt.php`; `emailClaim` + `presentedPvhContext`; call sites deduped; no Lcobucci in `src/`; PHPUnit green; stan 7 errors unchanged vs A; `composer cs -- src` exit 2 unchanged vs A; infection blocked by PHPUnit warnings (pre-existing) |
+| H | `stack/style-refactor-H` | done | `97b0a4a` | `FirebaseJwtTestFactory`; Lcobucci removed from `tests/`; PHPUnit green; stan 7 errors unchanged vs C; `composer cs -- src tests` exit 2 unchanged vs C; infection blocked by PHPUnit warnings (pre-existing) |
+| D | `stack/style-refactor-D` | done | `0b60fd0` | `PvhAuthorizationGate` + `OAuthAccessTokenFallback`; middleware/controller dedup; PHPUnit green; stan 7 errors unchanged vs H; `composer cs -- src` exit 2 unchanged vs H; infection blocked by PHPUnit warnings (pre-existing) |
+| E | `stack/style-refactor-E` | done | `92389cd` | `PvhCacheRecord::fromGeneration`; JwtPvhRefreshService Optional + debug; PHPUnit green; stan 7 errors unchanged vs D; `composer cs -- src` exit 2 unchanged vs D; infection blocked by PHPUnit warnings (pre-existing) |
+| G | `stack/style-refactor-G` | done | `db3b7c0` | `AllowListedConfidentialClientAuthenticator`; middleware + `ConfidentialClientAuthenticator` dedup; PHPUnit green; stan 7 errors unchanged vs E; `composer cs -- src tests` exit 2 unchanged vs E; infection blocked by PHPUnit warnings (pre-existing) |
+| B | `stack/style-refactor-B` | done | `bc4bf99` | `ConfidentialClientAuthMode` + `AuthorizationFinalizeRedirect`; middleware/social/auth call sites; PHPUnit green; stan 7 errors unchanged vs G; `composer cs -- src tests` exit 2 unchanged vs G; infection green |
+| F | `stack/style-refactor-F` | done | `40e2901` | AmtgardIdpJwt Builder DI; CurrentUserResolver; ContainerResolutionOrderTest; EM ctor hacks removed |
+| I | `stack/style-refactor-I` | done | `ff8b2c8` | OAuthSocialCallbackHandler + OAuthSocialRedirectSessionStore; social controllers thin wrappers; createUserFromOAuthProfile + createLoginFromProvider + createUserFromDiscordData; PHPUnit social/repo tests green; stan 3 errors unchanged vs F; cs exit 2 unchanged vs F |
+| J | `stack/style-refactor-J` | done | `8410130` | OAuth2ServerController → OAuth*Action + OAuthSessionAuthRequestStore; ResourcesUserinfoService + OrkService park resolve; ClientIamPolicyService/ClientIamMetadataService; UserPolicyClaimReader/Writer + ClaimOrnValidator; PvhQueueMessage; PHPUnit OAuth/resources/client/policy/Pvh tests green; stan 3 errors unchanged vs I; cs exit 2 unchanged vs I; infection green |
+| K | `stack/style-refactor-K` | done | `e528b66` | `JsonResponseBody` + `QueueHandleTrait`; PvhGate/ClientResources/LowLatency JSON dedup; PHPUnit +4 tests; stan 3 errors unchanged vs J; cs exit 2 unchanged vs J; infection green |
+| M | `stack/style-refactor-M` | done | `a0009aa` | PVH gate / validate / JWT sig / social OAuth / client IAM / BaseAuth structured logging; stan 3 unchanged vs K; cs exit 2; infection green |
+| N | `stack/style-refactor-N` | done | `4f02c34` | OrnClaimRegistry table-driven |
+| H-iam | `stack/style-refactor-N` (tip) | done | `a4eace7` | Client IAM validation dedup via `ClientResourcesRequestResolver` only (plan “Milestone H” IAM section) |
+| fix-green | `stack/style-refactor-N` (tip) | done | `a4eace7` | Restore PHPUnit OAuth keys after container bootstrap; `OAuthKeyMaterial`; 527 PHPUnit green; PHPStan clean (512M); infection green |
+
+**Stack tip:** `stack/style-refactor-N` — run `git branchless smartlog` for full spine.
+
+**Orchestrator:** [Style refactor orchestrator](67cd2aa8-e040-4cee-9be6-39a9c28b618a) completed milestones L1–N; follow-up commits on N address suite + IAM dedup.

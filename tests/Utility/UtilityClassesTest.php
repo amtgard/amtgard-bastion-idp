@@ -9,6 +9,7 @@ use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\PvhQueueHandle;
 use Amtgard\IdP\Utility\UserAuthority;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -36,6 +37,15 @@ class UtilityClassesTest extends TestCase
             ->build();
 
         $this->assertSame('my-handle', $handle->getHandle());
+    }
+
+    public function testPvhQueueHandle(): void
+    {
+        $handle = PvhQueueHandle::builder()
+            ->handle('pvh-handle')
+            ->build();
+
+        $this->assertSame('pvh-handle', $handle->getHandle());
     }
 
     public function testUserAuthorityIsAdmin(): void

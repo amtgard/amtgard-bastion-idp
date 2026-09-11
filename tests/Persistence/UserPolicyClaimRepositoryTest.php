@@ -61,9 +61,7 @@ class UserPolicyClaimRepositoryTest extends TestCase
             $this->createMock(LoggerInterface::class),
         );
 
-        $property = new \ReflectionProperty(UserPolicyClaimRepository::class, 'userClaims');
-        $property->setAccessible(true);
-        $property->setValue($this->repository, $this->mapper);
+        $this->repository->useClaimsMapper($this->mapper);
     }
 
     protected function tearDown(): void
@@ -199,9 +197,7 @@ class UserPolicyClaimRepositoryTest extends TestCase
             ['service' => ServiceCatalog::Idp->value, 'client_id' => null, 'provisos' => '0::::', 'resource' => 'IDP/EditClient'],
             ['service' => ServiceCatalog::Idp->value, 'client_id' => null, 'provisos' => ':0::::', 'resource' => 'IDP/EditIdentity'],
         ]);
-        $property = new \ReflectionProperty(UserPolicyClaimRepository::class, 'userClaims');
-        $property->setAccessible(true);
-        $property->setValue($repository, $mapper);
+        $repository->useClaimsMapper($mapper);
 
         $user = $this->createMock(EntityInterface::class);
         $user->id = 10;
@@ -215,8 +211,6 @@ class UserPolicyClaimRepositoryTest extends TestCase
     private function replaceMapper(EntityMapper $mapper): void
     {
         $this->mapper = $mapper;
-        $property = new \ReflectionProperty(UserPolicyClaimRepository::class, 'userClaims');
-        $property->setAccessible(true);
-        $property->setValue($this->repository, $mapper);
+        $this->repository->useClaimsMapper($mapper);
     }
 }

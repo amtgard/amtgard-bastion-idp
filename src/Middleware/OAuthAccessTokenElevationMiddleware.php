@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Middleware;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Utility\AuthorizedClients;
+use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\Jwt;
 use League\OAuth2\Server\Exception\OAuthServerException;
 use League\OAuth2\Server\ResourceServer;
@@ -25,7 +25,6 @@ use Slim\Exception\HttpUnauthorizedException;
 class OAuthAccessTokenElevationMiddleware implements MiddlewareInterface
 {
     public function __construct(
-        EntityManager $entityManager,
         private LoggerInterface $logger,
         private AuthorizedClients $authorizedClients,
         private ResourceServer $resourceServer,
@@ -68,8 +67,10 @@ class OAuthAccessTokenElevationMiddleware implements MiddlewareInterface
             throw new HttpUnauthorizedException($request, 'Not authorized.');
         }
 
-        $_SESSION['user_id'] = $validated->getAttribute('oauth_user_id');
-        $_SESSION['client_id'] = $validated->getAttribute('oauth_client_id');
+        LoginSession::setAuthenticatedContext(
+            (string) $validated->getAttribute('oauth_user_id'),
+            (string) $validated->getAttribute('oauth_client_id'),
+        );
 
         return $handler->handle($validated);
     }

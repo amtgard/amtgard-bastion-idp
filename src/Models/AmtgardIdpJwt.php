@@ -1,45 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Models;
 
 use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
-use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
-use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
-use Amtgard\IdP\Persistence\Common\Repositories\JwtChallenge;
-use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
-use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
-use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
+use Amtgard\IdP\Utility\OAuthKeyMaterial;
 use Amtgard\IdP\Utility\PvhCacheRecord;
+use Amtgard\Traits\Builder\Builder;
+use Amtgard\Traits\Builder\Getter;
 use Firebase\JWT\JWT;
-use Psr\Log\LoggerInterface;
 
-class AmtgardIdpJwt
+final class AmtgardIdpJwt
 {
-    private AuthorizationJwtAssembler $assembler;
-    private RedisCacheRepository $redisCacheRepository;
+    use Builder;
+    use Getter;
 
-    public function __construct(
-        UserPolicy $userPolicy,
-        JwtChallenge $jwtChallenge,
-        ClientRepository $clientRepository,
-        UserLoginClientRepository $metadataRepository,
-        UserLoginRepository $userLoginRepository,
-        LoggerInterface $logger,
-        UserJwtGenerationRepository $generationRepository,
-        RedisCacheRepository $redisCacheRepository,
-    ) {
-        $this->assembler = new AuthorizationJwtAssembler(
-            $userPolicy,
-            $jwtChallenge,
-            $clientRepository,
-            $metadataRepository,
-            $userLoginRepository,
-            $logger,
-            $generationRepository,
-        );
-        $this->redisCacheRepository = $redisCacheRepository;
-    }
+    protected AuthorizationJwtAssembler $assembler;
+
+    protected RedisCacheRepository $redisCacheRepository;
 
     /**
      * Mint fat + compact RS256 tokens from one claim assembly (same `exp` / `pvh`).
@@ -52,7 +33,7 @@ class AmtgardIdpJwt
         ?int $loginDbId = null
     ): array {
         $claims = $this->assembler->buildClaims($user, $oauthClientId, $loginDbId);
-        $privateKey = file_get_contents($_ENV['OAUTH_PRIVATE_KEY']);
+        $privateKey = OAuthKeyMaterial::readFromEnv('OAUTH_PRIVATE_KEY');
 
         $jwt = JWT::encode($claims, $privateKey, 'RS256');
         $compactJwt = JWT::encode(
@@ -63,13 +44,9 @@ class AmtgardIdpJwt
 
         $generation = $this->assembler->lastGeneration();
         if ($generation !== null) {
-            $this->redisCacheRepository->setPvhRecord(new PvhCacheRecord(
-                $generation->getUserUuid(),
-                $generation->getAud(),
-                (string) ($user->email ?? ''),
-                $generation->getPvh(),
-                $generation->getPrevPvh(),
-            ));
+            $this->redisCacheRepository->setPvhRecord(
+                PvhCacheRecord::fromGeneration($generation, (string) ($user->email ?? ''))
+            );
         }
 
         return ['jwt' => $jwt, 'compact_jwt' => $compactJwt];
