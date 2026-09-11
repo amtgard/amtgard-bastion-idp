@@ -6,12 +6,12 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
-use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Jwt;
-use Amtgard\IdP\Utility\PvhAccess;
+use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
+use Amtgard\IdP\Utility\Pvh\PvhGateOutcome;
 use Amtgard\IdP\Utility\PvhGate;
-use League\OAuth2\Server\Exception\OAuthServerException;
+use Amtgard\IdP\Utility\Security\OAuthAccessTokenFallback;
 use League\OAuth2\Server\ResourceServer;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface;
@@ -22,23 +22,15 @@ use Slim\Exception\HttpUnauthorizedException;
 
 class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
 {
-    protected LoggerInterface $logger;
-    private RedisCacheRepository $redisCacheRepository;
-    protected ResourceServer $resourceServer;
-    protected AuthorizedClients $authorizedClients;
-
     public function __construct(
         EntityManager $em,
-        LoggerInterface $logger,
-        RedisCacheRepository $redisCacheRepository,
-        AuthorizedClients $authorizedClients,
-        ResourceServer $resourceServer
+        protected LoggerInterface $logger,
+        private PvhAuthorizationGate $pvhAuthorizationGate,
+        protected AuthorizedClients $authorizedClients,
+        protected ResourceServer $resourceServer,
+        private OAuthAccessTokenFallback $oauthAccessTokenFallback,
     ) {
         parent::__construct($em, $logger, $authorizedClients, $resourceServer);
-        $this->logger = $logger;
-        $this->redisCacheRepository = $redisCacheRepository;
-        $this->authorizedClients = $authorizedClients;
-        $this->resourceServer = $resourceServer;
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -54,50 +46,30 @@ class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
             ->orElseThrow(new HttpUnauthorizedException($request, 'Not authorized.'));
 
         if (!Jwt::isAuthorizationPayload($payload)) {
-            return $this->authenticateOAuthAccessToken($request, $handler);
+            return $this->oauthAccessTokenFallback->authenticate(
+                $request,
+                $handler,
+                $this->proceed(...)
+            );
         }
 
-        $cached = $this->redisCacheRepository->getPvhRecord((string) $oauthUserId, (string) $clientId);
-        $access = PvhGate::evaluate($cached, $payload);
+        $userUuid = (string) $oauthUserId;
+        $aud = (string) $clientId;
+        $outcome = $this->pvhAuthorizationGate->evaluateAndSeed($userUuid, $aud, $payload);
+        $access = $this->pvhAuthorizationGate->lastAccess();
+        $this->logger->debug(
+            'cached jwt local idp pvh auth', [
+            'user_uuid' => $userUuid,
+            'aud' => $aud,
+            'access' => $access?->name,
+            ]
+        );
 
-        if ($access === PvhAccess::Current) {
-            return $this->proceed((string) $oauthUserId, (string) $clientId, $request, $handler);
-        }
-
-        if ($access === PvhAccess::Previous) {
-            return PvhGate::staleTokenResponse();
-        }
-
-        if ($access === PvhAccess::Miss) {
-            $pvhContext = Jwt::presentedPvhContext($payload);
-            $this->redisCacheRepository->setPvhRecord(PvhGate::missSeedRecord(
-                (string) $oauthUserId,
-                (string) $clientId,
-                Jwt::emailClaim($payload),
-                $pvhContext['presented'],
-                $pvhContext['fatPolicyHash']
-            ));
-
-            return $this->proceed((string) $oauthUserId, (string) $clientId, $request, $handler);
-        }
-
-        throw new HttpUnauthorizedException($request, 'Not authorized.');
-    }
-
-    private function authenticateOAuthAccessToken(
-        ServerRequestInterface $request,
-        RequestHandlerInterface $handler
-    ): ResponseInterface {
-        try {
-            $validated = $this->resourceServer->validateAuthenticatedRequest($request);
-        } catch (OAuthServerException) {
-            throw new HttpUnauthorizedException($request, 'Not authorized.');
-        }
-
-        $userId = (string) $validated->getAttribute('oauth_user_id');
-        $clientId = (string) $validated->getAttribute('oauth_client_id');
-
-        return $this->proceed($userId, $clientId, $validated, $handler);
+        return match ($outcome) {
+            PvhGateOutcome::Proceed => $this->proceed($userUuid, $aud, $request, $handler),
+            PvhGateOutcome::StaleToken => PvhGate::staleTokenResponse(),
+            PvhGateOutcome::Unauthorized => throw new HttpUnauthorizedException($request, 'Not authorized.'),
+        };
     }
 
     private function proceed(

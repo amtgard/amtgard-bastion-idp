@@ -8,6 +8,7 @@ use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\Pvh;
+use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\SetQueue\PubSubQueue;
@@ -53,10 +54,15 @@ class LowLatencyControllerTest extends TestCase
         $this->response->method('withStatus')->willReturnSelf();
         $this->request->method('getQueryParams')->willReturn([]);
 
+        $pvhAuthorizationGate = PvhAuthorizationGate::builder()
+            ->redisCacheRepository($this->redisCacheRepository)
+            ->build();
+
         $this->controller = new LowLatencyController(
             $this->redisCacheRepository,
             $this->redisPubSubQueue,
             $this->pubSubQueueHandle,
+            $pvhAuthorizationGate,
             $this->createStub(LoggerInterface::class)
         );
     }

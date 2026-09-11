@@ -8,6 +8,8 @@ namespace Amtgard\IdP\Controllers\Resource;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\Jwt;
+use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
+use Amtgard\IdP\Utility\Pvh\PvhGateOutcome;
 use Amtgard\IdP\Utility\PvhAccess;
 use Amtgard\IdP\Utility\PvhGate;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
@@ -19,21 +21,13 @@ use Psr\Log\LoggerInterface;
 
 final class LowLatencyController
 {
-    private RedisCacheRepository $redisCacheRepository;
-    private PubSubQueue $redisPubSubQueue;
-    private PubSubQueueHandle $pubSubQueueHandle;
-    private LoggerInterface $logger;
-
     public function __construct(
-        RedisCacheRepository $redisCacheRepository,
-        PubSubQueue $redisPubSubQueue,
-        PubSubQueueHandle $pubSubQueueHandle,
-        LoggerInterface $logger
+        private RedisCacheRepository $redisCacheRepository,
+        private PubSubQueue $redisPubSubQueue,
+        private PubSubQueueHandle $pubSubQueueHandle,
+        private PvhAuthorizationGate $pvhAuthorizationGate,
+        private LoggerInterface $logger,
     ) {
-        $this->redisCacheRepository = $redisCacheRepository;
-        $this->redisPubSubQueue = $redisPubSubQueue;
-        $this->pubSubQueueHandle = $pubSubQueueHandle;
-        $this->logger = $logger;
     }
 
     #[OA\Get(
@@ -119,58 +113,72 @@ final class LowLatencyController
             return PvhGate::writeUnauthorized($response);
         }
 
-        $cached = $this->redisCacheRepository->getPvhRecord($tokenUserId, $aud);
-        $access = PvhGate::evaluatePresented($cached, $presentedPvh, $fatPolicyHash);
-        if ($access === PvhAccess::Current && $cached !== null) {
-            $this->logger->notice('jwt validate current', [
+        $outcome = $this->pvhAuthorizationGate->evaluateAndSeed($tokenUserId, $aud, $payload);
+        $access = $this->pvhAuthorizationGate->lastAccess();
+        $cached = $this->pvhAuthorizationGate->lastCachedRecord();
+
+        if ($outcome === PvhGateOutcome::Proceed) {
+            $resolved = $this->pvhAuthorizationGate->lastResolvedRecord();
+            if ($access === PvhAccess::Current && $resolved !== null) {
+                $this->logger->notice(
+                    'jwt validate current', [
+                    'user_uuid' => $tokenUserId,
+                    'aud' => $aud,
+                    'pvh' => $resolved->getPvh(),
+                    ]
+                );
+
+                return $this->validateSuccess(
+                    $request,
+                    $response,
+                    $challengeJwt,
+                    $tokenUserId,
+                    $aud,
+                    $resolved->getEmail()
+                );
+            }
+
+            $this->logger->notice(
+                'jwt validate cache miss seeded', [
                 'user_uuid' => $tokenUserId,
                 'aud' => $aud,
-                'pvh' => $cached->getPvh(),
-            ]);
+                'pvh' => $resolved?->getPvh(),
+                ]
+            );
+
             return $this->validateSuccess(
                 $request,
                 $response,
                 $challengeJwt,
                 $tokenUserId,
                 $aud,
-                $cached->getEmail()
+                Jwt::emailClaim($payload)
             );
         }
-        if ($access === PvhAccess::Previous) {
-            $this->logger->notice('jwt validate stale_token', [
+
+        if ($outcome === PvhGateOutcome::StaleToken) {
+            $this->logger->notice(
+                'jwt validate stale_token', [
                 'user_uuid' => $tokenUserId,
                 'aud' => $aud,
                 'presented_pvh' => $presentedPvh,
                 'current_pvh' => $cached?->getPvh(),
                 'prev_pvh' => $cached?->getPrevPvh(),
-            ]);
+                ]
+            );
+
             return PvhGate::writeStaleToken($response);
         }
-        if ($access === PvhAccess::Unknown) {
-            $this->logger->notice('jwt validate unknown pvh', [
-                'user_uuid' => $tokenUserId,
-                'aud' => $aud,
-                'presented_pvh' => $presentedPvh,
-            ]);
-            return PvhGate::writeUnauthorized($response);
-        }
 
-        $seeded = PvhGate::missSeedRecord($tokenUserId, $aud, Jwt::emailClaim($payload), $presentedPvh, $fatPolicyHash);
-        $this->logger->notice('jwt validate cache miss seeded', [
+        $this->logger->notice(
+            'jwt validate unknown pvh', [
             'user_uuid' => $tokenUserId,
             'aud' => $aud,
-            'pvh' => $seeded->getPvh(),
-        ]);
-        $this->redisCacheRepository->setPvhRecord($seeded);
-
-        return $this->validateSuccess(
-            $request,
-            $response,
-            $challengeJwt,
-            $tokenUserId,
-            $aud,
-            Jwt::emailClaim($payload)
+            'presented_pvh' => $presentedPvh,
+            ]
         );
+
+        return PvhGate::writeUnauthorized($response);
     }
 
     private function validateSuccess(

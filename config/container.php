@@ -28,7 +28,9 @@ use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Utility\BuildInfo;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Constants;
+use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
 use Amtgard\IdP\Utility\PvhQueueHandle;
 use Amtgard\IdP\Utility\PvhSetQueue;
 use Amtgard\IdP\Utility\Redis\PubSubRedisConfig;
@@ -325,6 +327,13 @@ return [
     AuthorizedClients::class => function (ContainerInterface $container) {
         return AuthorizedClients::builder()
             ->clientIds([Constants::$AMTGARD_IDP_CLIENT_ID])
+            ->build();
+    },
+
+    PvhAuthorizationGate::class => function (ContainerInterface $container) {
+        return PvhAuthorizationGate::builder()
+            ->redisCacheRepository($container->get(RedisCacheRepository::class))
+            ->logger($container->get(LoggerInterface::class))
             ->build();
     },
 

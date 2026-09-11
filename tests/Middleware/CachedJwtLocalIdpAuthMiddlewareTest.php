@@ -9,7 +9,9 @@ use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Pvh;
+use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
 use Amtgard\IdP\Utility\PvhCacheRecord;
+use Amtgard\IdP\Utility\Security\OAuthAccessTokenFallback;
 use League\OAuth2\Server\ResourceServer;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -51,12 +53,18 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
         $this->handler = $this->createMock(RequestHandlerInterface::class);
         $this->response = $this->createMock(ResponseInterface::class);
 
+        $pvhAuthorizationGate = PvhAuthorizationGate::builder()
+            ->redisCacheRepository($this->redisCacheRepository)
+            ->build();
+        $oauthAccessTokenFallback = new OAuthAccessTokenFallback($this->resourceServer);
+
         $this->middleware = new CachedJwtLocalIdpAuthMiddleware(
             $this->entityManager,
             $this->logger,
-            $this->redisCacheRepository,
+            $pvhAuthorizationGate,
             $this->authorizedClients,
-            $this->resourceServer
+            $this->resourceServer,
+            $oauthAccessTokenFallback,
         );
     }
 
