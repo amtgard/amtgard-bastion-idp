@@ -319,10 +319,10 @@ class SocialAuthControllersTest extends TestCase
         $provider->expects($this->once())->method('getAccessToken')->with('authorization_code', ['code' => 'abc'])->willReturn($token);
         $provider->expects($this->once())->method('getResourceOwner')->with($token)->willReturn($resourceOwner);
         $this->users->method('getUserByEmail')->with('discord@example.com')->willReturn(null);
-        $this->users->expects($this->once())->method('createUserFromGoogleData')->with($this->callback(function (array $data): bool {
+        $this->users->expects($this->once())->method('createUserFromDiscordData')->with($this->callback(function (array $data): bool {
             return $data['email'] === 'discord@example.com'
-                && $data['given_name'] === 'discorduser'
-                && $data['picture'] === 'https://cdn.discordapp.com/avatars/discord-id/avatar-hash.png';
+                && $data['username'] === 'discorduser'
+                && $data['avatar'] === 'avatar-hash';
         }))->willReturn($user);
         $this->logins->expects($this->once())->method('getLoginByProviderId')->with('discord-id')->willReturn(null);
         $this->logins->expects($this->once())->method('createLoginFromDiscordData')->with($user, $resourceOwner->toArray(), $token)->willReturn($login);

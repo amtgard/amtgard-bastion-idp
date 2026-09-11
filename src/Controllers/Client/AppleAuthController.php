@@ -9,9 +9,8 @@ use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\Security\OAuth2StateManager;
-use Amtgard\IdP\Utility\Security\OAuthCallbackValidator;
-use Amtgard\IdP\Utility\Security\RedirectValidator;
-use Amtgard\IdP\Utility\Security\ScriptAlertResponse;
+use Amtgard\IdP\Utility\Security\OAuthSocialCallbackHandler;
+use Amtgard\IdP\Utility\Security\OAuthSocialRedirectSessionStore;
 use League\OAuth2\Client\Provider\Apple;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -48,9 +47,7 @@ class AppleAuthController extends BaseAuthController
 
         OAuth2StateManager::store($this->appleProvider->getState());
 
-        $queryParams = $request->getQueryParams();
-        $_SESSION['redirect'] = RedirectValidator::sanitizeOrNull($queryParams['redirect'] ?? null);
-        $_SESSION['jwtpublickey'] = $queryParams['jwtpublickey'] ?? null;
+        OAuthSocialRedirectSessionStore::storeFromQueryParams($request->getQueryParams());
 
         return $response
             ->withHeader('Location', $authUrl)
@@ -63,70 +60,80 @@ class AppleAuthController extends BaseAuthController
     public function handleAppleCallback(Request $request, Response $response): Response
     {
         $callbackParams = $this->callbackParams($request);
+        $existingLogin = null;
+        $providerId = null;
+        $appleUser = null;
 
-        $validationResult = OAuthCallbackValidator::validate($callbackParams, 'Apple');
+        return OAuthSocialCallbackHandler::builder()
+            ->providerName('Apple')
+            ->logger($this->logger)
+            ->fetchToken(function (array $params) use (&$existingLogin, &$providerId, &$appleUser) {
+                $this->syncSuperglobalsForAppleProvider($params);
 
-        if ($validationResult !== null) {
-            $response->getBody()->write($validationResult);
-            return $response;
-        }
+                $token = $this->appleProvider->getAccessToken('authorization_code', [
+                    'code' => $params['code'],
+                ]);
 
-        try {
-            $this->syncSuperglobalsForAppleProvider($callbackParams);
+                $appleUser = $this->appleProvider->getResourceOwner($token);
+                $providerId = (string) $appleUser->getId();
+                $existingLogin = $this->logins->getLoginByProviderId($providerId);
 
-            $token = $this->appleProvider->getAccessToken('authorization_code', [
-                'code' => $callbackParams['code'],
-            ]);
+                return $token;
+            })
+            ->mapUserData(function ($token) use (&$appleUser) {
+                return $appleUser->toArray();
+            })
+            ->resolveUser(function (array $userData, AuthorizationFinalizeRedirect &$redirectPolicy) use (
+                &$existingLogin,
+                &$appleUser,
+            ) {
+                return Optional::ofNullable($existingLogin)
+                    ->map(fn ($login) => $login->user)
+                    ->orElseGet(function () use (&$appleUser, &$redirectPolicy) {
+                        $email = $appleUser->getEmail();
 
-            $appleUser = $this->appleProvider->getResourceOwner($token);
-            $userData = $appleUser->toArray();
-            $providerId = (string) $appleUser->getId();
-            $email = $appleUser->getEmail();
+                        if ($email === null || $email === '') {
+                            throw new \Exception(
+                                'Apple did not provide an email address. If you have signed in before, use the same Apple ID. Otherwise, revoke Amtgard access in Apple ID settings and try again.'
+                            );
+                        }
 
-            $this->logger->debug('Apple user data: ' . json_encode($userData));
+                        return Optional::ofNullable($this->users->getUserByEmail($email))
+                            ->orElseGet(function () use ($email, &$appleUser, &$redirectPolicy) {
+                                $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
 
-            $redirectPolicy = AuthorizationFinalizeRedirect::ReturningUserWithStoredRedirect;
-            $existingLogin = $this->logins->getLoginByProviderId($providerId);
+                                return $this->users->createUserFromAppleData([
+                                    'email' => $email,
+                                    'given_name' => $appleUser->getFirstName() ?? '',
+                                    'family_name' => $appleUser->getLastName() ?? '',
+                                ]);
+                            });
+                    });
+            })
+            ->resolveLogin(function ($user, array $userData, $token) use (&$existingLogin, &$providerId) {
+                return Optional::ofNullable($existingLogin)
+                    ->map(function ($login) use ($user, $token) {
+                        $login->setUser($user);
 
-            $user = Optional::ofNullable($existingLogin)
-                ->map(fn ($login) => $login->user)
-                ->orElseGet(function () use ($email, $appleUser, &$redirectPolicy) {
-                    if ($email === null || $email === '') {
-                        throw new \Exception(
-                            'Apple did not provide an email address. If you have signed in before, use the same Apple ID. Otherwise, revoke Amtgard access in Apple ID settings and try again.'
-                        );
-                    }
+                        return $this->logins->updateLoginTokens($login, fn ($t) => $t->getRefreshToken(), $token);
+                    })
+                    ->orElseGet(function () use ($user, $userData, $providerId, $token) {
+                        $userData['sub'] = $providerId;
 
-                    return Optional::ofNullable($this->users->getUserByEmail($email))
-                        ->orElseGet(function () use ($email, $appleUser, &$redirectPolicy) {
-                            $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
-                            return $this->users->createUserFromAppleData([
-                                'email' => $email,
-                                'given_name' => $appleUser->getFirstName() ?? '',
-                                'family_name' => $appleUser->getLastName() ?? '',
-                            ]);
-                        });
-                });
-
-            $login = Optional::ofNullable($existingLogin)
-                ->map(function ($login) use ($user, $token) {
-                    $login->setUser($user);
-                    return $this->logins->updateLoginTokens($login, fn($t) => $t->getRefreshToken(), $token);
-                })
-                ->orElseGet(function () use ($user, $userData, $providerId, $token) {
-                    $userData['sub'] = $providerId;
-                    return $this->logins->createLoginFromAppleData($user, $userData, $token);
-                });
-
-            return $this->finalizeAuthorization($login, $request, $response, $redirectPolicy);
-        } catch (\Exception $e) {
-            $this->logger->error('Apple authentication error: ' . $e->getTraceAsString());
-
-            $response->getBody()->write(
-                ScriptAlertResponse::alertAndRedirect($e->getMessage(), '/auth/login?policy')
+                        return $this->logins->createLoginFromAppleData($user, $userData, $token);
+                    });
+            })
+            ->build()
+            ->handle(
+                $callbackParams,
+                $response,
+                fn ($login, $redirectPolicy) => $this->finalizeAuthorization(
+                    $login,
+                    $request,
+                    $response,
+                    $redirectPolicy
+                ),
             );
-            return $response;
-        }
     }
 
     /**

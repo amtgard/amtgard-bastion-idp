@@ -9,9 +9,8 @@ use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\Security\OAuth2StateManager;
-use Amtgard\IdP\Utility\Security\OAuthCallbackValidator;
-use Amtgard\IdP\Utility\Security\RedirectValidator;
-use Amtgard\IdP\Utility\Security\ScriptAlertResponse;
+use Amtgard\IdP\Utility\Security\OAuthSocialCallbackHandler;
+use Amtgard\IdP\Utility\Security\OAuthSocialRedirectSessionStore;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -53,9 +52,7 @@ class DiscordAuthController extends BaseAuthController
 
         OAuth2StateManager::store($this->discordProvider->getState());
 
-        $queryParams = $request->getQueryParams();
-        $_SESSION['redirect'] = RedirectValidator::sanitizeOrNull($queryParams['redirect'] ?? null);
-        $_SESSION['jwtpublickey'] = $queryParams['jwtpublickey'] ?? null;
+        OAuthSocialRedirectSessionStore::storeFromQueryParams($request->getQueryParams());
 
         return $response
             ->withHeader('Location', $authUrl)
@@ -73,67 +70,51 @@ class DiscordAuthController extends BaseAuthController
     {
         $queryParams = $request->getQueryParams();
 
-        $validationResult = OAuthCallbackValidator::validate($queryParams, 'Discord');
+        return OAuthSocialCallbackHandler::builder()
+            ->providerName('Discord')
+            ->logger($this->logger)
+            ->fetchToken(function (array $params) {
+                return $this->discordProvider->getAccessToken('authorization_code', [
+                    'code' => $params['code'],
+                ]);
+            })
+            ->mapUserData(function ($token) {
+                return $this->discordProvider->getResourceOwner($token)->toArray();
+            })
+            ->resolveUser(function (array $userData, AuthorizationFinalizeRedirect &$redirectPolicy) {
+                $email = $userData['email'] ?? null;
+                if (!$email) {
+                    throw new \Exception('Email permission denied or not provided by Discord.');
+                }
 
-        if ($validationResult !== null) {
-            $response->getBody()->write($validationResult);
-            return $response;
-        }
+                return Optional::ofNullable($this->users->getUserByEmail($email))
+                    ->orElseGet(function () use ($userData, &$redirectPolicy) {
+                        $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
 
-        try {
-            // Get access token
-            $token = $this->discordProvider->getAccessToken('authorization_code', [
-                'code' => $queryParams['code']
-            ]);
+                        return $this->users->createUserFromDiscordData($userData);
+                    });
+            })
+            ->resolveLogin(function ($user, array $userData, $token) {
+                return Optional::ofNullable($this->logins->getLoginByProviderId($userData['id']))
+                    ->map(function ($login) use ($user, $token) {
+                        $login->setUser($user);
 
-            // Get user details
-            $discordUser = $this->discordProvider->getResourceOwner($token);
-            $userData = $discordUser->toArray();
-
-            $this->logger->debug('Discord user data: ' . json_encode($userData));
-
-            $email = $userData['email'] ?? null;
-            if (!$email) {
-                throw new \Exception("Email permission denied or not provided by Discord.");
-            }
-
-            $redirectPolicy = AuthorizationFinalizeRedirect::ReturningUserWithStoredRedirect;
-            $user = Optional::ofNullable($this->users->getUserByEmail($email))
-                ->orElseGet(function () use ($userData, &$redirectPolicy) {
-                    $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
-                    // Map Discord fields to Google-like fields for createUserFromGoogleData if generic,
-                    // or implement createUserFromDiscordData. Ideally reuse or adapt.
-                    // Discord doesn't give first/last names easily, usually just username.
-                    // We might need to handle this distribution carefully.
-                    // For now, let's assume we map username to firstName and leave lastName empty or placeholder.
-    
-                    return $this->users->createUserFromGoogleData([
-                        'email' => $userData['email'],
-                        'given_name' => $userData['username'],
-                        'family_name' => '', // Discord doesn't separate names
-                        'picture' => $userData['avatar']
-                            ? sprintf('https://cdn.discordapp.com/avatars/%s/%s.png', $userData['id'], $userData['avatar'])
-                            : 'https://cdn.discordapp.com/embed/avatars/0.png'
-                    ]);
-                });
-
-            $login = Optional::ofNullable($this->logins->getLoginByProviderId($userData['id']))
-                ->map(function ($login) use ($user, $token) {
-                    $login->setUser($user);
-                    return $this->logins->updateLoginTokens($login, fn($t) => $t->getRefreshToken(), $token);
-                })
-                ->orElseGet(function () use ($user, $userData, $token) {
-                    return $this->logins->createLoginFromDiscordData($user, $userData, $token);
-                });
-
-            return $this->finalizeAuthorization($login, $request, $response, $redirectPolicy);
-        } catch (\Exception $e) {
-            $this->logger->error('Discord authentication error: ' . $e->getTraceAsString());
-
-            $response->getBody()->write(
-                ScriptAlertResponse::alertAndRedirect($e->getMessage(), '/auth/login?policy')
+                        return $this->logins->updateLoginTokens($login, fn ($t) => $t->getRefreshToken(), $token);
+                    })
+                    ->orElseGet(function () use ($user, $userData, $token) {
+                        return $this->logins->createLoginFromDiscordData($user, $userData, $token);
+                    });
+            })
+            ->build()
+            ->handle(
+                $queryParams,
+                $response,
+                fn ($login, $redirectPolicy) => $this->finalizeAuthorization(
+                    $login,
+                    $request,
+                    $response,
+                    $redirectPolicy
+                ),
             );
-            return $response;
-        }
     }
 }

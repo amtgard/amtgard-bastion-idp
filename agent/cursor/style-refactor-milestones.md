@@ -16,8 +16,8 @@
 | E | `stack/style-refactor-E` | done | `92389cd` | `PvhCacheRecord::fromGeneration`; JwtPvhRefreshService Optional + debug; PHPUnit green; stan 7 errors unchanged vs D; `composer cs -- src` exit 2 unchanged vs D; infection blocked by PHPUnit warnings (pre-existing) |
 | G | `stack/style-refactor-G` | done | `db3b7c0` | `AllowListedConfidentialClientAuthenticator`; middleware + `ConfidentialClientAuthenticator` dedup; PHPUnit green; stan 7 errors unchanged vs E; `composer cs -- src tests` exit 2 unchanged vs E; infection blocked by PHPUnit warnings (pre-existing) |
 | B | `stack/style-refactor-B` | done | `bc4bf99` | `ConfidentialClientAuthMode` + `AuthorizationFinalizeRedirect`; middleware/social/auth call sites; PHPUnit green; stan 7 errors unchanged vs G; `composer cs -- src tests` exit 2 unchanged vs G; infection green |
-| F | `stack/style-refactor-F` | done | `4e88222` | AmtgardIdpJwt Builder DI; CurrentUserResolver; ContainerResolutionOrderTest; EM ctor hacks removed |
-| I | `stack/style-refactor-I` | pending | | OAuth social template |
+| F | `stack/style-refactor-F` | done | `40e2901` | AmtgardIdpJwt Builder DI; CurrentUserResolver; ContainerResolutionOrderTest; EM ctor hacks removed |
+| I | `stack/style-refactor-I` | done | `ff8b2c8` | OAuthSocialCallbackHandler + OAuthSocialRedirectSessionStore; social controllers thin wrappers; createUserFromOAuthProfile + createLoginFromProvider + createUserFromDiscordData; PHPUnit social/repo tests green; stan 3 errors unchanged vs F; cs exit 2 unchanged vs F |
 | J | `stack/style-refactor-J` | pending | | large class splits |
 | K | `stack/style-refactor-K` | pending | | JSON helpers + queue handles |
 | M | `stack/style-refactor-M` | pending | | logging pass |

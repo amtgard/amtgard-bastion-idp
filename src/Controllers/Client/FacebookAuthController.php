@@ -9,8 +9,7 @@ use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\Security\OAuth2StateManager;
-use Amtgard\IdP\Utility\Security\OAuthCallbackValidator;
-use Amtgard\IdP\Utility\Security\ScriptAlertResponse;
+use Amtgard\IdP\Utility\Security\OAuthSocialCallbackHandler;
 use League\OAuth2\Client\Provider\Facebook;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -68,53 +67,50 @@ class FacebookAuthController extends BaseAuthController
     {
         $queryParams = $request->getQueryParams();
 
-        $validationResult = OAuthCallbackValidator::validate($queryParams, 'Facebook');
+        return OAuthSocialCallbackHandler::builder()
+            ->providerName('Facebook')
+            ->logger($this->logger)
+            ->errorRedirectPath('/auth/login')
+            ->fetchToken(function (array $params) {
+                $token = $this->facebookProvider->getAccessToken('authorization_code', [
+                    'code' => $params['code'],
+                ]);
 
-        if ($validationResult !== null) {
-            $response->getBody()->write($validationResult);
-            return $response;
-        }
+                return $this->facebookProvider->getLongLivedAccessToken($token->getToken());
+            })
+            ->mapUserData(function ($token) {
+                return $this->facebookProvider->getResourceOwner($token)->toArray();
+            })
+            ->resolveUser(function (array $userData, AuthorizationFinalizeRedirect &$redirectPolicy) {
+                return Optional::ofNullable($this->users->getUserByEmail($userData['email']))
+                    ->orElseGet(function () use ($userData, &$redirectPolicy) {
+                        $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
 
-        try {
-            // Get access token
-            $token = $this->facebookProvider->getAccessToken('authorization_code', [
-                'code' => $queryParams['code']
-            ]);
+                        return $this->users->createUserFromFacebookData($userData);
+                    });
+            })
+            ->resolveLogin(function ($user, array $userData, $token) {
+                return Optional::ofNullable($this->logins->getLoginByProviderId($userData['id']))
+                    ->map(function ($login) use ($user, $token) {
+                        $login->setUser($user);
 
-            // Exchange for long-lived token
-            $token = $this->facebookProvider->getLongLivedAccessToken($token->getToken());
-
-            // Get user details
-            $user = $this->facebookProvider->getResourceOwner($token);
-            $userData = $user->toArray();
-
-            $this->logger->debug('Facebook user data: ' . json_encode($userData));
-
-            $redirectPolicy = AuthorizationFinalizeRedirect::ReturningUserWithStoredRedirect;
-            $user = Optional::ofNullable($this->users->getUserByEmail($userData['email']))
-                ->orElseGet(function () use ($userData, &$redirectPolicy) {
-                    $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
-                    return $this->users->createUserFromFacebookData($userData);
-                });
-
-            $login = Optional::ofNullable($this->logins->getLoginByProviderId($userData['id']))
-                ->map(function ($login) use ($user, $token) {
-                    $login->setUser($user);
-                    return $this->logins->updateLoginTokens($login, fn($t) => $t->getToken(), $token);
-                })
-                ->orElseGet(function () use ($user, $userData, $token) {
-                    return $this->logins->createLoginFromFacebookData($user, $userData, $token);
-                });
-
-            return $this->finalizeAuthorization($login, $request, $response, $redirectPolicy);
-        } catch (\Exception $e) {
-            $this->logger->error('Facebook authentication error: ' . $e->getMessage());
-
-            $response->getBody()->write(
-                ScriptAlertResponse::alertAndRedirect($e->getMessage(), '/auth/login')
+                        return $this->logins->updateLoginTokens($login, fn ($t) => $t->getToken(), $token);
+                    })
+                    ->orElseGet(function () use ($user, $userData, $token) {
+                        return $this->logins->createLoginFromFacebookData($user, $userData, $token);
+                    });
+            })
+            ->build()
+            ->handle(
+                $queryParams,
+                $response,
+                fn ($login, $redirectPolicy) => $this->finalizeAuthorization(
+                    $login,
+                    $request,
+                    $response,
+                    $redirectPolicy
+                ),
             );
-            return $response;
-        }
     }
 
 }
