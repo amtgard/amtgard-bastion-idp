@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Utility;
 
+use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
 use Amtgard\IdP\Utility\Jwt;
-use Firebase\JWT\JWT as FirebaseJwt;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -12,13 +12,7 @@ class JwtTest extends TestCase
 {
     protected function setUp(): void
     {
-        $devKeysDir = dirname(__DIR__, 2) . '/dev-keys';
-        if (!file_exists('/tmp/private.key') && file_exists($devKeysDir . '/private.key')) {
-            @copy($devKeysDir . '/private.key', '/tmp/private.key');
-        }
-        if (!file_exists('/tmp/public.key') && file_exists($devKeysDir . '/public.key')) {
-            @copy($devKeysDir . '/public.key', '/tmp/public.key');
-        }
+        FirebaseJwtTestFactory::ensureKeys();
     }
 
     public function testGetBearerJwt(): void
@@ -155,16 +149,19 @@ class JwtTest extends TestCase
 
     public function testValidateJwtSignatureAndRequest(): void
     {
-        if (!file_exists('/tmp/private.key') || !file_exists('/tmp/public.key')) {
+        try {
+            FirebaseJwtTestFactory::assertKeysAvailable();
+        } catch (\RuntimeException) {
             $this->markTestSkipped('Keys are missing');
         }
 
-        $privateKey = file_get_contents('/tmp/private.key');
-        $jwtStr = FirebaseJwt::encode([
-            'iss' => 'http://localhost',
+        $jwtStr = FirebaseJwtTestFactory::encode(
+            [
+            'iss' => FirebaseJwtTestFactory::DEFAULT_ISSUER,
             'aud' => 'client-1',
             'exp' => time() + 3600,
-        ], $privateKey, 'RS256');
+            ]
+        );
 
         $this->assertSame($jwtStr, Jwt::validateJwtSignature($jwtStr));
 
@@ -198,11 +195,15 @@ class JwtTest extends TestCase
 
         $this->assertTrue(Jwt::isAuthorizationPayload(['pvh' => $pvh]));
         $this->assertTrue(Jwt::isAuthorizationPayload(['aud' => 'skbc', 'policy' => '[]']));
-        $this->assertFalse(Jwt::isAuthorizationPayload([
-            'aud' => 'skbc',
-            'sub' => 'user-1',
-            'jti' => 'access-jti',
-            'scopes' => ['profile', 'email'],
-        ]));
+        $this->assertFalse(
+            Jwt::isAuthorizationPayload(
+                [
+                'aud' => 'skbc',
+                'sub' => 'user-1',
+                'jti' => 'access-jti',
+                'scopes' => ['profile', 'email'],
+                ]
+            )
+        );
     }
 }

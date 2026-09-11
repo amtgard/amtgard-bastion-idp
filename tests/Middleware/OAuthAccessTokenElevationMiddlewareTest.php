@@ -6,6 +6,8 @@ namespace Amtgard\IdP\Tests\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Middleware\OAuthAccessTokenElevationMiddleware;
+use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
+use Amtgard\IdP\Utility\Pvh;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use League\OAuth2\Server\Exception\OAuthServerException;
 use League\OAuth2\Server\ResourceServer;
@@ -23,13 +25,7 @@ class OAuthAccessTokenElevationMiddlewareTest extends TestCase
         @session_start();
         $_SESSION = [];
 
-        $devKeysDir = dirname(__DIR__, 2) . '/dev-keys';
-        if (!file_exists('/tmp/private.key') && file_exists($devKeysDir . '/private.key')) {
-            @copy($devKeysDir . '/private.key', '/tmp/private.key');
-        }
-        if (!file_exists('/tmp/public.key') && file_exists($devKeysDir . '/public.key')) {
-            @copy($devKeysDir . '/public.key', '/tmp/public.key');
-        }
+        FirebaseJwtTestFactory::ensureKeys();
     }
 
     public function testProcessAllowsAuthenticatedSession(): void
@@ -176,49 +172,16 @@ class OAuthAccessTokenElevationMiddlewareTest extends TestCase
 
     private function generateAuthorizationJwt(string $userId, string $clientId): string
     {
-        $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone('UTC'));
-        $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
-            new \Lcobucci\JWT\Signer\Rsa\Sha256(),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/private.key'),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/public.key')
-        );
-
-        $now = $clock->now();
-        $pvh = \Amtgard\IdP\Utility\Pvh::encode(
+        $pvh = Pvh::encode(
             1_700_000_000_000,
-            \Amtgard\IdP\Utility\Pvh::policyHash($clientId, '[]', '')
+            Pvh::policyHash($clientId, '[]', '')
         );
 
-        return $config->builder()
-            ->issuedBy('http://localhost')
-            ->permittedFor($clientId)
-            ->relatedTo($userId)
-            ->expiresAt($now->modify('+1 hour'))
-            ->withClaim('pvh', $pvh)
-            ->getToken($config->signer(), $config->signingKey())
-            ->toString();
+        return FirebaseJwtTestFactory::authorizationForUserAndClient($userId, $clientId, $pvh);
     }
 
     private function generateOAuthAccessTokenJwt(string $userId, string $clientId): string
     {
-        $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone('UTC'));
-        $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
-            new \Lcobucci\JWT\Signer\Rsa\Sha256(),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/private.key'),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/public.key')
-        );
-
-        $now = $clock->now();
-
-        return $config->builder()
-            ->permittedFor($clientId)
-            ->identifiedBy('jti-access-token')
-            ->relatedTo($userId)
-            ->issuedAt($now)
-            ->canOnlyBeUsedAfter($now)
-            ->expiresAt($now->modify('+1 hour'))
-            ->withClaim('scopes', ['profile', 'email'])
-            ->getToken($config->signer(), $config->signingKey())
-            ->toString();
+        return FirebaseJwtTestFactory::oauthAccessTokenForUserAndClient($userId, $clientId);
     }
 }

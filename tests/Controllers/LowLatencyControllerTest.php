@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Controllers;
 
 use Amtgard\IdP\Controllers\Resource\LowLatencyController;
+use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\Pvh;
@@ -33,13 +34,7 @@ class LowLatencyControllerTest extends TestCase
 
     protected function setUp(): void
     {
-        $devKeysDir = dirname(__DIR__, 2) . '/dev-keys';
-        if (!file_exists('/tmp/private.key') && file_exists($devKeysDir . '/private.key')) {
-            @copy($devKeysDir . '/private.key', '/tmp/private.key');
-        }
-        if (!file_exists('/tmp/public.key') && file_exists($devKeysDir . '/public.key')) {
-            @copy($devKeysDir . '/public.key', '/tmp/public.key');
-        }
+        FirebaseJwtTestFactory::ensureKeys();
 
         $_SESSION = [];
 
@@ -422,57 +417,28 @@ class LowLatencyControllerTest extends TestCase
         string $sub = self::USER_UUID,
         bool $expired = false,
     ): string {
-        if (!file_exists('/tmp/private.key') || !file_exists('/tmp/public.key')) {
-            $this->fail('dev-keys were not copied to /tmp for JWT signing');
-        }
+        FirebaseJwtTestFactory::assertKeysAvailable();
 
-        $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone("UTC"));
-        $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
-            new \Lcobucci\JWT\Signer\Rsa\Sha256(),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/private.key'),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/public.key')
+        return FirebaseJwtTestFactory::lowLatencyAuthorization(
+            self::AUD,
+            $sub,
+            self::EMAIL,
+            self::POLICY,
+            $pvh,
+            $iss,
+            $expired,
         );
-
-        $now = $clock->now();
-        $builder = $config->builder()
-            ->issuedBy($iss)
-            ->permittedFor(self::AUD)
-            ->expiresAt($expired ? $now->modify('-1 hour') : $now->modify('+1 hour'))
-            ->withClaim('email', self::EMAIL)
-            ->withClaim('policy', self::POLICY);
-
-        if ($sub !== '') {
-            $builder = $builder->relatedTo($sub);
-        }
-        if ($pvh !== null) {
-            $builder = $builder->withClaim('pvh', $pvh);
-        }
-
-        return $builder->getToken($config->signer(), $config->signingKey())->toString();
     }
 
     private function generateCompactJwt(string $pvh): string
     {
-        if (!file_exists('/tmp/private.key') || !file_exists('/tmp/public.key')) {
-            $this->fail('dev-keys were not copied to /tmp for JWT signing');
-        }
+        FirebaseJwtTestFactory::assertKeysAvailable();
 
-        $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone("UTC"));
-        $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
-            new \Lcobucci\JWT\Signer\Rsa\Sha256(),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/private.key'),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/public.key')
+        return FirebaseJwtTestFactory::compactAuthorizationWithPvh(
+            self::AUD,
+            self::USER_UUID,
+            $pvh,
+            AuthorizationJwtAssembler::ISSUER,
         );
-
-        $now = $clock->now();
-        $token = $config->builder()
-            ->issuedBy(AuthorizationJwtAssembler::ISSUER)
-            ->permittedFor(self::AUD)
-            ->relatedTo(self::USER_UUID)
-            ->expiresAt($now->modify('+1 hour'))
-            ->withClaim('pvh', $pvh)
-            ->getToken($config->signer(), $config->signingKey());
-
-        return $token->toString();
     }
 }

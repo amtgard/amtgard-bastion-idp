@@ -5,6 +5,7 @@ namespace Amtgard\IdP\Tests\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Middleware\ClientRestrictedAuthMiddleware;
+use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Pvh;
@@ -36,13 +37,7 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
 
     protected function setUp(): void
     {
-        $devKeysDir = dirname(__DIR__, 2) . '/dev-keys';
-        if (!file_exists('/tmp/private.key') && file_exists($devKeysDir . '/private.key')) {
-            @copy($devKeysDir . '/private.key', '/tmp/private.key');
-        }
-        if (!file_exists('/tmp/public.key') && file_exists($devKeysDir . '/public.key')) {
-            @copy($devKeysDir . '/public.key', '/tmp/public.key');
-        }
+        FirebaseJwtTestFactory::ensureKeys();
 
         $this->entityManager = $this->createMock(EntityManager::class);
         \Amtgard\ActiveRecordOrm\EntityManager::configure($this->entityManager, true);
@@ -187,22 +182,6 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
 
     private function generateValidJwt(string $userId, string $clientId, ?string $pvh = null): string
     {
-        $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone("UTC"));
-        $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
-            new \Lcobucci\JWT\Signer\Rsa\Sha256(),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/private.key'),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/public.key')
-        );
-
-        $now = $clock->now();
-        $token = $config->builder()
-            ->issuedBy('http://localhost')
-            ->permittedFor($clientId)
-            ->relatedTo($userId)
-            ->expiresAt($now->modify('+1 hour'))
-            ->withClaim('pvh', $pvh)
-            ->getToken($config->signer(), $config->signingKey());
-
-        return $token->toString();
+        return FirebaseJwtTestFactory::authorizationForUserAndClient($userId, $clientId, $pvh);
     }
 }
