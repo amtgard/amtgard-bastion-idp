@@ -96,10 +96,10 @@ class GoogleAuthController extends BaseAuthController
 
             $this->logger->debug('Google user data: ' . json_encode($userData));
 
-            $isNewUser = false;
+            $redirectPolicy = AuthorizationFinalizeRedirect::ReturningUserWithStoredRedirect;
             $user = Optional::ofNullable($this->users->getUserByEmail($userData['email']))
-                ->orElseGet(function () use ($userData, &$isNewUser) {
-                    $isNewUser = true;
+                ->orElseGet(function () use ($userData, &$redirectPolicy) {
+                    $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
                     return $this->users->createUserFromGoogleData($userData);
                 });
 
@@ -112,7 +112,7 @@ class GoogleAuthController extends BaseAuthController
                     return $this->logins->createLoginFromGoogleData($user, $userData, $token);
                 });
 
-            return $this->finalizeAuthorization($login, $request, $response, $isNewUser);
+            return $this->finalizeAuthorization($login, $request, $response, $redirectPolicy);
         } catch (\Exception $e) {
             $this->logger->error('Google authentication error: ' . $e->getTraceAsString());
 

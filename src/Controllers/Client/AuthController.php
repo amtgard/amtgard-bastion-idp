@@ -202,7 +202,7 @@ class AuthController extends BaseAuthController
         $user = $this->users->createLocalUser($email, $firstName, $lastName);
         $login = $this->logins->createLocalLogin($user, $password);
 
-        return $this->finalizeAuthorization($login, $request, $response, true);
+        return $this->finalizeAuthorization($login, $request, $response, AuthorizationFinalizeRedirect::NewUserProfile);
     }
 
     /**

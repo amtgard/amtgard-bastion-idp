@@ -87,12 +87,12 @@ class AppleAuthController extends BaseAuthController
 
             $this->logger->debug('Apple user data: ' . json_encode($userData));
 
-            $isNewUser = false;
+            $redirectPolicy = AuthorizationFinalizeRedirect::ReturningUserWithStoredRedirect;
             $existingLogin = $this->logins->getLoginByProviderId($providerId);
 
             $user = Optional::ofNullable($existingLogin)
                 ->map(fn ($login) => $login->user)
-                ->orElseGet(function () use ($email, $appleUser, &$isNewUser) {
+                ->orElseGet(function () use ($email, $appleUser, &$redirectPolicy) {
                     if ($email === null || $email === '') {
                         throw new \Exception(
                             'Apple did not provide an email address. If you have signed in before, use the same Apple ID. Otherwise, revoke Amtgard access in Apple ID settings and try again.'
@@ -100,8 +100,8 @@ class AppleAuthController extends BaseAuthController
                     }
 
                     return Optional::ofNullable($this->users->getUserByEmail($email))
-                        ->orElseGet(function () use ($email, $appleUser, &$isNewUser) {
-                            $isNewUser = true;
+                        ->orElseGet(function () use ($email, $appleUser, &$redirectPolicy) {
+                            $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
                             return $this->users->createUserFromAppleData([
                                 'email' => $email,
                                 'given_name' => $appleUser->getFirstName() ?? '',
@@ -120,7 +120,7 @@ class AppleAuthController extends BaseAuthController
                     return $this->logins->createLoginFromAppleData($user, $userData, $token);
                 });
 
-            return $this->finalizeAuthorization($login, $request, $response, $isNewUser);
+            return $this->finalizeAuthorization($login, $request, $response, $redirectPolicy);
         } catch (\Exception $e) {
             $this->logger->error('Apple authentication error: ' . $e->getTraceAsString());
 

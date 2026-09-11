@@ -18,7 +18,7 @@ final class ConfidentialClientAuthenticator
         private LoggerInterface $logger,
     ) {}
 
-    public function authenticate(Request $request, bool $requireIamService): Client
+    public function authenticate(Request $request, ConfidentialClientAuthMode $mode): Client
     {
         $credentials = HttpBasicCredentialsParser::fromAuthorizationHeader(
             $request->getHeaderLine('Authorization')
@@ -50,7 +50,7 @@ final class ConfidentialClientAuthenticator
             throw new HttpUnauthorizedException($request, 'Client endpoints require a confidential client.');
         }
 
-        if ($requireIamService) {
+        if ($mode === ConfidentialClientAuthMode::RequireIamService) {
             Optional::ofNullable($client->getIamService())
                 ->filter(fn (string $iamService) => $iamService !== '')
                 ->orElseThrow(new HttpUnauthorizedException(
