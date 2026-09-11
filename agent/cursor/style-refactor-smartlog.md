@@ -2,6 +2,11 @@
 
 Concise execution log for stack milestones (newest first).
 
+## N — `stack/style-refactor-N`
+
+- **N1:** `OrnClaimRegistry::serviceClaimExtensionTable()` — Idp / registered / `BuiltInOrkPolicyServices` → noop; default → `ClientApplicationClaim`.
+- **Verify:** PHPUnit 527; stan 3 unchanged vs M; `composer cs -- src tests` exit 2 unchanged vs M; infection green.
+
 ## M — `stack/style-refactor-M`
 
 - **M1:** Structured logging — `PvhAuthorizationGate` outcome + `client_id`; `LowLatencyController` validate reject debug + notice context; `Jwt::validateJwtSignature` failure reason at debug (logger isolated from verify catch).

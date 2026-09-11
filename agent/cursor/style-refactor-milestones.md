@@ -21,6 +21,6 @@
 | J | `stack/style-refactor-J` | done | `8410130` | OAuth2ServerController → OAuth*Action + OAuthSessionAuthRequestStore; ResourcesUserinfoService + OrkService park resolve; ClientIamPolicyService/ClientIamMetadataService; UserPolicyClaimReader/Writer + ClaimOrnValidator; PvhQueueMessage; PHPUnit OAuth/resources/client/policy/Pvh tests green; stan 3 errors unchanged vs I; cs exit 2 unchanged vs I; infection green |
 | K | `stack/style-refactor-K` | done | `e528b66` | `JsonResponseBody` + `QueueHandleTrait`; PvhGate/ClientResources/LowLatency JSON dedup; PHPUnit +4 tests; stan 3 errors unchanged vs J; cs exit 2 unchanged vs J; infection green |
 | M | `stack/style-refactor-M` | done | `a0009aa` | PVH gate / validate / JWT sig / social OAuth / client IAM / BaseAuth structured logging; stan 3 unchanged vs K; cs exit 2; infection green |
-| N | `stack/style-refactor-N` | pending | | OrnClaimRegistry table-driven |
+| N | `stack/style-refactor-N` | done | `4f02c34` | OrnClaimRegistry table-driven |
 
 **Orchestrator:** update this table when each milestone completes (`Status`: `done`, `Commit`: short SHA).
