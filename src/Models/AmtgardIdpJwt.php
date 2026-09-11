@@ -66,13 +66,9 @@ final class AmtgardIdpJwt
 
         $generation = $this->assembler->lastGeneration();
         if ($generation !== null) {
-            $this->redisCacheRepository->setPvhRecord(new PvhCacheRecord(
-                $generation->getUserUuid(),
-                $generation->getAud(),
-                (string) ($user->email ?? ''),
-                $generation->getPvh(),
-                $generation->getPrevPvh(),
-            ));
+            $this->redisCacheRepository->setPvhRecord(
+                PvhCacheRecord::fromGeneration($generation, (string) ($user->email ?? ''))
+            );
         }
 
         return ['jwt' => $jwt, 'compact_jwt' => $compactJwt];

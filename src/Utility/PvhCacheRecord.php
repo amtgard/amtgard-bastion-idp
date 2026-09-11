@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Utility;
 
+use Amtgard\IdP\Persistence\Server\Entities\Repository\UserJwtGeneration;
+
 /**
  * Redis JSON value for pvh:{userUuid}:{aud}. Not serialized.
  */
@@ -99,6 +101,17 @@ final class PvhCacheRecord
             $data['email'],
             $data['pvh'],
             $prevPvh,
+        );
+    }
+
+    public static function fromGeneration(UserJwtGeneration $row, string $email): self
+    {
+        return new self(
+            $row->getUserUuid(),
+            $row->getAud(),
+            $email,
+            $row->getPvh(),
+            $row->getPrevPvh(),
         );
     }
 }
