@@ -5,7 +5,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Controllers\Server;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
@@ -45,7 +44,6 @@ class OAuth2ServerController
     public function __construct(
         LoggerInterface $logger,
         TwigEnvironment $view,
-        EntityManager $entityManager,
         AuthorizationServer $authorizationServer,
         ClientRepositoryInterface $clientRepository,
         ScopeRepositoryInterface $scopeRepository,

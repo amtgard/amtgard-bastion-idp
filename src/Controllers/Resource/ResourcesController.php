@@ -5,7 +5,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Controllers\Resource;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
@@ -15,8 +14,8 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 use Amtgard\IdP\Utility\UserAuthority;
-use Amtgard\IdP\Utility\Utility;
 use Amtgard\SetQueue\PubSubQueue;
 use Amtgard\IdP\Utility\Security\RedirectValidator;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -43,10 +42,10 @@ class ResourcesController
     private UserLoginRepository $userLoginRepository;
     private AmtgardIdpJwt $amtgardIdpJwt;
     private UserAuthority $userAuthority;
+    private CurrentUserResolverInterface $currentUserResolver;
 
 
     public function __construct(
-        EntityManager $em,
         LoggerInterface $logger,
         TwigEnvironment $twig,
         ClientRepositoryInterface $clientRepository,
@@ -59,7 +58,8 @@ class ResourcesController
         UserClientAuthorizationRepository $userClientAuthorizationRepository,
         UserLoginRepository $userLoginRepository,
         AmtgardIdpJwt $amtgardIdpJwt,
-        UserAuthority $userAuthority
+        UserAuthority $userAuthority,
+        CurrentUserResolverInterface $currentUserResolver,
     ) {
         $this->logger = $logger;
         $this->twig = $twig;
@@ -74,6 +74,7 @@ class ResourcesController
         $this->userLoginRepository = $userLoginRepository;
         $this->amtgardIdpJwt = $amtgardIdpJwt;
         $this->userAuthority = $userAuthority;
+        $this->currentUserResolver = $currentUserResolver;
     }
 
     #[OA\Get(
@@ -103,7 +104,7 @@ class ResourcesController
     )]
     public function getJwt(Request $request, Response $response): Response
     {
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withStatus(401);
         }
@@ -167,7 +168,7 @@ class ResourcesController
     )]
     public function userinfo(Request $request, Response $response): Response
     {
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withStatus(401);
         }
@@ -229,7 +230,7 @@ class ResourcesController
     )]
     public function authorizations(Request $request, Response $response): Response
     {
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withStatus(401);
         }
@@ -254,7 +255,7 @@ class ResourcesController
         $error = $params['error'] ?? null;
         $success = $params['success'] ?? null;
 
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
 
         $orkProfile = null;
         $userLogins = [];
@@ -291,7 +292,7 @@ class ResourcesController
         $username = $params['username'] ?? '';
         $password = $params['password'] ?? '';
 
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withHeader('Location', '/auth/login')->withStatus(302);
         }
@@ -327,7 +328,7 @@ class ResourcesController
 
     public function refreshOrkAccount(Request $request, Response $response): Response
     {
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withHeader('Location', '/auth/login')->withStatus(302);
         }
@@ -467,7 +468,7 @@ class ResourcesController
     public function revokeAuthorization(Request $request, Response $response): Response
     {
         /** @var UserEntity $user */
-        $user = Utility::getAuthenticatedUser();
+        $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withHeader('Location', '/auth/login')->withStatus(302);
         }

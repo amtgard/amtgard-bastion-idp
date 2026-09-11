@@ -7,6 +7,7 @@ namespace Amtgard\IdP\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Utility\AuthorizedClients;
+use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\Jwt;
 use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
 use Amtgard\IdP\Utility\Pvh\PvhGateOutcome;
@@ -78,8 +79,7 @@ class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
         ServerRequestInterface $request,
         RequestHandlerInterface $handler
     ): ResponseInterface {
-        $_SESSION['user_id'] = $userId;
-        $_SESSION['client_id'] = $clientId;
+        LoginSession::setAuthenticatedContext($userId, $clientId);
 
         return $handler->handle($request);
     }

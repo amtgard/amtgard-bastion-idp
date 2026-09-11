@@ -5,8 +5,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Middleware;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Utility\AuthorizedClients;
+use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\Jwt;
 use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
 use Amtgard\IdP\Utility\Pvh\PvhGateOutcome;
@@ -24,7 +24,6 @@ use Slim\Exception\HttpUnauthorizedException;
 final class ClientRestrictedAuthMiddleware implements MiddlewareInterface
 {
     public function __construct(
-        EntityManager $em,
         protected LoggerInterface $logger,
         protected ResourceServer $resourceServer,
         protected AuthorizedClients $validClients,
@@ -80,8 +79,7 @@ final class ClientRestrictedAuthMiddleware implements MiddlewareInterface
 
     private function proceed(string $userId, string $clientId, Request $request, RequestHandler $handler): Response
     {
-        $_SESSION['user_id'] = $userId;
-        $_SESSION['client_id'] = $clientId;
+        LoginSession::setAuthenticatedContext($userId, $clientId);
 
         return $handler->handle($request);
     }

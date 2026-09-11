@@ -5,7 +5,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Controllers\Client;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
@@ -26,7 +25,6 @@ class DiscordAuthController extends BaseAuthController
     private Discord $discordProvider;
 
     public function __construct(
-        EntityManager $entityManager,
         UserRepository $users,
         UserLoginRepository $userLoginRepository,
         LoggerInterface $logger,

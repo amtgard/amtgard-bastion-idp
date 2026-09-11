@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Controllers;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
@@ -17,6 +16,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 use Amtgard\IdP\Utility\UserAuthority;
 use Amtgard\SetQueue\PubSubQueue;
 use PHPUnit\Framework\TestCase;
@@ -65,7 +65,6 @@ class TestUserOrkProfileEntity extends UserOrkProfileEntity
 
 class ResourcesControllerTest extends TestCase
 {
-    private $em;
     private $logger;
     private $twig;
     private $clientRepository;
@@ -74,10 +73,12 @@ class ResourcesControllerTest extends TestCase
     private $database;
     private $orkService;
     private $orkProfileRepository;
+    private $userRepository;
     private $userClientAuthorizationRepository;
     private $userLoginRepository;
     private $amtgardIdpJwt;
     private $userAuthority;
+    private $currentUserResolver;
     private $request;
     private $response;
     private $stream;
@@ -89,7 +90,6 @@ class ResourcesControllerTest extends TestCase
         @session_start();
         $_SESSION = [];
 
-        $this->em = $this->createMock(EntityManager::class);
         $this->logger = $this->createMock(LoggerInterface::class);
         $this->twig = $this->createMock(TwigEnvironment::class);
         
@@ -116,21 +116,13 @@ class ResourcesControllerTest extends TestCase
         $this->response->method('withStatus')->willReturnSelf();
 
         $this->userEntity = new TestResourcesUserEntity(123, 'test@example.com', 'John Doe');
-        
-        // Instantiate OAuthUser using its builder instead of mocking it
-        $oauthUser = OAuthUser::builder()->userEntity($this->userEntity)->build();
 
-        $userRepository = $this->createMock(UserRepository::class);
-        $userRepository->method('getUserEntityById')->willReturn($oauthUser);
-
-        $this->em->method('getRepository')
-            ->with(UserRepository::class)
-            ->willReturn($userRepository);
-
-        EntityManager::configure($this->em, true);
+        $this->currentUserResolver = $this->createMock(CurrentUserResolverInterface::class);
+        $this->currentUserResolver->method('resolve')->willReturnCallback(function (): ?UserEntity {
+            return isset($_SESSION['user_id']) ? $this->userEntity : null;
+        });
 
         $this->controller = new ResourcesController(
-            $this->em,
             $this->logger,
             $this->twig,
             $this->clientRepository,
@@ -143,7 +135,8 @@ class ResourcesControllerTest extends TestCase
             $this->userClientAuthorizationRepository,
             $this->userLoginRepository,
             $this->amtgardIdpJwt,
-            $this->userAuthority
+            $this->userAuthority,
+            $this->currentUserResolver,
         );
     }
 

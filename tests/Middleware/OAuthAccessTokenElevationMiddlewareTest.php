@@ -163,7 +163,6 @@ class OAuthAccessTokenElevationMiddlewareTest extends TestCase
     private function makeMiddleware(?ResourceServer $resourceServer = null): OAuthAccessTokenElevationMiddleware
     {
         return new OAuthAccessTokenElevationMiddleware(
-            $this->createMock(EntityManager::class),
             $this->createMock(LoggerInterface::class),
             AuthorizedClients::builder()->clientIds(['valid-client'])->build(),
             $resourceServer ?? $this->createMock(ResourceServer::class),

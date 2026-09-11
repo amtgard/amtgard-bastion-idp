@@ -104,7 +104,6 @@ class OAuth2ServerControllerTest extends TestCase
         $this->controller = new OAuth2ServerController(
             $this->logger,
             $this->view,
-            $this->entityManager,
             $this->authorizationServer,
             $this->clientRepository,
             $this->scopeRepository,

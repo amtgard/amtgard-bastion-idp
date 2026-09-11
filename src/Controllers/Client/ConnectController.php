@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Controllers\Client;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
@@ -29,7 +28,6 @@ use Twig\Environment as TwigEnvironment;
 class ConnectController
 {
     public function __construct(
-        EntityManager $entityManager,
         private TwigEnvironment $twig,
         private UserRepository $users,
         private UserLoginRepository $logins,

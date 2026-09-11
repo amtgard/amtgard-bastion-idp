@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Controllers\Client;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Utility\Security\RedirectValidator;
 use Amtgard\IdP\Utility\Security\ScriptAlertResponse;
@@ -31,7 +30,6 @@ class AuthController extends BaseAuthController
     private RedisCacheRepository $redisCacheRepository;
 
     public function __construct(
-        EntityManager $entityManager,
         UserRepository $users,
         UserLoginRepository $logins,
         LoggerInterface $logger,

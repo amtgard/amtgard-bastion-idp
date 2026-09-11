@@ -32,7 +32,6 @@ class ManagementController
     public function __construct(
         LoggerInterface $logger,
         TwigEnvironment $twig,
-        EntityManager $entityManager,
         AccessTokenRepositoryInterface $accessTokenRepository,
         RefreshTokenRepositoryInterface $refreshTokenRepository,
         AuthCodeRepositoryInterface $authCodeRepository,

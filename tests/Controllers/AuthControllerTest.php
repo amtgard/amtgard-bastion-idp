@@ -147,7 +147,6 @@ class AuthControllerTest extends TestCase
             });
 
         $this->authController = new AuthController(
-            $this->entityManager,
             $this->userRepository,
             $this->userLoginRepository,
             $this->logger,

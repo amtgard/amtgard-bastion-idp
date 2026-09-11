@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Services;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
@@ -22,11 +21,7 @@ class RegistrationServiceTest extends TestCase
     {
         $this->users = $this->createMock(UserRepository::class);
         $this->logins = $this->createMock(UserLoginRepository::class);
-        $this->service = new RegistrationService(
-            $this->createMock(EntityManager::class),
-            $this->users,
-            $this->logins,
-        );
+        $this->service = new RegistrationService($this->users, $this->logins);
     }
 
     public function testRegisterRejectsMissingFields(): void

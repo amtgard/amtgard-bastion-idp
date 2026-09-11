@@ -59,7 +59,6 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
         $oauthAccessTokenFallback = new OAuthAccessTokenFallback($this->resourceServer);
 
         $this->middleware = new ClientRestrictedAuthMiddleware(
-            $this->entityManager,
             $this->logger,
             $this->resourceServer,
             $this->validClients,

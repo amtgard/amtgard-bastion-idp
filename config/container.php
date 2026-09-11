@@ -10,7 +10,11 @@ use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Middleware\ManagementMiddleware;
+use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
+use Amtgard\IdP\Utility\Security\CurrentUserResolver;
+use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 use Amtgard\IdP\Utility\Security\CsrfTokenManager;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
@@ -166,12 +170,19 @@ return [
         return $em->getRepository(ClientRepository::class);
     },
 
-    // ConfidentialClientBasicAuthMiddleware, OrkLinkTokenService,
-    // RegistrationService and ConnectController are all resolved by autowiring.
-    // The repository-backed ones (the middleware, RegistrationService,
-    // ConnectController) take EntityManager as their first constructor parameter
-    // so the ORM singleton is configured before their repositories resolve;
-    // OrkLinkTokenService needs only Database + LoggerInterface.
+    // AuthorizationJwtAssembler autowires (promoted constructor deps).
+    AmtgardIdpJwt::class => function (ContainerInterface $container) {
+        return AmtgardIdpJwt::builder()
+            ->assembler($container->get(AuthorizationJwtAssembler::class))
+            ->redisCacheRepository($container->get(RedisCacheRepository::class))
+            ->build();
+    },
+
+    CurrentUserResolverInterface::class => function (ContainerInterface $container) {
+        return CurrentUserResolver::builder()
+            ->userRepository($container->get(UserRepository::class))
+            ->build();
+    },
 
     RefreshTokenRepositoryInterface::class => function (EntityManager $em) {
         return $em->getRepository(RefreshTokenRepository::class);

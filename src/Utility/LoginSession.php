@@ -19,4 +19,10 @@ final class LoginSession
 
         return (int) $_SESSION['login_id'];
     }
+
+    public static function setAuthenticatedContext(string $userId, string $clientId): void
+    {
+        $_SESSION['user_id'] = $userId;
+        $_SESSION['client_id'] = $clientId;
+    }
 }
