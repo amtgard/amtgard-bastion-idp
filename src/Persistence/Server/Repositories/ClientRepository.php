@@ -45,6 +45,35 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
         return $client;
     }
 
+    /**
+     * Clients a user may administer (redirect URI only) via client_access.
+     *
+     * @return Client[]
+     */
+    public function findClientsGrantedToUser(int $userId): array
+    {
+        $this->clear();
+        $this->query(
+            'SELECT c.id, c.client_id, c.client_secret, c.name, c.redirect_uri,
+                    c.is_confidential, c.is_dev, c.iam_service, c.iam_service_format
+             FROM client_access ca
+             INNER JOIN clients c ON c.id = ca.client_id
+             WHERE ca.user_id = :user_id
+             ORDER BY c.name'
+        );
+        $this->user_id = $userId;
+        $this->execute();
+
+        $clients = [];
+        while ($this->next()) {
+            /** @var Client $client */
+            $client = $this->getCurrent();
+            $clients[] = $client;
+        }
+
+        return $clients;
+    }
+
     public function findActiveClientsForUser($userId)
     {
         $this->clear();

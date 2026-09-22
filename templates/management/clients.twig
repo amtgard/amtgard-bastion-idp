@@ -1,13 +1,16 @@
 {% extends "base.twig" %}
 
-{% block title %}Manage Clients{% endblock %}
+{% set viewMode = viewMode|default('admin') %}
+{% set isAdminView = viewMode == 'admin' %}
+
+{% block title %}{% if isAdminView %}Manage Clients{% else %}Clients{% endif %}{% endblock %}
 
 {% block container_class %}max-w-full{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">Manage Clients</h1>
+        <h1 class="text-2xl font-bold">{% if isAdminView %}Manage Clients{% else %}Clients{% endif %}</h1>
         <a href="/resources/profile" class="text-primary hover:text-primary-dark font-semibold flex items-center">
             <i class="fas fa-arrow-left mr-2"></i> Back to Profile
         </a>
@@ -26,6 +29,7 @@
                 </tr>
             </thead>
             <tbody>
+                {% if isAdminView %}
                 <tr class="bg-gray-50">
                     <td class="py-2 px-2 border-b text-gray-500 italic md:hidden">New client</td>
                     <td class="hidden md:table-cell py-2 px-2 border-b text-gray-500 italic" colspan="5">New client</td>
@@ -35,6 +39,7 @@
                         </button>
                     </td>
                 </tr>
+                {% endif %}
 
                 {% for client in clients %}
                 <tr>
@@ -68,7 +73,8 @@
                                 isConfidential: client.isConfidential,
                                 isDev: client.isDev,
                                 iamService: client.iamService,
-                                iamServiceFormat: client.iamServiceFormat
+                                iamServiceFormat: client.iamServiceFormat,
+                                accessUsers: client.accessUsers|default([])
                             }|json_encode|e('html_attr') }}"
                         >
                             Edit
@@ -82,8 +88,8 @@
 </div>
 
 <div id="client-modal" class="client-details-modal fixed inset-0 z-50 hidden bg-white md:bg-gray-600/50 md:overflow-y-auto">
-    <div id="client-modal-panel" class="flex flex-col h-full w-full md:h-auto md:min-h-0 md:max-w-lg md:w-11/12 md:mx-auto md:my-8 md:rounded-lg md:border md:shadow-xl bg-white overflow-hidden">
-        <form id="client-form" method="POST" action="/management/clients" class="flex flex-col flex-1 min-h-0 md:flex-none md:max-h-[calc(100vh-4rem)]">
+    <div id="client-modal-panel" class="flex flex-col h-full max-h-[100dvh] w-full md:max-h-[calc(100dvh-4rem)] md:max-w-lg md:w-11/12 md:mx-auto md:my-8 md:rounded-lg md:border md:shadow-xl bg-white overflow-hidden">
+        <form id="client-form" method="POST" action="/management/clients" class="flex flex-col flex-1 min-h-0">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
             <div class="flex shrink-0 justify-between items-center px-4 py-4 md:px-5 border-b md:border-b-0">
@@ -95,7 +101,7 @@
                 </button>
             </div>
 
-            <div class="flex-1 overflow-y-auto px-4 md:px-5 space-y-4">
+            <div id="client-modal-body" class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 md:px-5 py-1 space-y-4">
                 <div>
                     <label for="client-name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
                     <input type="text" id="client-name" name="name" required class="w-full px-2 py-1 border rounded">
@@ -111,6 +117,23 @@
                 <div>
                     <label for="client-redirect-uri" class="block text-sm font-medium text-gray-700 mb-1">Redirect URI</label>
                     <input type="text" id="client-redirect-uri" name="redirect_uri" required class="w-full px-2 py-1 border rounded">
+                </div>
+                <div id="client-access-launcher" class="hidden rounded border border-gray-200 bg-gray-50 p-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">Users with access</p>
+                            <p id="client-access-summary" class="text-sm text-gray-600">No users assigned</p>
+                            <p id="client-access-hint" class="hidden text-sm text-gray-500 mt-1">Save the client first, then manage users.</p>
+                        </div>
+                        <button
+                            type="button"
+                            id="open-access-modal-btn"
+                            class="shrink-0 bg-white hover:bg-gray-100 border border-gray-300 text-gray-800 px-3 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled
+                        >
+                            <i class="fas fa-users mr-1"></i> Manage users
+                        </button>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <input type="checkbox" id="client-confidential" name="is_confidential" value="1">
@@ -142,6 +165,37 @@
     </div>
 </div>
 
+<div id="client-access-modal" class="fixed inset-0 z-[60] hidden bg-white md:bg-gray-600/50 md:overflow-y-auto">
+    <div class="flex flex-col h-full max-h-[100dvh] w-full md:max-h-[calc(100dvh-4rem)] md:max-w-md md:w-11/12 md:mx-auto md:my-8 md:rounded-lg md:border md:shadow-xl bg-white overflow-hidden">
+        <div class="flex shrink-0 justify-between items-center px-4 py-4 md:px-5 border-b">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900">Users with access</h3>
+                <p id="client-access-modal-subtitle" class="text-sm text-gray-500"></p>
+            </div>
+            <button type="button" id="close-access-modal-btn" class="text-gray-400 hover:text-gray-500 focus:outline-none" aria-label="Close">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 md:px-5 py-4 space-y-4">
+            <p class="text-xs text-gray-500">These people see this client under Clients on their profile and may edit its redirect URI only.</p>
+            <p id="client-access-empty" class="hidden text-sm text-gray-500 italic">No users assigned yet.</p>
+            <div id="client-access-chips" class="flex flex-wrap gap-2 min-h-[1.5rem]"></div>
+            <div id="client-access-search-wrap" class="relative">
+                <label for="client-access-search" class="block text-sm font-medium text-gray-700 mb-1">Add user by email</label>
+                <input type="text" id="client-access-search" autocomplete="off" placeholder="Type email to search (min. 2 characters)" class="w-full px-2 py-1 border rounded">
+                <ul id="client-access-suggestions" class="absolute left-0 right-0 z-20 hidden mt-1 max-h-48 overflow-y-auto bg-white border rounded shadow-lg"></ul>
+            </div>
+        </div>
+        <div class="shrink-0 px-4 py-4 md:px-5 border-t bg-white flex justify-end">
+            <button type="button" id="close-access-modal-done-btn" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded text-sm">
+                Done
+            </button>
+        </div>
+    </div>
+</div>
+
 <input type="hidden" id="new-client-secret" value="{{ newClientSecret }}">
 {% endblock %}
 
@@ -151,7 +205,17 @@
     const clientModal = document.getElementById('client-modal');
     const clientModalTitle = document.getElementById('client-modal-title');
     const clientModalSubmit = document.getElementById('client-modal-submit');
+    const clientAccessModal = document.getElementById('client-access-modal');
+    const openAccessModalBtn = document.getElementById('open-access-modal-btn');
     const newClientSecret = document.getElementById('new-client-secret').value;
+    const viewMode = {{ viewMode|default('admin')|json_encode|raw }};
+    const csrfToken = {{ csrf_token()|json_encode|raw }};
+    const readonlyFieldIds = ['client-name', 'client-id', 'client-secret', 'client-iam-service', 'client-iam-format'];
+    const checkboxFieldIds = ['client-confidential', 'client-dev'];
+    let accessUsers = [];
+    let accessClientId = null;
+    let accessClientName = '';
+    let searchTimer = null;
 
     function setFormValue(id, value) {
         document.getElementById(id).value = value ?? '';
@@ -167,8 +231,194 @@
     }
 
     function closeClientModal() {
+        closeAccessModal();
         clientModal.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
+    }
+
+    function openAccessModal() {
+        if (!accessClientId || viewMode !== 'admin') {
+            return;
+        }
+        document.getElementById('client-access-modal-subtitle').textContent = accessClientName || '';
+        renderAccessChips();
+        document.getElementById('client-access-search').value = '';
+        hideSuggestions();
+        clientAccessModal.classList.remove('hidden');
+        document.getElementById('client-access-search').focus();
+    }
+
+    function closeAccessModal() {
+        clientAccessModal.classList.add('hidden');
+        hideSuggestions();
+        updateAccessSummary();
+    }
+
+    function setOperatorFieldState() {
+        const operator = viewMode === 'operator';
+        readonlyFieldIds.forEach(function (id) {
+            const field = document.getElementById(id);
+            field.readOnly = operator;
+            field.classList.toggle('bg-gray-100', operator);
+        });
+        checkboxFieldIds.forEach(function (id) {
+            document.getElementById(id).disabled = operator;
+        });
+        document.getElementById('client-access-launcher').classList.toggle('hidden', operator);
+    }
+
+    function updateAccessSummary() {
+        const summary = document.getElementById('client-access-summary');
+        if (!accessClientId) {
+            summary.textContent = 'Not available until saved';
+            return;
+        }
+        if (accessUsers.length === 0) {
+            summary.textContent = 'No users assigned';
+            return;
+        }
+        if (accessUsers.length === 1) {
+            summary.textContent = accessUsers[0].email;
+            return;
+        }
+        summary.textContent = accessUsers.length + ' users (' + accessUsers.slice(0, 2).map(function (u) { return u.email; }).join(', ') + (accessUsers.length > 2 ? ', …' : '') + ')';
+    }
+
+    function renderAccessChips() {
+        const chips = document.getElementById('client-access-chips');
+        const empty = document.getElementById('client-access-empty');
+        chips.innerHTML = '';
+        const showEmpty = accessClientId && accessUsers.length === 0;
+        empty.classList.toggle('hidden', !showEmpty);
+        accessUsers.forEach(function (user) {
+            const chip = document.createElement('span');
+            chip.className = 'inline-flex items-center gap-1 bg-gray-100 text-sm px-2 py-1 rounded';
+            chip.appendChild(document.createTextNode(user.email));
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'text-gray-500 hover:text-red-600';
+            remove.setAttribute('aria-label', 'Remove ' + user.email);
+            remove.textContent = '×';
+            remove.addEventListener('click', function () {
+                removeAccessUser(user.id);
+            });
+            chip.appendChild(remove);
+            chips.appendChild(chip);
+        });
+        updateAccessSummary();
+    }
+
+    function hideSuggestions() {
+        const list = document.getElementById('client-access-suggestions');
+        list.classList.add('hidden');
+        list.innerHTML = '';
+    }
+
+    function renderSuggestions(users) {
+        const list = document.getElementById('client-access-suggestions');
+        list.innerHTML = '';
+        const assigned = new Set(accessUsers.map(function (user) { return user.id; }));
+        const available = users.filter(function (user) { return !assigned.has(user.id); });
+        if (available.length === 0) {
+            if (users.length === 0) {
+                const item = document.createElement('li');
+                item.className = 'px-2 py-1 text-sm text-gray-500 italic';
+                item.textContent = 'No matching accounts';
+                list.appendChild(item);
+                list.classList.remove('hidden');
+                return;
+            }
+            hideSuggestions();
+            return;
+        }
+        available.forEach(function (user) {
+            const item = document.createElement('li');
+            item.className = 'px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm';
+            item.textContent = user.email;
+            item.addEventListener('mousedown', function (event) {
+                event.preventDefault();
+                addAccessUser(user);
+            });
+            list.appendChild(item);
+        });
+        list.classList.remove('hidden');
+    }
+
+    async function searchAccessUsers(query) {
+        if (query.length < 2) {
+            hideSuggestions();
+            return;
+        }
+        const response = await fetch('/management/users/search?q=' + encodeURIComponent(query), {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) {
+            hideSuggestions();
+            return;
+        }
+        const payload = await response.json();
+        renderSuggestions(payload.users || []);
+    }
+
+    async function addAccessUser(user) {
+        if (!accessClientId || accessUsers.some(function (existing) { return existing.id === user.id; })) {
+            hideSuggestions();
+            return;
+        }
+        const body = new URLSearchParams();
+        body.set('_csrf_token', csrfToken);
+        body.set('user_id', String(user.id));
+        const response = await fetch('/management/clients/' + accessClientId + '/access', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: body
+        });
+        if (!response.ok) {
+            return;
+        }
+        const saved = await response.json();
+        accessUsers.push({ id: saved.id, email: saved.email });
+        renderAccessChips();
+        document.getElementById('client-access-search').value = '';
+        hideSuggestions();
+    }
+
+    async function removeAccessUser(userId) {
+        if (!accessClientId) {
+            return;
+        }
+        const body = new URLSearchParams();
+        body.set('_csrf_token', csrfToken);
+        const response = await fetch('/management/clients/' + accessClientId + '/access/' + userId + '/delete', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: body
+        });
+        if (!response.ok) {
+            return;
+        }
+        accessUsers = accessUsers.filter(function (user) { return user.id !== userId; });
+        renderAccessChips();
+    }
+
+    function configureAccessSection(clientId, users, clientName) {
+        const launcher = document.getElementById('client-access-launcher');
+        const hint = document.getElementById('client-access-hint');
+        if (viewMode !== 'admin') {
+            launcher.classList.add('hidden');
+            return;
+        }
+        launcher.classList.remove('hidden');
+        accessClientId = clientId;
+        accessClientName = clientName || '';
+        accessUsers = Array.isArray(users) ? users.slice() : [];
+        const canEditAccess = !!clientId;
+        hint.classList.toggle('hidden', canEditAccess);
+        openAccessModalBtn.disabled = !canEditAccess;
+        updateAccessSummary();
+        renderAccessChips();
+        document.getElementById('client-access-search').value = '';
+        hideSuggestions();
     }
 
     function openAddClient() {
@@ -184,6 +434,8 @@
         setFormChecked('client-dev', false);
         setFormValue('client-iam-service', '');
         setFormValue('client-iam-format', '');
+        setOperatorFieldState();
+        configureAccessSection(null, [], '');
 
         openClientModal();
     }
@@ -191,8 +443,10 @@
     function openEditClient(button) {
         const client = JSON.parse(button.dataset.client);
 
-        clientForm.action = '/management/clients/' + client.id;
-        clientModalTitle.textContent = 'Edit Client';
+        clientForm.action = viewMode === 'operator'
+            ? '/resources/clients/' + client.id + '/redirect'
+            : '/management/clients/' + client.id;
+        clientModalTitle.textContent = viewMode === 'operator' ? 'Client' : 'Edit Client';
         clientModalSubmit.innerHTML = '<i class="fas fa-save"></i> Save';
 
         setFormValue('client-name', client.name);
@@ -203,6 +457,8 @@
         setFormChecked('client-dev', client.isDev);
         setFormValue('client-iam-service', client.iamService);
         setFormValue('client-iam-format', client.iamServiceFormat);
+        setOperatorFieldState();
+        configureAccessSection(client.id, client.accessUsers || [], client.name);
 
         openClientModal();
     }
@@ -213,9 +469,43 @@
         });
     });
 
+    openAccessModalBtn.addEventListener('click', openAccessModal);
+    document.getElementById('close-access-modal-btn').addEventListener('click', closeAccessModal);
+    document.getElementById('close-access-modal-done-btn').addEventListener('click', closeAccessModal);
+
+    const accessSearch = document.getElementById('client-access-search');
+    accessSearch.addEventListener('input', function () {
+        clearTimeout(searchTimer);
+        const query = accessSearch.value.trim();
+        searchTimer = setTimeout(function () {
+            searchAccessUsers(query);
+        }, 200);
+    });
+    accessSearch.addEventListener('blur', function () {
+        setTimeout(hideSuggestions, 150);
+    });
+    accessSearch.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            hideSuggestions();
+        }
+    });
+
     document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape' && !clientModal.classList.contains('hidden')) {
+        if (event.key !== 'Escape') {
+            return;
+        }
+        if (!clientAccessModal.classList.contains('hidden')) {
+            closeAccessModal();
+            return;
+        }
+        if (!clientModal.classList.contains('hidden')) {
             closeClientModal();
+        }
+    });
+
+    clientAccessModal.addEventListener('click', function (event) {
+        if (event.target === clientAccessModal && window.matchMedia('(min-width: 768px)').matches) {
+            closeAccessModal();
         }
     });
 

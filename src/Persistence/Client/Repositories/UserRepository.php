@@ -87,6 +87,53 @@ class UserRepository extends Repository implements EntityRepositoryInterface, Us
         return $this->fetchBy('user_id', $userId);
     }
 
+    public function findUserById(int $id): ?UserEntity
+    {
+        /** @var UserEntity|null $user */
+        $user = $this->fetch($id);
+
+        return $user;
+    }
+
+    /**
+     * Type-ahead lookup of existing accounts by email prefix.
+     *
+     * @return array<int, array{id: int, email: string}>
+     */
+    public function searchByEmailPrefix(string $query, int $limit = 10): array
+    {
+        $query = trim($query);
+        if ($query === '') {
+            return [];
+        }
+
+        $limit = max(1, min(25, $limit));
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $query);
+
+        $this->clear();
+        $this->query(
+            "SELECT id, email FROM users WHERE email LIKE :email_like ORDER BY email LIMIT {$limit}"
+        );
+        $this->email_like = $escaped . '%';
+        $this->execute();
+
+        $results = [];
+        while ($this->next()) {
+            /** @var UserEntity $user */
+            $user = $this->getCurrent();
+            $email = $user->getEmail();
+            if ($email === null || $email === '') {
+                continue;
+            }
+            $results[] = [
+                'id' => $user->getId(),
+                'email' => $email,
+            ];
+        }
+
+        return $results;
+    }
+
     public function getUserEntityById(string $userIdentifier): ?UserEntityInterface {
         /** @var UserEntity|null $user */
         $user = $this->findUserByUserId($userIdentifier);

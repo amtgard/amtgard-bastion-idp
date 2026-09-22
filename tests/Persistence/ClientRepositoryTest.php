@@ -137,6 +137,26 @@ class ClientRepositoryTest extends TestCase
         $this->assertSame($client, $repository->findClientByIdentifier('app'));
     }
 
+    public function testFindClientsGrantedToUserReturnsClientEntities(): void
+    {
+        $client = Client::builder()->identifier('app')->name('App')->build();
+        $fields = [];
+        $repository = $this->getMockBuilder(ClientRepository::class)
+            ->onlyMethods(['clear', 'query', 'execute', 'next', 'getCurrent', '__set'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())->method('query')->with($this->stringContains('FROM client_access'));
+        $repository->expects($this->once())->method('execute');
+        $repository->method('next')->willReturnOnConsecutiveCalls(true, false);
+        $repository->method('getCurrent')->willReturn($client);
+        $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
+            $fields[$name] = $value;
+        });
+
+        $this->assertSame([$client], $repository->findClientsGrantedToUser(3));
+        $this->assertSame(3, $fields['user_id']);
+    }
+
     public function testFindActiveClientsForUserReturnsProjectedRows(): void
     {
         $clientA = new class extends Client {

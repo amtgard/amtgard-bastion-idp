@@ -22,6 +22,7 @@ use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\AccessTokenRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\AuthCodeRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\RefreshTokenRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ScopeRepository;
@@ -107,6 +108,10 @@ return [
 
     UserClientAuthorizationRepository::class => function (EntityManager $em) {
         return $em->getRepository(UserClientAuthorizationRepository::class);
+    },
+
+    ClientAccessRepository::class => function (EntityManager $em) {
+        return $em->getRepository(ClientAccessRepository::class);
     },
 
     UserLoginClientRepository::class => function (EntityManager $em) {
