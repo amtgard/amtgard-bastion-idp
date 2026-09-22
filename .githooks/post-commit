@@ -22,3 +22,7 @@ if git diff --cached --quiet; then
 fi
 
 AMTGARD_VERSION_AMEND=1 git commit --amend --no-edit --no-verify
+## START BRANCHLESS CONFIG
+
+git branchless hook post-commit "$@"
+## END BRANCHLESS CONFIG

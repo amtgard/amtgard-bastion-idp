@@ -11,6 +11,7 @@
         "amtgard/redis-set-queue": "^1.1",
         "code-rhapsodie/oauth2-apple": "^0.5.0",
         "firebase/php-jwt": "^7.0",
+        "jedibc/optional": "^1.0",
         "league/oauth2-client": "^2.6",
         "league/oauth2-facebook": "^2.2",
         "league/oauth2-google": "^4.0",
@@ -22,13 +23,13 @@
         "robmorgan/phinx": "^0.16.8",
         "slim/psr7": "^1.5",
         "slim/slim": "^4.9",
-        "symfony/cache": "^5.4",
         "twig/twig": "^3.21",
         "vlucas/phpdotenv": "^5.4",
         "wohali/oauth2-discord-new": "^1.2",
         "zircote/swagger-php": "^6.0"
     },
     "require-dev": {
+        "dg/bypass-finals": "^1.9",
         "infection/infection": "^0.33.2",
         "phpstan/phpstan": "^1.4",
         "phpunit/phpunit": "^12",

@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Controllers;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
@@ -16,7 +15,9 @@ use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepositor
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
 use Amtgard\IdP\Services\OrkService;
+use Amtgard\IdP\Services\ResourcesUserinfoService;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
+use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 use Amtgard\IdP\Utility\UserAuthority;
 use Amtgard\SetQueue\PubSubQueue;
 use PHPUnit\Framework\TestCase;
@@ -65,7 +66,6 @@ class TestUserOrkProfileEntity extends UserOrkProfileEntity
 
 class ResourcesControllerTest extends TestCase
 {
-    private $em;
     private $logger;
     private $twig;
     private $clientRepository;
@@ -74,10 +74,12 @@ class ResourcesControllerTest extends TestCase
     private $database;
     private $orkService;
     private $orkProfileRepository;
+    private $userRepository;
     private $userClientAuthorizationRepository;
     private $userLoginRepository;
     private $amtgardIdpJwt;
     private $userAuthority;
+    private $currentUserResolver;
     private $request;
     private $response;
     private $stream;
@@ -89,7 +91,6 @@ class ResourcesControllerTest extends TestCase
         @session_start();
         $_SESSION = [];
 
-        $this->em = $this->createMock(EntityManager::class);
         $this->logger = $this->createMock(LoggerInterface::class);
         $this->twig = $this->createMock(TwigEnvironment::class);
         
@@ -116,21 +117,13 @@ class ResourcesControllerTest extends TestCase
         $this->response->method('withStatus')->willReturnSelf();
 
         $this->userEntity = new TestResourcesUserEntity(123, 'test@example.com', 'John Doe');
-        
-        // Instantiate OAuthUser using its builder instead of mocking it
-        $oauthUser = OAuthUser::builder()->userEntity($this->userEntity)->build();
 
-        $userRepository = $this->createMock(UserRepository::class);
-        $userRepository->method('getUserEntityById')->willReturn($oauthUser);
-
-        $this->em->method('getRepository')
-            ->with(UserRepository::class)
-            ->willReturn($userRepository);
-
-        EntityManager::configure($this->em, true);
+        $this->currentUserResolver = $this->createMock(CurrentUserResolverInterface::class);
+        $this->currentUserResolver->method('resolve')->willReturnCallback(function (): ?UserEntity {
+            return isset($_SESSION['user_id']) ? $this->userEntity : null;
+        });
 
         $this->controller = new ResourcesController(
-            $this->em,
             $this->logger,
             $this->twig,
             $this->clientRepository,
@@ -143,7 +136,9 @@ class ResourcesControllerTest extends TestCase
             $this->userClientAuthorizationRepository,
             $this->userLoginRepository,
             $this->amtgardIdpJwt,
-            $this->userAuthority
+            $this->userAuthority,
+            $this->currentUserResolver,
+            ResourcesUserinfoService::builder()->orkProfileRepository($this->orkProfileRepository)->build(),
         );
     }
 
@@ -374,7 +369,7 @@ class ResourcesControllerTest extends TestCase
         $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'testpass']);
         $this->orkService->method('authorize')->willReturn(['Token' => 'token-123', 'UserId' => 1001]);
         $this->orkService->method('getPlayer')->willReturn(['ParkId' => 5, 'username' => 'testuser']);
-        $this->orkService->method('getParkShortInfo')->willReturn(['park_info']);
+        $this->orkService->method('resolveParkDataFromPlayer')->willReturn(['park_info']);
         $this->orkProfileRepository->expects($this->once())->method('saveOrUpdateProfile');
         $this->amtgardIdpJwt->expects($this->once())
             ->method('buildAuthorizationJwt')
@@ -408,14 +403,15 @@ class ResourcesControllerTest extends TestCase
             ->with('token-123', 1001)
             ->willReturn(['ParkId' => 5, 'username' => 'testuser']);
 
+        $playerData = ['ParkId' => 5, 'username' => 'testuser'];
         $this->orkService->expects($this->once())
-            ->method('getParkShortInfo')
-            ->with(5)
+            ->method('resolveParkDataFromPlayer')
+            ->with($playerData, 123, 'LinkORK')
             ->willReturn(['park_info']);
 
         $this->orkProfileRepository->expects($this->once())
             ->method('saveOrUpdateProfile')
-            ->with(['ParkId' => 5, 'username' => 'testuser'], ['park_info'], 'token-123', 123);
+            ->with($playerData, ['park_info'], 'token-123', 123);
 
         $this->response->expects($this->once())
             ->method('withHeader')
@@ -453,7 +449,7 @@ class ResourcesControllerTest extends TestCase
         $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'testpass']);
         $this->orkService->method('authorize')->willReturn(['Token' => 'token-123', 'UserId' => 1001]);
         $this->orkService->method('getPlayer')->with('token-123', 1001)->willReturn(null);
-        $this->orkService->expects($this->never())->method('getParkShortInfo');
+        $this->orkService->expects($this->never())->method('resolveParkDataFromPlayer');
         $this->response->expects($this->once())
             ->method('withHeader')
             ->with('Location', '/resources/profile?error=ork_player_failed')
@@ -489,7 +485,7 @@ class ResourcesControllerTest extends TestCase
         $_SESSION['user_id'] = 123;
         $this->orkProfileRepository->method('findByUserId')->with(123)->willReturn(new TestUserOrkProfileEntity());
         $this->orkService->method('getPlayer')->with('ork-token-123', 1001)->willReturn(null);
-        $this->orkService->expects($this->never())->method('getParkShortInfo');
+        $this->orkService->expects($this->never())->method('resolveParkDataFromPlayer');
         $this->response->expects($this->once())
             ->method('withHeader')
             ->with('Location', '/resources/profile?error=ork_refresh_failed')
@@ -513,14 +509,15 @@ class ResourcesControllerTest extends TestCase
             ->with('ork-token-123', 1001)
             ->willReturn(['ParkId' => 5, 'username' => 'testuser']);
 
+        $playerData = ['ParkId' => 5, 'username' => 'testuser'];
         $this->orkService->expects($this->once())
-            ->method('getParkShortInfo')
-            ->with(5)
+            ->method('resolveParkDataFromPlayer')
+            ->with($playerData, 123, 'RefreshORK')
             ->willReturn(['park_info']);
 
         $this->orkProfileRepository->expects($this->once())
             ->method('saveOrUpdateProfile')
-            ->with(['ParkId' => 5, 'username' => 'testuser'], ['park_info'], 'ork-token-123', 123);
+            ->with($playerData, ['park_info'], 'ork-token-123', 123);
 
         $this->response->expects($this->once())
             ->method('withHeader')
@@ -553,7 +550,10 @@ class ResourcesControllerTest extends TestCase
             ->with('ork-token-123', 1001)
             ->willReturn($playerData);
 
-        $this->orkService->expects($this->never())->method('getParkShortInfo');
+        $this->orkService->expects($this->once())
+            ->method('resolveParkDataFromPlayer')
+            ->with($playerData, 123, 'RefreshORK')
+            ->willReturn(null);
 
         $this->orkProfileRepository->expects($this->once())
             ->method('saveOrUpdateProfile')

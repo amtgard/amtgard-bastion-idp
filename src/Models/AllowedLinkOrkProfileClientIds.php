@@ -9,7 +9,7 @@ namespace Amtgard\IdP\Models;
  *
  * Encapsulating the parse here keeps the container free of bespoke wiring:
  * the object is autowireable (it reads LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS
- * itself) so ConfidentialClientBasicAuthMiddleware can rely on automatic DI.
+ * itself) so AllowListedConfidentialClientAuthenticator can rely on automatic DI.
  */
 class AllowedLinkOrkProfileClientIds
 {

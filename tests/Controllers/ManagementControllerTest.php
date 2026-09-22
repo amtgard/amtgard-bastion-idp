@@ -93,7 +93,6 @@ class ManagementControllerTest extends TestCase
         $this->controller = new ManagementController(
             $this->logger,
             $this->twig,
-            $this->entityManager,
             $this->accessTokens,
             $this->refreshTokens,
             $this->authCodes,

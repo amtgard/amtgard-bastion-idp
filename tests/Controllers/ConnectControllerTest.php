@@ -6,7 +6,6 @@ namespace Amtgard\IdP\Tests\Controllers;
 
 require_once __DIR__ . '/AuthControllerTest.php';
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Controllers\Client\ConnectController;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
@@ -49,7 +48,6 @@ class ConnectControllerTest extends TestCase
         $this->registrationService = $this->createMock(RegistrationService::class);
 
         $this->controller = new ConnectController(
-            $this->createMock(EntityManager::class),
             $this->twig,
             $this->users,
             $this->logins,

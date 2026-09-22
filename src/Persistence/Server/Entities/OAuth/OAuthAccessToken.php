@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Persistence\Server\Entities\OAuth;
 
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AccessToken;

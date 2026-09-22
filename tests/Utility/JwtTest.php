@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Utility;
 
+use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
 use Amtgard\IdP\Utility\Jwt;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
@@ -11,13 +12,7 @@ class JwtTest extends TestCase
 {
     protected function setUp(): void
     {
-        $devKeysDir = dirname(__DIR__, 2) . '/dev-keys';
-        if (!file_exists('/tmp/private.key') && file_exists($devKeysDir . '/private.key')) {
-            @copy($devKeysDir . '/private.key', '/tmp/private.key');
-        }
-        if (!file_exists('/tmp/public.key') && file_exists($devKeysDir . '/public.key')) {
-            @copy($devKeysDir . '/public.key', '/tmp/public.key');
-        }
+        FirebaseJwtTestFactory::ensureKeys();
     }
 
     public function testGetBearerJwt(): void
@@ -154,25 +149,19 @@ class JwtTest extends TestCase
 
     public function testValidateJwtSignatureAndRequest(): void
     {
-        if (!file_exists('/tmp/private.key') || !file_exists('/tmp/public.key')) {
+        try {
+            FirebaseJwtTestFactory::assertKeysAvailable();
+        } catch (\RuntimeException) {
             $this->markTestSkipped('Keys are missing');
         }
 
-        $clock = new \Lcobucci\Clock\SystemClock(new \DateTimeZone("UTC"));
-        $config = \Lcobucci\JWT\Configuration::forAsymmetricSigner(
-            new \Lcobucci\JWT\Signer\Rsa\Sha256(),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/private.key'),
-            \Lcobucci\JWT\Signer\Key\InMemory::file('/tmp/public.key')
+        $jwtStr = FirebaseJwtTestFactory::encode(
+            [
+            'iss' => FirebaseJwtTestFactory::DEFAULT_ISSUER,
+            'aud' => 'client-1',
+            'exp' => time() + 3600,
+            ]
         );
-
-        $now = $clock->now();
-        $token = $config->builder()
-            ->issuedBy('http://localhost')
-            ->permittedFor('client-1')
-            ->expiresAt($now->modify('+1 hour'))
-            ->getToken($config->signer(), $config->signingKey());
-
-        $jwtStr = $token->toString();
 
         $this->assertSame($jwtStr, Jwt::validateJwtSignature($jwtStr));
 
@@ -206,11 +195,15 @@ class JwtTest extends TestCase
 
         $this->assertTrue(Jwt::isAuthorizationPayload(['pvh' => $pvh]));
         $this->assertTrue(Jwt::isAuthorizationPayload(['aud' => 'skbc', 'policy' => '[]']));
-        $this->assertFalse(Jwt::isAuthorizationPayload([
-            'aud' => 'skbc',
-            'sub' => 'user-1',
-            'jti' => 'access-jti',
-            'scopes' => ['profile', 'email'],
-        ]));
+        $this->assertFalse(
+            Jwt::isAuthorizationPayload(
+                [
+                'aud' => 'skbc',
+                'sub' => 'user-1',
+                'jti' => 'access-jti',
+                'scopes' => ['profile', 'email'],
+                ]
+            )
+        );
     }
 }

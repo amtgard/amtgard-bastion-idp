@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Middleware;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Middleware\ConfidentialClientBasicAuthMiddleware;
 use Amtgard\IdP\Models\AllowedLinkOrkProfileClientIds;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Utility\Security\AllowListedConfidentialClientAuthenticator;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -18,7 +18,6 @@ use Slim\Exception\HttpUnauthorizedException;
 class ConfidentialClientBasicAuthMiddlewareTest extends TestCase
 {
     private ClientRepository $clientRepository;
-    private AllowedLinkOrkProfileClientIds $allowedClientIds;
     private ConfidentialClientBasicAuthMiddleware $middleware;
     private ServerRequestInterface $request;
 
@@ -26,13 +25,12 @@ class ConfidentialClientBasicAuthMiddlewareTest extends TestCase
     {
         $_ENV['LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS'] = 'ork-client,other-client';
         $this->clientRepository = $this->createMock(ClientRepository::class);
-        $this->allowedClientIds = new AllowedLinkOrkProfileClientIds();
-        $this->middleware = new ConfidentialClientBasicAuthMiddleware(
-            $this->createMock(EntityManager::class),
+        $authenticator = new AllowListedConfidentialClientAuthenticator(
             $this->clientRepository,
-            $this->allowedClientIds,
+            new AllowedLinkOrkProfileClientIds(),
             $this->createMock(LoggerInterface::class),
         );
+        $this->middleware = new ConfidentialClientBasicAuthMiddleware($authenticator);
         $this->request = $this->createMock(ServerRequestInterface::class);
     }
 

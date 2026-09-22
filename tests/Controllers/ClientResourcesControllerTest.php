@@ -14,6 +14,8 @@ use Amtgard\IdP\Controllers\Resource\ClientResourcesController;
 use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
+use Amtgard\IdP\Services\ClientIamMetadataService;
+use Amtgard\IdP\Services\ClientIamPolicyService;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use PHPUnit\Framework\TestCase;
@@ -529,6 +531,36 @@ class ClientResourcesControllerTest extends TestCase
         $controller->addPolicyClaim($request, $response);
     }
 
+    public function testAddPolicyClaimReturns400WhenIdpUserIdMissing(): void
+    {
+        $client = Client::builder()
+            ->identifier('app-client')
+            ->clientSecret('secret')
+            ->name('App')
+            ->redirectUri('http://localhost/cb')
+            ->isConfidential(true)
+            ->iamService('Skbc')
+            ->build();
+
+        $userRepository = $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class);
+        $userRepository->expects($this->never())->method('findUserByUserId');
+        $resolver = new ClientResourcesRequestResolver(
+            $userRepository,
+            $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository::class),
+        );
+
+        $controller = $this->makeController($resolver);
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getAttribute')->willReturn($client);
+        $request->method('getParsedBody')->willReturn([]);
+
+        [$response, $stream] = $this->mockJsonResponse();
+        $stream->expects($this->once())->method('write')->with($this->stringContains('idp_user_id is required'));
+        $response->expects($this->once())->method('withStatus')->with(400)->willReturnSelf();
+
+        $controller->addPolicyClaim($request, $response);
+    }
+
     /**
      * @return array{0: object, 1: Client, 2: ClientResourcesRequestResolver, 3: UserPolicyClaimRepository}
      */
@@ -541,6 +573,7 @@ class ClientResourcesControllerTest extends TestCase
 
         $client = new class extends Client {
             public function getId(): int { return 5; }
+            public function getIdentifier(): string { return 'app-client'; }
             public function getIamService(): ?string { return 'Skbc'; }
         };
 
@@ -573,14 +606,17 @@ class ClientResourcesControllerTest extends TestCase
         ?UserLoginClientRepository $metadataRepository = null,
         ?UserPolicyClaimRepository $policyRepository = null,
     ): ClientResourcesController {
+        $policyRepo = $policyRepository ?? $this->createMock(UserPolicyClaimRepository::class);
+        $metadataRepo = $metadataRepository ?? $this->createMock(UserLoginClientRepository::class);
+
         return new ClientResourcesController(
             $this->createMock(LoggerInterface::class),
             $resolver ?? new ClientResourcesRequestResolver(
                 $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class),
                 $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository::class),
             ),
-            $policyRepository ?? $this->createMock(UserPolicyClaimRepository::class),
-            $metadataRepository ?? $this->createMock(UserLoginClientRepository::class),
+            ClientIamPolicyService::builder()->policyClaimRepository($policyRepo)->build(),
+            ClientIamMetadataService::builder()->metadataRepository($metadataRepo)->build(),
         );
     }
 

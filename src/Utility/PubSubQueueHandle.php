@@ -1,11 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Amtgard\IdP\Utility;
 
-use Amtgard\Traits\Builder\Builder;
-use Amtgard\Traits\Builder\Getter;
-
-class PubSubQueueHandle {
-    use Builder, Getter;
-    private $handle;
+final class PubSubQueueHandle
+{
+    use QueueHandleTrait;
 }

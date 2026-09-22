@@ -1,14 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Middleware;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
-use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\AuthorizedClients;
+use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\Jwt;
-use Amtgard\IdP\Utility\PvhAccess;
+use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
+use Amtgard\IdP\Utility\Pvh\PvhGateOutcome;
 use Amtgard\IdP\Utility\PvhGate;
-use League\OAuth2\Server\Exception\OAuthServerException;
+use Amtgard\IdP\Utility\Security\OAuthAccessTokenFallback;
 use League\OAuth2\Server\ResourceServer;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -18,25 +21,15 @@ use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpUnauthorizedException;
 
-class ClientRestrictedAuthMiddleware implements MiddlewareInterface
+final class ClientRestrictedAuthMiddleware implements MiddlewareInterface
 {
-    protected ResourceServer $resourceServer;
-    protected LoggerInterface $logger;
-    protected AuthorizedClients $validClients;
-    private RedisCacheRepository $redisCacheRepository;
-
     public function __construct(
-        EntityManager $em,
-        LoggerInterface $logger,
-        ResourceServer $resourceServer,
-        AuthorizedClients $validClients,
-        RedisCacheRepository $redisCacheRepository
-    )
-    {
-        $this->logger = $logger;
-        $this->resourceServer = $resourceServer;
-        $this->validClients = $validClients;
-        $this->redisCacheRepository = $redisCacheRepository;
+        protected LoggerInterface $logger,
+        protected ResourceServer $resourceServer,
+        protected AuthorizedClients $validClients,
+        private PvhAuthorizationGate $pvhAuthorizationGate,
+        private OAuthAccessTokenFallback $oauthAccessTokenFallback,
+    ) {
     }
 
     /**
@@ -48,7 +41,7 @@ class ClientRestrictedAuthMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $jwt = Optional::ofNullable(Jwt::validateJwtRequest($request))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
+        $jwt = Optional::ofNullable(Jwt::validateJwtRequest($request, $this->logger))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $payload = Optional::ofNullable(value: Jwt::parseJwt($jwt))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $oauthUserId = Optional::ofNullable($payload['sub'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $clientId = Optional::ofNullable($payload['aud'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
@@ -58,54 +51,37 @@ class ClientRestrictedAuthMiddleware implements MiddlewareInterface
         }
 
         if (!Jwt::isAuthorizationPayload($payload)) {
-            return $this->authenticateOAuthAccessToken($request, $handler);
+            return $this->oauthAccessTokenFallback->authenticate(
+                $request,
+                $handler,
+                $this->proceed(...)
+            );
         }
 
-        $cached = $this->redisCacheRepository->getPvhRecord((string) $oauthUserId, (string) $clientId);
-        $access = PvhGate::evaluate($cached, $payload);
+        $userUuid = (string) $oauthUserId;
+        $aud = (string) $clientId;
+        $outcome = $this->pvhAuthorizationGate->evaluateAndSeed($userUuid, $aud, $payload);
+        $access = $this->pvhAuthorizationGate->lastAccess();
+        $this->logger->debug(
+            'client restricted pvh auth', [
+            'user_uuid' => $userUuid,
+            'aud' => $aud,
+            'client_id' => $aud,
+            'access' => $access?->name,
+            'outcome' => $outcome->name,
+            ]
+        );
 
-        if ($access === PvhAccess::Current) {
-            return $this->proceed((string) $oauthUserId, (string) $clientId, $request, $handler);
-        }
-
-        if ($access === PvhAccess::Previous) {
-            return PvhGate::staleTokenResponse();
-        }
-
-        if ($access === PvhAccess::Miss) {
-            $email = isset($payload['email']) && is_string($payload['email']) ? $payload['email'] : '';
-            $this->redisCacheRepository->setPvhRecord(PvhGate::missSeedRecord(
-                (string) $oauthUserId,
-                (string) $clientId,
-                $email,
-                Jwt::presentedPvhClaim($payload),
-                Jwt::presentedPvhClaim($payload) === null ? Jwt::policyHashFromFatClaims($payload) : null
-            ));
-
-            return $this->proceed((string) $oauthUserId, (string) $clientId, $request, $handler);
-        }
-
-        throw new HttpUnauthorizedException($request, "Not authorized.");
-    }
-
-    private function authenticateOAuthAccessToken(Request $request, RequestHandler $handler): Response
-    {
-        try {
-            $validated = $this->resourceServer->validateAuthenticatedRequest($request);
-        } catch (OAuthServerException) {
-            throw new HttpUnauthorizedException($request, "Not authorized.");
-        }
-
-        $userId = (string) $validated->getAttribute('oauth_user_id');
-        $clientId = (string) $validated->getAttribute('oauth_client_id');
-
-        return $this->proceed($userId, $clientId, $validated, $handler);
+        return match ($outcome) {
+            PvhGateOutcome::Proceed => $this->proceed($userUuid, $aud, $request, $handler),
+            PvhGateOutcome::StaleToken => PvhGate::staleTokenResponse(),
+            PvhGateOutcome::Unauthorized => throw new HttpUnauthorizedException($request, "Not authorized."),
+        };
     }
 
     private function proceed(string $userId, string $clientId, Request $request, RequestHandler $handler): Response
     {
-        $_SESSION['user_id'] = $userId;
-        $_SESSION['client_id'] = $clientId;
+        LoginSession::setAuthenticatedContext($userId, $clientId);
 
         return $handler->handle($request);
     }

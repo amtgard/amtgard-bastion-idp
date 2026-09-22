@@ -5,6 +5,7 @@ namespace Amtgard\IdP\Tests\Models;
 
 use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Models\Orn\IdpClaim;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
@@ -115,7 +116,7 @@ class ModelsTest extends TestCase
                     && $record->getPrevPvh() === null;
             }));
 
-        $idpJwt = new AmtgardIdpJwt(
+        $assembler = new AuthorizationJwtAssembler(
             $userPolicy,
             $jwtChallenge,
             $clientRepository,
@@ -123,8 +124,11 @@ class ModelsTest extends TestCase
             $userLoginRepository,
             $this->createMock(LoggerInterface::class),
             $generationRepository,
-            $redis,
         );
+        $idpJwt = AmtgardIdpJwt::builder()
+            ->assembler($assembler)
+            ->redisCacheRepository($redis)
+            ->build();
         $tokens = $idpJwt->buildAuthorizationTokens($user);
         $jwtString = $tokens['jwt'];
         $compactString = $tokens['compact_jwt'];
