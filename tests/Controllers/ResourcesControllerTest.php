@@ -11,6 +11,7 @@ use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
@@ -76,6 +77,7 @@ class ResourcesControllerTest extends TestCase
     private $orkProfileRepository;
     private $userRepository;
     private $userClientAuthorizationRepository;
+    private $clientAccessRepository;
     private $userLoginRepository;
     private $amtgardIdpJwt;
     private $userAuthority;
@@ -104,6 +106,7 @@ class ResourcesControllerTest extends TestCase
         $this->orkProfileRepository = $this->createMock(UserOrkProfileRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
         $this->userClientAuthorizationRepository = $this->createMock(UserClientAuthorizationRepository::class);
+        $this->clientAccessRepository = $this->createMock(ClientAccessRepository::class);
         $this->userLoginRepository = $this->createMock(UserLoginRepository::class);
         $this->amtgardIdpJwt = $this->createMock(AmtgardIdpJwt::class);
         $this->userAuthority = $this->createMock(UserAuthority::class);
@@ -139,6 +142,7 @@ class ResourcesControllerTest extends TestCase
             $this->userAuthority,
             $this->currentUserResolver,
             ResourcesUserinfoService::builder()->orkProfileRepository($this->orkProfileRepository)->build(),
+            $this->clientAccessRepository,
         );
     }
 
@@ -151,7 +155,9 @@ class ResourcesControllerTest extends TestCase
         $this->twig->expects($this->once())
             ->method('render')
             ->with('profile.twig', $this->callback(function ($context) {
-                return $context['isAdmin'] === false && empty($context['authorizations']);
+                return $context['isAdmin'] === false
+                    && $context['hasClientAccess'] === false
+                    && empty($context['authorizations']);
             }))
             ->willReturn('profile view');
 
@@ -199,6 +205,11 @@ class ResourcesControllerTest extends TestCase
             ->with($this->userEntity)
             ->willReturn(true);
 
+        $this->clientAccessRepository->expects($this->once())
+            ->method('userHasAnyAccess')
+            ->with(123)
+            ->willReturn(true);
+
         $this->clientRepository->expects($this->once())
             ->method('findActiveClientsForUser')
             ->with(123)
@@ -219,6 +230,7 @@ class ResourcesControllerTest extends TestCase
             ->method('render')
             ->with('profile.twig', $this->callback(function ($context) {
                 return $context['isAdmin'] === true &&
+                       $context['hasClientAccess'] === true &&
                        $context['avatarUrl'] === 'http://avatar' &&
                        $context['error'] === 'some_error' &&
                        $context['success'] === 'some_success';

@@ -73,6 +73,54 @@ class UserRepositoryTest extends TestCase
         $this->assertSame($user, $repository->getUserByEmail('user@example.com'));
     }
 
+    public function testFindUserByIdFetchesPrimaryKey(): void
+    {
+        $user = new UserEntity();
+        $repository = $this->getMockBuilder(UserRepository::class)
+            ->onlyMethods(['fetch'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())->method('fetch')->with(3)->willReturn($user);
+
+        $this->assertSame($user, $repository->findUserById(3));
+    }
+
+    public function testSearchByEmailPrefixReturnsEmptyForBlankQuery(): void
+    {
+        $repository = $this->getMockBuilder(UserRepository::class)
+            ->onlyMethods(['query'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->never())->method('query');
+
+        $this->assertSame([], $repository->searchByEmailPrefix('   '));
+    }
+
+    public function testSearchByEmailPrefixQueriesLikePrefix(): void
+    {
+        $user = new class extends UserEntity {
+            public function getId(): int { return 3; }
+            public function getEmail(): string { return 'owner@example.com'; }
+        };
+        $fields = [];
+        $repository = $this->getMockBuilder(UserRepository::class)
+            ->onlyMethods(['clear', 'query', 'execute', 'next', 'getCurrent', '__set'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())
+            ->method('query')
+            ->with($this->stringContains('email LIKE :email_like'));
+        $repository->expects($this->once())->method('execute');
+        $repository->method('next')->willReturnOnConsecutiveCalls(true, false);
+        $repository->method('getCurrent')->willReturn($user);
+        $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
+            $fields[$name] = $value;
+        });
+
+        $this->assertSame([['id' => 3, 'email' => 'owner@example.com']], $repository->searchByEmailPrefix('own%er'));
+        $this->assertSame('own\\%er%', $fields['email_like']);
+    }
+
     public function testFindUserByUserIdFetchesByUserIdField(): void
     {
         $user = new UserEntity();

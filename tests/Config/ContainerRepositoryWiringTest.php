@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Config;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use PHPUnit\Framework\TestCase;
@@ -51,6 +52,28 @@ class ContainerRepositoryWiringTest extends TestCase
         $definitions = require __DIR__ . '/../../config/container.php';
 
         $this->assertArrayHasKey(UserJwtGenerationRepository::class, $definitions);
+    }
+
+    public function testContainerDefinesClientAccessRepositoryWiring(): void
+    {
+        $definitions = require __DIR__ . '/../../config/container.php';
+
+        $this->assertArrayHasKey(ClientAccessRepository::class, $definitions);
+    }
+
+    public function testClientAccessRepositoryIsResolvedFromEntityManager(): void
+    {
+        $repository = $this->createStub(ClientAccessRepository::class);
+        $entityManager = $this->createMock(EntityManager::class);
+        $entityManager->expects($this->once())
+            ->method('getRepository')
+            ->with(ClientAccessRepository::class)
+            ->willReturn($repository);
+
+        $definitions = require __DIR__ . '/../../config/container.php';
+        $resolved = $definitions[ClientAccessRepository::class]($entityManager);
+
+        $this->assertSame($repository, $resolved);
     }
 
     public function testUserJwtGenerationRepositoryIsResolvedFromEntityManager(): void
