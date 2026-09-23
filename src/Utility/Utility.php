@@ -1,14 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Utility;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
-use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
-use Optional\Optional;
+use Amtgard\IdP\Utility\Security\CurrentUserResolver;
+use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 
-class Utility
+final class Utility
 {
     public static function userIsAuthenticated() {
         return isset($_SESSION) && array_key_exists('user_id', $_SESSION);
@@ -18,16 +21,17 @@ class Utility
         return (new \DateTimeImmutable())->add($dateInterval);
     }
 
+    /**
+     * @deprecated Prefer injecting {@see CurrentUserResolverInterface} in new code.
+     */
     public static function getAuthenticatedUser(): ?UserEntity {
-        if (!self::userIsAuthenticated()) {
-            return null;
+        static $resolver = null;
+        if ($resolver === null) {
+            $resolver = CurrentUserResolver::builder()
+                ->userRepository(EntityManager::getManager()->getRepository(UserRepository::class))
+                ->build();
         }
 
-        $userRepo = EntityManager::getManager()->getRepository(UserRepository::class);
-        /** @var OAuthUser $user */
-        $user = $userRepo->getUserEntityById($_SESSION['user_id']);
-        return Optional::ofNullable($user)
-            ->map(fn($u) => $u->getUserEntity())
-            ->orElse(null);
+        return $resolver->resolve();
     }
 }

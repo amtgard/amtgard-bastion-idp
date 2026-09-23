@@ -170,6 +170,21 @@ class UserRepositoryTest extends TestCase
         $this->assertSame('apple@example.com', $user->getEmail());
         $this->assertNotEmpty($user->getUserId());
     }
+
+    public function testCreateUserFromDiscordDataBuildsUser(): void
+    {
+        $repository = new UserRepository();
+
+        $user = $repository->createUserFromDiscordData([
+            'email' => 'discord@example.com',
+            'username' => 'discorduser',
+        ]);
+
+        $this->assertSame('discord@example.com', $user->getEmail());
+        $this->assertSame('discorduser', $user->getFirstName());
+        $this->assertSame('', $user->getLastName());
+        $this->assertNotEmpty($user->getUserId());
+    }
 }
 
 class UserRepositoryTestTableSchema extends TableSchema

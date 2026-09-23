@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Middleware;
 
+use Amtgard\IdP\Utility\Security\ConfidentialClientAuthMode;
 use Amtgard\IdP\Utility\Security\ConfidentialClientAuthenticator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -24,7 +25,7 @@ class ConfidentialClientAuthMiddleware implements MiddlewareInterface
 
     public function process(Request $request, RequestHandler $handler): Response
     {
-        $client = $this->authenticator->authenticate($request, true);
+        $client = $this->authenticator->authenticate($request, ConfidentialClientAuthMode::RequireIamService);
 
         return $handler->handle($request->withAttribute(self::REQUEST_ATTRIBUTE, $client));
     }

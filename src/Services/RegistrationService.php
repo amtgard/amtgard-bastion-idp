@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Services;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
@@ -17,7 +16,6 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 class RegistrationService
 {
     public function __construct(
-        EntityManager $entityManager,
         private UserRepository $users,
         private UserLoginRepository $logins,
     ) {}

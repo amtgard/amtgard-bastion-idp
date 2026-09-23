@@ -6,7 +6,6 @@ namespace Amtgard\IdP\Tests\Controllers;
 
 require_once __DIR__ . '/AuthControllerTest.php';
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Controllers\Client\AppleAuthController;
 use Amtgard\IdP\Controllers\Client\DiscordAuthController;
 use Amtgard\IdP\Controllers\Client\FacebookAuthController;
@@ -78,7 +77,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['redirect' => '/profile']);
 
         $controller = new GoogleAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -103,7 +101,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['code' => 'abc', 'state' => 'bad']);
 
         $controller = new GoogleAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -150,7 +147,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['code' => 'abc', 'state' => 'state-ok']);
 
         $controller = new GoogleAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -170,7 +166,6 @@ class SocialAuthControllersTest extends TestCase
         $provider->method('getState')->willReturn('fb-state');
 
         $controller = new FacebookAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -189,7 +184,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['error' => 'access_denied']);
 
         $controller = new FacebookAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -234,7 +228,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['code' => 'abc', 'state' => 'fb-state']);
 
         $controller = new FacebookAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -257,7 +250,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['redirect' => '/home']);
 
         $controller = new DiscordAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -287,7 +279,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['code' => 'abc', 'state' => 'dc-state']);
 
         $controller = new DiscordAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -328,10 +319,10 @@ class SocialAuthControllersTest extends TestCase
         $provider->expects($this->once())->method('getAccessToken')->with('authorization_code', ['code' => 'abc'])->willReturn($token);
         $provider->expects($this->once())->method('getResourceOwner')->with($token)->willReturn($resourceOwner);
         $this->users->method('getUserByEmail')->with('discord@example.com')->willReturn(null);
-        $this->users->expects($this->once())->method('createUserFromGoogleData')->with($this->callback(function (array $data): bool {
+        $this->users->expects($this->once())->method('createUserFromDiscordData')->with($this->callback(function (array $data): bool {
             return $data['email'] === 'discord@example.com'
-                && $data['given_name'] === 'discorduser'
-                && $data['picture'] === 'https://cdn.discordapp.com/avatars/discord-id/avatar-hash.png';
+                && $data['username'] === 'discorduser'
+                && $data['avatar'] === 'avatar-hash';
         }))->willReturn($user);
         $this->logins->expects($this->once())->method('getLoginByProviderId')->with('discord-id')->willReturn(null);
         $this->logins->expects($this->once())->method('createLoginFromDiscordData')->with($user, $resourceOwner->toArray(), $token)->willReturn($login);
@@ -340,7 +331,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['code' => 'abc', 'state' => 'dc-state']);
 
         $controller = new DiscordAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -386,7 +376,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['code' => 'abc', 'state' => 'state-new']);
 
         $controller = new GoogleAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -427,7 +416,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['code' => 'abc', 'state' => 'state-redirect']);
 
         $controller = new GoogleAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -449,7 +437,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['code' => 'abc', 'state' => 'bad-state']);
 
         $controller = new FacebookAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -472,7 +459,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getQueryParams')->willReturn(['redirect' => '/home']);
 
         $controller = new AppleAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -523,7 +509,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getParsedBody')->willReturn(['code' => 'abc', 'state' => 'apple-state']);
 
         $controller = new AppleAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -595,7 +580,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getParsedBody')->willReturn(['code' => 'abc', 'state' => 'apple-state']);
 
         $controller = new AppleAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -654,7 +638,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getParsedBody')->willReturn(['code' => 'abc', 'state' => 'apple-state']);
 
         $controller = new AppleAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
@@ -672,7 +655,6 @@ class SocialAuthControllersTest extends TestCase
         $this->request->method('getParsedBody')->willReturn(['code' => 'abc', 'state' => 'bad-state']);
 
         $controller = new AppleAuthController(
-            $this->createMock(EntityManager::class),
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),

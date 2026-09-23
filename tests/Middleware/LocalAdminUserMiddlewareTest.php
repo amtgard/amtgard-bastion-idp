@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Middleware;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Middleware\LocalAdminUserMiddleware;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\UserAuthority;
@@ -16,7 +15,6 @@ use Slim\Routing\RouteContext;
 
 class LocalAdminUserMiddlewareTest extends TestCase
 {
-    private $entityManager;
     private $userRepository;
     private $userAuthority;
     private $request;
@@ -27,7 +25,6 @@ class LocalAdminUserMiddlewareTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->entityManager = $this->createMock(EntityManager::class);
         $this->userRepository = $this->createMock(UserRepository::class);
         $this->userAuthority = $this->createMock(UserAuthority::class);
         $this->request = $this->createMock(ServerRequestInterface::class);
@@ -36,7 +33,6 @@ class LocalAdminUserMiddlewareTest extends TestCase
         $this->routeParser = $this->createMock(RouteParserInterface::class);
 
         $this->middleware = new LocalAdminUserMiddleware(
-            $this->entityManager,
             $this->userRepository,
             $this->userAuthority
         );

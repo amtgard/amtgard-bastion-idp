@@ -18,7 +18,7 @@ final class ConfidentialClientAuthenticator
         private LoggerInterface $logger,
     ) {}
 
-    public function authenticate(Request $request, bool $requireIamService): Client
+    public function authenticate(Request $request, ConfidentialClientAuthMode $mode): Client
     {
         $credentials = HttpBasicCredentialsParser::fromAuthorizationHeader(
             $request->getHeaderLine('Authorization')
@@ -29,26 +29,28 @@ final class ConfidentialClientAuthenticator
             throw new HttpUnauthorizedException($request, 'Confidential client credentials required.');
         }
 
+        $basic = $credentials->get();
+
         if (!$this->clientRepository->validateClient(
-            $credentials->get()->clientId,
-            $credentials->get()->clientSecret,
+            $basic->clientId,
+            $basic->clientSecret,
             'confidential_basic'
         )) {
             $this->logger->warning('ConfidentialClientAuth: invalid credentials', [
-                'client_id' => $credentials->get()->clientId,
+                'client_id' => $basic->clientId,
             ]);
             throw new HttpUnauthorizedException($request, 'Invalid client credentials.');
         }
 
         $client = Optional::ofNullable(
-            $this->clientRepository->findClientByIdentifier($credentials->get()->clientId)
+            $this->clientRepository->findClientByIdentifier($basic->clientId)
         )->orElseThrow(new HttpUnauthorizedException($request, 'Unknown client.'));
 
         if (!$client->getIsConfidential()) {
             throw new HttpUnauthorizedException($request, 'Client endpoints require a confidential client.');
         }
 
-        if ($requireIamService) {
+        if ($mode === ConfidentialClientAuthMode::RequireIamService) {
             Optional::ofNullable($client->getIamService())
                 ->filter(fn (string $iamService) => $iamService !== '')
                 ->orElseThrow(new HttpUnauthorizedException(
@@ -56,6 +58,10 @@ final class ConfidentialClientAuthenticator
                     'Client is not configured with an IAM service namespace.'
                 ));
         }
+
+        $this->logger->debug('ConfidentialClientAuth: credentials accepted', [
+            'client_id' => $basic->clientId,
+        ]);
 
         return $client;
     }

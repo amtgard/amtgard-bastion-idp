@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Models\Orn;
 
 use Amtgard\IAM\Allowance\Claim;
@@ -12,7 +15,7 @@ class IdpClaim extends Claim
         return IdpFormat::ornSegmentSchema();
     }
 
-    protected function getResourceMap(string $resource = null): array
+    protected function getResourceMap(?string $resource = null): array
     {
         return IdpFormat::getValidResourceMap($resource);
     }

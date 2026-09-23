@@ -6,6 +6,7 @@ namespace Amtgard\IdP\Tests\Utility;
 
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Utility\Security\ConfidentialClientAuthMode;
 use Amtgard\IdP\Utility\Security\ConfidentialClientAuthenticator;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
@@ -33,7 +34,7 @@ class ConfidentialClientAuthenticatorTest extends TestCase
         $this->request->method('getHeaderLine')->with('Authorization')->willReturn('');
 
         $this->expectException(HttpUnauthorizedException::class);
-        $this->authenticator->authenticate($this->request, false);
+        $this->authenticator->authenticate($this->request, ConfidentialClientAuthMode::CredentialsOnly);
     }
 
     public function testAuthenticateRejectsInvalidCredentials(): void
@@ -43,7 +44,7 @@ class ConfidentialClientAuthenticatorTest extends TestCase
         $this->clientRepository->method('validateClient')->willReturn(false);
 
         $this->expectException(HttpUnauthorizedException::class);
-        $this->authenticator->authenticate($this->request, false);
+        $this->authenticator->authenticate($this->request, ConfidentialClientAuthMode::CredentialsOnly);
     }
 
     public function testAuthenticateRejectsNonConfidentialClient(): void
@@ -58,7 +59,7 @@ class ConfidentialClientAuthenticatorTest extends TestCase
         $this->clientRepository->method('findClientByIdentifier')->willReturn($client);
 
         $this->expectException(HttpUnauthorizedException::class);
-        $this->authenticator->authenticate($this->request, false);
+        $this->authenticator->authenticate($this->request, ConfidentialClientAuthMode::CredentialsOnly);
     }
 
     public function testAuthenticateRequiresIamServiceWhenFlagSet(): void
@@ -74,7 +75,7 @@ class ConfidentialClientAuthenticatorTest extends TestCase
         $this->clientRepository->method('findClientByIdentifier')->willReturn($client);
 
         $this->expectException(HttpUnauthorizedException::class);
-        $this->authenticator->authenticate($this->request, true);
+        $this->authenticator->authenticate($this->request, ConfidentialClientAuthMode::RequireIamService);
     }
 
     public function testAuthenticateReturnsClientWhenValid(): void
@@ -89,6 +90,6 @@ class ConfidentialClientAuthenticatorTest extends TestCase
         $this->clientRepository->method('validateClient')->willReturn(true);
         $this->clientRepository->method('findClientByIdentifier')->willReturn($client);
 
-        $this->assertSame($client, $this->authenticator->authenticate($this->request, true));
+        $this->assertSame($client, $this->authenticator->authenticate($this->request, ConfidentialClientAuthMode::RequireIamService));
     }
 }

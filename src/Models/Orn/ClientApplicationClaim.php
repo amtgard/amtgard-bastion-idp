@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Models\Orn;
 
 use Amtgard\IAM\Allowance\Claim;
@@ -13,7 +16,7 @@ class ClientApplicationClaim extends Claim
         return ClientApplicationFormatRegistry::get($this->getPrefix()->name);
     }
 
-    protected function getResourceMap(string $resource = null): array
+    protected function getResourceMap(?string $resource = null): array
     {
         return ClientApplicationFormat::getValidResourceMap($resource);
     }

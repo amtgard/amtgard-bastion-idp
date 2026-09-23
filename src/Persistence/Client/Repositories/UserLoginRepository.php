@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Persistence\Client\Repositories;
 
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
@@ -109,49 +112,78 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
         return $login;
     }
 
-    public function createLoginFromFacebookData(UserEntity $user, array $facebookData, $token): UserLoginEntity
-    {
-        $login = $this->configureNewLogin('facebook', $user, Uuid::uuid4()->toString(), $facebookData['picture_url']);
-        $login->setProviderId($facebookData['id']);
-        $this->updateLoginTokens($login, fn($t) => $t->getToken(), $token);
+    public function createLoginFromProvider(
+        string $type,
+        UserEntity $user,
+        string $providerId,
+        string $avatarUrl,
+        $token,
+        callable $refreshTokenAccessor,
+    ): UserLoginEntity {
+        $login = $this->configureNewLogin($type, $user, Uuid::uuid4()->toString(), $avatarUrl);
+        $login->setProviderId($providerId);
+        $this->updateLoginTokens($login, $refreshTokenAccessor, $token);
         EntityManager::getManager()->persist($login);
         $login->user = $user;
+
         return $login;
+    }
+
+    public function createLoginFromFacebookData(UserEntity $user, array $facebookData, $token): UserLoginEntity
+    {
+        return $this->createLoginFromProvider(
+            'facebook',
+            $user,
+            $facebookData['id'],
+            $facebookData['picture_url'],
+            $token,
+            fn ($t) => $t->getToken(),
+        );
     }
 
     public function createLoginFromGoogleData(UserEntity $user, array $googleData, $token): UserLoginEntity
     {
-        $login = $this->configureNewLogin('google', $user, Uuid::uuid4()->toString(), $googleData['picture']);
-        $login->setProviderId($googleData['sub']);
-        $this->updateLoginTokens($login, fn($t) => $t->getRefreshToken(), $token);
-        EntityManager::getManager()->persist($login);
-        $login->user = $user;
-        return $login;
+        return $this->createLoginFromProvider(
+            'google',
+            $user,
+            $googleData['sub'],
+            $googleData['picture'],
+            $token,
+            fn ($t) => $t->getRefreshToken(),
+        );
     }
 
     public function createLoginFromDiscordData(UserEntity $user, array $discordData, $token): UserLoginEntity
     {
         $avatarUrl = 'https://cdn.discordapp.com/embed/avatars/0.png';
         if (!empty($discordData['avatar'])) {
-            $avatarUrl = sprintf('https://cdn.discordapp.com/avatars/%s/%s.png', $discordData['id'], $discordData['avatar']);
+            $avatarUrl = sprintf(
+                'https://cdn.discordapp.com/avatars/%s/%s.png',
+                $discordData['id'],
+                $discordData['avatar']
+            );
         }
 
-        $login = $this->configureNewLogin('discord', $user, Uuid::uuid4()->toString(), $avatarUrl);
-        $login->setProviderId($discordData['id']);
-        $this->updateLoginTokens($login, fn($t) => $t->getRefreshToken(), $token);
-        EntityManager::getManager()->persist($login);
-        $login->user = $user;
-        return $login;
+        return $this->createLoginFromProvider(
+            'discord',
+            $user,
+            $discordData['id'],
+            $avatarUrl,
+            $token,
+            fn ($t) => $t->getRefreshToken(),
+        );
     }
 
     public function createLoginFromAppleData(UserEntity $user, array $appleData, $token): UserLoginEntity
     {
-        $login = $this->configureNewLogin('apple', $user, Uuid::uuid4()->toString(), '');
-        $login->setProviderId($appleData['sub']);
-        $this->updateLoginTokens($login, fn($t) => $t->getRefreshToken(), $token);
-        EntityManager::getManager()->persist($login);
-        $login->user = $user;
-        return $login;
+        return $this->createLoginFromProvider(
+            'apple',
+            $user,
+            $appleData['sub'],
+            '',
+            $token,
+            fn ($t) => $t->getRefreshToken(),
+        );
     }
 
     public function updateLoginTokens(UserLoginEntity $login, callable $refreshTokenAccessor, $token): UserLoginEntity

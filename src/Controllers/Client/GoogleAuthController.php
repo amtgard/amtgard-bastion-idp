@@ -1,15 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace Amtgard\IdP\Controllers\Client;
 
-use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\Security\OAuth2StateManager;
-use Amtgard\IdP\Utility\Security\OAuthCallbackValidator;
-use Amtgard\IdP\Utility\Security\RedirectValidator;
-use Amtgard\IdP\Utility\Security\ScriptAlertResponse;
+use Amtgard\IdP\Utility\Security\OAuthSocialCallbackHandler;
+use Amtgard\IdP\Utility\Security\OAuthSocialRedirectSessionStore;
 use League\OAuth2\Client\Provider\Google;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -23,7 +24,6 @@ class GoogleAuthController extends BaseAuthController
     private Google $googleProvider;
 
     public function __construct(
-        EntityManager $entityManager,
         UserRepository $users,
         UserLoginRepository $userLoginRepository,
         LoggerInterface $logger,
@@ -54,9 +54,7 @@ class GoogleAuthController extends BaseAuthController
 
         OAuth2StateManager::store($this->googleProvider->getState());
 
-        $queryParams = $request->getQueryParams();
-        $_SESSION['redirect'] = RedirectValidator::sanitizeOrNull($queryParams['redirect'] ?? null);
-        $_SESSION['jwtpublickey'] = $queryParams['jwtpublickey'] ?? null;
+        OAuthSocialRedirectSessionStore::storeFromQueryParams($request->getQueryParams());
 
         return $response
             ->withHeader('Location', $authUrl)
@@ -74,50 +72,47 @@ class GoogleAuthController extends BaseAuthController
     {
         $queryParams = $request->getQueryParams();
 
-        $validationResult = OAuthCallbackValidator::validate($queryParams, 'Google');
+        return OAuthSocialCallbackHandler::builder()
+            ->providerName('Google')
+            ->logger($this->logger)
+            ->fetchToken(function (array $params) {
+                return $this->googleProvider->getAccessToken('authorization_code', [
+                    'code' => $params['code'],
+                ]);
+            })
+            ->mapUserData(function ($token) {
+                return $this->googleProvider->getResourceOwner($token)->toArray();
+            })
+            ->resolveUser(function (array $userData, AuthorizationFinalizeRedirect &$redirectPolicy) {
+                return Optional::ofNullable($this->users->getUserByEmail($userData['email']))
+                    ->orElseGet(function () use ($userData, &$redirectPolicy) {
+                        $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
 
-        if ($validationResult !== null) {
-            $response->getBody()->write($validationResult);
-            return $response;
-        }
+                        return $this->users->createUserFromGoogleData($userData);
+                    });
+            })
+            ->resolveLogin(function ($user, array $userData, $token) {
+                return Optional::ofNullable($this->logins->getLoginByProviderId($userData['sub']))
+                    ->map(function ($login) use ($user, $token) {
+                        $login->setUser($user);
 
-        try {
-            // Get access token
-            $token = $this->googleProvider->getAccessToken('authorization_code', [
-                'code' => $queryParams['code']
-            ]);
-
-            // Get user details
-            $googleUser = $this->googleProvider->getResourceOwner($token);
-            $userData = $googleUser->toArray();
-
-            $this->logger->debug('Google user data: ' . json_encode($userData));
-
-            $isNewUser = false;
-            $user = Optional::ofNullable($this->users->getUserByEmail($userData['email']))
-                ->orElseGet(function () use ($userData, &$isNewUser) {
-                    $isNewUser = true;
-                    return $this->users->createUserFromGoogleData($userData);
-                });
-
-            $login = Optional::ofNullable($this->logins->getLoginByProviderId($userData['sub']))
-                ->map(function ($login) use ($user, $token) {
-                    $login->setUser($user);
-                    return $this->logins->updateLoginTokens($login, fn($t) => $t->getRefreshToken(), $token);
-                })
-                ->orElseGet(function () use ($user, $userData, $token) {
-                    return $this->logins->createLoginFromGoogleData($user, $userData, $token);
-                });
-
-            return $this->finalizeAuthorization($login, $request, $response, $isNewUser);
-        } catch (\Exception $e) {
-            $this->logger->error('Google authentication error: ' . $e->getTraceAsString());
-
-            $response->getBody()->write(
-                ScriptAlertResponse::alertAndRedirect($e->getMessage(), '/auth/login?policy')
+                        return $this->logins->updateLoginTokens($login, fn ($t) => $t->getRefreshToken(), $token);
+                    })
+                    ->orElseGet(function () use ($user, $userData, $token) {
+                        return $this->logins->createLoginFromGoogleData($user, $userData, $token);
+                    });
+            })
+            ->build()
+            ->handle(
+                $queryParams,
+                $response,
+                fn ($login, $redirectPolicy) => $this->finalizeAuthorization(
+                    $login,
+                    $request,
+                    $response,
+                    $redirectPolicy
+                ),
             );
-            return $response;
-        }
     }
 
 
