@@ -11,6 +11,7 @@ use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Services\ResourcesUserinfoService;
@@ -45,6 +46,7 @@ class ResourcesController
     private UserAuthority $userAuthority;
     private CurrentUserResolverInterface $currentUserResolver;
     private ResourcesUserinfoService $userinfoService;
+    private ClientAccessRepository $clientAccessRepository;
 
 
     public function __construct(
@@ -63,6 +65,7 @@ class ResourcesController
         UserAuthority $userAuthority,
         CurrentUserResolverInterface $currentUserResolver,
         ResourcesUserinfoService $userinfoService,
+        ClientAccessRepository $clientAccessRepository,
     ) {
         $this->logger = $logger;
         $this->twig = $twig;
@@ -78,6 +81,7 @@ class ResourcesController
         $this->amtgardIdpJwt = $amtgardIdpJwt;
         $this->userAuthority = $userAuthority;
         $this->currentUserResolver = $currentUserResolver;
+        $this->clientAccessRepository = $clientAccessRepository;
         $this->userinfoService = $userinfoService;
     }
 
@@ -240,9 +244,11 @@ class ResourcesController
         $orkProfile = null;
         $userLogins = [];
         $isAdmin = false;
+        $hasClientAccess = false;
         $clients = [];
         if ($user) {
             $isAdmin = $this->userAuthority->isAdmin($user);
+            $hasClientAccess = $this->clientAccessRepository->userHasAnyAccess($user->getId());
             $clients = $this->clientRepository->findActiveClientsForUser($user->getId());
             $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
             $userLogins = $this->userLoginRepository->getAllLoginsForUser($user->getId());
@@ -258,6 +264,7 @@ class ResourcesController
             'error' => $error,
             'success' => $success,
             'isAdmin' => $isAdmin,
+            'hasClientAccess' => $hasClientAccess,
             'pendingRedirect' => $pendingRedirect !== null,
             'sessionUserId' => $_SESSION['user_id'] ?? null,
         ]));

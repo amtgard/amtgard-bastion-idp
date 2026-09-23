@@ -7,9 +7,12 @@ namespace Amtgard\IdP\Persistence\Server\Repositories;
 
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
+use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
+use Amtgard\ActiveRecordOrm\Query\OrderBy;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
+use Amtgard\IdP\Persistence\Server\Entities\Repository\ClientAccess;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use Optional\Optional;
@@ -43,6 +46,44 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
         /** @var Client|null $client */
         $client = $this->fetchBy('identifier', $clientIdentifier);
         return $client;
+    }
+
+    /**
+     * Clients a user may administer (redirect URI only) via client_access.
+     *
+     * @return Client[]
+     */
+    public function findClientsGrantedToUser(int $userId): array
+    {
+        $clientIds = array_map(
+            fn (ClientAccess $row) => $row->getClientDbId(),
+            $this->accessRepository()->findByUserId($userId)
+        );
+        if ($clientIds === []) {
+            return [];
+        }
+
+        $this->clear();
+        $this->getTable()->in('id', $clientIds);
+        $this->orderBy('name', OrderBy::ASC);
+        $this->find();
+
+        $clients = [];
+        while ($this->next()) {
+            /** @var Client $client */
+            $client = $this->getCurrent();
+            $clients[] = $client;
+        }
+
+        return $clients;
+    }
+
+    protected function accessRepository(): ClientAccessRepository
+    {
+        /** @var ClientAccessRepository $access */
+        $access = EntityManager::getManager()->getRepository(ClientAccessRepository::class);
+
+        return $access;
     }
 
     public function findActiveClientsForUser($userId)

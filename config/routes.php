@@ -12,6 +12,7 @@ use Amtgard\IdP\Controllers\HomeController;
 use Amtgard\IdP\Controllers\Resource\ClientResourcesController;
 use Amtgard\IdP\Controllers\Resource\LowLatencyController;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
+use Amtgard\IdP\Controllers\Management\ClientAccessController;
 use Amtgard\IdP\Controllers\Management\ManagementController;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
 use Amtgard\IdP\Controllers\SwaggerController;
@@ -59,6 +60,15 @@ return function (App $app) {
         $group->get('/profile', [ResourcesController::class, 'profile'])
             ->add(LocalIdpAuthMiddleware::class)
             ->setName('resources.profile');
+
+        $group->get('/clients', [ClientAccessController::class, 'listClients'])
+            ->add(LocalIdpAuthMiddleware::class)
+            ->setName('resources.clients');
+
+        $group->post('/clients/{id}/redirect', [ClientAccessController::class, 'updateRedirect'])
+            ->add(CsrfMiddleware::class)
+            ->add(LocalIdpAuthMiddleware::class)
+            ->setName('resources.clients.redirect');
 
         $group->get('/authorizations', [ResourcesController::class, 'authorizations'])
             ->add(ClientRestrictedAuthMiddleware::class)
@@ -183,6 +193,23 @@ return function (App $app) {
             ->add(LocalIdpAuthMiddleware::class)
             ->add(LocalAdminUserMiddleware::class)
             ->setName('management.clients.update');
+
+        $group->get('/users/search', [ManagementController::class, 'searchUsers'])
+            ->add(LocalIdpAuthMiddleware::class)
+            ->add(LocalAdminUserMiddleware::class)
+            ->setName('management.users.search');
+
+        $group->post('/clients/{id}/access', [ManagementController::class, 'addClientAccess'])
+            ->add(CsrfMiddleware::class)
+            ->add(LocalIdpAuthMiddleware::class)
+            ->add(LocalAdminUserMiddleware::class)
+            ->setName('management.clients.access.add');
+
+        $group->post('/clients/{id}/access/{userId}/delete', [ManagementController::class, 'removeClientAccess'])
+            ->add(CsrfMiddleware::class)
+            ->add(LocalIdpAuthMiddleware::class)
+            ->add(LocalAdminUserMiddleware::class)
+            ->setName('management.clients.access.remove');
     });
 
     // OAuth2 server routes

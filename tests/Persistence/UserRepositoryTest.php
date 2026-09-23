@@ -7,6 +7,8 @@ namespace Amtgard\IdP\Tests\Persistence;
 use Amtgard\ActiveRecordOrm\Entity\Policy\RepositoryPolicy;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
+use Amtgard\ActiveRecordOrm\Interface\TableInterface;
+use Amtgard\ActiveRecordOrm\Query\OrderBy;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\ActiveRecordOrm\Schema\FieldDefinition;
 use Amtgard\ActiveRecordOrm\Schema\FieldType;
@@ -71,6 +73,51 @@ class UserRepositoryTest extends TestCase
         $repository->expects($this->once())->method('fetchBy')->with('email', 'user@example.com')->willReturn($user);
 
         $this->assertSame($user, $repository->getUserByEmail('user@example.com'));
+    }
+
+    public function testFindUserByIdFetchesPrimaryKey(): void
+    {
+        $user = new UserEntity();
+        $repository = $this->getMockBuilder(UserRepository::class)
+            ->onlyMethods(['fetch'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())->method('fetch')->with(3)->willReturn($user);
+
+        $this->assertSame($user, $repository->findUserById(3));
+    }
+
+    public function testSearchByEmailPrefixReturnsEmptyForBlankQuery(): void
+    {
+        $repository = $this->getMockBuilder(UserRepository::class)
+            ->onlyMethods(['getTable'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->never())->method('getTable');
+
+        $this->assertSame([], $repository->searchByEmailPrefix('   '));
+    }
+
+    public function testSearchByEmailPrefixQueriesLikePrefix(): void
+    {
+        $user = new class extends UserEntity {
+            public function getId(): int { return 3; }
+            public function getEmail(): string { return 'owner@example.com'; }
+        };
+        $table = $this->createMock(TableInterface::class);
+        $table->expects($this->once())->method('__call')->with('like', ['email', 'own\\%er%']);
+        $repository = $this->getMockBuilder(UserRepository::class)
+            ->onlyMethods(['clear', 'getTable', 'orderBy', 'limit', 'find', 'next', 'getCurrent'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->method('getTable')->willReturn($table);
+        $repository->expects($this->once())->method('orderBy')->with('email', OrderBy::ASC);
+        $repository->expects($this->once())->method('limit')->with(0, 10);
+        $repository->expects($this->once())->method('find');
+        $repository->method('next')->willReturnOnConsecutiveCalls(true, false);
+        $repository->method('getCurrent')->willReturn($user);
+
+        $this->assertSame([['id' => 3, 'email' => 'owner@example.com']], $repository->searchByEmailPrefix('own%er'));
     }
 
     public function testFindUserByUserIdFetchesByUserIdField(): void

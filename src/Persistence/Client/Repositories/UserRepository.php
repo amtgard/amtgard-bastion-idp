@@ -7,6 +7,7 @@ use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
+use Amtgard\ActiveRecordOrm\Query\OrderBy;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
@@ -85,6 +86,52 @@ class UserRepository extends Repository implements EntityRepositoryInterface, Us
 
     public function findUserByUserId(string $userId): ?UserEntity {
         return $this->fetchBy('user_id', $userId);
+    }
+
+    public function findUserById(int $id): ?UserEntity
+    {
+        /** @var UserEntity|null $user */
+        $user = $this->fetch($id);
+
+        return $user;
+    }
+
+    /**
+     * Type-ahead lookup of existing accounts by email prefix.
+     *
+     * @return array<int, array{id: int, email: string}>
+     */
+    public function searchByEmailPrefix(string $query, int $limit = 10): array
+    {
+        $query = trim($query);
+        if ($query === '') {
+            return [];
+        }
+
+        $limit = max(1, min(25, $limit));
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $query);
+
+        $this->clear();
+        $this->getTable()->like('email', $escaped . '%');
+        $this->orderBy('email', OrderBy::ASC);
+        $this->limit(0, $limit);
+        $this->find();
+
+        $results = [];
+        while ($this->next()) {
+            /** @var UserEntity $user */
+            $user = $this->getCurrent();
+            $email = $user->getEmail();
+            if ($email === null || $email === '') {
+                continue;
+            }
+            $results[] = [
+                'id' => $user->getId(),
+                'email' => $email,
+            ];
+        }
+
+        return $results;
     }
 
     public function getUserEntityById(string $userIdentifier): ?UserEntityInterface {

@@ -6,10 +6,15 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Controllers\Management;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
+use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
+use Amtgard\IdP\Persistence\Server\Entities\Repository\ClientAccess;
+use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Utility\Client\ClientIamAdminInput;
+use Amtgard\IdP\Utility\JsonResponseBody;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -28,6 +33,8 @@ class ManagementController
     private AuthCodeRepositoryInterface $authCodes;
     private ClientRepository $clientRepository;
     private OrkLinkTokenService $orkLinkTokenService;
+    private ClientAccessRepository $clientAccessRepository;
+    private UserRepository $userRepository;
 
     public function __construct(
         LoggerInterface $logger,
@@ -36,7 +43,9 @@ class ManagementController
         RefreshTokenRepositoryInterface $refreshTokenRepository,
         AuthCodeRepositoryInterface $authCodeRepository,
         ClientRepositoryInterface $clientRepository,
-        OrkLinkTokenService $orkLinkTokenService
+        OrkLinkTokenService $orkLinkTokenService,
+        ClientAccessRepository $clientAccessRepository,
+        UserRepository $userRepository,
     ) {
         $this->logger = $logger;
         $this->twig = $twig;
@@ -45,6 +54,8 @@ class ManagementController
         $this->authCodes = $authCodeRepository;
         $this->clientRepository = $clientRepository;
         $this->orkLinkTokenService = $orkLinkTokenService;
+        $this->clientAccessRepository = $clientAccessRepository;
+        $this->userRepository = $userRepository;
     }
 
     public function cleanTokens(Request $request, Response $response): Response
@@ -75,24 +86,15 @@ class ManagementController
     {
         $clients = $this->clientRepository->getAllClients();
         $clientData = array_map(function($client) {
-            return [
-                'id' => $client->getId(),
-                'identifier' => $client->getIdentifier(),
-                'clientSecret' => $client->getClientSecret(),
-                'name' => $client->getName(),
-                'redirectUri' => $client->getRedirectUri(),
-                'isConfidential' => $client->getIsConfidential(),
-                'isDev' => $client->getIsDev(),
-                'iamService' => $client->getIamService(),
-                'iamServiceFormat' => $client->getIamServiceFormat(),
-            ];
+            return $this->clientToArray($client, $this->accessUsersForClient($client->getId()));
         }, $clients);
         
         $newClientSecret = $this->generateClientSecret();
 
         $view = $this->twig->render('management/clients.twig', [
             'clients' => $clientData,
-            'newClientSecret' => $newClientSecret
+            'newClientSecret' => $newClientSecret,
+            'viewMode' => 'admin',
         ]);
         $response->getBody()->write($view);
         return $response;
@@ -147,6 +149,111 @@ class ManagementController
         return $response
             ->withHeader('Location', '/management/clients')
             ->withStatus(302);
+    }
+
+    public function searchUsers(Request $request, Response $response): Response
+    {
+        $query = trim((string) ($request->getQueryParams()['q'] ?? ''));
+        if (strlen($query) < 2) {
+            return JsonResponseBody::write($response, ['users' => []]);
+        }
+
+        return JsonResponseBody::write($response, [
+            'users' => $this->userRepository->searchByEmailPrefix($query),
+        ]);
+    }
+
+    public function addClientAccess(Request $request, Response $response, $id): Response
+    {
+        $clientId = (int) $id;
+        $client = $this->clientRepository->fetch($clientId);
+        if (!$client) {
+            return JsonResponseBody::writeError($response, 'Client not found', 404);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $user = $this->resolveAccessUser($data);
+        if ($user === null) {
+            return JsonResponseBody::writeError($response, 'User not found', 404);
+        }
+
+        $this->clientAccessRepository->grant($clientId, $user->getId());
+
+        return JsonResponseBody::write($response, [
+            'id' => $user->getId(),
+            'email' => $user->getEmail(),
+        ]);
+    }
+
+    public function removeClientAccess(Request $request, Response $response, $id, $userId): Response
+    {
+        $clientId = (int) $id;
+        $client = $this->clientRepository->fetch($clientId);
+        if (!$client) {
+            return JsonResponseBody::writeError($response, 'Client not found', 404);
+        }
+
+        $this->clientAccessRepository->revoke($clientId, (int) $userId);
+
+        return JsonResponseBody::write($response, ['ok' => true]);
+    }
+
+    /**
+     * @return array<int, array{id: int, email: string}>
+     */
+    private function accessUsersForClient(?int $clientId): array
+    {
+        if (!$clientId) {
+            return [];
+        }
+
+        $users = [];
+        foreach ($this->clientAccessRepository->findByClientId($clientId) as $row) {
+            /** @var ClientAccess $row */
+            $user = $this->userRepository->findUserById($row->getUserId());
+            if (!$user instanceof UserEntity || !$user->getEmail()) {
+                continue;
+            }
+            $users[] = [
+                'id' => $user->getId(),
+                'email' => $user->getEmail(),
+            ];
+        }
+
+        return $users;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function resolveAccessUser(array $data): ?UserEntity
+    {
+        if (isset($data['user_id']) && $data['user_id'] !== '') {
+            return $this->userRepository->findUserById((int) $data['user_id']);
+        }
+
+        $email = trim((string) ($data['email'] ?? ''));
+        if ($email === '') {
+            return null;
+        }
+
+        return $this->userRepository->getUserByEmail($email);
+    }
+
+    private function clientToArray(Client $client, array $accessUsers = []): array
+    {
+        return [
+            'id' => $client->getId(),
+            'identifier' => $client->getIdentifier(),
+            'clientSecret' => $client->getClientSecret(),
+            'name' => $client->getName(),
+            'redirectUri' => $client->getRedirectUri(),
+            'isConfidential' => $client->getIsConfidential(),
+            'isDev' => $client->getIsDev(),
+            'iamService' => $client->getIamService(),
+            'iamServiceFormat' => $client->getIamServiceFormat(),
+            'accessUsers' => $accessUsers,
+        ];
     }
 
     private function generateClientSecret($length = 32)

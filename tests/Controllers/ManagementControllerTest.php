@@ -11,7 +11,11 @@ use Amtgard\ActiveRecordOrm\Schema\TableSchema;
 use Amtgard\ActiveRecordOrm\Schema\FieldDefinition;
 use Amtgard\ActiveRecordOrm\Schema\FieldType;
 use Amtgard\IdP\Controllers\Management\ManagementController;
+use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
+use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
+use Amtgard\IdP\Persistence\Server\Entities\Repository\ClientAccess;
+use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
@@ -52,6 +56,8 @@ class ManagementControllerTest extends TestCase
     private $authCodes;
     private $clientRepository;
     private $orkLinkTokenService;
+    private $clientAccessRepository;
+    private $userRepository;
     private $request;
     private $response;
     private $stream;
@@ -81,6 +87,8 @@ class ManagementControllerTest extends TestCase
         $this->authCodes = $this->createMock(\Amtgard\IdP\Persistence\Server\Repositories\AuthCodeRepository::class);
         $this->clientRepository = $this->createMock(ClientRepository::class);
         $this->orkLinkTokenService = $this->createMock(\Amtgard\IdP\Services\OrkLinkTokenService::class);
+        $this->clientAccessRepository = $this->createMock(ClientAccessRepository::class);
+        $this->userRepository = $this->createMock(UserRepository::class);
 
         $this->request = $this->createMock(ServerRequestInterface::class);
         $this->response = $this->createMock(ResponseInterface::class);
@@ -97,7 +105,9 @@ class ManagementControllerTest extends TestCase
             $this->refreshTokens,
             $this->authCodes,
             $this->clientRepository,
-            $this->orkLinkTokenService
+            $this->orkLinkTokenService,
+            $this->clientAccessRepository,
+            $this->userRepository
         );
     }
 
@@ -147,23 +157,45 @@ class ManagementControllerTest extends TestCase
 
     public function testListClients(): void
     {
-        $client = Client::builder()
-            ->identifier('client-1')
-            ->clientSecret('secret-1')
-            ->name('Name 1')
-            ->redirectUri('http://redirect-1')
-            ->isConfidential(false)
-            ->isDev(false)
-            ->build();
+        $client = new class extends Client {
+            public function getId(): mixed { return 9; }
+            public function getIdentifier(): string { return 'client-1'; }
+            public function getClientSecret(): string { return 'secret-1'; }
+            public function getName(): string { return 'Name 1'; }
+            public function getRedirectUri(): string { return 'http://redirect-1'; }
+            public function getIsConfidential(): bool { return false; }
+            public function getIsDev(): bool { return false; }
+            public function getIamService(): ?string { return null; }
+            public function getIamServiceFormat(): ?string { return null; }
+        };
+
+        $access = new class extends ClientAccess {
+            public function getUserId(): int { return 3; }
+        };
+        $user = new class extends UserEntity {
+            public function getId(): int { return 3; }
+            public function getEmail(): string { return 'owner@example.com'; }
+        };
 
         $this->clientRepository->expects($this->once())
             ->method('getAllClients')
             ->willReturn([$client]);
+        $this->clientAccessRepository->expects($this->once())
+            ->method('findByClientId')
+            ->with(9)
+            ->willReturn([$access]);
+        $this->userRepository->expects($this->once())
+            ->method('findUserById')
+            ->with(3)
+            ->willReturn($user);
 
         $this->twig->expects($this->once())
             ->method('render')
             ->with('management/clients.twig', $this->callback(function ($context) {
-                return count($context['clients']) === 1 && $context['clients'][0]['identifier'] === 'client-1';
+                return count($context['clients']) === 1
+                    && $context['clients'][0]['identifier'] === 'client-1'
+                    && $context['viewMode'] === 'admin'
+                    && $context['clients'][0]['accessUsers'][0]['email'] === 'owner@example.com';
             }))
             ->willReturn('clients HTML');
 
@@ -242,5 +274,70 @@ class ManagementControllerTest extends TestCase
         // Use AARO Data getters (magic methods mapped in Client/RepositoryEntity)
         $this->assertEquals('updated-client', $client->getIdentifier());
         $this->assertEquals('new-secret', $client->getClientSecret());
+    }
+
+    public function testSearchUsersReturnsEmptyWhenQueryTooShort(): void
+    {
+        $this->request->method('getQueryParams')->willReturn(['q' => 'a']);
+        $this->userRepository->expects($this->never())->method('searchByEmailPrefix');
+        $this->stream->expects($this->once())->method('write')->with(json_encode(['users' => []]));
+
+        $result = $this->controller->searchUsers($this->request, $this->response);
+        $this->assertSame($this->response, $result);
+    }
+
+    public function testSearchUsersReturnsMatches(): void
+    {
+        $this->request->method('getQueryParams')->willReturn(['q' => 'own']);
+        $this->userRepository->expects($this->once())
+            ->method('searchByEmailPrefix')
+            ->with('own')
+            ->willReturn([['id' => 3, 'email' => 'owner@example.com']]);
+        $this->stream->expects($this->once())
+            ->method('write')
+            ->with(json_encode(['users' => [['id' => 3, 'email' => 'owner@example.com']]]));
+
+        $this->controller->searchUsers($this->request, $this->response);
+    }
+
+    public function testAddClientAccessGrantsExistingUser(): void
+    {
+        $client = Client::builder()->identifier('app')->build();
+        $user = new class extends UserEntity {
+            public function getId(): int { return 3; }
+            public function getEmail(): string { return 'owner@example.com'; }
+        };
+
+        $this->clientRepository->expects($this->once())->method('fetch')->with(9)->willReturn($client);
+        $this->request->method('getParsedBody')->willReturn(['user_id' => 3]);
+        $this->userRepository->expects($this->once())->method('findUserById')->with(3)->willReturn($user);
+        $this->clientAccessRepository->expects($this->once())->method('grant')->with(9, 3);
+        $this->stream->expects($this->once())
+            ->method('write')
+            ->with(json_encode(['id' => 3, 'email' => 'owner@example.com']));
+
+        $this->controller->addClientAccess($this->request, $this->response, 9);
+    }
+
+    public function testAddClientAccessReturnsNotFoundWhenUserMissing(): void
+    {
+        $client = Client::builder()->identifier('app')->build();
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->request->method('getParsedBody')->willReturn(['email' => 'missing@example.com']);
+        $this->userRepository->method('getUserByEmail')->willReturn(null);
+        $this->clientAccessRepository->expects($this->never())->method('grant');
+        $this->response->expects($this->once())->method('withStatus')->with(404)->willReturnSelf();
+
+        $this->controller->addClientAccess($this->request, $this->response, 9);
+    }
+
+    public function testRemoveClientAccessRevokesGrant(): void
+    {
+        $client = Client::builder()->identifier('app')->build();
+        $this->clientRepository->expects($this->once())->method('fetch')->with(9)->willReturn($client);
+        $this->clientAccessRepository->expects($this->once())->method('revoke')->with(9, 3);
+        $this->stream->expects($this->once())->method('write')->with(json_encode(['ok' => true]));
+
+        $this->controller->removeClientAccess($this->request, $this->response, 9, 3);
     }
 }
