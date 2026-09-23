@@ -6,10 +6,12 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Models;
 
 use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
+use Amtgard\IdP\Persistence\Server\Entities\Repository\UserJwtGeneration;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\OAuthKeyMaterial;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\Traits\Builder\Builder;
+use Optional\Optional;
 use Amtgard\Traits\Builder\Getter;
 use Firebase\JWT\JWT;
 
@@ -42,12 +44,12 @@ final class AmtgardIdpJwt
             'RS256'
         );
 
-        $generation = $this->assembler->lastGeneration();
-        if ($generation !== null) {
-            $this->redisCacheRepository->setPvhRecord(
-                PvhCacheRecord::fromGeneration($generation, (string) ($user->email ?? ''))
-            );
-        }
+        Optional::ofNullable($this->assembler->lastGeneration())
+            ->ifPresent(function (UserJwtGeneration $generation) use ($user): void {
+                $this->redisCacheRepository->setPvhRecord(
+                    PvhCacheRecord::fromGeneration($generation, (string) ($user->email ?? ''))
+                );
+            });
 
         return ['jwt' => $jwt, 'compact_jwt' => $compactJwt];
     }

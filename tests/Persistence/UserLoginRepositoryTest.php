@@ -112,12 +112,11 @@ class UserLoginRepositoryTest extends TestCase
         };
         $fields = [];
         $repository = $this->getMockBuilder(UserLoginRepository::class)
-            ->onlyMethods(['clear', 'query', 'execute', 'next', '__set'])
+            ->onlyMethods(['clear', 'find', 'next', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->expects($this->once())->method('clear');
-        $repository->expects($this->once())->method('query')->with("select * from user_logins where user_id = :user_id and type = 'local'");
-        $repository->expects($this->once())->method('execute');
+        $repository->expects($this->once())->method('find');
         $repository->expects($this->once())->method('next')->willReturn(false);
         $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
             $fields[$name] = $value;
@@ -125,19 +124,27 @@ class UserLoginRepositoryTest extends TestCase
 
         $this->assertNull($repository->getLoginByUser($user));
         $this->assertSame(10, $fields['user_id']);
+        $this->assertSame('local', $fields['type']);
     }
 
     public function testResolveDefaultLoginIdForUserReturnsLocalLoginId(): void
     {
+        $fields = [];
         $repository = $this->getMockBuilder(UserLoginRepository::class)
-            ->onlyMethods(['clear', 'query', 'execute', 'next', '__set', '__get'])
+            ->onlyMethods(['clear', 'find', 'limit', 'next', '__set', '__get'])
             ->disableOriginalConstructor()
             ->getMock();
-        $repository->expects($this->once())->method('query')->with("select id from user_logins where user_id = :user_id and type = 'local' limit 1");
+        $repository->expects($this->once())->method('limit')->with(0, 1);
+        $repository->expects($this->once())->method('find');
         $repository->method('next')->willReturn(true);
         $repository->method('__get')->with('id')->willReturn(42);
+        $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
+            $fields[$name] = $value;
+        });
 
         $this->assertSame(42, $repository->resolveDefaultLoginIdForUser(10));
+        $this->assertSame(10, $fields['user_id']);
+        $this->assertSame('local', $fields['type']);
     }
 
     public function testResolveDefaultLoginIdForUserFallsBackToFirstLogin(): void
@@ -146,7 +153,7 @@ class UserLoginRepositoryTest extends TestCase
             public function getId(): ?int { return 77; }
         };
         $repository = $this->getMockBuilder(UserLoginRepository::class)
-            ->onlyMethods(['clear', 'query', 'execute', 'next', '__set', 'getAllLoginsForUser'])
+            ->onlyMethods(['clear', 'find', 'limit', 'next', '__set', 'getAllLoginsForUser'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->method('next')->willReturn(false);
@@ -158,7 +165,7 @@ class UserLoginRepositoryTest extends TestCase
     public function testResolveDefaultLoginIdForUserReturnsNullWhenNoLoginsExist(): void
     {
         $repository = $this->getMockBuilder(UserLoginRepository::class)
-            ->onlyMethods(['clear', 'query', 'execute', 'next', '__set', 'getAllLoginsForUser'])
+            ->onlyMethods(['clear', 'find', 'limit', 'next', '__set', 'getAllLoginsForUser'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->method('next')->willReturn(false);

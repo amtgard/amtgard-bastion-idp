@@ -33,6 +33,8 @@ class UserPolicyClaimRepositoryCursorMapper extends EntityMapper
 
     public function clear(): void {}
     public function find(): int { return count($this->rows); }
+    public function count(string $countAlias = 'row_count'): int { return count($this->rows); }
+    public function delete(?\Amtgard\ActiveRecordOrm\Interface\EntityInterface $entity = null): void {}
     public function next(): bool
     {
         $this->index++;
@@ -93,8 +95,7 @@ class UserPolicyClaimRepositoryTest extends TestCase
     public function testDeleteClaimExecutesDeleteStatement(): void
     {
         $this->mapper->expects($this->once())->method('clear');
-        $this->mapper->expects($this->once())->method('query');
-        $this->mapper->expects($this->once())->method('execute');
+        $this->mapper->expects($this->once())->method('delete')->with(null);
 
         $this->assertTrue($this->repository->deleteClaim(1, 'Skbc', ':0::::', 'Officer/Approve'));
     }
@@ -102,6 +103,7 @@ class UserPolicyClaimRepositoryTest extends TestCase
     public function testAddClaimInsertsWhenClaimDoesNotExist(): void
     {
         $this->mapper->method('find')->willReturn(0);
+        $this->mapper->method('count')->willReturn(0);
         $this->mapper->method('next')->willReturn(false);
         $this->mapper->expects($this->atLeastOnce())->method('execute');
 

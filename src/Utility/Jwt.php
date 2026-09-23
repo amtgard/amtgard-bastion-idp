@@ -94,14 +94,9 @@ final class Jwt
         ServerRequestInterface $request,
         ?LoggerInterface $logger = null,
     ): ?string {
-        $optionalJwt = Optional::ofNullable(self::getBearerJwt($request));
-        if ($optionalJwt->isPresent()) {
-            $putativeJwt = $optionalJwt->get();
-
-            return self::validateJwtSignature($putativeJwt, $logger);
-        }
-
-        return null;
+        return Optional::ofNullable(self::getBearerJwt($request))
+            ->map(fn (string $putativeJwt) => self::validateJwtSignature($putativeJwt, $logger))
+            ->orElse(null);
     }
 
     /**

@@ -5,22 +5,20 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Utility;
 
 use Amtgard\IAM\ORN\OrnClassMap;
+use Optional\Optional;
 
 final class IamServiceValidator
 {
     public static function validate(?string $iamService): ?string
     {
-        if ($iamService === null || $iamService === '') {
-            return null;
-        }
+        return Optional::ofNullable($iamService)
+            ->filter(fn (string $value) => trim($value) !== '')
+            ->map(function (string $value): string {
+                $value = trim($value);
+                OrnClassMap::validateCustomPrefix($value);
 
-        $iamService = trim($iamService);
-        if ($iamService === '') {
-            return null;
-        }
-
-        OrnClassMap::validateCustomPrefix($iamService);
-
-        return $iamService;
+                return $value;
+            })
+            ->orElse(null);
     }
 }

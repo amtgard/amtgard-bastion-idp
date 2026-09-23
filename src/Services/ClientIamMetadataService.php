@@ -10,6 +10,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Utility\ClientMetadataValidator;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Getter;
+use Optional\Optional;
 final class ClientIamMetadataService
 {
     use Builder;
@@ -42,16 +43,13 @@ final class ClientIamMetadataService
      */
     public function get(Client $client, UserEntity $user, int $loginId): ?array
     {
-        $stored = $this->metadataRepository->getMetadata($loginId, $client->getId());
-        if ($stored === null) {
-            return null;
-        }
-
-        return [
-            'login_id' => $loginId,
-            'metadata' => $stored['metadata'],
-            'encoding' => $stored['encoding'],
-        ];
+        return Optional::ofNullable($this->metadataRepository->getMetadata($loginId, $client->getId()))
+            ->map(fn (array $stored): array => [
+                'login_id' => $loginId,
+                'metadata' => $stored['metadata'],
+                'encoding' => $stored['encoding'],
+            ])
+            ->orElse(null);
     }
 
     public function delete(Client $client, int $loginId): void

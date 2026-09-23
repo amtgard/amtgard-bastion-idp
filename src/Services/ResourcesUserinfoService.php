@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Services;
 
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
+use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Getter;
+use Optional\Optional;
 
 final class ResourcesUserinfoService
 {
@@ -26,10 +28,10 @@ final class ResourcesUserinfoService
             'email' => $user->getEmail(),
         ];
 
-        $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
-        if ($orkProfile !== null) {
-            $userData['ork_profile'] = $orkProfile->toUserinfoProfileArray();
-        }
+        Optional::ofNullable($this->orkProfileRepository->findByUserId($user->getId()))
+            ->ifPresent(function (UserOrkProfileEntity $orkProfile) use (&$userData): void {
+                $userData['ork_profile'] = $orkProfile->toUserinfoProfileArray();
+            });
 
         return $userData;
     }

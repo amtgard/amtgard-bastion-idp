@@ -90,7 +90,11 @@ class ConnectController
         $login = Optional::ofNullable($user)
             ->map(fn($u) => $this->logins->getLoginByUser($u))
             ->orElse(null);
-        if ($login === null || $login->getPassword() === null || !password_verify($password, $login->getPassword())) {
+        $passwordMatches = Optional::ofNullable($login)
+            ->map(fn ($localLogin) => $localLogin->getPassword())
+            ->filter(fn ($hash) => $hash !== null && password_verify($password, $hash))
+            ->isPresent();
+        if (!$passwordMatches) {
             return $this->renderFormError($response, $linkToken, $authoritativeEmail, 'login', 'Email or password incorrect.');
         }
 
@@ -343,7 +347,8 @@ class ConnectController
      */
     private function peekTokenForRender(string $jwt): ?array
     {
-        $claims = $this->tokenService->peekClaims($jwt);
-        return $claims === null ? null : ['email' => $claims['email']];
+        return Optional::ofNullable($this->tokenService->peekClaims($jwt))
+            ->map(fn (array $claims) => ['email' => $claims['email']])
+            ->orElse(null);
     }
 }
