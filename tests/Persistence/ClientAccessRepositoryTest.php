@@ -127,17 +127,33 @@ class ClientAccessRepositoryTest extends TestCase
         $repository->grant(9, 3);
     }
 
+    public function testFindByUserIdReturnsCurrentRows(): void
+    {
+        $row = ClientAccess::builder()->clientDbId(9)->userId(3)->build();
+        $fields = [];
+        $repository = $this->getMockBuilder(ClientAccessRepository::class)
+            ->onlyMethods(['clear', 'find', 'next', 'getCurrent', '__set'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())->method('find');
+        $repository->method('next')->willReturnOnConsecutiveCalls(true, false);
+        $repository->method('getCurrent')->willReturn($row);
+        $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
+            $fields[$name] = $value;
+        });
+
+        $this->assertSame([$row], $repository->findByUserId(3));
+        $this->assertSame(3, $fields['user_id']);
+    }
+
     public function testRevokeDeletesMatchingRow(): void
     {
         $fields = [];
         $repository = $this->getMockBuilder(ClientAccessRepository::class)
-            ->onlyMethods(['clear', 'query', 'execute', '__set'])
+            ->onlyMethods(['clear', 'delete', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
-        $repository->expects($this->once())
-            ->method('query')
-            ->with('DELETE FROM client_access WHERE client_id = :client_id AND user_id = :user_id');
-        $repository->expects($this->once())->method('execute');
+        $repository->expects($this->once())->method('delete')->with(null);
         $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
             $fields[$name] = $value;
         });

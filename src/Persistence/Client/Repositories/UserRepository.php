@@ -7,6 +7,7 @@ use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
+use Amtgard\ActiveRecordOrm\Query\OrderBy;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
@@ -111,11 +112,10 @@ class UserRepository extends Repository implements EntityRepositoryInterface, Us
         $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $query);
 
         $this->clear();
-        $this->query(
-            "SELECT id, email FROM users WHERE email LIKE :email_like ORDER BY email LIMIT {$limit}"
-        );
-        $this->email_like = $escaped . '%';
-        $this->execute();
+        $this->getTable()->like('email', $escaped . '%');
+        $this->orderBy('email', OrderBy::ASC);
+        $this->limit(0, $limit);
+        $this->find();
 
         $results = [];
         while ($this->next()) {

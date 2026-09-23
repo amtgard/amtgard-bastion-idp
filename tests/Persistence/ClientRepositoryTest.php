@@ -7,6 +7,10 @@ namespace Amtgard\IdP\Tests\Persistence;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Entity\Policy\RepositoryPolicy;
 use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
+use Amtgard\ActiveRecordOrm\Interface\TableInterface;
+use Amtgard\ActiveRecordOrm\Query\OrderBy;
+use Amtgard\IdP\Persistence\Server\Entities\Repository\ClientAccess;
+use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\ActiveRecordOrm\Schema\FieldDefinition;
 use Amtgard\ActiveRecordOrm\Schema\FieldType;
@@ -140,21 +144,43 @@ class ClientRepositoryTest extends TestCase
     public function testFindClientsGrantedToUserReturnsClientEntities(): void
     {
         $client = Client::builder()->identifier('app')->name('App')->build();
-        $fields = [];
+        $access = $this->createMock(ClientAccessRepository::class);
+        $grant = new class extends ClientAccess {
+            public function __construct() {}
+            public function getClientDbId(): int { return 9; }
+        };
+        $access->expects($this->once())
+            ->method('findByUserId')
+            ->with(3)
+            ->willReturn([$grant]);
+        $table = $this->createMock(TableInterface::class);
+        $table->expects($this->once())->method('__call')->with('in', ['id', [9]]);
         $repository = $this->getMockBuilder(ClientRepository::class)
-            ->onlyMethods(['clear', 'query', 'execute', 'next', 'getCurrent', '__set'])
+            ->onlyMethods(['clear', 'getTable', 'orderBy', 'find', 'next', 'getCurrent', 'accessRepository'])
             ->disableOriginalConstructor()
             ->getMock();
-        $repository->expects($this->once())->method('query')->with($this->stringContains('FROM client_access'));
-        $repository->expects($this->once())->method('execute');
+        $repository->method('accessRepository')->willReturn($access);
+        $repository->method('getTable')->willReturn($table);
+        $repository->expects($this->once())->method('orderBy')->with('name', OrderBy::ASC);
+        $repository->expects($this->once())->method('find');
         $repository->method('next')->willReturnOnConsecutiveCalls(true, false);
         $repository->method('getCurrent')->willReturn($client);
-        $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
-            $fields[$name] = $value;
-        });
 
         $this->assertSame([$client], $repository->findClientsGrantedToUser(3));
-        $this->assertSame(3, $fields['user_id']);
+    }
+
+    public function testFindClientsGrantedToUserReturnsEmptyWhenNoGrants(): void
+    {
+        $access = $this->createMock(ClientAccessRepository::class);
+        $access->method('findByUserId')->willReturn([]);
+        $repository = $this->getMockBuilder(ClientRepository::class)
+            ->onlyMethods(['getTable', 'accessRepository'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->method('accessRepository')->willReturn($access);
+        $repository->expects($this->never())->method('getTable');
+
+        $this->assertSame([], $repository->findClientsGrantedToUser(3));
     }
 
     public function testFindActiveClientsForUserReturnsProjectedRows(): void

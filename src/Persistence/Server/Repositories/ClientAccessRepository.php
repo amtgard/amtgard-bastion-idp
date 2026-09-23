@@ -27,16 +27,15 @@ class ClientAccessRepository extends Repository implements EntityRepositoryInter
      */
     public function findByClientId(int $clientId): array
     {
-        $this->clear();
-        $this->client_id = $clientId;
-        $this->find();
+        return $this->findMatchingRows(['client_id' => $clientId]);
+    }
 
-        $rows = [];
-        while ($this->next()) {
-            $rows[] = $this->getCurrent();
-        }
-
-        return $rows;
+    /**
+     * @return ClientAccess[]
+     */
+    public function findByUserId(int $userId): array
+    {
+        return $this->findMatchingRows(['user_id' => $userId]);
     }
 
     public function hasAccess(int $clientId, int $userId): bool
@@ -74,9 +73,28 @@ class ClientAccessRepository extends Repository implements EntityRepositoryInter
     public function revoke(int $clientId, int $userId): void
     {
         $this->clear();
-        $this->query('DELETE FROM client_access WHERE client_id = :client_id AND user_id = :user_id');
         $this->client_id = $clientId;
         $this->user_id = $userId;
-        $this->execute();
+        $this->delete(null);
+    }
+
+    /**
+     * @param array<string, int> $constraints
+     * @return ClientAccess[]
+     */
+    private function findMatchingRows(array $constraints): array
+    {
+        $this->clear();
+        foreach ($constraints as $field => $value) {
+            $this->$field = $value;
+        }
+        $this->find();
+
+        $rows = [];
+        while ($this->next()) {
+            $rows[] = $this->getCurrent();
+        }
+
+        return $rows;
     }
 }

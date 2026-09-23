@@ -7,9 +7,12 @@ namespace Amtgard\IdP\Persistence\Server\Repositories;
 
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
+use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
+use Amtgard\ActiveRecordOrm\Query\OrderBy;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
+use Amtgard\IdP\Persistence\Server\Entities\Repository\ClientAccess;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use Optional\Optional;
@@ -52,17 +55,18 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
      */
     public function findClientsGrantedToUser(int $userId): array
     {
-        $this->clear();
-        $this->query(
-            'SELECT c.id, c.client_id, c.client_secret, c.name, c.redirect_uri,
-                    c.is_confidential, c.is_dev, c.iam_service, c.iam_service_format
-             FROM client_access ca
-             INNER JOIN clients c ON c.id = ca.client_id
-             WHERE ca.user_id = :user_id
-             ORDER BY c.name'
+        $clientIds = array_map(
+            fn (ClientAccess $row) => $row->getClientDbId(),
+            $this->accessRepository()->findByUserId($userId)
         );
-        $this->user_id = $userId;
-        $this->execute();
+        if ($clientIds === []) {
+            return [];
+        }
+
+        $this->clear();
+        $this->getTable()->in('id', $clientIds);
+        $this->orderBy('name', OrderBy::ASC);
+        $this->find();
 
         $clients = [];
         while ($this->next()) {
@@ -72,6 +76,14 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
         }
 
         return $clients;
+    }
+
+    protected function accessRepository(): ClientAccessRepository
+    {
+        /** @var ClientAccessRepository $access */
+        $access = EntityManager::getManager()->getRepository(ClientAccessRepository::class);
+
+        return $access;
     }
 
     public function findActiveClientsForUser($userId)
