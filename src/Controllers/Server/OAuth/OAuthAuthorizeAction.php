@@ -241,7 +241,10 @@ final class OAuthAuthorizeAction
     {
         $oauthUser = $authRequest->getUser();
         if ($oauthUser instanceof OAuthUser) {
-            return $oauthUser->getUserEntity();
+            $userEntity = new \ReflectionProperty(OAuthUser::class, 'userEntity');
+            if ($userEntity->isInitialized($oauthUser)) {
+                return $oauthUser->getUserEntity();
+            }
         }
 
         $identifier = $this->authRequestStore->sessionUserId() ?? $oauthUser?->getIdentifier();
