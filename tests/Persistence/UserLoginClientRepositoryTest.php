@@ -135,14 +135,20 @@ class UserLoginClientRepositoryTest extends TestCase
 
     public function testDeleteMetadataExecutesDelete(): void
     {
+        $fields = [];
         $repository = $this->getMockBuilder(UserLoginClientRepository::class)
-            ->onlyMethods(['clear', 'query', 'execute', '__set'])
+            ->onlyMethods(['clear', 'delete', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
-        $repository->expects($this->once())->method('query');
-        $repository->expects($this->once())->method('execute');
+        $repository->expects($this->once())->method('clear');
+        $repository->expects($this->once())->method('delete')->with(null);
+        $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
+            $fields[$name] = $value;
+        });
 
         $this->assertTrue($repository->deleteMetadata(2, 3));
+        $this->assertSame(2, $fields['login_id']);
+        $this->assertSame(3, $fields['client_id']);
     }
 
     public function testUpsertMetadataUpdatesExistingRow(): void

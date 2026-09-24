@@ -10,6 +10,7 @@ use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
 use Amtgard\ActiveRecordOrm\Query\OrderBy;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
+use Optional\Optional;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Entities\UserEntityInterface;
 use League\OAuth2\Server\Repositories\UserRepositoryInterface;
@@ -121,29 +122,26 @@ class UserRepository extends Repository implements EntityRepositoryInterface, Us
         while ($this->next()) {
             /** @var UserEntity $user */
             $user = $this->getCurrent();
-            $email = $user->getEmail();
-            if ($email === null || $email === '') {
-                continue;
-            }
-            $results[] = [
-                'id' => $user->getId(),
-                'email' => $email,
-            ];
+            Optional::ofNullable($user->getEmail())
+                ->filter(fn (string $email) => $email !== '')
+                ->ifPresent(function (string $email) use (&$results, $user): void {
+                    $results[] = [
+                        'id' => $user->getId(),
+                        'email' => $email,
+                    ];
+                });
         }
 
         return $results;
     }
 
     public function getUserEntityById(string $userIdentifier): ?UserEntityInterface {
-        /** @var UserEntity|null $user */
-        $user = $this->findUserByUserId($userIdentifier);
-        if ($user === null) {
-            return null;
-        }
-        return OAuthUser::builder()
-            ->identifier($user->getUserId())
-            ->userEntity($user)
-            ->build();
+        return Optional::ofNullable($this->findUserByUserId($userIdentifier))
+            ->map(fn (UserEntity $user) => OAuthUser::builder()
+                ->identifier($user->getUserId())
+                ->userEntity($user)
+                ->build())
+            ->orElse(null);
     }
 
     static function getTableName()

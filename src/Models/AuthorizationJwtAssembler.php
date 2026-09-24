@@ -212,16 +212,16 @@ final class AuthorizationJwtAssembler
         AuthorizationClientContext $clientContext,
         ?int $loginDbId
     ): void {
-        if ($audience === null || $audience === '') {
-            return;
-        }
+        Optional::ofNullable($audience)
+            ->filter(fn (string $value) => $value !== '')
+            ->ifPresent(function (string $value) use (&$claims, $clientContext, $loginDbId): void {
+                $claims['aud'] = $value;
 
-        $claims['aud'] = $audience;
-
-        Optional::ofNullable($this->metadataForAudience($clientContext->forClientDbId, $loginDbId))
-            ->ifPresent(function (mixed $metadata) use (&$claims): void {
-                // Metadata is stored per login×client so OAuth apps only see the active login row.
-                $claims['client_metadata'] = $metadata;
+                Optional::ofNullable($this->metadataForAudience($clientContext->forClientDbId, $loginDbId))
+                    ->ifPresent(function (mixed $metadata) use (&$claims): void {
+                        // Metadata is stored per login×client so OAuth apps only see the active login row.
+                        $claims['client_metadata'] = $metadata;
+                    });
             });
     }
 

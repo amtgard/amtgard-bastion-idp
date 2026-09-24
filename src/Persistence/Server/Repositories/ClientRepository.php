@@ -112,23 +112,24 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
 
     public function getClientEntity($clientIdentifier): ?ClientEntityInterface
     {
-        /** @var Client $client */
+        /** @var Client|null $client */
         $client = $this->fetchBy('identifier', $clientIdentifier);
-        if (!$client) {
-            return null;
-        }
-        $redirectUris = json_decode($client->getRedirectUri());
-        if (!is_array($redirectUris)) {
-            $redirectUris = [$client->getRedirectUri()];
-        }
+
         return Optional::ofNullable($client)
-            ->map(fn($client) => OAuthClient::builder()
-                ->clientEntity($client)
-                ->identifier($client->getIdentifier())
-                ->isConfidential($client->getIsConfidential())
-                ->name($client->getName())
-                ->redirectUri($redirectUris)
-                ->build())
+            ->map(function (Client $client): OAuthClient {
+                $redirectUris = json_decode($client->getRedirectUri());
+                if (!is_array($redirectUris)) {
+                    $redirectUris = [$client->getRedirectUri()];
+                }
+
+                return OAuthClient::builder()
+                    ->clientEntity($client)
+                    ->identifier($client->getIdentifier())
+                    ->isConfidential($client->getIsConfidential())
+                    ->name($client->getName())
+                    ->redirectUri($redirectUris)
+                    ->build();
+            })
             ->orElse(null);
     }
 

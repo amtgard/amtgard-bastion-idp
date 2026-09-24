@@ -43,15 +43,11 @@ final class UserPolicyClaimWriter
         $this->ornValidator->assertValidOrnParts($service, $provisos, $resource);
 
         $this->userClaims->clear();
-        $this->userClaims->query(
-            'DELETE FROM user_policy_claims
-             WHERE user_id = :user_id AND service = :service AND provisos = :provisos AND resource = :resource'
-        );
         $this->userClaims->user_id = $userDbId;
         $this->userClaims->service = $service;
         $this->userClaims->provisos = $provisos;
         $this->userClaims->resource = $resource;
-        $this->userClaims->execute();
+        $this->userClaims->delete(null);
 
         return true;
     }
@@ -103,15 +99,9 @@ final class UserPolicyClaimWriter
     private function assertClientClaimCap(int $userDbId, int $clientDbId): void
     {
         $this->userClaims->clear();
-        $this->userClaims->query(
-            'SELECT COUNT(*) AS claim_count FROM user_policy_claims WHERE user_id = :user_id AND client_id = :client_id'
-        );
         $this->userClaims->user_id = $userDbId;
         $this->userClaims->client_id = $clientDbId;
-        $this->userClaims->execute();
-
-        $count = Optional::ofNullable($this->userClaims->next() ? (int) ($this->userClaims->claim_count ?? 0) : null)
-            ->orElse(0);
+        $count = $this->userClaims->count();
 
         if ($count >= UserPolicyClaimRepository::MAX_CLAIMS_PER_CLIENT) {
             throw new \InvalidArgumentException(

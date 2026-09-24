@@ -18,12 +18,8 @@ final class HttpBasicCredentialsParser
 {
     public static function fromAuthorizationHeader(string $authorizationHeader): Optional
     {
-        $payload = self::matchBasicPayload($authorizationHeader);
-        if ($payload === null) {
-            return Optional::blank();
-        }
-
-        return self::decodePayload($payload);
+        return Optional::ofNullable(self::matchBasicPayload($authorizationHeader))
+            ->map(fn (string $payload) => self::decodePayload($payload)->orElse(null));
     }
 
     private static function matchBasicPayload(string $authorizationHeader): ?string

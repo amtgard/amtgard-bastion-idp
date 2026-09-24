@@ -46,21 +46,18 @@ class UserLoginClientRepository extends Repository implements EntityRepositoryIn
      */
     public function getMetadata(int $loginDbId, int $clientDbId): ?array
     {
-        $row = $this->findRow($loginDbId, $clientDbId);
-        if ($row === null) {
-            return null;
-        }
+        return Optional::ofNullable($this->findRow($loginDbId, $clientDbId))
+            ->map(function (UserLoginClient $row): array {
+                $metadata = $row->getEncoding() === ClientMetadataValidator::ENCODING_BASE64
+                    ? $row->getMetadata()
+                    : json_decode($row->getMetadata(), true, flags: JSON_THROW_ON_ERROR);
 
-        if ($row->getEncoding() === ClientMetadataValidator::ENCODING_BASE64) {
-            $metadata = $row->getMetadata();
-        } else {
-            $metadata = json_decode($row->getMetadata(), true, flags: JSON_THROW_ON_ERROR);
-        }
-
-        return [
-            'metadata' => $metadata,
-            'encoding' => $row->getEncoding(),
-        ];
+                return [
+                    'metadata' => $metadata,
+                    'encoding' => $row->getEncoding(),
+                ];
+            })
+            ->orElse(null);
     }
 
     public function upsertMetadata(
@@ -99,12 +96,9 @@ class UserLoginClientRepository extends Repository implements EntityRepositoryIn
     public function deleteMetadata(int $loginDbId, int $clientDbId): bool
     {
         $this->clear();
-        $this->query(
-            'DELETE FROM user_login_client WHERE login_id = :login_id AND client_id = :client_id'
-        );
         $this->login_id = $loginDbId;
         $this->client_id = $clientDbId;
-        $this->execute();
+        $this->delete(null);
 
         return true;
     }

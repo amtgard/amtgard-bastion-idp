@@ -128,14 +128,11 @@ class UserClientAuthorizationRepositoryTest extends TestCase
     {
         $fields = [];
         $repository = $this->getMockBuilder(UserClientAuthorizationRepository::class)
-            ->onlyMethods(['clear', 'query', 'execute', '__set'])
+            ->onlyMethods(['clear', 'delete', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->expects($this->once())->method('clear');
-        $repository->expects($this->once())
-            ->method('query')
-            ->with('DELETE FROM user_client_authorizations WHERE user_identifier = :user_identifier AND client_id = :client_id');
-        $repository->expects($this->once())->method('execute');
+        $repository->expects($this->once())->method('delete')->with(null);
         $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
             $fields[$name] = $value;
         });

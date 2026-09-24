@@ -9,6 +9,7 @@ use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\UserJwtGeneration;
 use Amtgard\IdP\Utility\Pvh;
+use Optional\Optional;
 
 #[RepositoryOf('user_jwt_generations', UserJwtGeneration::class)]
 class UserJwtGenerationRepository extends Repository implements EntityRepositoryInterface
@@ -50,29 +51,33 @@ class UserJwtGenerationRepository extends Repository implements EntityRepository
         int $nowMs
     ): UserJwtGeneration {
         $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
-        $existing = $this->findByUserUuidAndAud($userUuid, $aud);
-        if ($existing !== null) {
-            if (!hash_equals($existing->getPolicyHash(), $policyHash)) {
-                $existing->prevPvh = $existing->getPvh();
-                $existing->pvh = Pvh::encode($nowMs, $policyHash);
-                $existing->policyHash = $policyHash;
-            }
-            $existing->updatedAt = $now;
-            $this->persist($existing);
-            return $existing;
-        }
 
-        $row = UserJwtGeneration::builder()
-            ->userId($userId)
-            ->userUuid($userUuid)
-            ->clientId($clientId)
-            ->aud($aud)
-            ->pvh(Pvh::encode($nowMs, $policyHash))
-            ->prevPvh(null)
-            ->policyHash($policyHash)
-            ->updatedAt($now)
-            ->build();
-        $this->persist($row);
-        return $row;
+        return Optional::ofNullable($this->findByUserUuidAndAud($userUuid, $aud))
+            ->map(function (UserJwtGeneration $existing) use ($policyHash, $nowMs, $now): UserJwtGeneration {
+                if (!hash_equals($existing->getPolicyHash(), $policyHash)) {
+                    $existing->prevPvh = $existing->getPvh();
+                    $existing->pvh = Pvh::encode($nowMs, $policyHash);
+                    $existing->policyHash = $policyHash;
+                }
+                $existing->updatedAt = $now;
+                $this->persist($existing);
+
+                return $existing;
+            })
+            ->orElseGet(function () use ($userId, $userUuid, $clientId, $aud, $policyHash, $nowMs, $now): UserJwtGeneration {
+                $row = UserJwtGeneration::builder()
+                    ->userId($userId)
+                    ->userUuid($userUuid)
+                    ->clientId($clientId)
+                    ->aud($aud)
+                    ->pvh(Pvh::encode($nowMs, $policyHash))
+                    ->prevPvh(null)
+                    ->policyHash($policyHash)
+                    ->updatedAt($now)
+                    ->build();
+                $this->persist($row);
+
+                return $row;
+            });
     }
 }

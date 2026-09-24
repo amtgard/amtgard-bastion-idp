@@ -49,9 +49,8 @@ class UserClientAuthorizationRepository extends Repository implements EntityRepo
     public function revokeAuthorization(string $userIdentifier, int $clientDbId): void
     {
         $this->clear();
-        $this->query("DELETE FROM user_client_authorizations WHERE user_identifier = :user_identifier AND client_id = :client_id");
         $this->user_identifier = $userIdentifier;
         $this->client_id = $clientDbId;
-        $this->execute();
+        $this->delete(null);
     }
 }

@@ -468,11 +468,8 @@ class ClientResourcesController
             json_encode($body['service_format'], JSON_THROW_ON_ERROR)
         );
 
-        if ($encoded === null) {
-            throw new \InvalidArgumentException('service_format must be a non-empty array');
-        }
-
-        return $encoded;
+        return Optional::ofNullable($encoded)
+            ->orElseThrow(new \InvalidArgumentException('service_format must be a non-empty array'));
     }
 
     /**
@@ -495,8 +492,8 @@ class ClientResourcesController
 
     private function hasConfiguredServiceFormat(Client $client): bool
     {
-        $stored = $client->getIamServiceFormat();
-
-        return $stored !== null && trim($stored) !== '';
+        return Optional::ofNullable($client->getIamServiceFormat())
+            ->filter(fn (string $stored) => trim($stored) !== '')
+            ->isPresent();
     }
 }
