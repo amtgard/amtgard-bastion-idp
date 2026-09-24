@@ -24,6 +24,7 @@ use Amtgard\IdP\Utility\Security\CsrfTokenManager;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Services\OrkService;
+use Amtgard\IdP\Services\ResourcesUserinfoService;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\AccessTokenRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\AuthCodeRepository;
@@ -250,6 +251,12 @@ return [
             ->logger($container->get(LoggerInterface::class))
             ->amtgardIdpJwt($container->get(AmtgardIdpJwt::class))
             ->redisCacheRepository($container->get(RedisCacheRepository::class))
+            ->build();
+    },
+
+    ResourcesUserinfoService::class => function (ContainerInterface $container) {
+        return ResourcesUserinfoService::builder()
+            ->orkProfileRepository($container->get(UserOrkProfileRepository::class))
             ->build();
     },
 

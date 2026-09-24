@@ -10,7 +10,9 @@ use Amtgard\IdP\Controllers\Server\OAuth\OAuthFlowErrorRenderer;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthSessionAuthRequestStore;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthTokenAction;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Services\ResourcesUserinfoService;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -68,6 +70,20 @@ class OAuthActionWiringTest extends TestCase
 
         $this->assertSame($errorRenderer, $token->getErrorRenderer());
         $this->assertSame($errorRenderer, $approve->getErrorRenderer());
+    }
+
+    public function testUserinfoServiceFactoryInitializesOrkProfileRepository(): void
+    {
+        $repository = $this->createStub(UserOrkProfileRepository::class);
+        $container = $this->containerReturning([
+            UserOrkProfileRepository::class => $repository,
+        ]);
+
+        $definitions = require __DIR__ . '/../../config/container.php';
+        $service = $definitions[ResourcesUserinfoService::class]($container);
+
+        $this->assertInstanceOf(ResourcesUserinfoService::class, $service);
+        $this->assertSame($repository, $service->getOrkProfileRepository());
     }
 
     private function errorRenderer(): OAuthFlowErrorRenderer
