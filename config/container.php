@@ -9,6 +9,11 @@ use Amtgard\ActiveRecordOrm\Entity\Policy\UncachedPolicy;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Repository\Database;
+use Amtgard\IdP\Controllers\Server\OAuth\OAuthApproveAction;
+use Amtgard\IdP\Controllers\Server\OAuth\OAuthAuthorizeAction;
+use Amtgard\IdP\Controllers\Server\OAuth\OAuthFlowErrorRenderer;
+use Amtgard\IdP\Controllers\Server\OAuth\OAuthSessionAuthRequestStore;
+use Amtgard\IdP\Controllers\Server\OAuth\OAuthTokenAction;
 use Amtgard\IdP\Middleware\ManagementMiddleware;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
@@ -206,6 +211,46 @@ return [
         // OAuth2 Authorization Server
     AuthorizationServer::class => function (ContainerInterface $container) {
         return $container->get(OAuthServerConfiguration::class)->build();
+    },
+
+    // These actions take dependencies through Builder, not a constructor.
+    // PHP-DI autowiring would `new` them and leave every typed property unset.
+    OAuthFlowErrorRenderer::class => function (ContainerInterface $container) {
+        return OAuthFlowErrorRenderer::builder()
+            ->logger($container->get(LoggerInterface::class))
+            ->view($container->get(TwigEnvironment::class))
+            ->build();
+    },
+
+    OAuthTokenAction::class => function (ContainerInterface $container) {
+        return OAuthTokenAction::builder()
+            ->authorizationServer($container->get(AuthorizationServer::class))
+            ->errorRenderer($container->get(OAuthFlowErrorRenderer::class))
+            ->build();
+    },
+
+    OAuthApproveAction::class => function (ContainerInterface $container) {
+        return OAuthApproveAction::builder()
+            ->clientRepository($container->get(ClientRepositoryInterface::class))
+            ->userClientAuthorizationRepository($container->get(UserClientAuthorizationRepository::class))
+            ->authRequestStore($container->get(OAuthSessionAuthRequestStore::class))
+            ->errorRenderer($container->get(OAuthFlowErrorRenderer::class))
+            ->view($container->get(TwigEnvironment::class))
+            ->build();
+    },
+
+    OAuthAuthorizeAction::class => function (ContainerInterface $container) {
+        return OAuthAuthorizeAction::builder()
+            ->authorizationServer($container->get(AuthorizationServer::class))
+            ->clientRepository($container->get(ClientRepositoryInterface::class))
+            ->userRepository($container->get(UserRepositoryInterface::class))
+            ->userClientAuthorizationRepository($container->get(UserClientAuthorizationRepository::class))
+            ->authRequestStore($container->get(OAuthSessionAuthRequestStore::class))
+            ->errorRenderer($container->get(OAuthFlowErrorRenderer::class))
+            ->logger($container->get(LoggerInterface::class))
+            ->amtgardIdpJwt($container->get(AmtgardIdpJwt::class))
+            ->redisCacheRepository($container->get(RedisCacheRepository::class))
+            ->build();
     },
 
         // OAuth2 Resource Server
