@@ -6,6 +6,8 @@ namespace Amtgard\IdP\Tests\Controllers;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Client\Entities\MailboxChallengeEntity;
+use Amtgard\IdP\Tests\Support\TestMailboxChallengeEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
@@ -15,6 +17,12 @@ use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
+use Amtgard\IdP\Services\IdpEmailMigrationService;
+use Amtgard\IdP\Services\Mailbox\MailboxChallengeCheckResult;
+use Amtgard\IdP\Services\Mailbox\MailboxChallengeIssueResult;
+use Amtgard\IdP\Services\Mailbox\MailboxChallengePurpose;
+use Amtgard\IdP\Services\MailboxChallengeService;
+use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Services\ResourcesUserinfoService;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
@@ -82,6 +90,9 @@ class ResourcesControllerTest extends TestCase
     private $amtgardIdpJwt;
     private $userAuthority;
     private $currentUserResolver;
+    private $mailboxChallenges;
+    private $orkLinkTokenService;
+    private $emailMigration;
     private $request;
     private $response;
     private $stream;
@@ -125,6 +136,9 @@ class ResourcesControllerTest extends TestCase
         $this->currentUserResolver->method('resolve')->willReturnCallback(function (): ?UserEntity {
             return isset($_SESSION['user_id']) ? $this->userEntity : null;
         });
+        $this->mailboxChallenges = $this->createMock(MailboxChallengeService::class);
+        $this->orkLinkTokenService = $this->createMock(OrkLinkTokenService::class);
+        $this->emailMigration = $this->createMock(IdpEmailMigrationService::class);
 
         $this->controller = new ResourcesController(
             $this->logger,
@@ -143,6 +157,9 @@ class ResourcesControllerTest extends TestCase
             $this->currentUserResolver,
             ResourcesUserinfoService::builder()->orkProfileRepository($this->orkProfileRepository)->build(),
             $this->clientAccessRepository,
+            $this->mailboxChallenges,
+            $this->orkLinkTokenService,
+            $this->emailMigration,
         );
     }
 
@@ -377,17 +394,12 @@ class ResourcesControllerTest extends TestCase
     {
         $_SESSION['user_id'] = 123;
         $_SESSION['redirect'] = '/oauth/authorize?client_id=ork-app';
-
         $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'testpass']);
         $this->orkService->method('authorize')->willReturn(['Token' => 'token-123', 'UserId' => 1001]);
         $this->orkService->method('getPlayer')->willReturn(['ParkId' => 5, 'username' => 'testuser']);
         $this->orkService->method('resolveParkDataFromPlayer')->willReturn(['park_info']);
         $this->orkProfileRepository->expects($this->once())->method('saveOrUpdateProfile');
-        $this->amtgardIdpJwt->expects($this->once())
-            ->method('buildAuthorizationJwt')
-            ->with($this->userEntity)
-            ->willReturn('linked-user-jwt');
-
+        $this->amtgardIdpJwt->expects($this->once())->method('buildAuthorizationJwt')->with($this->userEntity)->willReturn('linked-user-jwt');
         $this->response->expects($this->once())
             ->method('withHeader')
             ->with('Location', '/oauth/authorize?client_id=ork-app?jwt=linked-user-jwt')
@@ -400,59 +412,25 @@ class ResourcesControllerTest extends TestCase
     public function testLinkOrkAccountSuccess(): void
     {
         $_SESSION['user_id'] = 123;
-
-        $this->request->expects($this->once())
-            ->method('getParsedBody')
-            ->willReturn(['username' => 'testuser', 'password' => 'testpass']);
-
-        $this->orkService->expects($this->once())
-            ->method('authorize')
-            ->with('testuser', 'testpass')
-            ->willReturn(['Token' => 'token-123', 'UserId' => 1001]);
-
-        $this->orkService->expects($this->once())
-            ->method('getPlayer')
-            ->with('token-123', 1001)
-            ->willReturn(['ParkId' => 5, 'username' => 'testuser']);
-
+        $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'testpass']);
+        $this->orkService->expects($this->once())->method('authorize')->with('testuser', 'testpass')->willReturn(['Token' => 'token-123', 'UserId' => 1001]);
+        $this->orkService->expects($this->once())->method('getPlayer')->with('token-123', 1001)->willReturn(['ParkId' => 5, 'username' => 'testuser']);
         $playerData = ['ParkId' => 5, 'username' => 'testuser'];
-        $this->orkService->expects($this->once())
-            ->method('resolveParkDataFromPlayer')
-            ->with($playerData, 123, 'LinkORK')
-            ->willReturn(['park_info']);
+        $this->orkService->expects($this->once())->method('resolveParkDataFromPlayer')->with($playerData, 123, 'LinkORK')->willReturn(['park_info']);
+        $this->orkProfileRepository->expects($this->once())->method('saveOrUpdateProfile')->with($playerData, ['park_info'], 'token-123', 123);
+        $this->response->expects($this->once())->method('withHeader')->with('Location', '/resources/profile?success=linked')->willReturnSelf();
 
-        $this->orkProfileRepository->expects($this->once())
-            ->method('saveOrUpdateProfile')
-            ->with($playerData, ['park_info'], 'token-123', 123);
-
-        $this->response->expects($this->once())
-            ->method('withHeader')
-            ->with('Location', '/resources/profile?success=linked')
-            ->willReturnSelf();
-
-        $result = $this->controller->linkOrkAccount($this->request, $this->response);
-        $this->assertSame($this->response, $result);
+        $this->assertSame($this->response, $this->controller->linkOrkAccount($this->request, $this->response));
     }
 
     public function testLinkOrkAccountFailure(): void
     {
         $_SESSION['user_id'] = 123;
+        $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'testpass']);
+        $this->orkService->method('authorize')->willReturn(null);
+        $this->response->expects($this->once())->method('withHeader')->with('Location', '/resources/profile?error=ork_auth_failed')->willReturnSelf();
 
-        $this->request->expects($this->once())
-            ->method('getParsedBody')
-            ->willReturn(['username' => 'testuser', 'password' => 'testpass']);
-
-        $this->orkService->expects($this->once())
-            ->method('authorize')
-            ->willReturn(null);
-
-        $this->response->expects($this->once())
-            ->method('withHeader')
-            ->with('Location', '/resources/profile?error=ork_auth_failed')
-            ->willReturnSelf();
-
-        $result = $this->controller->linkOrkAccount($this->request, $this->response);
-        $this->assertSame($this->response, $result);
+        $this->assertSame($this->response, $this->controller->linkOrkAccount($this->request, $this->response));
     }
 
     public function testLinkOrkAccountRedirectsWhenPlayerFetchFails(): void
@@ -461,13 +439,45 @@ class ResourcesControllerTest extends TestCase
         $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'testpass']);
         $this->orkService->method('authorize')->willReturn(['Token' => 'token-123', 'UserId' => 1001]);
         $this->orkService->method('getPlayer')->with('token-123', 1001)->willReturn(null);
-        $this->orkService->expects($this->never())->method('resolveParkDataFromPlayer');
-        $this->response->expects($this->once())
-            ->method('withHeader')
-            ->with('Location', '/resources/profile?error=ork_player_failed')
-            ->willReturnSelf();
+        $this->response->expects($this->once())->method('withHeader')->with('Location', '/resources/profile?error=ork_player_failed')->willReturnSelf();
 
         $this->assertSame($this->response, $this->controller->linkOrkAccount($this->request, $this->response));
+    }
+
+    public function testStartOrkCodeClaimDoesNotCallAuthorize(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'ork-password']);
+        $challenge = new TestMailboxChallengeEntity(testId: 'chal-a', testSentToHash: 'hash');
+        $this->mailboxChallenges->expects($this->once())
+            ->method('reserve')
+            ->with(MailboxChallengePurpose::CLAIM_ORK, '123')
+            ->willReturn($challenge);
+        $this->orkService->expects($this->never())->method('authorize');
+        $this->orkProfileRepository->expects($this->never())->method('saveOrUpdateProfile');
+        $this->orkProfileRepository->expects($this->never())->method('linkExistingUserToMundane');
+        $this->orkLinkTokenService->method('mintFlowAHandoff')->with('123', 'chal-a')->willReturn('idp-jwt');
+        $this->orkLinkTokenService->method('flowAClaimRedirectUrl')->with('idp-jwt', 'testuser')->willReturn('https://ork.example.com/claim');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', 'https://ork.example.com/claim')
+            ->willReturnSelf();
+
+        $this->controller->startOrkCodeClaim($this->request, $this->response);
+    }
+
+    public function testStartOrkCodeClaimRequiresUsername(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getParsedBody')->willReturn(['password' => 'ork-password']);
+        $this->orkService->expects($this->never())->method('authorize');
+        $this->mailboxChallenges->expects($this->never())->method('reserve');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=ork_username_required')
+            ->willReturnSelf();
+
+        $this->controller->startOrkCodeClaim($this->request, $this->response);
     }
 
     public function testRefreshOrkAccountRedirectsWhenUnauthenticated(): void
@@ -628,14 +638,33 @@ class ResourcesControllerTest extends TestCase
     {
         $this->request->method('getParsedBody')->willReturn(['idp_user_id' => '', 'mundane_id' => 0]);
         $this->response->expects($this->once())->method('withStatus')->with(400)->willReturnSelf();
-        $this->stream->expects($this->once())->method('write')->with($this->stringContains('mundane_id'));
+        $this->stream->expects($this->once())->method('write')->with($this->stringContains('idp_user_id'));
+
+        $this->assertSame($this->response, $this->controller->linkOrkProfile($this->request, $this->response));
+    }
+
+    public function testLinkOrkProfileWithoutConsumedChallengeIs400(): void
+    {
+        $this->request->method('getParsedBody')->willReturn([
+            'idp_user_id' => 'uuid-user',
+            'mundane_id' => 1001,
+            'challenge_id' => 'chal-open',
+        ]);
+        $this->mailboxChallenges->method('isConsumedForUser')->with('chal-open', 'uuid-user')->willReturn(false);
+        $this->orkProfileRepository->expects($this->never())->method('linkExistingUserToMundane');
+        $this->response->expects($this->once())->method('withStatus')->with(400)->willReturnSelf();
 
         $this->assertSame($this->response, $this->controller->linkOrkProfile($this->request, $this->response));
     }
 
     public function testLinkOrkProfileRejectsUnknownUser(): void
     {
-        $this->request->method('getParsedBody')->willReturn(['idp_user_id' => 'uuid-missing', 'mundane_id' => 1001]);
+        $this->request->method('getParsedBody')->willReturn([
+            'idp_user_id' => 'uuid-missing',
+            'mundane_id' => 1001,
+            'challenge_id' => 'chal-1',
+        ]);
+        $this->mailboxChallenges->method('isConsumedForUser')->willReturn(true);
         $this->userRepository->method('findUserByUserId')->with('uuid-missing')->willReturn(null);
         $this->response->expects($this->once())->method('withStatus')->with(404)->willReturnSelf();
         $this->stream->expects($this->once())->method('write')->with($this->stringContains('unknown idp_user_id'));
@@ -645,7 +674,12 @@ class ResourcesControllerTest extends TestCase
 
     public function testLinkOrkProfileReportsConflict(): void
     {
-        $this->request->method('getParsedBody')->willReturn(['idp_user_id' => 'uuid-user', 'mundane_id' => 1001]);
+        $this->request->method('getParsedBody')->willReturn([
+            'idp_user_id' => 'uuid-user',
+            'mundane_id' => 1001,
+            'challenge_id' => 'chal-1',
+        ]);
+        $this->mailboxChallenges->method('isConsumedForUser')->willReturn(true);
         $this->userRepository->method('findUserByUserId')->with('uuid-user')->willReturn($this->userEntity);
         $this->orkProfileRepository->method('linkExistingUserToMundane')
             ->with(123, 1001, 'mirror')
@@ -658,7 +692,12 @@ class ResourcesControllerTest extends TestCase
 
     public function testLinkOrkProfileReturnsNoContentOnSuccess(): void
     {
-        $this->request->method('getParsedBody')->willReturn(['idp_user_id' => ' uuid-user ', 'mundane_id' => '1001']);
+        $this->request->method('getParsedBody')->willReturn([
+            'idp_user_id' => ' uuid-user ',
+            'mundane_id' => '1001',
+            'challenge_id' => 'chal-1',
+        ]);
+        $this->mailboxChallenges->method('isConsumedForUser')->with('chal-1', 'uuid-user')->willReturn(true);
         $this->userRepository->method('findUserByUserId')->with('uuid-user')->willReturn($this->userEntity);
         $this->orkProfileRepository->expects($this->once())
             ->method('linkExistingUserToMundane')
@@ -666,5 +705,252 @@ class ResourcesControllerTest extends TestCase
         $this->response->expects($this->once())->method('withStatus')->with(204)->willReturnSelf();
 
         $this->assertSame($this->response, $this->controller->linkOrkProfile($this->request, $this->response));
+    }
+
+    public function testLinkOrkProfileWithoutChallengeIdKeepsLegacyMirror(): void
+    {
+        $this->request->method('getParsedBody')->willReturn([
+            'idp_user_id' => 'uuid-user',
+            'mundane_id' => 1001,
+        ]);
+        $this->mailboxChallenges->expects($this->never())->method('isConsumedForUser');
+        $this->userRepository->method('findUserByUserId')->with('uuid-user')->willReturn($this->userEntity);
+        $this->orkProfileRepository->expects($this->once())
+            ->method('linkExistingUserToMundane')
+            ->with(123, 1001, 'mirror');
+        $this->response->expects($this->once())->method('withStatus')->with(204)->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->linkOrkProfile($this->request, $this->response));
+    }
+
+    public function testCompleteOrkClaimBindsMatchingChallengeWhenEmailsDiffer(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getQueryParams')->willReturn(['t' => 'completion-jwt']);
+        $this->orkLinkTokenService->method('peekFlowACompletion')->willReturn([
+            'challenge_id' => 'chal-a',
+            'idp_user_id' => '123',
+            'mundane_id' => 777,
+            'purpose' => 'claim_ork',
+            'jti' => 'jti-complete',
+        ]);
+        $row = $this->challengeRow();
+        $this->mailboxChallenges->method('findById')->with('chal-a')->willReturn($row);
+        $this->orkLinkTokenService->method('consumeJti')->with('jti-complete')->willReturn(true);
+        $this->orkProfileRepository->expects($this->once())->method('linkExistingUserToMundane')->with(123, 777, 'ork_handoff');
+        $this->mailboxChallenges->expects($this->once())->method('consume')->with('chal-a');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?success=linked')
+            ->willReturnSelf();
+
+        $this->controller->completeOrkClaim($this->request, $this->response);
+    }
+
+    public function testCompleteOrkClaimRejectsDifferentUserThanChallenge(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getQueryParams')->willReturn(['t' => 'completion-jwt']);
+        $this->orkLinkTokenService->method('peekFlowACompletion')->willReturn([
+            'challenge_id' => 'chal-a',
+            'idp_user_id' => 'other-user',
+            'mundane_id' => 777,
+            'purpose' => 'claim_ork',
+            'jti' => 'jti-complete',
+        ]);
+        $this->orkProfileRepository->expects($this->never())->method('linkExistingUserToMundane');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=ork_complete_failed')
+            ->willReturnSelf();
+
+        $this->controller->completeOrkClaim($this->request, $this->response);
+    }
+
+    public function testCompleteOrkClaimReplayFailsClosed(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getQueryParams')->willReturn(['t' => 'completion-jwt']);
+        $this->orkLinkTokenService->method('peekFlowACompletion')->willReturn([
+            'challenge_id' => 'chal-a',
+            'idp_user_id' => '123',
+            'mundane_id' => 777,
+            'purpose' => 'claim_ork',
+            'jti' => 'jti-replay',
+        ]);
+        $row = $this->challengeRow();
+        $this->mailboxChallenges->method('findById')->willReturn($row);
+        $this->orkLinkTokenService->method('consumeJti')->willReturn(false);
+        $this->orkProfileRepository->expects($this->never())->method('linkExistingUserToMundane');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=ork_complete_replay')
+            ->willReturnSelf();
+
+        $this->controller->completeOrkClaim($this->request, $this->response);
+    }
+
+    public function testEmailMigrationRoutes(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getParsedBody')->willReturn(['new_email' => 'new@example.com', 'code' => '123456']);
+        $this->emailMigration->method('start')->willReturn(new MailboxChallengeIssueResult('chal-e', 'hash', true));
+        $this->emailMigration->method('confirm')->willReturn(new MailboxChallengeCheckResult(MailboxChallengeCheckResult::OK));
+        $this->emailMigration->method('commit')->willReturn(new MailboxChallengeCheckResult(MailboxChallengeCheckResult::OK));
+
+        $this->controller->startEmailMigration($this->request, $this->response);
+        $this->assertSame('chal-e', $_SESSION['email_migration_challenge_id']);
+        $this->controller->confirmEmailMigration($this->request, $this->response);
+        $this->controller->commitEmailMigration($this->request, $this->response);
+    }
+
+    public function testEmailMigrationUnauthenticatedAndInvalid(): void
+    {
+        $this->controller->startEmailMigration($this->request, $this->response);
+        $this->controller->confirmEmailMigration($this->request, $this->response);
+        $this->controller->commitEmailMigration($this->request, $this->response);
+
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getParsedBody')->willReturn(['new_email' => 'bad']);
+        $this->emailMigration->expects($this->once())->method('start')->willThrowException(new \InvalidArgumentException('invalid new email'));
+        $this->emailMigration->method('confirm')->willReturn(new MailboxChallengeCheckResult(MailboxChallengeCheckResult::WRONG));
+        $this->emailMigration->method('commit')->willReturn(new MailboxChallengeCheckResult(MailboxChallengeCheckResult::UNKNOWN));
+        $this->controller->startEmailMigration($this->request, $this->response);
+        $this->controller->confirmEmailMigration($this->request, $this->response);
+        $this->controller->commitEmailMigration($this->request, $this->response);
+        $this->addToAssertionCount(1);
+    }
+
+    public function testCompleteOrkClaimUnauthenticated(): void
+    {
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/auth/login')
+            ->willReturnSelf();
+        $this->controller->completeOrkClaim($this->request, $this->response);
+    }
+
+    public function testCompleteOrkClaimConflictAndPendingRedirectAndJtiError(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $_SESSION['redirect'] = '/oauth/authorize?client_id=ork-app';
+        $this->request->method('getQueryParams')->willReturn(['t' => 'completion-jwt']);
+        $row = $this->challengeRow();
+        $this->mailboxChallenges->method('findById')->willReturn($row);
+        $this->orkLinkTokenService->method('peekFlowACompletion')->willReturn([
+            'challenge_id' => 'chal-a',
+            'idp_user_id' => '123',
+            'mundane_id' => 777,
+            'purpose' => 'claim_ork',
+            'jti' => 'jti-complete',
+        ]);
+        $this->orkLinkTokenService->method('consumeJti')->willReturn(true);
+        $this->orkProfileRepository->method('linkExistingUserToMundane')
+            ->willThrowException(new \RuntimeException('conflict: taken'));
+        $this->controller->completeOrkClaim($this->request, $this->response);
+
+        $this->orkProfileRepository = $this->createMock(UserOrkProfileRepository::class);
+        $this->orkProfileRepository->expects($this->once())->method('linkExistingUserToMundane');
+        $this->amtgardIdpJwt->method('buildAuthorizationJwt')->willReturn('linked-jwt');
+        $this->mailboxChallenges = $this->createMock(MailboxChallengeService::class);
+        $this->mailboxChallenges->method('findById')->willReturn($row);
+        $this->mailboxChallenges->expects($this->once())->method('consume');
+        $this->controller = new ResourcesController(
+            $this->logger,
+            $this->twig,
+            $this->clientRepository,
+            $this->redisPubSubQueue,
+            $this->pubSubQueueHandle,
+            $this->database,
+            $this->orkService,
+            $this->orkProfileRepository,
+            $this->userRepository,
+            $this->userClientAuthorizationRepository,
+            $this->userLoginRepository,
+            $this->amtgardIdpJwt,
+            $this->userAuthority,
+            $this->currentUserResolver,
+            ResourcesUserinfoService::builder()->orkProfileRepository($this->orkProfileRepository)->build(),
+            $this->clientAccessRepository,
+            $this->mailboxChallenges,
+            $this->orkLinkTokenService,
+            $this->emailMigration,
+        );
+        $this->controller->completeOrkClaim($this->request, $this->response);
+        $this->assertArrayNotHasKey('redirect', $_SESSION);
+
+        $this->orkLinkTokenService = $this->createMock(OrkLinkTokenService::class);
+        $this->orkLinkTokenService->method('peekFlowACompletion')->willReturn([
+            'challenge_id' => 'chal-a',
+            'idp_user_id' => '123',
+            'mundane_id' => 777,
+            'purpose' => 'claim_ork',
+            'jti' => 'jti-err',
+        ]);
+        $this->orkLinkTokenService->method('consumeJti')->willThrowException(new \RuntimeException('db'));
+        $this->mailboxChallenges = $this->createMock(MailboxChallengeService::class);
+        $this->mailboxChallenges->method('findById')->willReturn($row);
+        $this->controller = new ResourcesController(
+            $this->logger,
+            $this->twig,
+            $this->clientRepository,
+            $this->redisPubSubQueue,
+            $this->pubSubQueueHandle,
+            $this->database,
+            $this->orkService,
+            $this->createMock(UserOrkProfileRepository::class),
+            $this->userRepository,
+            $this->userClientAuthorizationRepository,
+            $this->userLoginRepository,
+            $this->amtgardIdpJwt,
+            $this->userAuthority,
+            $this->currentUserResolver,
+            ResourcesUserinfoService::builder()->orkProfileRepository($this->createMock(UserOrkProfileRepository::class))->build(),
+            $this->clientAccessRepository,
+            $this->mailboxChallenges,
+            $this->orkLinkTokenService,
+            $this->emailMigration,
+        );
+        $this->controller->completeOrkClaim($this->request, $this->response);
+    }
+
+    public function testCompleteOrkClaimRethrowsNonConflict(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getQueryParams')->willReturn(['t' => 'completion-jwt']);
+        $this->mailboxChallenges->method('findById')->willReturn($this->challengeRow());
+        $this->orkLinkTokenService->method('peekFlowACompletion')->willReturn([
+            'challenge_id' => 'chal-a',
+            'idp_user_id' => '123',
+            'mundane_id' => 777,
+            'purpose' => 'claim_ork',
+            'jti' => 'jti-complete',
+        ]);
+        $this->orkLinkTokenService->method('consumeJti')->willReturn(true);
+        $this->orkProfileRepository->method('linkExistingUserToMundane')
+            ->willThrowException(new \RuntimeException('disk full'));
+        $this->expectException(\RuntimeException::class);
+
+        $this->controller->completeOrkClaim($this->request, $this->response);
+    }
+
+    public function testLinkOrkProfileRethrowsNonConflict(): void
+    {
+        $this->request->method('getParsedBody')->willReturn([
+            'idp_user_id' => 'uuid-user',
+            'mundane_id' => 1001,
+            'challenge_id' => 'chal-1',
+        ]);
+        $this->mailboxChallenges->method('isConsumedForUser')->willReturn(true);
+        $this->userRepository->method('findUserByUserId')->willReturn($this->userEntity);
+        $this->orkProfileRepository->method('linkExistingUserToMundane')
+            ->willThrowException(new \RuntimeException('disk full'));
+        $this->expectException(\RuntimeException::class);
+        $this->controller->linkOrkProfile($this->request, $this->response);
+    }
+
+    private function challengeRow(): MailboxChallengeEntity
+    {
+        return new TestMailboxChallengeEntity(testId: 'chal-a');
     }
 }

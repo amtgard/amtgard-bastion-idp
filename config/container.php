@@ -9,6 +9,8 @@ use Amtgard\ActiveRecordOrm\Entity\Policy\UncachedPolicy;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Repository\Database;
+use Amtgard\IdP\Controllers\Server\OAuth\DiscoveryController;
+use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthApproveAction;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthAuthorizeAction;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthFlowErrorRenderer;
@@ -18,11 +20,18 @@ use Amtgard\IdP\Middleware\ManagementMiddleware;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
+use Amtgard\IdP\Models\Oidc\IdentityRepository;
+use Amtgard\IdP\Models\Oidc\OidcNonceContext;
 use Amtgard\IdP\Utility\Security\CurrentUserResolver;
 use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 use Amtgard\IdP\Utility\Security\CsrfTokenManager;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Persistence\Client\Repositories\MailboxChallengeRepository;
+use Amtgard\IdP\Services\Mailbox\LogOutboundMail;
+use Amtgard\IdP\Services\Mailbox\OutboundMail;
+use Amtgard\IdP\Services\Mailbox\SmtpOutboundMail;
+use Amtgard\IdP\Services\MailboxChallengeService;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Services\ResourcesUserinfoService;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
@@ -37,6 +46,8 @@ use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
 use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Utility\BuildInfo;
+use Amtgard\IdP\Utility\JwksFactory;
+use Amtgard\IdP\Utility\OAuthKeyMaterial;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
@@ -63,6 +74,7 @@ use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\ScopeRepositoryInterface;
 use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 use League\OAuth2\Server\ResourceServer;
+use OpenIDConnectServer\Repositories\IdentityProviderInterface;
 use Monolog\Handler\ErrorLogHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\WhatFailureGroupHandler;
@@ -154,6 +166,27 @@ return [
         return $em->getRepository(UserOrkProfileRepository::class);
     },
 
+    MailboxChallengeRepository::class => function (EntityManager $em) {
+        return $em->getRepository(MailboxChallengeRepository::class);
+    },
+
+    OutboundMail::class => function (ContainerInterface $container) {
+        $dsn = trim((string) ($_ENV['MAIL_DSN'] ?? ''));
+        if ($dsn !== '') {
+            return new SmtpOutboundMail($dsn, $container->get(LoggerInterface::class));
+        }
+
+        return new LogOutboundMail($container->get(LoggerInterface::class));
+    },
+
+    MailboxChallengeService::class => function (ContainerInterface $container) {
+        return new MailboxChallengeService(
+            $container->get(MailboxChallengeRepository::class),
+            $container->get(OutboundMail::class),
+            $container->get(LoggerInterface::class),
+        );
+    },
+
     ClientRepositoryInterface::class => function (EntityManager $em) {
         return $em->getRepository(ClientRepository::class);
     },
@@ -199,6 +232,36 @@ return [
         return $em->getRepository(RefreshTokenRepository::class);
     },
 
+    IdentityRepository::class => function (ContainerInterface $container) {
+        return new IdentityRepository($container->get(UserRepository::class));
+    },
+
+    IdentityProviderInterface::class => function (ContainerInterface $container) {
+        return $container->get(IdentityRepository::class);
+    },
+
+    OidcNonceContext::class => function () {
+        return new OidcNonceContext();
+    },
+
+    JwksFactory::class => function () {
+        return JwksFactory::fromPublicKeyPem(OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY'));
+    },
+
+    DiscoveryController::class => function (ContainerInterface $container) {
+        return new DiscoveryController(
+            $container->get(JwksFactory::class),
+            (string) ($_ENV['APP_URL'] ?? ''),
+        );
+    },
+
+    OidcUserInfoController::class => function (ContainerInterface $container) {
+        return new OidcUserInfoController(
+            $container->get(ResourceServer::class),
+            $container->get(UserRepository::class),
+        );
+    },
+
     OAuthServerConfiguration::class => function (ContainerInterface $container) {
         return OAuthServerConfiguration::builder()
             ->clientRepository($container->get(ClientRepositoryInterface::class))
@@ -206,6 +269,8 @@ return [
             ->accessTokenRepository($container->get(AccessTokenRepositoryInterface::class))
             ->authCodeRepository($container->get(AuthCodeRepositoryInterface::class))
             ->refreshTokenRepository($container->get(RefreshTokenRepositoryInterface::class))
+            ->identityProvider($container->get(IdentityProviderInterface::class))
+            ->nonceContext($container->get(OidcNonceContext::class))
             ->build();
     },
 

@@ -38,7 +38,7 @@ class ScopeRepository extends Repository implements ScopeRepositoryInterface
             ->orElse(null);
     }
 
-    protected static $VALID_SCOPES = [ "email", "profile" ];
+    protected static $VALID_SCOPES = [ "openid", "email", "profile" ];
     public function finalizeScopes(array $scopes, $grantType, ClientEntityInterface $clientEntity, $userIdentifier = null)
     {
         $validatedScopes = [];

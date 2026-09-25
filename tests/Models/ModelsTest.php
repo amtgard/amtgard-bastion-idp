@@ -7,6 +7,9 @@ use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
+use Amtgard\IdP\Models\Oidc\OidcAuthCodeGrant;
+use Amtgard\IdP\Models\Oidc\OidcIdTokenResponse;
+use OpenIDConnectServer\Repositories\IdentityProviderInterface;
 use Amtgard\IdP\Models\Orn\IdpClaim;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Common\Repositories\JwtChallenge;
@@ -205,10 +208,18 @@ class ModelsTest extends TestCase
             ->accessTokenRepository($accessTokenRepo)
             ->authCodeRepository($authCodeRepo)
             ->refreshTokenRepository($refreshTokenRepo)
+            ->identityProvider($this->createStub(IdentityProviderInterface::class))
             ->build();
 
         $server = $config->build();
         $this->assertInstanceOf(\League\OAuth2\Server\AuthorizationServer::class, $server);
+
+        $responseType = (new \ReflectionProperty($server, 'responseType'))->getValue($server);
+        $this->assertInstanceOf(OidcIdTokenResponse::class, $responseType);
+        $this->assertNotNull((new \ReflectionProperty($responseType, 'keyIdentifier'))->getValue($responseType));
+
+        $grants = (new \ReflectionProperty($server, 'enabledGrantTypes'))->getValue($server);
+        $this->assertInstanceOf(OidcAuthCodeGrant::class, $grants['authorization_code']);
     }
 
     public function testIdpClaim(): void

@@ -11,6 +11,8 @@ use Amtgard\IdP\Controllers\Client\GoogleAuthController;
 use Amtgard\IdP\Controllers\HomeController;
 use Amtgard\IdP\Controllers\Resource\ClientResourcesController;
 use Amtgard\IdP\Controllers\Resource\LowLatencyController;
+use Amtgard\IdP\Controllers\Server\OAuth\DiscoveryController;
+use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Management\ClientAccessController;
 use Amtgard\IdP\Controllers\Management\ManagementController;
@@ -34,6 +36,11 @@ return function (App $app) {
     // Home page
     $app->get('/', [HomeController::class, 'index'])->setName('home');
     $app->get('/version', [VersionController::class, 'index'])->setName('version');
+
+    $app->get('/.well-known/openid-configuration', [DiscoveryController::class, 'openidConfiguration'])
+        ->setName('oidc.discovery');
+    $app->get('/.well-known/jwks.json', [DiscoveryController::class, 'jwks'])
+        ->setName('oidc.jwks');
 
     // Swagger
     $app->get('/swagger', [SwaggerController::class, 'documentation'])->setName('swagger.documentation');
@@ -78,6 +85,28 @@ return function (App $app) {
             ->add(CsrfMiddleware::class)
             ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.profile.link_ork');
+
+        // Future ORK possession flow. Today's profile form still posts username
+        // and password to link-ork. ORK calls this once Login/claim_ork exists.
+        $group->post('/profile/link-ork-code', [ResourcesController::class, 'startOrkCodeClaim'])
+            ->add(CsrfMiddleware::class)
+            ->add(ClientRestrictedAuthMiddleware::class)
+            ->setName('resources.profile.link_ork_code');
+
+        $group->post('/profile/email/start', [ResourcesController::class, 'startEmailMigration'])
+            ->add(CsrfMiddleware::class)
+            ->add(LocalIdpAuthMiddleware::class)
+            ->setName('resources.profile.email.start');
+
+        $group->post('/profile/email/confirm', [ResourcesController::class, 'confirmEmailMigration'])
+            ->add(CsrfMiddleware::class)
+            ->add(LocalIdpAuthMiddleware::class)
+            ->setName('resources.profile.email.confirm');
+
+        $group->post('/profile/email/commit', [ResourcesController::class, 'commitEmailMigration'])
+            ->add(CsrfMiddleware::class)
+            ->add(LocalIdpAuthMiddleware::class)
+            ->setName('resources.profile.email.commit');
 
         $group->post('/profile/refresh-ork', [ResourcesController::class, 'refreshOrkAccount'])
             ->add(CsrfMiddleware::class)
@@ -164,11 +193,15 @@ return function (App $app) {
             $group->post('/apple/callback', [AppleAuthController::class, 'handleAppleCallback'])->setName('auth.apple.callback');
         }
 
-        // ORK→IDP onboarding handoff. ORK signs a short-lived JWT and redirects
-        // the user here; we log them in or register them and write the link.
+        // Current ORK handoff: login/register. A JWT that also carries challenge_id
+        // uses the possession-code form and POST /connect/code.
         $group->get('/connect', [ConnectController::class, 'showConnect'])->setName('auth.connect.show');
         $group->post('/connect/login', [ConnectController::class, 'submitConnectLogin'])->add(CsrfMiddleware::class)->setName('auth.connect.login');
         $group->post('/connect/register', [ConnectController::class, 'submitConnectRegister'])->add(CsrfMiddleware::class)->setName('auth.connect.register');
+        $group->post('/connect/code', [ConnectController::class, 'submitConnectCode'])->add(CsrfMiddleware::class)->setName('auth.connect.code');
+        $group->get('/connect/complete', [ResourcesController::class, 'completeOrkClaim'])
+            ->add(LocalIdpAuthMiddleware::class)
+            ->setName('auth.connect.complete');
     });
 
     // Management routes
@@ -220,6 +253,9 @@ return function (App $app) {
 
         // access_token endpoint
         $group->post('/token', [OAuth2ServerController::class, 'token'])->setName('oauth.token');
+
+        $group->map(['GET', 'POST'], '/userinfo', [OidcUserInfoController::class, 'userinfo'])
+            ->setName('oauth.userinfo');
 
         // access_token endpoint
         $group->map(['GET', 'POST'], '/approve', [OAuth2ServerController::class, 'approve'])->add(CsrfMiddleware::class)->setName('oauth.approve');

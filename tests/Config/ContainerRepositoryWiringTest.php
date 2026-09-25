@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Config;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Persistence\Client\Repositories\MailboxChallengeRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
@@ -89,5 +90,20 @@ class ContainerRepositoryWiringTest extends TestCase
         $resolved = $definitions[UserJwtGenerationRepository::class]($entityManager);
 
         $this->assertSame($repository, $resolved);
+    }
+
+    public function testContainerDefinesMailboxChallengeRepositoryWiring(): void
+    {
+        $definitions = require __DIR__ . '/../../config/container.php';
+
+        $this->assertArrayHasKey(MailboxChallengeRepository::class, $definitions);
+        $repository = $this->createStub(MailboxChallengeRepository::class);
+        $entityManager = $this->createMock(EntityManager::class);
+        $entityManager->expects($this->once())
+            ->method('getRepository')
+            ->with(MailboxChallengeRepository::class)
+            ->willReturn($repository);
+
+        $this->assertSame($repository, $definitions[MailboxChallengeRepository::class]($entityManager));
     }
 }

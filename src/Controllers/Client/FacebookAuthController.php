@@ -82,11 +82,15 @@ class FacebookAuthController extends BaseAuthController
                 return $this->facebookProvider->getResourceOwner($token)->toArray();
             })
             ->resolveUser(function (array $userData, AuthorizationFinalizeRedirect &$redirectPolicy) {
-                return Optional::ofNullable($this->users->getUserByEmail($userData['email']))
+                return Optional::ofNullable($this->logins->getLoginByProviderId($userData['id']))
+                    ->map(fn ($login) => $login->user)
                     ->orElseGet(function () use ($userData, &$redirectPolicy) {
-                        $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
+                        return Optional::ofNullable($this->users->getUserByEmail($userData['email']))
+                            ->orElseGet(function () use ($userData, &$redirectPolicy) {
+                                $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
 
-                        return $this->users->createUserFromFacebookData($userData);
+                                return $this->users->createUserFromFacebookData($userData);
+                            });
                     });
             })
             ->resolveLogin(function ($user, array $userData, $token) {

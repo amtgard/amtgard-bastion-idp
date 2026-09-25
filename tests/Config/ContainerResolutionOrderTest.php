@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Config;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Controllers\Client\ConnectController;
+use Amtgard\IdP\Controllers\Resource\ResourcesController;
+use Amtgard\IdP\Controllers\Server\OAuth\DiscoveryController;
+use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
 use Amtgard\IdP\Middleware\ConfidentialClientBasicAuthMiddleware;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Tests\Support\OAuthTestEnvironment;
+use DI\Bridge\Slim\Bridge;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
+use RedisException;
 use Throwable;
 
 /**
@@ -74,6 +80,93 @@ final class ContainerResolutionOrderTest extends TestCase
         $this->assertInstanceOf(UserRepository::class, $userRepository);
         $this->assertInstanceOf(AuthorizationJwtAssembler::class, $assembler);
         $this->assertInstanceOf(AmtgardIdpJwt::class, $idpJwt);
+    }
+
+    public function testMailboxPossessionEndpointsResolveFromTheBootedContainer(): void
+    {
+        $app = Bridge::create($this->container);
+        (require dirname(__DIR__, 2) . '/config/routes.php')($app);
+        $collector = $app->getRouteCollector();
+
+        $endpoints = [
+            'resources.profile.link_ork_code' => [ResourcesController::class, 'startOrkCodeClaim'],
+            'resources.profile.email.start' => [ResourcesController::class, 'startEmailMigration'],
+            'resources.profile.email.confirm' => [ResourcesController::class, 'confirmEmailMigration'],
+            'resources.profile.email.commit' => [ResourcesController::class, 'commitEmailMigration'],
+            'auth.connect.code' => [ConnectController::class, 'submitConnectCode'],
+            'auth.connect.complete' => [ResourcesController::class, 'completeOrkClaim'],
+        ];
+
+        foreach ($endpoints as $name => [$class, $method]) {
+            $callable = $collector->getNamedRoute($name)->getCallable();
+            $this->assertSame([$class, $method], $callable);
+
+            $controller = $this->resolveOrSkip($class);
+            $this->assertTrue(method_exists($controller, $method));
+        }
+    }
+
+    public function testOidcEndpointsResolveFromTheBootedContainer(): void
+    {
+        $app = Bridge::create($this->container);
+        (require dirname(__DIR__, 2) . '/config/routes.php')($app);
+        $collector = $app->getRouteCollector();
+
+        $endpoints = [
+            'oidc.discovery' => [DiscoveryController::class, 'openidConfiguration'],
+            'oidc.jwks' => [DiscoveryController::class, 'jwks'],
+            'oauth.userinfo' => [OidcUserInfoController::class, 'userinfo'],
+        ];
+
+        foreach ($endpoints as $name => [$class, $method]) {
+            $callable = $collector->getNamedRoute($name)->getCallable();
+            $this->assertSame([$class, $method], $callable);
+
+            $controller = $this->resolveOrSkip($class);
+            $this->assertTrue(method_exists($controller, $method));
+        }
+    }
+
+    private function resolveOrSkip(string $class): object
+    {
+        try {
+            return $this->container->get($class);
+        } catch (Throwable $e) {
+            if ($this->causedByInfrastructure($e)) {
+                $this->markTestSkipped('Infrastructure not reachable for container integration: ' . $e->getMessage());
+            }
+
+            throw $e;
+        }
+    }
+
+    private function causedByInfrastructure(Throwable $e): bool
+    {
+        for ($current = $e; $current !== null; $current = $current->getPrevious()) {
+            if ($current instanceof RedisException) {
+                return true;
+            }
+            if ($current instanceof \PDOException && $this->isConnectionFailure($current)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isConnectionFailure(\PDOException $e): bool
+    {
+        $sqlState = $e->errorInfo[0] ?? '';
+        if ($sqlState === '42S02') {
+            return false;
+        }
+
+        $message = $e->getMessage();
+
+        return str_contains($message, 'getaddrinfo')
+            || str_contains($message, 'Connection refused')
+            || str_contains($message, 'server has gone away')
+            || str_contains($message, '[2002]');
     }
 
     private function applyPhpUnitEnvironmentOverrides(): void

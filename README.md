@@ -1,5 +1,5 @@
 # amtgard-bastion-idp
-Amtgard Identity Provider (https://idp.amtgard.com) provides identity services for digital services (apps) for Amtgard and related boffer activities.
+Amtgard Identity Provider (https://idp.amtgard.com) is an OAuth 2.0 authorization server and an OpenID Provider for the authorization-code flow. It provides identity services for digital services (apps) for Amtgard and related boffer activities.
 
 The basic concept is that Amtgard IDP converts your online account (such as google or facebook) into an Amtgard account. This account is shared across Amtgard apps such as the ORK, event management apps, and online forums.
 
@@ -9,29 +9,53 @@ The benefit of this is a single unified digital Amtgard account across apps and 
 
 If you want to use the Amtgard IDP to manage authentication and authorization for you website or app, you will need an Amtgard IDP client configured. Right now, this is a manual process - please contact Megiddo to request access.
 
-The IDP supports standard OAuth2 clients (Confidential and Public).
+The IDP supports standard OAuth 2.0 clients (Confidential and Public) and OpenID Connect relying parties on the same authorization-code + PKCE login.
 
 Confidential clients are clients where a *Client Secret* can be kept private and secure. Examples are websites where the client secret is kept secret and secure on the web server.
 
 Public clients are client where the application lives entirely in the browser (aka SPA) or is installed on the user's device (such as a phone app).
 
-- **ORK Service**: deeply integrated for fetching player profiles.
-- **Generic OAuth2 Clients**: Any compliant OAuth2 client can be registered in the `clients` database table.
+- **ORK Service**: deeply integrated for fetching player profiles via the authorization-JWT resource flow.
+- **Generic OAuth 2.0 clients**: any compliant OAuth 2.0 client can be registered in the `clients` database table. Omit `openid` and the token JSON stays `{access_token, refresh_token}`.
+- **OpenID Connect relying parties**: send `scope` including `openid` (and usually a `nonce`) to receive an RS256 `id_token` on the same code exchange.
 
 If you need onboarding help, please reach out. We host several example implementations on github for your reference: https://github.com/amtgard/amtgard-idp-client-examples
+
+PHP relying-party examples stay out of this repo. If a later example app needs an OpenID Connect client, point [`jumbojett/openid-connect-php`](https://github.com/jumbojett/OpenID-Connect-PHP) at the issuer (`https://idp.amtgard.com`). Do not add that package here.
+
+Integrator details for both paths: [templates/api.md](templates/api.md).
 
 ## OAuth Server Operations
 
 The OAuth Server offers several resources:
-* **User Info**: email, persona, and ORK-related information. This information can and should be stored and cached locally. This endpoint is rate limited at a relatively low level.
-* **
+* **OpenID Connect identity**: `id_token` on `/oauth/token` when `openid` was granted, plus `/oauth/userinfo` with the access token. Identity claims only (`sub`, and scoped `email` / `name` / `preferred_username` / `updated_at`).
+* **User Info (authorization JWT)**: email, persona, and ORK-related information. This information can and should be stored and cached locally. This endpoint is rate limited at a relatively low level.
 
 The IDP provides specific endpoints for retrieving user data and validating sessions.
 
+### OpenID Connect
+
+Production issuer: `https://idp.amtgard.com` (no path, no trailing slash). Discovery and JWKS are public:
+
+- `GET /.well-known/openid-configuration`
+- `GET /.well-known/jwks.json`
+
+A relying party that only needs to know who logged in:
+
+1. Redirect the browser to `/oauth/authorize` with `response_type=code`, PKCE (`S256`), `scope` including `openid` (and usually `profile email`), and a `nonce` (1–255 characters).
+2. Exchange the code at `POST /oauth/token`. The JSON adds `id_token` next to the existing `access_token`, `refresh_token`, `expires_in`, and `token_type`. Without `openid`, those keys are unchanged.
+3. Verify the RS256 `id_token` against JWKS. Check `iss`, `aud`, `exp`, and `nonce`. `iss` is `APP_URL`. `sub` is the user UUID (`users.user_id`). `exp` matches the access-token expiry. Refresh grants that still carry `openid` return a new `id_token` without `nonce`.
+4. Optional: `GET` or `POST /oauth/userinfo` with the **access token**. The body is `sub` plus the same scoped identity claims. An authorization JWT is `401`. Missing `openid` is `403`.
+
+`id_token` and `/oauth/userinfo` do not include ORK profile or IAM policy (`policy`, `pvh`, `orkid`, `orkuser`, `client_metadata`).
+
+`prompt=none` is honored for silent checks: no session → `error=login_required`; session but no prior approval → `error=consent_required`. Neither case renders login or approve HTML. Other `prompt` values are ignored. `none` plus any other prompt value is `invalid_request`.
+
 ### User Info Endpoint
 **Endpoint**: `/resources/userinfo`
-- **Purpose**: Retrieves the full profile of the authenticated user.
+- **Purpose**: Retrieves the full Amtgard profile of the authenticated user. This stays the **authorization-JWT** profile endpoint — not OpenID UserInfo.
 - **Use Case**: Used by clients (like the ORK or a user profile page) to display user details, including linked Amtgard ORK profile data (Mundane ID, Persona, Park, Kingdom, etc.).
+- **Auth**: `Authorization: Bearer <authorization_jwt>` from `GET /resources/jwt` (present the OAuth access token there first). Do not send this JWT to `/oauth/userinfo`.
 - **Response**: JSON object containing `id`, `email`, and `ork_profile` (if linked).
 
 ### Validate Endpoint

@@ -1,6 +1,6 @@
 # Amtgard Identity Provider Integration Guide
 
-Welcome to the Amtgard Identity Provider (IdP) developer documentation. The Amtgard IdP provides secure, unified authentication and user profile access for Amtgard web applications and services.
+Welcome to the Amtgard Identity Provider (IdP) developer documentation. The Amtgard IdP is an OAuth 2.0 authorization server and an OpenID Provider for the authorization-code flow. It provides secure, unified authentication and user profile access for Amtgard web applications and services.
 
 > [!TIP]
 > **Interactive API Sandbox**: You can explore and test the endpoints directly using our <a href="/swagger" target="_self">Interactive Swagger UI</a> (or access the raw <a href="/openapi.json" target="_self">OpenAPI Specification JSON</a>).
@@ -9,7 +9,7 @@ Welcome to the Amtgard Identity Provider (IdP) developer documentation. The Amtg
 
 ## Capabilities Overview
 
-The IdP serves two audiences: **players and volunteers** who sign in through a browser, and **application developers** who integrate via OAuth and optional server APIs.
+The IdP serves two audiences: **players and volunteers** who sign in through a browser, and **application developers** who integrate via OAuth 2.0, OpenID Connect, and optional server APIs.
 
 ### For end users
 
@@ -21,12 +21,14 @@ The IdP serves two audiences: **players and volunteers** who sign in through a b
 | **Profile & consent UI** | Manage linked logins, authorized applications, and OAuth consent at `/resources/profile` |
 | **Session persistence** | Stay signed in across IdP-hosted pages; apps receive OAuth tokens for their own sessions |
 
-### For integrators (OAuth clients)
+### For integrators (OAuth clients and OpenID relying parties)
 
 | Capability | What it means |
 |------------|----------------|
 | **Standards-compliant OAuth 2.0** | Authorization code flow with PKCE for public clients; refresh tokens for long-lived access |
-| **Profile API** | After login, elevate to an authorization JWT and fetch email, ORK profile, IAM policy, and optional app metadata |
+| **OpenID Connect (code flow)** | Add `openid` (and usually a `nonce`) to the same authorize request. Token JSON adds an RS256 `id_token`. Discover from `/.well-known/openid-configuration` |
+| **OIDC UserInfo** | `GET` or `POST /oauth/userinfo` with the **access token** returns `sub` plus scoped identity claims. Not the Amtgard profile endpoint |
+| **Profile API (ORK / IAM)** | After login, elevate to an authorization JWT at `/resources/jwt` and fetch email, ORK profile, IAM policy, and optional app metadata at `/resources/userinfo` |
 | **Presence / heartbeat** | Lightweight `/resources/validate` checks without reloading full profile data |
 | **Custom IAM service namespace** | Operators can register a dedicated ORK IAM **service name** (e.g. `Skbc`) for your app's permission model |
 | **Custom service format** | Choose which **proviso slots** appear in your ORNs and in what order — built-in ORK IAM labels or custom names (ORK IAM 1.3+) |
@@ -37,18 +39,19 @@ The IdP serves two audiences: **players and volunteers** who sign in through a b
 
 | You are building… | Read first |
 |-------------------|------------|
-| A web or mobile app that needs “Sign in with Amtgard” | [Section 1](#1-getting-an-access-token) → [Section 2](#2-api-endpoint-reference) |
+| A forum, wiki, NextAuth, or other app that only needs who logged in | [OpenID Connect](#openid-connect) — discovery + `id_token` + `/oauth/userinfo` |
+| A web or mobile app that needs Amtgard profile, ORK data, or IAM | [Section 1](#1-getting-an-access-token) → [Section 2](#2-api-endpoint-reference) — keep the `/resources/jwt` flow |
 | A backend that needs roles/permissions in JWTs | [Section 8](#8-client-iam--jwt-metadata-server-to-server) (requires admin-assigned `iam_service`) |
 | ORK itself or another core Amtgard service | [Section 7](#7-ork-deep-integration-amtgard-specific) |
 | A sample app in PHP, Node, etc. | [Section 6](#6-integration-examples-repository) |
 
-Most third-party apps use **OAuth + userinfo** only. **Client IAM** (custom service, policy claims, metadata) is optional and must be enabled by IdP administrators when your app needs programmatic permission management.
+Choose **OpenID Connect** when identity (`sub`, email, display name) is enough. Choose the **resource flow** (`/resources/jwt` then `/resources/userinfo`) when you need ORK profile or IAM. **Client IAM** (custom service, policy claims, metadata) is optional and must be enabled by IdP administrators when your app needs programmatic permission management.
 
 ---
 
 ## 1. Getting an Access Token
 
-If you're new to OAuth, don't worry! Getting an Access Token is a standard, straightforward process. The Amtgard IdP is fully standards-compliant, meaning you don't need to write complex authentication flows yourself—you can use standard libraries (like the ones shown below) to handle everything.
+If you're new to OAuth, don't worry! Getting an Access Token is a standard, straightforward process. The Amtgard IdP is an OAuth 2.0 authorization server and an OpenID Provider for the code flow, meaning you don't need to write complex authentication flows yourself—you can use a standard OAuth 2.0 library or an OpenID Connect client pointed at the issuer.
 
 ### Step A: Request a Client ID & Secret
 Before your application can communicate with the IdP, you need credentials (a `Client ID` and a `Client Secret`).
@@ -62,33 +65,37 @@ Once you have your credentials, the OAuth flow works as follows:
 2. The user signs in and grants permission.
 3. The user is redirected back to your app with an authorization code.
 4. Your server-side code sends that code, along with your `Client Secret`, back to the IdP.
-5. The IdP responds with your **Access Token**.
+5. The IdP responds with your **Access Token** (and an **`id_token`** when the granted scopes include `openid`).
 
-You will pass this token in the header of all your API requests to retrieve user details.
+For OpenID Connect, verify the `id_token` locally against JWKS — that is enough to know who logged in. For ORK profile or IAM, pass the access token to `GET /resources/jwt`, then present that authorization JWT to `/resources/userinfo`.
 
 ---
 
 ## 2. API Endpoint Reference
 
-These are the HTTP endpoints your application calls after you have registered an OAuth client. The Amtgard IdP implements standard OAuth 2.0 (authorization code + PKCE) plus a small set of resource endpoints for profile data and session validation.
+These are the HTTP endpoints your application calls after you have registered an OAuth client. The Amtgard IdP implements standard OAuth 2.0 (authorization code + PKCE), OpenID Connect for that same code flow, plus a small set of resource endpoints for Amtgard profile data and session validation.
 
 ### OAuth 2.0 Server
 
 #### Authorization Endpoint (`GET /oauth/authorize`)
 
-Starts the login and consent flow. Redirect the user's browser here with standard OAuth query parameters.
+Starts the login and consent flow. Redirect the user's browser here with standard OAuth query parameters. OpenID Connect uses this same endpoint.
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `response_type` | Yes | Must be `code` |
 | `client_id` | Yes | Your registered client identifier |
 | `redirect_uri` | Yes | Must match a URI registered for your client |
-| `scope` | Yes | Space-separated scopes (e.g. `profile email`) |
+| `scope` | Yes | Space-separated. Supported: `openid`, `profile`, `email`. Include `openid` to receive an `id_token` (e.g. `openid profile email`). Omit `openid` for the existing access-token-only response |
 | `state` | Yes | Random value you verify on callback (CSRF protection) |
+| `nonce` | Recommended for OIDC | 1–255 character string copied into the authorization-code `id_token` only. Refresh `id_token`s omit it. Longer or empty values are `invalid_request` |
+| `prompt` | No | Honor `prompt=none` only. `none` plus any other value is `invalid_request`. Other values (`login`, `consent`, `select_account`) are ignored |
 | `code_challenge` | Yes (public clients) | PKCE S256 challenge |
 | `code_challenge_method` | Yes (public clients) | Must be `S256` |
 
-If the user is not logged in, they are redirected to `/auth/login` and returned here afterward. If the user has not previously authorized your client, they see a consent screen at `/oauth/approve`. On success, the user is redirected to your `redirect_uri` with an authorization `code`.
+If the user is not logged in, they are redirected to `/auth/login` and returned here afterward (`nonce` and `prompt` are kept across that redirect). If the user has not previously authorized your client, they see a consent screen at `/oauth/approve`. On success, the user is redirected to your `redirect_uri` with an authorization `code`.
+
+`prompt=none` never renders login or approve HTML. No session → redirect to `redirect_uri` with `error=login_required` and `state`. Session present but no prior approval for that client → `error=consent_required`.
 
 #### Token Endpoint (`POST /oauth/token`)
 
@@ -114,7 +121,7 @@ Exchange an authorization code or refresh token for access (and optionally refre
 | `client_secret` | Required for confidential clients |
 | `refresh_token` | Previously issued refresh token |
 
-**Example response**:
+**Example response** (no `openid` — same keys as before):
 
 ```json
 {
@@ -125,11 +132,108 @@ Exchange an authorization code or refresh token for access (and optionally refre
 }
 ```
 
+**Example response** when `openid` was granted — same keys plus `id_token`:
+
+```json
+{
+  "token_type": "Bearer",
+  "expires_in": 7200,
+  "access_token": "...",
+  "refresh_token": "...",
+  "id_token": "eyJ..."
+}
+```
+
+`expires_in` stays the access-token TTL (`OAUTH_ACCESS_TOKEN_TTL`). The `id_token` uses the same expiry. A refresh grant that still carries `openid` returns a new `id_token` and omits the `nonce` claim.
+
+---
+
+<a id="openid-connect"></a>
+
+### OpenID Connect
+
+Use this path when your app only needs to verify who logged in. Production issuer is `https://idp.amtgard.com` (no path, no trailing slash). The same OAuth client registration works for both OIDC and the resource flow; the difference is whether you send `openid` and whether you call `/resources/jwt`.
+
+PHP relying-party examples stay out of this repo. If an example app later needs a client, point [`jumbojett/openid-connect-php`](https://github.com/jumbojett/OpenID-Connect-PHP) at the issuer. Do not add that package to this IDP.
+
+#### Discovery and JWKS
+
+Public `GET`s. `Cache-Control: public, max-age=3600`. URLs are the issuer plus these paths.
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /.well-known/openid-configuration` | OpenID Provider metadata. `issuer` is `APP_URL` |
+| `GET /.well-known/jwks.json` | One RSA signing key (`use=sig`, `alg=RS256`). `kid` is the RFC 7638 SHA-256 thumbprint. No private parameters |
+
+**Discovery document** (production shape):
+
+```json
+{
+  "issuer": "https://idp.amtgard.com",
+  "authorization_endpoint": "https://idp.amtgard.com/oauth/authorize",
+  "token_endpoint": "https://idp.amtgard.com/oauth/token",
+  "userinfo_endpoint": "https://idp.amtgard.com/oauth/userinfo",
+  "jwks_uri": "https://idp.amtgard.com/.well-known/jwks.json",
+  "response_types_supported": ["code"],
+  "grant_types_supported": ["authorization_code", "refresh_token"],
+  "subject_types_supported": ["public"],
+  "id_token_signing_alg_values_supported": ["RS256"],
+  "scopes_supported": ["openid", "profile", "email"],
+  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post", "none"],
+  "code_challenge_methods_supported": ["S256"],
+  "claims_supported": ["sub", "iss", "aud", "exp", "iat", "nonce", "email", "name", "preferred_username", "updated_at"]
+}
+```
+
+A stock OpenID Connect client can bootstrap from the issuer URL alone.
+
+#### ID token
+
+Verify the RS256 `id_token` against JWKS. Check `iss`, `aud` (your `client_id`), `exp`, and `nonce` on the first token from a code exchange. `iss` is `APP_URL` even when the HTTP host differs. `sub` is `users.user_id` (the same UUID as the authorization JWT `sub`). Header `kid` matches JWKS.
+
+| Claim | Scope | Notes |
+|-------|-------|-------|
+| `sub` | `openid` | User UUID. Always present |
+| `iss` | — | `APP_URL` with no trailing slash |
+| `aud` | — | Your OAuth `client_id` |
+| `exp`, `iat` | — | `exp` equals the access-token expiry |
+| `nonce` | — | Authorization-code `id_token` only. Omitted after refresh |
+| `email` | `email` | `users.email` when set |
+| `name` | `profile` | First and last name when either is non-empty |
+| `preferred_username` | `profile` | `users.username` when non-empty |
+| `updated_at` | `profile` | `users.updated_at` as a Unix timestamp when set |
+
+Absent claims are omitted. `email_verified`, `picture`, `orkid`, `orkuser`, `policy`, `pvh`, and `client_metadata` are never on the `id_token`.
+
+#### OpenID UserInfo (`GET` and `POST /oauth/userinfo`)
+
+Returns the same identity claims as the `id_token` (minus `iss`, `aud`, `exp`, `iat`, and `nonce`). Discovery advertises this endpoint only.
+
+- **Auth**: `Authorization: Bearer <access_token>` from `/oauth/token`. The access token must include `openid`.
+- **POST**: may send form field `access_token` when the header is absent. When both are present, the header wins.
+- **200**: `sub` plus scoped claims. `Cache-Control: no-store`.
+- **403** `{ "error": "insufficient_scope" }` and `WWW-Authenticate: Bearer error="insufficient_scope"` when `openid` was not granted.
+- **401** `{ "error": "invalid_token" }` for a missing/invalid access token, or when the bearer is an **authorization JWT**.
+
+**Example response** (`scope=openid profile email`):
+
+```json
+{
+  "sub": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "player@amtgard.com",
+  "name": "Ada Player",
+  "preferred_username": "Ada",
+  "updated_at": 1717603200
+}
+```
+
+This is **not** `/resources/userinfo`. That endpoint still requires the authorization JWT and still returns Amtgard profile / ORK data. Do not change clients that already call `/resources/jwt` then `/resources/userinfo`.
+
 ---
 
 ### Resource Endpoints
 
-After OAuth login, profile and IAM data use a **two-step elevation**:
+After OAuth login, **ORK profile and IAM** data use a **two-step elevation**. OpenID Connect clients that only need identity should use `/oauth/userinfo` (or the `id_token`) instead — see [OpenID Connect](#openid-connect).
 
 1. **`GET /resources/jwt`** — present your OAuth **access token** (or browser session) to obtain a signed RS256 **authorization JWT**. This is the **remint well** — the only resource endpoint that mints a new authorization JWT. It does **not** accept an authorization JWT.
 2. **`GET /resources/userinfo`** — present that **authorization JWT** (not the access token) to load the full profile. Does **not** remint.
@@ -162,7 +266,7 @@ Remint well: elevates an OAuth access token (or authenticated session) to a sign
 
 #### <a href="/swagger#/default/userinfo" target="_self">User Info (`GET /resources/userinfo`)</a>
 
-Retrieves the full profile of the authenticated user, including their linked Amtgard ORK profile (Mundane ID, persona, kingdom, park, image, dues status, etc.). This is the primary endpoint for loading user data after login. It does **not** remint a JWT.
+Retrieves the full Amtgard profile of the authenticated user, including their linked Amtgard ORK profile (Mundane ID, persona, kingdom, park, image, dues status, etc.). This is the primary endpoint for ORK and IAM clients after login. It stays the **authorization-JWT** profile endpoint — not OpenID UserInfo (`/oauth/userinfo`). It does **not** remint a JWT.
 
 - **Method**: `GET`
 - **Auth**: `Authorization: Bearer <authorization_jwt>` from `/resources/jwt` — **not** the OAuth access token
@@ -486,7 +590,7 @@ app.get('/callback', async (req: Request, res: Response) => {
 ---
 
 ### C. Fetching User Profile Details
-Exchange the OAuth access token for an authorization JWT, then call userinfo.
+For ORK profile and IAM, exchange the OAuth access token for an authorization JWT, then call `/resources/userinfo`. For identity-only OpenID Connect, skip this elevation and use the `id_token` or `GET /oauth/userinfo` with the access token — see [OpenID Connect](#openid-connect).
 
 <!-- tabs:start -->
 
@@ -677,7 +781,7 @@ async function refreshAccessToken(storedRefreshToken: string): Promise<string> {
 
 ## 4. Integration with PHP League's OAuth 2.0 Client (`league/oauth2-client`)
 
-To simplify this implementation in PHP, use the standard [PHP League OAuth 2.0 Client](https://oauth2-client.thephpleague.com/) provider wrapper.
+To simplify the **OAuth 2.0 resource-flow** implementation in PHP, use the standard [PHP League OAuth 2.0 Client](https://oauth2-client.thephpleague.com/) provider wrapper. For OpenID Connect identity (verify `id_token`, call `/oauth/userinfo`), do not add a relying-party library to this IDP repo — point [`jumbojett/openid-connect-php`](https://github.com/jumbojett/OpenID-Connect-PHP) at `https://idp.amtgard.com` from a separate example app.
 
 ### Installation
 ```bash
@@ -763,21 +867,31 @@ if (!isset($_GET['code'])) {
 
 This section lists every public-facing endpoint on the IDP, what it is for, and who typically calls it. Documenting these endpoints is intentional — developers need this reference to integrate correctly.
 
-Endpoints fall into five categories: **OAuth server** (standard protocol), **resource API** (your app after login), **client IAM API** (server-to-server policy/metadata for registered apps), **policy service** (backend authorization checks), and **browser UI** (human login and profile management).
+Endpoints fall into six categories: **OAuth server** (standard protocol), **OpenID Connect** (discovery, JWKS, identity UserInfo), **resource API** (your app after login, authorization-JWT profile), **client IAM API** (server-to-server policy/metadata for registered apps), **policy service** (backend authorization checks), and **browser UI** (human login and profile management).
 
 ### OAuth 2.0 Server
 
-These implement the standard OAuth 2.0 authorization code flow. Every registered client uses them.
+These implement the standard OAuth 2.0 authorization code flow. Every registered client uses them. OpenID Connect adds `openid` / `nonce` on authorize and `id_token` on token — same URLs.
 
 | Endpoint | Method | Purpose | Called by |
 |----------|--------|---------|-----------|
-| `/oauth/authorize` | GET | Start login/consent; returns authorization code to your redirect URI | User's browser (redirect from your app) |
-| `/oauth/token` | POST | Exchange authorization code or refresh token for access token | Your server (confidential) or app (public + PKCE) |
+| `/oauth/authorize` | GET | Start login/consent; returns authorization code to your redirect URI. Accepts `openid` in `scope`, `nonce`, and `prompt=none` | User's browser (redirect from your app) |
+| `/oauth/token` | POST | Exchange authorization code or refresh token for access token. Adds `id_token` when `openid` was granted | Your server (confidential) or app (public + PKCE) |
 | `/oauth/approve` | GET/POST | Consent screen — user approves or denies client access to scopes | User's browser (during first authorization) |
+
+### OpenID Connect
+
+Public discovery and identity UserInfo. See [OpenID Connect](#openid-connect).
+
+| Endpoint | Method | Purpose | Called by |
+|----------|--------|---------|-----------|
+| `/.well-known/openid-configuration` | GET | Discovery document (`issuer` is `APP_URL`) | OpenID Connect clients |
+| `/.well-known/jwks.json` | GET | RSA public JWK for verifying `id_token` | OpenID Connect clients |
+| `/oauth/userinfo` | GET/POST | Identity claims (`sub` plus scoped `email` / profile fields) | Your app with the **access token** (`openid` required) |
 
 ### Resource API (OAuth clients)
 
-Call these after login. Elevate your access token to an authorization JWT first (see [Section 2](#2-api-endpoint-reference)).
+Call these after login when you need Amtgard profile, ORK data, IAM, or presence. Elevate your access token to an authorization JWT first (see [Section 2](#2-api-endpoint-reference)). Identity-only OpenID Connect clients use `/oauth/userinfo` instead.
 
 | Endpoint | Method | Purpose | Called by |
 |----------|--------|---------|-----------|
@@ -836,12 +950,19 @@ These are HTML pages, not JSON APIs. Users interact with them directly in a brow
 
 ### Typical integration flow
 
-For a third-party app developer, the flow you care about is:
+**OpenID Connect** (identity only):
 
-1. **`GET /oauth/authorize`** — redirect user to log in and consent
-2. **`POST /oauth/token`** — exchange the returned code for tokens
+1. **`GET /.well-known/openid-configuration`** — bootstrap from the issuer (or hard-code the paths below)
+2. **`GET /oauth/authorize`** — `scope` includes `openid`, plus a `nonce`
+3. **`POST /oauth/token`** — read and verify `id_token` against JWKS
+4. **`GET /oauth/userinfo`** — optional; present the **access token**
+
+**Resource flow** (ORK profile and IAM) — keep this for ORK and IAM:
+
+1. **`GET /oauth/authorize`** — redirect user to log in and consent (`scope=profile email` is enough)
+2. **`POST /oauth/token`** — exchange the returned code for tokens (no `id_token` key)
 3. **`GET /resources/jwt`** — elevate the access token to an authorization JWT
-4. **`GET /resources/userinfo`** — fetch profile with the authorization JWT
+4. **`GET /resources/userinfo`** — fetch Amtgard profile with the authorization JWT
 5. **`GET /resources/validate`** — optional heartbeat/presence checks (authorization JWT)
 
 **Optional (server-to-server, admin-enabled):**
@@ -859,13 +980,15 @@ Everything else is either browser UI (login pages), infrastructure (policy servi
 
 The [amtgard-idp-client-examples](https://github.com/amtgard/amtgard-idp-client-examples) repository is **not** a client library or SDK. It is a collection of standalone example projects showing how to integrate with the Amtgard IDP using common languages and OAuth libraries.
 
-Each example demonstrates the same core flow documented in this guide:
+Each example demonstrates the resource-flow core documented in this guide:
 
 1. Redirect the user to `/oauth/authorize` with PKCE
 2. Handle the callback and exchange the code at `/oauth/token`
 3. Call `/resources/jwt` with the access token, then `/resources/userinfo` with the authorization JWT
 
 Examples are available for multiple stacks (PHP, JavaScript/Node.js, etc.). Copy the approach that matches your project rather than installing a shared package — there is no `composer require` wrapper to pull in.
+
+PHP OpenID Connect relying-party examples stay out of this IDP repo. If an example app later needs an OpenID Connect client, point [`jumbojett/openid-connect-php`](https://github.com/jumbojett/OpenID-Connect-PHP) at the issuer (`https://idp.amtgard.com`). Do not add that package here.
 
 ### When to use the examples repo
 
@@ -877,7 +1000,7 @@ Examples are available for multiple stacks (PHP, JavaScript/Node.js, etc.). Copy
 
 - You already have OAuth infrastructure (e.g. [PHP League OAuth2 Client](https://oauth2-client.thephpleague.com/) — see Section 4)
 - You need only a specific step (token refresh, userinfo call) rather than a full sample app
-- Your framework provides its own OAuth module (Passport, NextAuth, etc.)
+- Your framework provides its own OAuth or OpenID Connect module (Passport, NextAuth, etc.). Configure the issuer `https://idp.amtgard.com` and send `scope` including `openid`
 
 Browse the examples at: **https://github.com/amtgard/amtgard-idp-client-examples**
 
@@ -888,7 +1011,7 @@ Browse the examples at: **https://github.com/amtgard/amtgard-idp-client-examples
 > [!IMPORTANT]
 > **End-note — not a general OAuth integration path.** The flows below are **tight coupling between the Amtgard IDP and [ORK3](https://github.com/amtgard/ork3)** (the Amtgard Online Record Keeper). Third-party app developers using standard OAuth should rely on Section 2 (`/resources/userinfo` and the `ork_profile` field when present). The endpoints in this section are for ORK maintainers and IDP operators coordinating account linking across both systems.
 
-The IDP and ORK share a **bidirectional account link**: each Amtgard player has a **mundane ID** in ORK and a **UUID user ID** in the IDP. Linking lets OAuth clients (including ORK itself) retrieve persona, park, kingdom, dues, and related ORK data via `/resources/userinfo`.
+The IDP and ORK share a **bidirectional account link**: each Amtgard player has a **mundane ID** in ORK and a **UUID user ID** in the IDP. A link is proof that the requester typed a **one-time code** sent to the mailbox of the account being claimed. Equal email strings are not proof. An ORK password is not proof.
 
 ### Shared configuration
 
@@ -896,36 +1019,44 @@ Both systems must agree on these secrets and URLs (see `.env.example`):
 
 | Variable | Purpose |
 |----------|---------|
-| `IDP_ORK_SHARED_SECRET` | HS256 secret for handoff JWTs (`iss=ork,aud=idp`) and completion JWTs (`iss=idp,aud=ork`). Must match ORK byte-for-byte. |
-| `ORK_BASE_URL` | Where the IDP redirects after a successful `/auth/connect` handoff (ORK's `idp_link_complete` route). |
-| `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS` | Comma-separated OAuth `client_id` values allowed to call `POST /resources/link-ork-profile` (typically the ORK confidential client only). |
+| `IDP_ORK_SHARED_SECRET` | HS256 secret for handoff JWTs (`iss=ork,aud=idp`) and completion JWTs (`iss=idp,aud=ork`). The JWT carries ids. It is not a substitute for the code. |
+| `ORK_BASE_URL` | Where the IDP redirects after Flow B, and the origin for Flow A (`Login/claim_ork`). |
+| `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS` | Comma-separated OAuth `client_id` values allowed to call `POST /resources/link-ork-profile`. |
+| `MAILBOX_CODE_PEPPER` | HMAC-SHA256 pepper for IDP-issued mailbox codes. Never log the raw code. |
+| `MAIL_DSN` | Optional SMTP DSN. When unset, the IDP logs `sent_to_hash` + subject only. |
 
 Legacy env name `ORK_LINK_TOKEN_SECRET` is still read as a fallback during the rename to `IDP_ORK_SHARED_SECRET`.
 
-### Flow A — ORK → IDP onboarding handoff (browser)
+### Current ORK handoff (deployed contract)
 
-When ORK prompts a player to create or link an Amtgard login, ORK mints a **short-lived, single-use JWT** (`link_token`) and redirects the user's browser to:
-
-```
-GET /auth/connect?link_token=<jwt>&email=<optional>
-```
-
-The IDP renders a Login / Register form (email prefilled from the token). On submit:
+ORK's handoff JWT carries `email` and `sub` (mundane id) and does **not** carry `challenge_id`.
 
 | Endpoint | Purpose |
 |----------|---------|
-| `POST /auth/connect/login` | Authenticate an existing IDP user and link to the ORK mundane ID from the JWT |
-| `POST /auth/connect/register` | Create a new IDP account and link to the ORK mundane ID |
+| `GET /auth/connect?link_token=<jwt>` | Login / Register form. Email comes from the JWT. |
+| `POST /auth/connect/login` | Password check against that email, then write the link |
+| `POST /auth/connect/register` | Create the IDP user at the JWT email, then write the link |
+| `POST /resources/profile/link-ork` | Signed-in user submits ORK username and password. The IDP checks them with ORK and stores the profile. |
 
-The link is keyed off the **JWT `sub` claim (mundane ID)**, not the form email — so an IDP account registered with Discord can still link to an ORK profile whose email differs.
+Completion redirect for this path is the existing JWT: `iss=idp`, `aud=ork`, `sub=<idp user uuid>`, `mundane_id`. No `challenge_id`.
 
-After success, the IDP mints a **completion JWT** and redirects to ORK (`ORK_BASE_URL` + `Route=Login/idp_link_complete`) so ORK can write its own `ork_idp_auth` row and clear dashboard banners.
+### Future possession handoff
 
-These routes are **HTML browser flows** (CSRF-protected forms). They are intentionally **not** listed in Swagger.
+These routes sit beside the current ones. ORK opts in by minting a JWT that includes `challenge_id`. Until then they are unused by production ORK.
 
-### Flow B — ORK → IDP link mirror (server-to-server)
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /resources/profile/link-ork-code` | Start Flow A. Redirects to ORK `Login/claim_ork`. Does not accept an ORK password. |
+| `GET /auth/connect/complete?t=<jwt>` | Consume the matching `claim_ork` row when the completion JWT ids match. |
+| `POST /auth/connect/code` | Check the code mailed to the IDP mailbox (`claim_idp`). |
 
-When ORK completes a link on its side first, it mirrors the result into the IDP:
+`GET /auth/connect` chooses the form from the token. A `challenge_id` claim shows the code form and mails the IDP address. Without it, the login / register form above is shown.
+
+### Mirror — server-to-server
+
+`POST /resources/link-ork-profile` still accepts the current body `{idp_user_id, mundane_id}`.
+
+When `challenge_id` is present it must name a consumed mailbox challenge. A missing or unconsumed id on that field is `400`. Omitting the field keeps today's 204 / 404 / 409 behavior.
 
 ```
 POST /resources/link-ork-profile
@@ -935,32 +1066,38 @@ Content-Type: application/json
 { "idp_user_id": "<uuid>", "mundane_id": 12345 }
 ```
 
+`challenge_id` may be added later. It is not required.
+
 | Status | Meaning |
 |--------|---------|
-| `204` | Link written (or already idempotent) |
-| `400` | Missing/invalid body |
+| `204` | Link written, or the same pair is already stored (idempotent retry) |
+| `400` | Missing `idp_user_id` or `mundane_id`, or a present `challenge_id` is unknown, expired, for another user, or not yet consumed |
 | `404` | Unknown `idp_user_id` |
-| `409` | `idp_user_id` already linked to a different mundane ID |
+| `409` | Either id is already linked to a different partner |
 
 Documented in Swagger under the **ORK Integration** tag. Only clients in `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS` may call this endpoint.
 
-### Flow C — Profile page manual link (browser)
+### Email migration (browser)
 
-Logged-in users can also link from the IDP profile UI (`GET /resources/profile`):
+A linked or unlinked IDP login email changes only after two codes:
 
 | Endpoint | Purpose |
 |----------|---------|
-| `POST /resources/profile/link-ork` | Submit ORK username/password; IDP validates against ORK API and stores profile + token |
+| `POST /resources/profile/email/start` | Mail the authorizing code to the current `users.email` |
+| `POST /resources/profile/email/confirm` | Check that code, then mail the proposed address |
+| `POST /resources/profile/email/commit` | Check the second code, then update `users.email` |
 | `POST /resources/profile/refresh-ork` | Refresh cached ORK profile data using the stored ORK token |
 
-These are **session-authenticated HTML form POSTs** with CSRF protection. Not in Swagger.
+Social callbacks (Google, Discord, Facebook, Apple) do not overwrite `users.email`. A differing provider email is ignored on that request.
+
+These are **session-authenticated HTML form POSTs** with CSRF protection. They are listed in Swagger under **ORK Integration**, together with the connect handoff and the mirror.
 
 ### What general OAuth clients should use
 
 If you are **not** building ORK itself:
 
-1. Use standard OAuth (Sections 1–2).
-2. Elevate to an authorization JWT at `GET /resources/jwt`, then call `GET /resources/userinfo` — when the user has linked ORK, the `ork_profile` object is included.
+1. Use standard OAuth or OpenID Connect (Sections 1–2). Identity-only apps can stop at the `id_token` or `/oauth/userinfo`.
+2. For ORK profile or IAM, elevate to an authorization JWT at `GET /resources/jwt`, then call `GET /resources/userinfo` — when the user has linked ORK, the `ork_profile` object is included.
 3. Do **not** implement `/auth/connect` or `/resources/link-ork-profile`; those are ORK↔IDP plumbing.
 
 For ORK-side implementation details, coordinate with the ORK maintainers on Discord or the ORK Help & Updates group (Section 1).

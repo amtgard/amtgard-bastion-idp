@@ -21,16 +21,21 @@
                 </div>
             {% endif %}
 
-            {% if error == 'ork_auth_failed' %}
+            {% if error == 'ork_username_required' %}
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-                    <span class="block sm:inline">ORK Authorization failed. Please check your username and password.</span>
+                    <span class="block sm:inline">Enter your ORK username to start the link.</span>
                 </div>
-            {% elseif error == 'ork_player_failed' %}
+            {% elseif error == 'ork_complete_failed' or error == 'ork_complete_replay' %}
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-                     <span class="block sm:inline">Failed to retrieve ORK player details.</span>
+                    <span class="block sm:inline">That link request could not be completed. Start again from your profile.</span>
                 </div>
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
-                    <span class="block sm:inline">Successfully linked ORK account!</span>
+            {% elseif error == 'ork_link_conflict' %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">That ORK profile is already linked to a different Amtgard account.</span>
+                </div>
+            {% elseif error == 'email_invalid' or error == 'email_code_failed' %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">That email change could not be completed. Request a new code and try again.</span>
                 </div>
             {% elseif error == 'malformed_policy' %}
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
@@ -39,6 +44,18 @@
             {% elseif success == 'revoked' %}
                 <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
                     <span class="block sm:inline">Application access revoked.</span>
+                </div>
+            {% elseif success == 'linked' %}
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">Successfully linked ORK account!</span>
+                </div>
+            {% elseif success == 'email_code_sent' %}
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">If that mailbox can receive mail, a code was sent.</span>
+                </div>
+            {% elseif success == 'email_updated' %}
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">Your Amtgard email was updated.</span>
                 </div>
             {% endif %}
 
@@ -154,20 +171,16 @@
                             <svg id="ork-chevron" class="w-6 h-6 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                          </div>
                         <div id="ork-link-form" class="hidden px-6 pb-6">
-                            <p class="mb-4 text-sm text-gray-600">Enter your ORK username and password to link your ORK player record to your Amtgard Sign-In. This is the account your park officers set up for you &mdash; not your Amtgard Sign-In password.</p>
+                            <p class="mb-4 text-sm text-gray-600">Enter your ORK username and password. This checks them with ORK and stores the link on your Amtgard account.</p>
                             <form action="/resources/profile/link-ork" method="POST" class="max-w-sm">
                                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                                  <div class="mb-4">
-                                    <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
-                                        ORK Username
-                                    </label>
+                                    <label class="block text-gray-700 text-sm font-bold mb-2" for="username">ORK Username</label>
                                     <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="username" name="username" type="text" required>
                                  </div>
-                                 <div class="mb-6">
-                                     <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
-                                         ORK Password
-                                     </label>
-                                     <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" id="password" name="password" type="password" required>
+                                 <div class="mb-4">
+                                    <label class="block text-gray-700 text-sm font-bold mb-2" for="password">ORK Password</label>
+                                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" id="password" name="password" type="password" required>
                                  </div>
                                  <div class="flex items-center justify-between">
                                     <button class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors duration-200" type="submit">
@@ -178,6 +191,31 @@
                         </div>
                     </div>
                 {% endif %}
+            </div>
+
+            <div class="mb-8">
+                <h3 class="text-xl font-serif font-semibold text-tertiary mb-1">Change email</h3>
+                <p class="text-sm text-gray-500 mb-4 leading-snug">A code goes to your current Amtgard mailbox, then a second code goes to the new address. The login email changes only after both codes.</p>
+                <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 space-y-4 max-w-sm">
+                    <form action="/resources/profile/email/start" method="POST">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="new-email">New email</label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-3" id="new-email" name="new_email" type="email" required>
+                        <button class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded" type="submit">Send code to current email</button>
+                    </form>
+                    <form action="/resources/profile/email/confirm" method="POST">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="email-confirm-code">Code from current email</label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-3" id="email-confirm-code" name="code" type="text" inputmode="numeric" maxlength="6" required>
+                        <button class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 font-bold py-2 px-4 rounded" type="submit">Confirm current mailbox</button>
+                    </form>
+                    <form action="/resources/profile/email/commit" method="POST">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="email-commit-code">Code from new email</label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-3" id="email-commit-code" name="code" type="text" inputmode="numeric" maxlength="6" required>
+                        <button class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 font-bold py-2 px-4 rounded" type="submit">Update email</button>
+                    </form>
+                </div>
             </div>
 
             <div class="mb-8">

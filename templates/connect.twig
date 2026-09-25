@@ -12,25 +12,59 @@
         <div class="flex-grow max-w-[500px]">
             <h1 class="text-3xl font-serif font-bold text-secondary text-center mb-3">Connect your Amtgard sign-in</h1>
             <p class="text-sm text-gray-600 text-center mb-6">
-                Your ORK profile is ready to be linked. Sign in to an existing Amtgard account, or register a new one — either way, we'll connect it to your ORK profile.
+                {% if handoff|default('legacy') == 'code' %}
+                    Enter the one-time code sent to the Amtgard mailbox being claimed. That address does not need to match your ORK email.
+                {% else %}
+                    Your ORK profile is ready to be linked. Sign in to an existing Amtgard account, or register a new one.
+                {% endif %}
             </p>
 
             {% if error %}
                 <div class="bg-red-50 border border-red-200 text-red-800 rounded px-4 py-3 mb-4 text-sm">{{ error }}</div>
             {% endif %}
 
-            {% if link_token %}
-                <div class="flex border-b border-gray-200 mb-5">
-                    <button type="button" id="tab-login"
-                            class="flex-1 px-4 py-2 font-semibold border-b-2 transition-colors {% if defaultTab == 'login' %}border-secondary text-secondary{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
-                        Log In
-                    </button>
-                    <button type="button" id="tab-register"
-                            class="flex-1 px-4 py-2 font-semibold border-b-2 transition-colors {% if defaultTab == 'register' %}border-secondary text-secondary{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
-                        Register
-                    </button>
-                </div>
+            {% if notice and link_token %}
+                <div class="bg-blue-50 border border-blue-200 text-blue-900 rounded px-4 py-3 mb-4 text-sm">{{ notice }}</div>
+            {% endif %}
 
+            {% if link_token and handoff|default('legacy') == 'code' %}
+                <form action="/auth/connect/code" method="POST">
+                    <input type="hidden" name="link_token" value="{{ link_token }}">
+                    <input type="hidden" name="challenge_id" value="{{ challenge_id }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="connect-code">Verification code</label>
+                        <input class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary tracking-widest" id="connect-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+                    </div>
+                    {% if needs_password %}
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-1" for="reg-first">First name</label>
+                                <input class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary" id="reg-first" name="firstName" type="text" required>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-1" for="reg-last">Last name</label>
+                                <input class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary" id="reg-last" name="lastName" type="text" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-gray-700 text-sm font-bold mb-1" for="reg-password">Password</label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary" id="reg-password" name="password" type="password" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-1" for="reg-confirm">Confirm password</label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary" id="reg-confirm" name="confirmPassword" type="password" required>
+                        </div>
+                    {% endif %}
+                    <button class="w-full bg-secondary hover:bg-secondary-dark text-white font-bold py-2.5 px-4 rounded transition-colors" type="submit">
+                        {% if needs_password %}Create account and connect{% else %}Verify code{% endif %}
+                    </button>
+                </form>
+            {% elseif link_token %}
+                <div class="flex border-b border-gray-200 mb-5">
+                    <button type="button" id="tab-login" class="flex-1 px-4 py-2 font-semibold border-b-2 transition-colors {% if defaultTab == 'login' %}border-secondary text-secondary{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">Log In</button>
+                    <button type="button" id="tab-register" class="flex-1 px-4 py-2 font-semibold border-b-2 transition-colors {% if defaultTab == 'register' %}border-secondary text-secondary{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">Register</button>
+                </div>
                 <form id="form-login" action="/auth/connect/login" method="POST" class="{% if defaultTab != 'login' %}hidden{% endif %}">
                     <input type="hidden" name="link_token" value="{{ link_token }}">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -44,7 +78,6 @@
                     </div>
                     <button class="w-full bg-secondary hover:bg-secondary-dark text-white font-bold py-2.5 px-4 rounded transition-colors" type="submit">Log In &amp; Connect</button>
                 </form>
-
                 <form id="form-register" action="/auth/connect/register" method="POST" class="{% if defaultTab != 'register' %}hidden{% endif %}">
                     <input type="hidden" name="link_token" value="{{ link_token }}">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -72,34 +105,6 @@
                     </div>
                     <button class="w-full bg-secondary hover:bg-secondary-dark text-white font-bold py-2.5 px-4 rounded transition-colors" type="submit">Register &amp; Connect</button>
                 </form>
-
-                <script>
-                    (function() {
-                        const tabLogin = document.getElementById('tab-login');
-                        const tabRegister = document.getElementById('tab-register');
-                        const formLogin = document.getElementById('form-login');
-                        const formRegister = document.getElementById('form-register');
-                        function activate(which) {
-                            if (which === 'login') {
-                                formLogin.classList.remove('hidden');
-                                formRegister.classList.add('hidden');
-                                tabLogin.classList.add('border-secondary','text-secondary');
-                                tabLogin.classList.remove('border-transparent','text-gray-500');
-                                tabRegister.classList.remove('border-secondary','text-secondary');
-                                tabRegister.classList.add('border-transparent','text-gray-500');
-                            } else {
-                                formRegister.classList.remove('hidden');
-                                formLogin.classList.add('hidden');
-                                tabRegister.classList.add('border-secondary','text-secondary');
-                                tabRegister.classList.remove('border-transparent','text-gray-500');
-                                tabLogin.classList.remove('border-secondary','text-secondary');
-                                tabLogin.classList.add('border-transparent','text-gray-500');
-                            }
-                        }
-                        tabLogin.addEventListener('click', () => activate('login'));
-                        tabRegister.addEventListener('click', () => activate('register'));
-                    })();
-                </script>
             {% else %}
                 <p class="text-center text-sm text-gray-500 mt-4">Return to ORK and try again.</p>
             {% endif %}

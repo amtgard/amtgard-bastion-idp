@@ -352,11 +352,15 @@ class OAuth2ServerControllerTest extends TestCase
     {
         $_SESSION['authRequest'] = 'serialized';
         $_SESSION['approved'] = true;
+        $_SESSION['nonce'] = 'rp-nonce';
+        $_SESSION['prompt'] = 'none';
 
         $result = $this->controller->clearAuthorizationAndApproval($this->request, $this->response);
         $this->assertSame($this->response, $result);
         $this->assertArrayNotHasKey('authRequest', $_SESSION);
         $this->assertArrayNotHasKey('approved', $_SESSION);
+        $this->assertArrayNotHasKey('nonce', $_SESSION);
+        $this->assertArrayNotHasKey('prompt', $_SESSION);
     }
 
     public function testAuthorizeUnauthenticatedRedirectsToLogin(): void

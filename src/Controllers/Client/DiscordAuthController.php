@@ -87,11 +87,15 @@ class DiscordAuthController extends BaseAuthController
                     throw new \Exception('Email permission denied or not provided by Discord.');
                 }
 
-                return Optional::ofNullable($this->users->getUserByEmail($email))
-                    ->orElseGet(function () use ($userData, &$redirectPolicy) {
-                        $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
+                return Optional::ofNullable($this->logins->getLoginByProviderId((string) $userData['id']))
+                    ->map(fn ($login) => $login->user)
+                    ->orElseGet(function () use ($userData, $email, &$redirectPolicy) {
+                        return Optional::ofNullable($this->users->getUserByEmail($email))
+                            ->orElseGet(function () use ($userData, &$redirectPolicy) {
+                                $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
 
-                        return $this->users->createUserFromDiscordData($userData);
+                                return $this->users->createUserFromDiscordData($userData);
+                            });
                     });
             })
             ->resolveLogin(function ($user, array $userData, $token) {
