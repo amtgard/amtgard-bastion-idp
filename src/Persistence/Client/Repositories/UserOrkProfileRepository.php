@@ -18,6 +18,11 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
         return $this->fetchBy('user_id', $userId);
     }
 
+    public function findByMundaneId(int $mundaneId): ?UserOrkProfileEntity
+    {
+        return $this->fetchBy('mundane_id', $mundaneId);
+    }
+
     private function parseOrkDate(?string $dateStr): ?DateTime
     {
         if (empty($dateStr) || $dateStr === '0000-00-00') {

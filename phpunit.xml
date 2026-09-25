@@ -38,5 +38,6 @@
         <env name="OAUTH_PRIVATE_KEY" value="file:///tmp/private.key"/>
         <env name="OAUTH_PUBLIC_KEY" value="file:///tmp/public.key"/>
         <env name="OAUTH_ENCRYPTION_KEY" value="test_encryption_key"/>
+        <env name="MAILBOX_CODE_PEPPER" value="test-mailbox-pepper-not-for-production"/>
     </php>
 </phpunit>

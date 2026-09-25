@@ -75,6 +75,30 @@ class UserRepositoryTest extends TestCase
         $this->assertSame($user, $repository->getUserByEmail('user@example.com'));
     }
 
+    public function testUpdateEmailPersistsRebuiltUser(): void
+    {
+        $user = new class extends UserEntity {
+            public function getEmail(): ?string { return $this->email ?? null; }
+            public function setEmail(?string $email): void { $this->email = $email; }
+            public ?string $email = 'old@example.com';
+        };
+        $captured = null;
+        $repository = $this->getMockBuilder(UserRepository::class)
+            ->onlyMethods(['persist'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())
+            ->method('persist')
+            ->willReturnCallback(function (UserEntity $entity) use (&$captured) {
+                $captured = $entity;
+
+                return $entity;
+            });
+
+        $repository->updateEmail($user, 'new@example.com');
+        $this->assertSame('new@example.com', $captured->getEmail());
+    }
+
     public function testFindUserByIdFetchesPrimaryKey(): void
     {
         $user = new UserEntity();

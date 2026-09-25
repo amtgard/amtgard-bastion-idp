@@ -51,6 +51,8 @@ final class OAuthAuthorizeAction
         try {
             if (!$this->authRequestStore->hasAuthRequest()) {
                 $authRequest = $this->authorizationServer->validateAuthorizationRequest($request);
+                $this->captureNonce($request);
+                $this->capturePrompt($request);
                 $this->authRequestStore->store($authRequest);
             } else {
                 $authRequest = $this->authRequestStore->load();
@@ -63,12 +65,12 @@ final class OAuthAuthorizeAction
                     if ($user === null) {
                         $this->authRequestStore->clearSessionUserId();
 
-                        return $this->authenticateUser($response);
+                        return $this->authenticateUser($authRequest, $response);
                     }
                     $authRequest->setUser($user);
                     $this->authRequestStore->store($authRequest);
                 } else {
-                    return $this->authenticateUser($response);
+                    return $this->authenticateUser($authRequest, $response);
                 }
             }
 
@@ -128,7 +130,70 @@ final class OAuthAuthorizeAction
             'code_challenge_method' => $authRequest->getCodeChallengeMethod(),
         ];
 
+        $nonce = $this->authRequestStore->nonce();
+        if ($nonce !== null) {
+            $params['nonce'] = $nonce;
+        }
+
+        $prompt = $this->authRequestStore->prompt();
+        if ($prompt !== null) {
+            $params['prompt'] = $prompt;
+        }
+
         return '/oauth/authorize?' . http_build_query($params);
+    }
+
+    private function captureNonce(Request $request): void
+    {
+        $params = $request->getQueryParams();
+        if (!array_key_exists('nonce', $params)) {
+            return;
+        }
+
+        $nonce = $params['nonce'];
+        if (!is_string($nonce) || $nonce === '' || strlen($nonce) > 255) {
+            throw OAuthServerException::invalidRequest('nonce');
+        }
+
+        $this->authRequestStore->storeNonce($nonce);
+    }
+
+    private function capturePrompt(Request $request): void
+    {
+        $params = $request->getQueryParams();
+        if (!array_key_exists('prompt', $params)) {
+            return;
+        }
+
+        $prompt = $params['prompt'];
+        if (!is_string($prompt)) {
+            throw OAuthServerException::invalidRequest('prompt');
+        }
+
+        $values = $this->promptValues($prompt);
+        if (in_array('none', $values, true) && count($values) > 1) {
+            throw OAuthServerException::invalidRequest('prompt');
+        }
+
+        $this->authRequestStore->storePrompt($prompt);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function promptValues(string $prompt): array
+    {
+        return array_values(array_unique(array_filter(explode(' ', trim($prompt)))));
+    }
+
+    private function isSilentPrompt(): bool
+    {
+        $prompt = $this->authRequestStore->prompt();
+        if ($prompt === null) {
+            return false;
+        }
+
+        return $this->promptValues($prompt) === ['none'];
     }
 
     private function userIsAuthenticated(AuthorizationRequest $authRequest): bool
@@ -136,13 +201,37 @@ final class OAuthAuthorizeAction
         return $this->authRequestStore->sessionUserId() !== null && !is_null($authRequest->getUser());
     }
 
-    private function authenticateUser(Response $response): Response
+    private function authenticateUser(AuthorizationRequest $authRequest, Response $response): Response
     {
+        if ($this->isSilentPrompt()) {
+            return $this->redirectWithOidcError($authRequest, $response, 'login_required');
+        }
+
         $redirectUrl = $this->buildPostAuthenticationRedirectUrl();
 
         return $response
             ->withStatus(301)
             ->withHeader('Location', '/auth/login?redirect=' . urlencode($redirectUrl));
+    }
+
+    private function redirectWithOidcError(
+        AuthorizationRequest $authRequest,
+        Response $response,
+        string $error
+    ): Response {
+        $redirectUri = (string) $authRequest->getRedirectUri();
+        $query = ['error' => $error];
+        $state = $authRequest->getState();
+        if (is_string($state) && $state !== '') {
+            $query['state'] = $state;
+        }
+
+        $separator = str_contains($redirectUri, '?') ? '&' : '?';
+        $this->authRequestStore->clearAuthorizationState();
+
+        return $response
+            ->withStatus(302)
+            ->withHeader('Location', $redirectUri . $separator . http_build_query($query));
     }
 
     private function clientAuthorizationIsApproved(?AuthorizationRequest $authRequest = null): bool
@@ -167,6 +256,10 @@ final class OAuthAuthorizeAction
 
     private function requestUserAuthorizationOfClient(AuthorizationRequest $authRequest, Response $response): Response
     {
+        if ($this->isSilentPrompt()) {
+            return $this->redirectWithOidcError($authRequest, $response, 'consent_required');
+        }
+
         $sessionUserId = $this->authRequestStore->sessionUserId();
         $authRequest->setUser(
             $this->userRepository->getUserEntityById((string) $sessionUserId)
