@@ -54,10 +54,64 @@ final class OAuthSessionAuthRequestStore
         }
     }
 
+    public function hasNonce(): bool
+    {
+        return array_key_exists('nonce', $_SESSION);
+    }
+
+    public function nonce(): ?string
+    {
+        if (!$this->hasNonce() || !is_string($_SESSION['nonce'])) {
+            return null;
+        }
+
+        return $_SESSION['nonce'];
+    }
+
+    public function storeNonce(string $nonce): void
+    {
+        $_SESSION['nonce'] = $nonce;
+    }
+
+    public function clearNonce(): void
+    {
+        if (isset($_SESSION['nonce'])) {
+            unset($_SESSION['nonce']);
+        }
+    }
+
+    public function hasPrompt(): bool
+    {
+        return array_key_exists('prompt', $_SESSION);
+    }
+
+    public function prompt(): ?string
+    {
+        if (!$this->hasPrompt() || !is_string($_SESSION['prompt'])) {
+            return null;
+        }
+
+        return $_SESSION['prompt'];
+    }
+
+    public function storePrompt(string $prompt): void
+    {
+        $_SESSION['prompt'] = $prompt;
+    }
+
+    public function clearPrompt(): void
+    {
+        if (isset($_SESSION['prompt'])) {
+            unset($_SESSION['prompt']);
+        }
+    }
+
     public function clearAuthorizationState(): void
     {
         $this->clearAuthRequest();
         $this->clearApproval();
+        $this->clearNonce();
+        $this->clearPrompt();
     }
 
     public function sessionUserId(): ?string

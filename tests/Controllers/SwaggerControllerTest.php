@@ -53,7 +53,28 @@ class SwaggerControllerTest extends TestCase
             ->method('write')
             ->with($this->callback(function ($json) {
                 $data = json_decode($json, true);
-                return is_array($data) && isset($data['openapi']);
+                if (!is_array($data) || !isset($data['openapi'], $data['paths'])) {
+                    return false;
+                }
+                foreach ([
+                    '/resources/profile/link-ork',
+                    '/resources/profile/link-ork-code',
+                    '/resources/profile/email/start',
+                    '/resources/profile/email/confirm',
+                    '/resources/profile/email/commit',
+                    '/resources/link-ork-profile',
+                    '/auth/connect',
+                    '/auth/connect/login',
+                    '/auth/connect/register',
+                    '/auth/connect/code',
+                    '/auth/connect/complete',
+                ] as $path) {
+                    if (!isset($data['paths'][$path])) {
+                        return false;
+                    }
+                }
+
+                return true;
             }));
 
         $this->response->expects($this->once())

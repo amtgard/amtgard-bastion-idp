@@ -32,9 +32,67 @@ class OrkLinkTokenServiceTest extends TestCase
 
         $this->assertSame([
             'mundane_id' => 123,
-            'email' => 'user@example.com',
+            'idp_email' => 'user@example.com',
+            'challenge_id' => 'chal-1',
             'jti' => 'jti-abc',
         ], $claims);
+    }
+
+    public function testPeekLegacyClaimsAcceptsCurrentOrkHandoff(): void
+    {
+        $jwt = JWT::encode([
+            'iss' => 'ork',
+            'aud' => 'idp',
+            'sub' => '123',
+            'email' => 'user@example.com',
+            'jti' => 'jti-legacy',
+            'iat' => time(),
+            'exp' => time() + 900,
+        ], $this->secret, 'HS256');
+
+        $this->assertSame([
+            'mundane_id' => 123,
+            'email' => 'user@example.com',
+            'jti' => 'jti-legacy',
+        ], $this->service->peekLegacyClaims($jwt));
+        $this->assertNull($this->service->peekClaims($jwt));
+    }
+
+    public function testPeekLegacyClaimsRejectsMissingEmail(): void
+    {
+        $jwt = JWT::encode([
+            'iss' => 'ork',
+            'aud' => 'idp',
+            'sub' => '123',
+            'jti' => 'jti-legacy',
+            'exp' => time() + 900,
+        ], $this->secret, 'HS256');
+
+        $this->assertNull($this->service->peekLegacyClaims($jwt));
+    }
+
+    public function testMintLegacyCompletionOmitsChallengeId(): void
+    {
+        $jwt = $this->service->mintLegacyCompletion('uuid-1', 44);
+        $decoded = JWT::decode($jwt, new \Firebase\JWT\Key($this->secret, 'HS256'));
+
+        $this->assertSame('idp', $decoded->iss);
+        $this->assertSame('ork', $decoded->aud);
+        $this->assertSame('uuid-1', $decoded->sub);
+        $this->assertSame(44, $decoded->mundane_id);
+        $this->assertObjectNotHasProperty('challenge_id', $decoded);
+    }
+
+    public function testPeekClaimsReturnsNullOnMalformedToken(): void
+    {
+        $this->assertNull($this->service->peekClaims('not-a-jwt'));
+    }
+
+    public function testPeekClaimsReturnsNullWhenSecretTooShort(): void
+    {
+        unset($_ENV['IDP_ORK_SHARED_SECRET'], $_ENV['ORK_LINK_TOKEN_SECRET']);
+
+        $this->assertNull($this->service->peekClaims($this->mintToken()));
     }
 
     public function testPeekClaimsRejectsExpiredToken(): void
@@ -111,7 +169,8 @@ class OrkLinkTokenServiceTest extends TestCase
             'iss' => 'ork',
             'aud' => 'idp',
             'sub' => '123',
-            'email' => 'user@example.com',
+            'idp_email' => 'user@example.com',
+            'challenge_id' => 'chal-1',
             'jti' => 'jti-bad',
             'exp' => time() + 900,
         ], str_repeat('y', 32), 'HS256');
@@ -126,6 +185,19 @@ class OrkLinkTokenServiceTest extends TestCase
         $this->assertNull($this->service->peekClaims($jwt));
     }
 
+    public function testPeekClaimsAcceptsEmailAliasAsDestinationHint(): void
+    {
+        $jwt = $this->mintToken([
+            'idp_email' => null,
+            'email' => 'hint@example.com',
+        ]);
+
+        $claims = $this->service->peekClaims($jwt);
+
+        $this->assertSame('hint@example.com', $claims['idp_email'] ?? null);
+        $this->assertSame(123, $claims['mundane_id'] ?? null);
+    }
+
     public function testPeekClaimsUsesLegacySecretFallback(): void
     {
         unset($_ENV['IDP_ORK_SHARED_SECRET']);
@@ -135,14 +207,90 @@ class OrkLinkTokenServiceTest extends TestCase
             'iss' => 'ork',
             'aud' => 'idp',
             'sub' => '123',
-            'email' => 'user@example.com',
+            'idp_email' => 'user@example.com',
+            'challenge_id' => 'chal-1',
             'jti' => 'jti-legacy',
             'exp' => time() + 900,
         ], str_repeat('z', 32), 'HS256');
 
         $claims = $service->peekClaims($jwt);
 
-        $this->assertSame('user@example.com', $claims['email'] ?? null);
+        $this->assertSame('user@example.com', $claims['idp_email'] ?? null);
+    }
+
+    public function testPeekFlowACompletionRequiresPurposeAndIds(): void
+    {
+        $jwt = JWT::encode([
+            'iss' => 'ork',
+            'aud' => 'idp',
+            'challenge_id' => 'chal-a',
+            'idp_user_id' => 'uuid-1',
+            'mundane_id' => 77,
+            'purpose' => 'claim_ork',
+            'jti' => 'jti-c',
+            'exp' => time() + 120,
+        ], $this->secret, 'HS256');
+
+        $this->assertSame([
+            'challenge_id' => 'chal-a',
+            'idp_user_id' => 'uuid-1',
+            'mundane_id' => 77,
+            'purpose' => 'claim_ork',
+            'jti' => 'jti-c',
+        ], $this->service->peekFlowACompletion($jwt));
+        $this->assertNull($this->service->peekFlowACompletion($this->mintToken()));
+    }
+
+    public function testMintAndRedirectHelpers(): void
+    {
+        $_ENV['ORK_BASE_URL'] = 'https://ork.example.com/orkui/';
+        $handoff = $this->service->mintFlowAHandoff('uuid-1', 'chal-a');
+        $completion = $this->service->mintFlowBCompletion('uuid-1', 9, 'chal-b');
+        $decodedHandoff = JWT::decode($handoff, new \Firebase\JWT\Key($this->secret, 'HS256'));
+        $decodedCompletion = JWT::decode($completion, new \Firebase\JWT\Key($this->secret, 'HS256'));
+
+        $this->assertSame('idp', $decodedHandoff->iss);
+        $this->assertSame('ork', $decodedHandoff->aud);
+        $this->assertSame('uuid-1', $decodedHandoff->sub);
+        $this->assertSame('chal-a', $decodedHandoff->challenge_id);
+        $this->assertSame('claim_idp', $decodedCompletion->purpose);
+        $this->assertTrue($this->service->hasSharedSecret());
+        $this->assertSame(
+            'https://ork.example.com/orkui/index.php?Route=Login/claim_ork&t=' . urlencode($handoff) . '&username=Hero',
+            $this->service->flowAClaimRedirectUrl($handoff, 'Hero'),
+        );
+        $this->assertSame(
+            'https://ork.example.com/orkui/index.php?Route=Login/idp_link_complete&t=' . urlencode($completion),
+            $this->service->flowBCompletionRedirectUrl($completion),
+        );
+    }
+
+    public function testOrkBaseUrlValidation(): void
+    {
+        unset($_ENV['ORK_BASE_URL']);
+        try {
+            $this->service->orkBaseUrl();
+            $this->fail('expected missing base url to throw');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('ORK_BASE_URL is not set', $e->getMessage());
+        }
+
+        $_ENV['ORK_BASE_URL'] = 'not-a-url';
+        $this->expectException(\RuntimeException::class);
+        $this->service->orkBaseUrl();
+    }
+
+    public function testOrkBaseUrlRejectsNonHttpScheme(): void
+    {
+        $_ENV['ORK_BASE_URL'] = 'ftp://ork.example.com';
+        $this->expectException(\RuntimeException::class);
+        $this->service->orkBaseUrl();
+    }
+
+    public function testHasSharedSecretFalseWhenShort(): void
+    {
+        unset($_ENV['IDP_ORK_SHARED_SECRET'], $_ENV['ORK_LINK_TOKEN_SECRET']);
+        $this->assertFalse($this->service->hasSharedSecret());
     }
 
     /**
@@ -155,7 +303,8 @@ class OrkLinkTokenServiceTest extends TestCase
             'iss' => 'ork',
             'aud' => 'idp',
             'sub' => '123',
-            'email' => 'user@example.com',
+            'idp_email' => 'user@example.com',
+            'challenge_id' => 'chal-1',
             'jti' => 'jti-abc',
             'iat' => $now,
             'exp' => $now + 900,

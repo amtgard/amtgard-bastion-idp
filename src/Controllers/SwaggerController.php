@@ -27,7 +27,8 @@ class SwaggerController
     {
         $openapi = (new Generator())->generate([
             __DIR__ . '/Server',
-            __DIR__ . '/Resource'
+            __DIR__ . '/Resource',
+            __DIR__ . '/Client/ConnectController.php',
         ]);
         $response->getBody()->write($openapi->toJson());
         return $response->withHeader('Content-Type', 'application/json');

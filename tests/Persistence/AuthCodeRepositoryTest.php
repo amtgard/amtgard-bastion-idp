@@ -30,6 +30,7 @@ class AuthCodeRepositoryTestTableSchema extends TableSchema
             'user_identifier' => FieldDefinition::builder()->name('user_identifier')->type(FieldType::STRING)->build(),
             'redirect_uri' => FieldDefinition::builder()->name('redirect_uri')->type(FieldType::STRING)->build(),
             'expiry_date_time' => FieldDefinition::builder()->name('expiry_date_time')->type(FieldType::DATETIME)->build(),
+            'nonce' => FieldDefinition::builder()->name('nonce')->type(FieldType::STRING)->build(),
         ];
         $this->primaryKey = FieldDefinition::builder()->name('id')->type(FieldType::INTEGER)->build();
     }
@@ -39,6 +40,8 @@ class AuthCodeRepositoryTest extends TestCase
 {
     protected function setUp(): void
     {
+        @session_start();
+        $_SESSION = [];
         $_ENV['OAUTH_AUTH_TOKEN_TTL'] = 'PT10M';
         $dataAccessPolicy = $this->createMock(DataAccessPolicy::class);
         $dataAccessPolicy->method('applyTableSchemaPolicy')->willReturn(new AuthCodeRepositoryTestTableSchema());
@@ -50,6 +53,21 @@ class AuthCodeRepositoryTest extends TestCase
                 ->build(),
             true
         );
+    }
+
+    public function testAuthCodeNonceAccessorRoundTrip(): void
+    {
+        $this->assertTrue((new \ReflectionMethod(AuthCode::class, 'getNonce'))->isPublic());
+        $this->assertTrue((new \ReflectionMethod(AuthCode::class, 'setNonce'))->isPublic());
+
+        $authCode = AuthCode::builder()->build();
+        $this->assertNull($authCode->getNonce());
+
+        $authCode->setNonce('stored');
+        $this->assertSame('stored', $authCode->getNonce());
+
+        $authCode->setNonce(null);
+        $this->assertNull($authCode->getNonce());
     }
 
     public function testGetNewAuthCodeBuildsOAuthAuthCodeWithRepositoryEntity(): void
@@ -77,6 +95,7 @@ class AuthCodeRepositoryTest extends TestCase
             public ?\DateTimeInterface $capturedExpiry = null;
             public ?string $capturedUserIdentifier = null;
             public ?string $capturedRedirectUri = null;
+            public ?string $capturedNonce = 'unset';
             public int $persistCalls = 0;
 
             public function setClient(Client $client): void { $this->capturedClient = $client; }
@@ -84,6 +103,7 @@ class AuthCodeRepositoryTest extends TestCase
             public function setExpiryDateTime(\DateTimeInterface $expiry): void { $this->capturedExpiry = $expiry; }
             public function setUserIdentifier(string $userIdentifier): void { $this->capturedUserIdentifier = $userIdentifier; }
             public function setRedirectUri(string $redirectUri): void { $this->capturedRedirectUri = $redirectUri; }
+            public function setNonce(?string $nonce): void { $this->capturedNonce = $nonce; }
             public function getMapper(): object { return new \stdClass(); }
             public function persist($mapper = null): static { $this->persistCalls++; return $this; }
         };
@@ -105,7 +125,85 @@ class AuthCodeRepositoryTest extends TestCase
         $this->assertSame($expiry, $authCodeEntity->capturedExpiry);
         $this->assertSame('uuid-user', $authCodeEntity->capturedUserIdentifier);
         $this->assertSame('https://client.example/callback', $authCodeEntity->capturedRedirectUri);
+        $this->assertNull($authCodeEntity->capturedNonce);
         $this->assertSame(1, $authCodeEntity->persistCalls);
+        $this->assertArrayNotHasKey('nonce', $_SESSION);
+    }
+
+    public function testPersistNewAuthCodeCopiesSessionNonceAndClearsIt(): void
+    {
+        $_SESSION['nonce'] = 'session-nonce';
+        $client = Client::builder()->identifier('app')->build();
+        $clientRepository = $this->createMock(ClientRepository::class);
+        $clientRepository->method('fetchBy')->with('identifier', 'app')->willReturn($client);
+        $manager = $this->createMock(EntityManager::class);
+        $manager->method('getRepository')->with(ClientRepository::class)->willReturn($clientRepository);
+        EntityManager::configure($manager, true);
+
+        $authCodeEntity = new class extends AuthCode {
+            public ?string $capturedNonce = 'unset';
+            public function setClient(Client $client): void {}
+            public function setIdentifier(string $identifier): void {}
+            public function setExpiryDateTime(\DateTimeInterface $expiry): void {}
+            public function setUserIdentifier(string $userIdentifier): void {}
+            public function setRedirectUri(string $redirectUri): void {}
+            public function setNonce(?string $nonce): void { $this->capturedNonce = $nonce; }
+            public function getMapper(): object { return new \stdClass(); }
+            public function persist($mapper = null): static { return $this; }
+        };
+        $oauthClient = OAuthClient::builder()->identifier('app')->clientEntity($client)->build();
+        $oauthAuthCode = OAuthAuthCode::builder()
+            ->authCodeEntity($authCodeEntity)
+            ->client($oauthClient)
+            ->identifier('auth-code-id')
+            ->expiryDateTime(new \DateTimeImmutable('+10 minutes'))
+            ->userIdentifier('uuid-user')
+            ->redirectUri('https://client.example/callback')
+            ->build();
+
+        (new AuthCodeRepository())->persistNewAuthCode($oauthAuthCode);
+
+        $this->assertSame('session-nonce', $authCodeEntity->capturedNonce);
+        $this->assertArrayNotHasKey('nonce', $_SESSION);
+    }
+
+    public function testFindNonceByAuthCodeIdReturnsPersistedNonce(): void
+    {
+        $authCode = new class extends AuthCode {
+            public function getNonce(): ?string { return 'stored-nonce'; }
+        };
+        $repository = $this->getMockBuilder(AuthCodeRepository::class)
+            ->onlyMethods(['fetchBy'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())->method('fetchBy')->with('identifier', 'code-id')->willReturn($authCode);
+
+        $this->assertSame('stored-nonce', $repository->findNonceByAuthCodeId('code-id'));
+    }
+
+    public function testFindNonceByAuthCodeIdReturnsNullWhenMissingEmptyOrWrongType(): void
+    {
+        $empty = new class extends AuthCode {
+            public function getNonce(): ?string { return ''; }
+        };
+        $nullNonce = new class extends AuthCode {
+            public function getNonce(): ?string { return null; }
+        };
+        $repository = $this->getMockBuilder(AuthCodeRepository::class)
+            ->onlyMethods(['fetchBy'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->method('fetchBy')->willReturnOnConsecutiveCalls(
+            null,
+            $empty,
+            $nullNonce,
+            Client::builder()->identifier('other')->build()
+        );
+
+        $this->assertNull($repository->findNonceByAuthCodeId('missing'));
+        $this->assertNull($repository->findNonceByAuthCodeId('empty'));
+        $this->assertNull($repository->findNonceByAuthCodeId('null-nonce'));
+        $this->assertNull($repository->findNonceByAuthCodeId('wrong-type'));
     }
 
     public function testRevokeAuthCodeExpiresFetchedCode(): void

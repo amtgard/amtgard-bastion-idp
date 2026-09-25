@@ -74,17 +74,18 @@ class ScopeRepositoryTest extends TestCase
 
     public function testFinalizeScopesKeepsOnlyValidScopes(): void
     {
+        $openid = OAuthScope::builder()->identifier('openid')->build();
         $email = OAuthScope::builder()->identifier('email')->build();
         $profile = OAuthScope::builder()->identifier('profile')->build();
         $admin = OAuthScope::builder()->identifier('admin')->build();
 
         $result = (new ScopeRepository())->finalizeScopes(
-            [$email, $profile, $admin],
+            [$openid, $email, $profile, $admin],
             'authorization_code',
             $this->createMock(ClientEntityInterface::class)
         );
 
-        $this->assertSame([$email, $profile], $result);
+        $this->assertSame([$openid, $email, $profile], $result);
     }
 
     public function testTableAndEntityClassMetadata(): void

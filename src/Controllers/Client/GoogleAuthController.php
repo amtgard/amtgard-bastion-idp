@@ -84,11 +84,15 @@ class GoogleAuthController extends BaseAuthController
                 return $this->googleProvider->getResourceOwner($token)->toArray();
             })
             ->resolveUser(function (array $userData, AuthorizationFinalizeRedirect &$redirectPolicy) {
-                return Optional::ofNullable($this->users->getUserByEmail($userData['email']))
+                return Optional::ofNullable($this->logins->getLoginByProviderId($userData['sub']))
+                    ->map(fn ($login) => $login->user)
                     ->orElseGet(function () use ($userData, &$redirectPolicy) {
-                        $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
+                        return Optional::ofNullable($this->users->getUserByEmail($userData['email']))
+                            ->orElseGet(function () use ($userData, &$redirectPolicy) {
+                                $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
 
-                        return $this->users->createUserFromGoogleData($userData);
+                                return $this->users->createUserFromGoogleData($userData);
+                            });
                     });
             })
             ->resolveLogin(function ($user, array $userData, $token) {

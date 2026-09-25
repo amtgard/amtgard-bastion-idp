@@ -38,4 +38,17 @@ class AuthCode extends RepositoryEntity
 
     #[Field('redirect_uri')]
     protected string $redirectUri;
+
+    #[Field('nonce')]
+    protected ?string $nonce = null;
+
+    public function getNonce(): ?string
+    {
+        return $this->nonce;
+    }
+
+    public function setNonce(?string $nonce): void
+    {
+        $this->nonce = $nonce;
+    }
 }

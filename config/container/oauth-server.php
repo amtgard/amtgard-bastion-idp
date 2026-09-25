@@ -2,14 +2,21 @@
 
 declare(strict_types=1);
 
+use Amtgard\IdP\Controllers\Server\OAuth\DiscoveryController;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthApproveAction;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthAuthorizeAction;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthFlowErrorRenderer;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthSessionAuthRequestStore;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthTokenAction;
+use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
+use Amtgard\IdP\Models\Oidc\IdentityRepository;
+use Amtgard\IdP\Models\Oidc\OidcNonceContext;
+use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Utility\JwksFactory;
+use Amtgard\IdP\Utility\OAuthKeyMaterial;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use League\OAuth2\Server\AuthorizationServer;
@@ -21,11 +28,42 @@ use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\ScopeRepositoryInterface;
 use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 use League\OAuth2\Server\ResourceServer;
+use OpenIDConnectServer\Repositories\IdentityProviderInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Twig\Environment as TwigEnvironment;
 
 return [
+    IdentityRepository::class => function (ContainerInterface $container) {
+        return new IdentityRepository($container->get(UserRepository::class));
+    },
+
+    IdentityProviderInterface::class => function (ContainerInterface $container) {
+        return $container->get(IdentityRepository::class);
+    },
+
+    OidcNonceContext::class => function () {
+        return new OidcNonceContext();
+    },
+
+    JwksFactory::class => function () {
+        return JwksFactory::fromPublicKeyPem(OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY'));
+    },
+
+    DiscoveryController::class => function (ContainerInterface $container) {
+        return new DiscoveryController(
+            $container->get(JwksFactory::class),
+            (string) ($_ENV['APP_URL'] ?? ''),
+        );
+    },
+
+    OidcUserInfoController::class => function (ContainerInterface $container) {
+        return new OidcUserInfoController(
+            $container->get(ResourceServer::class),
+            $container->get(UserRepository::class),
+        );
+    },
+
     AmtgardIdpJwt::class => function (ContainerInterface $container) {
         return AmtgardIdpJwt::builder()
             ->assembler($container->get(AuthorizationJwtAssembler::class))
@@ -40,6 +78,8 @@ return [
             ->accessTokenRepository($container->get(AccessTokenRepositoryInterface::class))
             ->authCodeRepository($container->get(AuthCodeRepositoryInterface::class))
             ->refreshTokenRepository($container->get(RefreshTokenRepositoryInterface::class))
+            ->identityProvider($container->get(IdentityProviderInterface::class))
+            ->nonceContext($container->get(OidcNonceContext::class))
             ->build();
     },
 
