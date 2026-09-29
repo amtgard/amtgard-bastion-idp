@@ -11,6 +11,8 @@ use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpNotFoundException;
 use Slim\Interfaces\CallableResolverInterface;
 use Slim\Psr7\Factory\ResponseFactory;
+use Twig\Environment as TwigEnvironment;
+use Twig\Loader\FilesystemLoader;
 
 class NotFoundErrorHandlerTest extends TestCase
 {
@@ -89,7 +91,21 @@ class NotFoundErrorHandlerTest extends TestCase
         $handler($request, $exception, false, false, true);
     }
 
-    private function createHandler(LoggerInterface $logger): NotFoundErrorHandler
+    public function testNotFoundPageIsFriendlyHtml(): void
+    {
+        $view = new TwigEnvironment(new FilesystemLoader(dirname(__DIR__, 2) . '/templates'));
+        $handler = $this->createHandler($this->createStub(LoggerInterface::class), $view);
+        $request = $this->createRequest('GET', '/missing', '', '127.0.0.1', '', ['Accept' => ['text/html']]);
+        $response = $handler($request, new HttpNotFoundException($request), false, false, false);
+
+        $body = (string) $response->getBody();
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertSame('text/html', $response->getHeaderLine('Content-type'));
+        $this->assertStringContainsString('We could not complete that request', $body);
+        $this->assertStringNotContainsString('HttpNotFoundException', $body);
+    }
+
+    private function createHandler(LoggerInterface $logger, ?TwigEnvironment $view = null): NotFoundErrorHandler
     {
         $callableResolver = $this->createMock(CallableResolverInterface::class);
         $callableResolver->method('resolve')->willReturnCallback(
@@ -99,7 +115,8 @@ class NotFoundErrorHandlerTest extends TestCase
         return new NotFoundErrorHandler(
             $callableResolver,
             new ResponseFactory(),
-            $logger
+            $logger,
+            $view
         );
     }
 

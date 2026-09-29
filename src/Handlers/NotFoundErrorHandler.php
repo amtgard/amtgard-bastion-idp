@@ -3,11 +3,27 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Handlers;
 
+use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 use Slim\Handlers\ErrorHandler;
+use Slim\Interfaces\CallableResolverInterface;
+use Twig\Environment as TwigEnvironment;
 
 class NotFoundErrorHandler extends ErrorHandler
 {
+    public function __construct(
+        CallableResolverInterface $callableResolver,
+        ResponseFactoryInterface $responseFactory,
+        ?LoggerInterface $logger = null,
+        ?TwigEnvironment $view = null,
+    ) {
+        parent::__construct($callableResolver, $responseFactory, $logger);
+        if ($view !== null) {
+            FriendlyHtmlErrorRenderer::attach($this, $view);
+        }
+    }
+
     private const USER_AGENT_MAX_LENGTH = 256;
 
     protected function writeToErrorLog(): void

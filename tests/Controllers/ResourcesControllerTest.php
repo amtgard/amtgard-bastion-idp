@@ -434,6 +434,63 @@ class ResourcesControllerTest extends TestCase
         $this->assertSame($this->response, $result);
     }
 
+    public function testLinkOrkAccountRedirectsWhenMundaneIsAlreadyLinked(): void
+    {
+        $_SESSION['user_id'] = 123;
+
+        $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'testpass']);
+        $this->orkService->method('authorize')->willReturn(['Token' => 'token-123', 'UserId' => 4]);
+        $this->orkService->method('getPlayer')->willReturn(['MundaneId' => 4, 'username' => 'testuser']);
+        $this->orkService->method('resolveParkDataFromPlayer')->willReturn(null);
+        $this->orkProfileRepository->method('saveOrUpdateProfile')
+            ->willThrowException(new \RuntimeException('conflict: mundane_id=4 is already linked to a different IDP user'));
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=ork_already_linked')
+            ->willReturnSelf();
+        $this->response->expects($this->once())->method('withStatus')->with(302)->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->linkOrkAccount($this->request, $this->response));
+    }
+
+    public function testLinkOrkAccountLogsWhenMundaneIsAlreadyLinked(): void
+    {
+        $_SESSION['user_id'] = 123;
+
+        $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'testpass']);
+        $this->orkService->method('authorize')->willReturn(['Token' => 'token-123', 'UserId' => 4]);
+        $this->orkService->method('getPlayer')->willReturn(['MundaneId' => 4, 'username' => 'testuser']);
+        $this->orkService->method('resolveParkDataFromPlayer')->willReturn(null);
+        $this->orkProfileRepository->method('saveOrUpdateProfile')
+            ->willThrowException(new \RuntimeException('conflict: mundane_id=4 is already linked to a different IDP user'));
+
+        $this->logger->expects($this->once())
+            ->method('warning')
+            ->with('ORK profile link rejected: mundane already linked', [
+                'user_id' => 123,
+                'mundane_id' => 4,
+            ]);
+
+        $this->controller->linkOrkAccount($this->request, $this->response);
+    }
+
+    public function testLinkOrkAccountRethrowsUnexpectedProfileFailure(): void
+    {
+        $_SESSION['user_id'] = 123;
+
+        $this->request->method('getParsedBody')->willReturn(['username' => 'testuser', 'password' => 'testpass']);
+        $this->orkService->method('authorize')->willReturn(['Token' => 'token-123', 'UserId' => 4]);
+        $this->orkService->method('getPlayer')->willReturn(['MundaneId' => 4]);
+        $this->orkService->method('resolveParkDataFromPlayer')->willReturn(null);
+        $this->orkProfileRepository->method('saveOrUpdateProfile')
+            ->willThrowException(new \RuntimeException('database down'));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('database down');
+        $this->controller->linkOrkAccount($this->request, $this->response);
+    }
+
     public function testLinkOrkAccountFailure(): void
     {
         $_SESSION['user_id'] = 123;
@@ -652,6 +709,21 @@ class ResourcesControllerTest extends TestCase
             ->willThrowException(new \RuntimeException('conflict: already linked'));
         $this->response->expects($this->once())->method('withStatus')->with(409)->willReturnSelf();
         $this->stream->expects($this->once())->method('write')->with($this->stringContains('different mundane_id'));
+
+        $this->assertSame($this->response, $this->controller->linkOrkProfile($this->request, $this->response));
+    }
+
+    public function testLinkOrkProfileReportsMundaneAlreadyLinked(): void
+    {
+        $this->request->method('getParsedBody')->willReturn(['idp_user_id' => 'uuid-user', 'mundane_id' => 4]);
+        $this->userRepository->method('findUserByUserId')->with('uuid-user')->willReturn($this->userEntity);
+        $this->orkProfileRepository->method('linkExistingUserToMundane')
+            ->with(123, 4, 'mirror')
+            ->willThrowException(new \RuntimeException('conflict: mundane_id=4 is already linked to a different IDP user'));
+        $this->response->expects($this->once())->method('withStatus')->with(409)->willReturnSelf();
+        $this->stream->expects($this->once())
+            ->method('write')
+            ->with($this->stringContains('already linked to a different Amtgard account'));
 
         $this->assertSame($this->response, $this->controller->linkOrkProfile($this->request, $this->response));
     }

@@ -940,7 +940,7 @@ Content-Type: application/json
 | `204` | Link written (or already idempotent) |
 | `400` | Missing/invalid body |
 | `404` | Unknown `idp_user_id` |
-| `409` | `idp_user_id` already linked to a different mundane ID |
+| `409` | This IDP user is already linked to another mundane, or this mundane is already linked to a different Amtgard account |
 
 Documented in Swagger under the **ORK Integration** tag. Only clients in `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS` may call this endpoint.
 
