@@ -1074,7 +1074,7 @@ The array order defines how proviso values map to ORN positions. With the defaul
 
 Your app's resource paths (`Officer/Approve`, `Editor/Write`, etc.) are validated loosely (`*/*` wildcard map) — you define the semantics; the IDP stores and replays them in JWT `policy` claims.
 
-IdP administrators set `iam_service` on your OAuth client via **Management → Clients** (`/management/clients`). Your integrator backend may set or update `iam_service_format` via the Client IAM API once `iam_service` is assigned (see below).
+IdP administrators set `iam_service` and `iam_service_format` on your OAuth client via **Management → Clients** (`/management/clients`). The format field accepts a JSON array or a comma-separated list of slot names. Leave it blank to keep the default slots. Your integrator backend may also set or update `iam_service_format` via the Client IAM API once `iam_service` is assigned (see below).
 
 ### Service format API (`/resources/client/service-format`)
 

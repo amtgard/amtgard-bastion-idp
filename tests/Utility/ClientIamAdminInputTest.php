@@ -20,6 +20,16 @@ class ClientIamAdminInputTest extends TestCase
         $this->assertSame('["tenant-id","Kingdom"]', $input->iamServiceFormat);
     }
 
+    public function testFromFormDataAcceptsCommaSeparatedFormat(): void
+    {
+        $input = ClientIamAdminInput::fromFormData([
+            'iam_service' => 'Skbc',
+            'iam_service_format' => 'Configuration, Kingdom, Park',
+        ]);
+
+        $this->assertSame('["Configuration","Kingdom","Park"]', $input->iamServiceFormat);
+    }
+
     public function testFromFormDataTreatsMissingFormatAsNull(): void
     {
         $input = ClientIamAdminInput::fromFormData([
