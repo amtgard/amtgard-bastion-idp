@@ -164,6 +164,22 @@ class UserOrkProfileRepositoryTest extends TestCase
         $this->assertNull($captured->getKingdomName());
     }
 
+    public function testSaveOrUpdateProfileTranslatesDuplicateMundaneToConflict(): void
+    {
+        $repository = $this->getMockBuilder(UserOrkProfileRepository::class)
+            ->onlyMethods(['findByUserId', 'persist'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->method('findByUserId')->willReturn(null);
+        $repository->method('persist')->willThrowException(new \PDOException(
+            "SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '4' for key 'ux_user_ork_profiles_mundane_id'"
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('mundane_id=99 is already linked to a different IDP user');
+        $repository->saveOrUpdateProfile($this->playerData(), null, 'ork-token', 10);
+    }
+
     public function testLinkExistingUserToMundaneIsNoOpWhenAlreadyLinked(): void
     {
         $existing = $this->createMock(UserOrkProfileEntity::class);

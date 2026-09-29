@@ -301,7 +301,21 @@ class ResourcesController
 
         $parkData = $this->orkService->resolveParkDataFromPlayer($playerData, $user->getId(), 'LinkORK');
 
-        $this->orkProfileRepository->saveOrUpdateProfile($playerData, $parkData, $token, $user->getId());
+        try {
+            $this->orkProfileRepository->saveOrUpdateProfile($playerData, $parkData, $token, $user->getId());
+        } catch (\RuntimeException $e) {
+            if (!str_contains($e->getMessage(), 'conflict')) {
+                throw $e;
+            }
+            $this->logger->warning('ORK profile link rejected: mundane already linked', [
+                'user_id' => $user->getId(),
+                'mundane_id' => $mundaneId,
+            ]);
+
+            return $response
+                ->withHeader('Location', '/resources/profile?error=ork_already_linked')
+                ->withStatus(302);
+        }
 
         $storedRedirect = RedirectValidator::sanitizeOrNull($_SESSION['redirect'] ?? null);
         if ($storedRedirect !== null) {
@@ -401,7 +415,7 @@ class ResourcesController
             ),
             new OA\Response(
                 response: 409,
-                description: 'idp_user_id already linked to a different mundane_id',
+                description: 'This IDP user is already linked to another mundane, or this mundane is already linked to a different Amtgard account.',
                 content: new OA\JsonContent(
                     properties: [new OA\Property(property: 'error', type: 'string')]
                 )
@@ -442,7 +456,10 @@ class ResourcesController
                     'requested_mundane_id' => $mundaneId,
                     'msg' => $e->getMessage(),
                 ]);
-                $response->getBody()->write(json_encode(['error' => 'idp_user_id already linked to a different mundane_id']));
+                $message = str_contains($e->getMessage(), 'different IDP user')
+                    ? 'That ORK profile is already linked to a different Amtgard account.'
+                    : 'idp_user_id already linked to a different mundane_id';
+                $response->getBody()->write(json_encode(['error' => $message]));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(409);
             }
             throw $e;

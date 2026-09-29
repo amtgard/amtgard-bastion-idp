@@ -25,6 +25,10 @@
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
                     <span class="block sm:inline">ORK Authorization failed. Please check your username and password.</span>
                 </div>
+            {% elseif error == 'ork_already_linked' %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">That ORK profile is already linked to a different Amtgard account.</span>
+                </div>
             {% elseif error == 'ork_player_failed' %}
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
                      <span class="block sm:inline">Failed to retrieve ORK player details.</span>

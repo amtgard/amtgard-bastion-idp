@@ -72,7 +72,7 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
 
         $entity = $orkProfile->build();
 
-        $this->persist($entity);
+        $this->persistProfile($entity, $userId, (int) $playerData['MundaneId']);
     }
 
     /**
@@ -114,11 +114,16 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
             ->updatedAt($now)
             ->build();
 
-        // H3: a concurrent caller may have just inserted a row pointing at the
-        // same user_id or mundane_id between our findByUserId() above and this
-        // persist(). The UNIQUE indexes (migration 20260514140000) make the DB
-        // arbitrate. Catch the integrity violation and translate it back into
-        // the same idempotent vs. conflict branches the caller already handles.
+        $this->persistProfile($entity, $userId, $mundaneId);
+    }
+
+    /**
+     * The unique indexes on user_id and mundane_id reject a second link.
+     * Translate that into the conflict the HTTP callers already turn into a
+     * friendly error, instead of a raw integrity-constraint 500.
+     */
+    private function persistProfile(UserOrkProfileEntity $entity, int $userId, int $mundaneId): void
+    {
         try {
             $this->persist($entity);
         } catch (\PDOException $e) {
@@ -127,18 +132,16 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
             if (!$isIntegrity) {
                 throw $e;
             }
-            // Re-read and disambiguate.
             $currentOpt = Optional::ofNullable($this->findByUserId($userId));
             if ($currentOpt->isPresent()) {
                 $current = $currentOpt->get();
                 if ($current->getMundaneId() === $mundaneId) {
-                    return; // idempotent: another request linked the same pair.
+                    return;
                 }
                 throw new \RuntimeException(
                     "conflict: user_id={$userId} is already linked to mundane_id={$current->getMundaneId()}, refusing to relink to {$mundaneId}"
                 );
             }
-            // Must be the mundane_id uniqueness — someone else already owns it.
             throw new \RuntimeException(
                 "conflict: mundane_id={$mundaneId} is already linked to a different IDP user"
             );
