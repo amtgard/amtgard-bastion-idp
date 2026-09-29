@@ -148,6 +148,23 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
         }
     }
 
+    /**
+     * Removes the ORK profile row for this IDP user when one exists.
+     * Returns false when the account has nothing linked.
+     */
+    public function unlinkByUserId(int $userId): bool
+    {
+        if (!Optional::ofNullable($this->findByUserId($userId))->isPresent()) {
+            return false;
+        }
+
+        $this->clear();
+        $this->user_id = $userId;
+        $this->delete(null);
+
+        return true;
+    }
+
     static function getTableName()
     {
         return 'user_ork_profiles';

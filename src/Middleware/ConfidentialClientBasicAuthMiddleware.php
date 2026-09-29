@@ -15,8 +15,8 @@ use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
  * Server-to-server gate: HTTP Basic auth against the `clients` table, with an
  * env-driven allow-list of which confidential clients may hit this endpoint.
  *
- * Used by POST /resources/link-ork-profile so ORK can assert link updates
- * without first round-tripping through the OAuth code+token dance.
+ * Used by POST /resources/link-ork-profile and POST /resources/unlink-ork-profile
+ * so ORK can assert link updates without the OAuth code+token dance.
  *
  */
 final class ConfidentialClientBasicAuthMiddleware implements MiddlewareInterface

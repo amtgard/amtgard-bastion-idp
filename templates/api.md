@@ -17,7 +17,7 @@ The IdP serves two audiences: **players and volunteers** who sign in through a b
 |------------|----------------|
 | **Unified Amtgard account** | One identity shared across ORK, forums, event tools, and other registered apps |
 | **Social & local login** | Sign in with Google, Facebook, Discord, or an IdP email/password account |
-| **ORK profile linking** | Attach an Amtgard Online Record Keeper (ORK) persona to the IdP account for kingdom/park/dues data in apps |
+| **ORK profile linking** | Attach or unlink an Amtgard Online Record Keeper (ORK) persona on the IdP account for kingdom/park/dues data in apps |
 | **Profile & consent UI** | Manage linked logins, authorized applications, and OAuth consent at `/resources/profile` |
 | **Session persistence** | Stay signed in across IdP-hosted pages; apps receive OAuth tokens for their own sessions |
 
@@ -801,6 +801,15 @@ Requires HTTP Basic auth with your OAuth `client_id` and `client_secret`. Your c
 | `/resources/client/service-format` | POST | Set format when none configured yet (requires `iam_service`) |
 | `/resources/client/service-format` | PUT | Replace proviso slot layout (requires `iam_service`) |
 
+### ORK account link (ORK server)
+
+HTTP Basic auth with a confidential client listed in `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS`. See [Section 7](#7-ork-deep-integration-amtgard-specific). These are not for general OAuth apps.
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/resources/link-ork-profile` | POST | Mirror an ORK mundane link onto an IDP user |
+| `/resources/unlink-ork-profile` | POST | Remove that user's ORK profile link |
+
 ### Policy Service (backend services)
 
 | Endpoint | Method | Purpose | Called by |
@@ -825,6 +834,7 @@ These are HTML pages, not JSON APIs. Users interact with them directly in a brow
 | `/auth/apple/callback` | POST | Apple Sign In callback (`form_post`; only when `APPLE_LOGIN_ENABLED=true`) |
 | `/auth/connect` | GET | ORK→IDP onboarding handoff (see [Section 7](#7-ork-deep-integration-amtgard-specific)) |
 | `/resources/profile` | GET | User profile management page (linked accounts, authorized apps, ORK linking) |
+| `/resources/profile/unlink-ork` | POST | Unlink the signed-in account's ORK player record (CSRF form; only shown when one is linked) |
 
 ### Developer Documentation
 
@@ -898,7 +908,7 @@ Both systems must agree on these secrets and URLs (see `.env.example`):
 |----------|---------|
 | `IDP_ORK_SHARED_SECRET` | HS256 secret for handoff JWTs (`iss=ork,aud=idp`) and completion JWTs (`iss=idp,aud=ork`). Must match ORK byte-for-byte. |
 | `ORK_BASE_URL` | Where the IDP redirects after a successful `/auth/connect` handoff (ORK's `idp_link_complete` route). |
-| `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS` | Comma-separated OAuth `client_id` values allowed to call `POST /resources/link-ork-profile` (typically the ORK confidential client only). |
+| `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS` | Comma-separated OAuth `client_id` values allowed to call `POST /resources/link-ork-profile` and `POST /resources/unlink-ork-profile` (typically the ORK confidential client only). |
 
 Legacy env name `ORK_LINK_TOKEN_SECRET` is still read as a fallback during the rename to `IDP_ORK_SHARED_SECRET`.
 
@@ -944,6 +954,24 @@ Content-Type: application/json
 
 Documented in Swagger under the **ORK Integration** tag. Only clients in `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS` may call this endpoint.
 
+The same client may remove that link:
+
+```
+POST /resources/unlink-ork-profile
+Authorization: Basic <ork_confidential_client_id:secret>
+Content-Type: application/json
+
+{ "idp_user_id": "<uuid>" }
+```
+
+| Status | Meaning |
+|--------|---------|
+| `204` | Profile removed, or the user already had no ORK profile |
+| `400` | Missing/invalid `idp_user_id` |
+| `404` | Unknown `idp_user_id` |
+
+This does not revoke OAuth tokens. Apps keep any authorization JWT they already hold until it expires or they remint; the next userinfo response omits `ork_profile`.
+
 ### Flow C — Profile page manual link (browser)
 
 Logged-in users can also link from the IDP profile UI (`GET /resources/profile`):
@@ -952,6 +980,7 @@ Logged-in users can also link from the IDP profile UI (`GET /resources/profile`)
 |----------|---------|
 | `POST /resources/profile/link-ork` | Submit ORK username/password; IDP validates against ORK API and stores profile + token |
 | `POST /resources/profile/refresh-ork` | Refresh cached ORK profile data using the stored ORK token |
+| `POST /resources/profile/unlink-ork` | Delete the stored ORK profile for the signed-in user. Shown only when a profile is linked. Redirects to `/resources/profile?success=unlinked` |
 
 These are **session-authenticated HTML form POSTs** with CSRF protection. Not in Swagger.
 
@@ -961,7 +990,7 @@ If you are **not** building ORK itself:
 
 1. Use standard OAuth (Sections 1–2).
 2. Elevate to an authorization JWT at `GET /resources/jwt`, then call `GET /resources/userinfo` — when the user has linked ORK, the `ork_profile` object is included.
-3. Do **not** implement `/auth/connect` or `/resources/link-ork-profile`; those are ORK↔IDP plumbing.
+3. Do **not** implement `/auth/connect`, `/resources/link-ork-profile`, or `/resources/unlink-ork-profile`; those are ORK↔IDP plumbing.
 
 For ORK-side implementation details, coordinate with the ORK maintainers on Discord or the ORK Help & Updates group (Section 1).
 

@@ -44,6 +44,10 @@
                 <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
                     <span class="block sm:inline">Application access revoked.</span>
                 </div>
+            {% elseif success == 'unlinked' %}
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">ORK player record unlinked from this Amtgard account.</span>
+                </div>
             {% endif %}
 
             {% if userLogins %}
@@ -104,7 +108,11 @@
                                     <div class="font-bold text-lg">{{ orkProfile.persona }}</div>
                                     <div class="text-sm text-gray-500">Mundane ID: {{ orkProfile.mundaneId }}</div>
                                 </div>
-                                <div class="flex space-x-2">
+                                <div class="flex items-center space-x-2">
+                                    <form action="/resources/profile/unlink-ork" method="POST" onsubmit="return confirm('Unlink this ORK player record from your Amtgard account?');">
+                                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="text-sm font-semibold text-red-700 hover:text-red-900">Unlink</button>
+                                    </form>
                                     <form action="/resources/profile/refresh-ork" method="POST">
                                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" title="Refresh Profile" class="text-gray-400 hover:text-primary transition-colors">

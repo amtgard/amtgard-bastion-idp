@@ -14,6 +14,7 @@ use Amtgard\IdP\Controllers\Resource\LowLatencyController;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Management\ClientAccessController;
 use Amtgard\IdP\Controllers\Management\ManagementController;
+use Amtgard\IdP\Controllers\Resource\OrkAccountUnlinkController;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
 use Amtgard\IdP\Controllers\SwaggerController;
 use Amtgard\IdP\Controllers\VersionController;
@@ -84,6 +85,11 @@ return function (App $app) {
             ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.profile.refresh_ork');
 
+        $group->post('/profile/unlink-ork', [OrkAccountUnlinkController::class, 'unlinkFromProfile'])
+            ->add(CsrfMiddleware::class)
+            ->add(ClientRestrictedAuthMiddleware::class)
+            ->setName('resources.profile.unlink_ork');
+
         $group->post('/profile/revoke', [ResourcesController::class, 'revokeAuthorization'])
             ->add(CsrfMiddleware::class)
             ->add(ClientRestrictedAuthMiddleware::class)
@@ -94,6 +100,10 @@ return function (App $app) {
         $group->post('/link-ork-profile', [ResourcesController::class, 'linkOrkProfile'])
             ->add(ConfidentialClientBasicAuthMiddleware::class)
             ->setName('resources.link_ork_profile');
+
+        $group->post('/unlink-ork-profile', [OrkAccountUnlinkController::class, 'unlinkOrkProfile'])
+            ->add(ConfidentialClientBasicAuthMiddleware::class)
+            ->setName('resources.unlink_ork_profile');
             
         $group->get('/jwt', [ResourcesController::class, 'getJwt'])
             ->add(OAuthAccessTokenElevationMiddleware::class)
