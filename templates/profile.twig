@@ -198,22 +198,22 @@
                                     <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="ork-username" name="username" type="text" autocomplete="off">
                                     <ul id="ork-username-results" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-y-auto"></ul>
                                  </div>
-                                 <button class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 font-bold py-2 px-4 rounded mb-4" type="submit" formaction="/resources/profile/link-ork-code-mail">
+                                 <button class="bg-white border border-gray-300 text-gray-800 font-bold py-2 px-4 rounded mb-4 opacity-50 cursor-not-allowed" type="submit" formaction="/resources/profile/link-ork-code-mail" disabled>
                                     Email Code
                                  </button>
                                  <div class="flex items-end gap-3 mb-4">
                                     <div class="flex-grow">
                                        <label class="block text-gray-700 text-sm font-bold mb-2" for="ork-code">Code</label>
-                                       <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="ork-code" name="code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+                                       <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-500 leading-tight bg-gray-100 cursor-not-allowed" id="ork-code" name="code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" disabled>
                                     </div>
                                     <button class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded whitespace-nowrap" type="submit">
                                         Link Account
                                     </button>
                                  </div>
-                                 <button id="ork-use-login" class="{% if error in ['ork_username_required', 'ork_auth_failed', 'ork_credentials_required'] %}hidden{% endif %} bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 font-bold py-2 px-4 rounded mb-4" type="button">
+                                 <button id="ork-use-login" class="hidden bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 font-bold py-2 px-4 rounded mb-4" type="button">
                                     Use Login
                                  </button>
-                                 <div id="ork-login-fields" class="{% if error not in ['ork_username_required', 'ork_auth_failed', 'ork_credentials_required'] %}hidden{% endif %}">
+                                 <div id="ork-login-fields">
                                     <div class="flex items-end gap-3">
                                        <div class="flex-grow">
                                           <label class="block text-gray-700 text-sm font-bold mb-2" for="password">ORK Password</label>

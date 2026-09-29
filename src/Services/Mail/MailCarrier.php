@@ -8,6 +8,8 @@ enum MailCarrier: string
 {
     case Log = 'log';
     case Php = 'php';
+    case SendGrid = 'sendgrid';
+    case Ses = 'ses';
 
     public static function fromEnv(): self
     {

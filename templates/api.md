@@ -1034,7 +1034,13 @@ Both systems must agree on these secrets and URLs (see `.env.example`):
 | `ORK_BASE_URL` | Where the IDP redirects after a successful `/auth/connect` handoff (ORK's `idp_link_complete` route), and the origin for Flow A (`Login/claim_ork`). |
 | `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS` | Comma-separated OAuth `client_id` values allowed to call `POST /resources/link-ork-profile` and `POST /resources/unlink-ork-profile` (typically the ORK confidential client only). |
 | `MAILBOX_CODE_PEPPER` | HMAC-SHA256 pepper for IDP-issued mailbox codes. Never log the raw code. |
-| `MAIL_TRANSPORT` | Outbound carrier. Unset or `log` records `sent_to_hash` and subject only. `php` uses PHP `mail()`. |
+| `MAIL_TRANSPORT` | Outbound carrier. Unset or `log` records `sent_to_hash` and subject only. `php` uses PHP `mail()`. `sendgrid` calls the SendGrid mail API. `ses` submits through AWS SES SMTP. |
+| `SENDGRID_API_KEY` | SendGrid API key. Required when `MAIL_TRANSPORT=sendgrid`. |
+| `SENDGRID_FROM_EMAIL` | From address for SendGrid. Required when `MAIL_TRANSPORT=sendgrid`. |
+| `AMAZON_SES_HOST` | SES SMTP host, such as `email-smtp.us-east-1.amazonaws.com`. Required when `MAIL_TRANSPORT=ses`. |
+| `AMAZON_SES_USERNAME` | SES SMTP username. Required when `MAIL_TRANSPORT=ses`. |
+| `AMAZON_SES_PASSWORD` | SES SMTP password. Required when `MAIL_TRANSPORT=ses`. |
+| `AMAZON_SES_FROM_EMAIL` | Verified From address for SES. Required when `MAIL_TRANSPORT=ses`. |
 
 Legacy env name `ORK_LINK_TOKEN_SECRET` is still read as a fallback during the rename to `IDP_ORK_SHARED_SECRET`.
 

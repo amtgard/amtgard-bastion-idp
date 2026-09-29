@@ -44,7 +44,7 @@ final class PhpOutboundMailTest extends TestCase
     public function testSendThrowsWhenTransportFails(): void
     {
         $mailer = new PhpOutboundMail(
-            $this->createMock(LoggerInterface::class),
+            $this->createStub(LoggerInterface::class),
             static fn (): bool => false,
         );
 
