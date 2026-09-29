@@ -167,6 +167,18 @@ class OAuth2ServerControllerTest extends TestCase
             ->build();
     }
 
+    private function sessionRestoredOAuthUser(string $identifier): OAuthUser
+    {
+        $live = OAuthUser::builder()
+            ->identifier($identifier)
+            ->userEntity(new UserEntity())
+            ->build();
+        $restored = unserialize(serialize($live));
+        $this->assertInstanceOf(OAuthUser::class, $restored);
+
+        return $restored;
+    }
+
     private function pvhRecord(string $uuid, string $aud): PvhCacheRecord
     {
         return new PvhCacheRecord($uuid, $aud, 'user@example.com', str_repeat('a', 44), null);
@@ -520,6 +532,176 @@ class OAuth2ServerControllerTest extends TestCase
         $this->controller->authorize($this->request, $this->response);
 
         $this->assertSame([Constants::$AMTGARD_IDP_CLIENT_ID, 'skbc'], $minted);
+    }
+
+    public function testAuthorizeReloadsIdpUserWhenSessionDropsUserEntity(): void
+    {
+        $_SESSION['user_id'] = 'session-uuid';
+        $_SESSION['approved'] = true;
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('denarious_dev');
+        $authRequest = new TestAuthorizationRequest($clientMock, $this->sessionRestoredOAuthUser('oauth-uuid'));
+        $reloaded = $this->makeIdpUser('session-uuid');
+
+        $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
+        $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
+        $this->userRepository->expects($this->once())
+            ->method('getUserEntityById')
+            ->with('session-uuid')
+            ->willReturn($reloaded);
+        $this->redisCacheRepository->method('hasLegacyUserEntry')->willReturn(false);
+        $this->redisCacheRepository->method('getPvhRecord')->willReturn(null);
+
+        $minted = [];
+        $this->amtgardIdpJwt->expects($this->exactly(2))
+            ->method('buildAuthorizationTokens')
+            ->willReturnCallback(function ($user, ?string $aud = null) use (&$minted, $reloaded) {
+                $this->assertSame($reloaded->getUserEntity(), $user);
+                $minted[] = $aud;
+                return ['jwt' => 'fat', 'compact_jwt' => 'compact'];
+            });
+
+        $result = $this->controller->authorize($this->request, $this->response);
+
+        $this->assertSame($this->response, $result);
+        $this->assertSame([Constants::$AMTGARD_IDP_CLIENT_ID, 'denarious_dev'], $minted);
+    }
+
+    public function testAuthorizeLogsWhenSessionDropsUserEntity(): void
+    {
+        $_SESSION['user_id'] = 'session-uuid';
+        $_SESSION['approved'] = true;
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('denarious_dev');
+        $authRequest = new TestAuthorizationRequest($clientMock, $this->sessionRestoredOAuthUser('oauth-uuid'));
+
+        $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
+        $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
+        $this->userRepository->method('getUserEntityById')->willReturn($this->makeIdpUser('session-uuid'));
+        $this->redisCacheRepository->method('hasLegacyUserEntry')->willReturn(false);
+        $this->redisCacheRepository->method('getPvhRecord')->willReturn(null);
+        $this->amtgardIdpJwt->method('buildAuthorizationTokens')
+            ->willReturn(['jwt' => 'fat', 'compact_jwt' => 'compact']);
+
+        $this->logger->expects($this->once())
+            ->method('info')
+            ->with('oauth user reloaded after session restore', [
+                'user_identifier' => 'session-uuid',
+            ]);
+
+        $this->controller->authorize($this->request, $this->response);
+    }
+
+    public function testAuthorizeReloadsPlainUserWithoutSessionRestoreLog(): void
+    {
+        $_SESSION['user_id'] = 'session-uuid';
+        $_SESSION['approved'] = true;
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('denarious_dev');
+        $plainUser = $this->createMock(UserEntityInterface::class);
+        $plainUser->method('getIdentifier')->willReturn('plain-user');
+        $authRequest = new TestAuthorizationRequest($clientMock, $plainUser);
+
+        $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
+        $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
+        $this->userRepository->expects($this->once())
+            ->method('getUserEntityById')
+            ->with('session-uuid')
+            ->willReturn($this->makeIdpUser('session-uuid'));
+        $this->redisCacheRepository->method('hasLegacyUserEntry')->willReturn(false);
+        $this->redisCacheRepository->method('getPvhRecord')->willReturn(null);
+        $this->amtgardIdpJwt->expects($this->exactly(2))->method('buildAuthorizationTokens');
+        $this->logger->expects($this->never())->method('info');
+
+        $this->controller->authorize($this->request, $this->response);
+    }
+
+    public function testAuthorizeSkipsReloadWhenSessionUserIdIsEmpty(): void
+    {
+        $_SESSION['user_id'] = '';
+        $_SESSION['approved'] = true;
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('denarious_dev');
+        $authRequest = new TestAuthorizationRequest($clientMock, $this->sessionRestoredOAuthUser('oauth-uuid'));
+
+        $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
+        $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
+        $this->userRepository->expects($this->never())->method('getUserEntityById');
+        $this->amtgardIdpJwt->expects($this->never())->method('buildAuthorizationTokens');
+        $this->logger->expects($this->once())
+            ->method('warning')
+            ->with('oauth pvh seed skipped: user not resolved');
+
+        $this->controller->authorize($this->request, $this->response);
+    }
+
+    public function testAuthorizeSeedsReloadedUserEntity(): void
+    {
+        $_SESSION['user_id'] = 'session-uuid';
+        $_SESSION['approved'] = true;
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('denarious_dev');
+        $authRequest = new TestAuthorizationRequest($clientMock, $this->sessionRestoredOAuthUser('oauth-uuid'));
+        $user = new class ('session-uuid') extends UserEntity implements UserEntityInterface {
+            public function __construct(private string $uuid)
+            {
+            }
+
+            public function getIdentifier(): string
+            {
+                return $this->uuid;
+            }
+
+            public function getUserId(): string
+            {
+                return $this->uuid;
+            }
+        };
+
+        $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
+        $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
+        $this->userRepository->expects($this->once())
+            ->method('getUserEntityById')
+            ->with('session-uuid')
+            ->willReturn($user);
+        $this->redisCacheRepository->method('hasLegacyUserEntry')->willReturn(false);
+        $this->redisCacheRepository->method('getPvhRecord')->willReturn(null);
+        $this->amtgardIdpJwt->expects($this->exactly(2))
+            ->method('buildAuthorizationTokens')
+            ->willReturnCallback(function ($mintedUser, ?string $aud = null) use ($user) {
+                $this->assertSame($user, $mintedUser);
+                return ['jwt' => 'fat', 'compact_jwt' => 'compact'];
+            });
+
+        $this->controller->authorize($this->request, $this->response);
+    }
+
+    public function testAuthorizeSkipsSeedWhenReloadedUserIsNotAnIdpUser(): void
+    {
+        $_SESSION['user_id'] = 'session-uuid';
+        $_SESSION['approved'] = true;
+
+        $clientMock = $this->createMock(ClientEntityInterface::class);
+        $clientMock->method('getIdentifier')->willReturn('denarious_dev');
+        $authRequest = new TestAuthorizationRequest($clientMock, $this->sessionRestoredOAuthUser('oauth-uuid'));
+
+        $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
+        $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
+        $this->userRepository->expects($this->once())
+            ->method('getUserEntityById')
+            ->with('session-uuid')
+            ->willReturn($this->createMock(UserEntityInterface::class));
+        $this->amtgardIdpJwt->expects($this->never())->method('buildAuthorizationTokens');
+        $this->logger->expects($this->once())
+            ->method('warning')
+            ->with('oauth pvh seed skipped: user not resolved');
+
+        $this->controller->authorize($this->request, $this->response);
     }
 
     public function testAuthorizeSuccessSeedsBothAudiencesWhenLegacyKeyExists(): void

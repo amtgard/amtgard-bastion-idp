@@ -13,10 +13,12 @@ use Amtgard\IdP\Utility\Constants;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Getter;
 use League\OAuth2\Server\AuthorizationServer;
+use League\OAuth2\Server\Entities\UserEntityInterface;
 use League\OAuth2\Server\Exception\OAuthServerException;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 use League\OAuth2\Server\RequestTypes\AuthorizationRequest;
+use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -240,18 +242,28 @@ final class OAuthAuthorizeAction
     private function resolveIdpUser(AuthorizationRequest $authRequest): ?UserEntity
     {
         $oauthUser = $authRequest->getUser();
-        if ($oauthUser instanceof OAuthUser) {
-            return $oauthUser->getUserEntity();
-        }
+        $attached = $oauthUser instanceof OAuthUser ? $oauthUser->attachedUserEntity() : null;
 
+        return Optional::ofNullable($attached)
+            ->orElseGet(fn (): ?UserEntity => $this->reloadIdpUser($oauthUser));
+    }
+
+    private function reloadIdpUser(?UserEntityInterface $oauthUser): ?UserEntity
+    {
         $identifier = $this->authRequestStore->sessionUserId() ?? $oauthUser?->getIdentifier();
         if ($identifier === null || $identifier === '') {
             return null;
         }
 
+        if ($oauthUser instanceof OAuthUser) {
+            $this->logger->info('oauth user reloaded after session restore', [
+                'user_identifier' => $identifier,
+            ]);
+        }
+
         $loaded = $this->userRepository->getUserEntityById($identifier);
         if ($loaded instanceof OAuthUser) {
-            return $loaded->getUserEntity();
+            return $loaded->attachedUserEntity();
         }
 
         return $loaded instanceof UserEntity ? $loaded : null;
