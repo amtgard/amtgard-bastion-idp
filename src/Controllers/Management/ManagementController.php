@@ -90,11 +90,13 @@ class ManagementController
         }, $clients);
         
         $newClientSecret = $this->generateClientSecret();
+        $params = $request->getQueryParams();
 
         $view = $this->twig->render('management/clients.twig', [
             'clients' => $clientData,
             'newClientSecret' => $newClientSecret,
             'viewMode' => 'admin',
+            'error' => is_array($params) ? ($params['error'] ?? null) : null,
         ]);
         $response->getBody()->write($view);
         return $response;
@@ -106,7 +108,10 @@ class ManagementController
 
         // If client_secret is not provided (e.g. from disabled input), generate one
         $clientSecret = $data['client_secret'] ?? $this->generateClientSecret();
-        $iamInput = ClientIamAdminInput::fromFormData($data);
+        $iamInput = $this->iamInputFromForm($data, $response);
+        if ($iamInput instanceof Response) {
+            return $iamInput;
+        }
 
         $client = Client::builder()
             ->identifier($data['client_id'])
@@ -129,11 +134,14 @@ class ManagementController
     public function updateClient(Request $request, Response $response, $id): Response
     {
         $data = (array) $request->getParsedBody();
+        $iamInput = $this->iamInputFromForm($data, $response);
+        if ($iamInput instanceof Response) {
+            return $iamInput;
+        }
+
         $client = $this->clientRepository->fetch($id);
 
         if ($client) {
-            $iamInput = ClientIamAdminInput::fromFormData($data);
-
             $client->setIdentifier($data['client_id']);
             $client->setClientSecret($data['client_secret']);
             $client->setName($data['name']);
@@ -238,6 +246,22 @@ class ManagementController
         }
 
         return $this->userRepository->getUserByEmail($email);
+    }
+
+    private function iamInputFromForm(array $data, Response $response): ClientIamAdminInput|Response
+    {
+        try {
+            return ClientIamAdminInput::fromFormData($data);
+        } catch (\InvalidArgumentException $invalid) {
+            $code = str_contains($invalid->getMessage(), 'iam_service_format') ? 'iam_format' : 'iam_namespace';
+            $this->logger->info('Rejected client IAM fields', [
+                'error' => $code,
+            ]);
+
+            return $response
+                ->withHeader('Location', '/management/clients?error=' . $code)
+                ->withStatus(302);
+        }
     }
 
     private function clientToArray(Client $client, array $accessUsers = []): array

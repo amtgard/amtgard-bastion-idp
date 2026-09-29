@@ -189,12 +189,15 @@ class ManagementControllerTest extends TestCase
             ->with(3)
             ->willReturn($user);
 
+        $this->request->method('getQueryParams')->willReturn(['error' => 'iam_format']);
+
         $this->twig->expects($this->once())
             ->method('render')
             ->with('management/clients.twig', $this->callback(function ($context) {
                 return count($context['clients']) === 1
                     && $context['clients'][0]['identifier'] === 'client-1'
                     && $context['viewMode'] === 'admin'
+                    && $context['error'] === 'iam_format'
                     && $context['clients'][0]['accessUsers'][0]['email'] === 'owner@example.com';
             }))
             ->willReturn('clients HTML');
@@ -270,10 +273,129 @@ class ManagementControllerTest extends TestCase
 
         $result = $this->controller->updateClient($this->request, $this->response, 5);
         $this->assertSame($this->response, $result);
-        
+
         // Use AARO Data getters (magic methods mapped in Client/RepositoryEntity)
         $this->assertEquals('updated-client', $client->getIdentifier());
         $this->assertEquals('new-secret', $client->getClientSecret());
+    }
+
+    public function testUpdateClientPersistsIamNamespaceOnExistingClient(): void
+    {
+        $client = Client::builder()
+            ->identifier('old-client')
+            ->clientSecret('old-secret')
+            ->name('Old Name')
+            ->redirectUri('http://old-redirect')
+            ->isConfidential(true)
+            ->isDev(false)
+            ->build();
+
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->request->method('getParsedBody')->willReturn([
+            'client_id' => 'old-client',
+            'client_secret' => 'old-secret',
+            'name' => 'Old Name',
+            'redirect_uri' => 'http://old-redirect',
+            'is_confidential' => '1',
+            'iam_service' => 'Skbc',
+            'iam_service_format' => '["Configuration","Kingdom"]',
+        ]);
+
+        $this->controller->updateClient($this->request, $this->response, 5);
+
+        $this->assertSame('Skbc', $client->getIamService());
+        $this->assertSame('["Configuration","Kingdom"]', $client->getIamServiceFormat());
+        $this->assertSame('Skbc', $client->getInternalEntity()->getChanges()['iam_service']);
+        $this->assertSame(
+            '["Configuration","Kingdom"]',
+            $client->getInternalEntity()->getChanges()['iam_service_format']
+        );
+    }
+
+    public function testUpdateClientPersistsCommaSeparatedIamFormat(): void
+    {
+        $client = Client::builder()
+            ->identifier('old-client')
+            ->clientSecret('old-secret')
+            ->name('Old Name')
+            ->redirectUri('http://old-redirect')
+            ->isConfidential(true)
+            ->isDev(false)
+            ->build();
+
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->request->method('getParsedBody')->willReturn([
+            'client_id' => 'old-client',
+            'client_secret' => 'old-secret',
+            'name' => 'Old Name',
+            'redirect_uri' => 'http://old-redirect',
+            'iam_service' => 'Skbc',
+            'iam_service_format' => 'Configuration, Kingdom',
+        ]);
+
+        $this->controller->updateClient($this->request, $this->response, 5);
+
+        $this->assertSame('["Configuration","Kingdom"]', $client->getIamServiceFormat());
+        $this->assertSame(
+            '["Configuration","Kingdom"]',
+            $client->getInternalEntity()->getChanges()['iam_service_format']
+        );
+    }
+
+    public function testUpdateClientRedirectsWhenIamFormatIsInvalid(): void
+    {
+        $this->request->method('getParsedBody')->willReturn([
+            'client_id' => 'old-client',
+            'client_secret' => 'old-secret',
+            'name' => 'Old Name',
+            'redirect_uri' => 'http://old-redirect',
+            'iam_service' => 'Skbc',
+            'iam_service_format' => '["Configuration",""]',
+        ]);
+        $this->clientRepository->expects($this->never())->method('fetch');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/management/clients?error=iam_format')
+            ->willReturnSelf();
+        $this->response->expects($this->once())
+            ->method('withStatus')
+            ->with(302)
+            ->willReturnSelf();
+
+        $result = $this->controller->updateClient($this->request, $this->response, 5);
+        $this->assertSame($this->response, $result);
+    }
+
+    public function testUpdateClientRedirectsWhenIamNamespaceIsInvalid(): void
+    {
+        $this->request->method('getParsedBody')->willReturn([
+            'client_id' => 'old-client',
+            'client_secret' => 'old-secret',
+            'name' => 'Old Name',
+            'redirect_uri' => 'http://old-redirect',
+            'iam_service' => 'Kingdom',
+            'iam_service_format' => '["Configuration","Kingdom"]',
+        ]);
+        $this->clientRepository->expects($this->never())->method('fetch');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/management/clients?error=iam_namespace')
+            ->willReturnSelf();
+
+        $this->controller->updateClient($this->request, $this->response, 5);
+    }
+
+    public function testUpdateClientLogsWhenIamFormatIsRejected(): void
+    {
+        $this->request->method('getParsedBody')->willReturn([
+            'iam_service' => 'Skbc',
+            'iam_service_format' => '["Configuration",""]',
+        ]);
+        $this->logger->expects($this->once())
+            ->method('info')
+            ->with('Rejected client IAM fields', ['error' => 'iam_format']);
+
+        $this->controller->updateClient($this->request, $this->response, 5);
     }
 
     public function testSearchUsersReturnsEmptyWhenQueryTooShort(): void
