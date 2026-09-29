@@ -135,10 +135,10 @@ final class ClientPolicyClaimsController
             new OA\Response(response: 404, description: 'Unknown user'),
         ]
     )]
-    public function listPolicyClaims(Request $request, Response $response, string $idpUserId): Response
+    public function listPolicyClaims(Request $request, Response $response, string $idp_user_id): Response
     {
         $client = $this->requests->client($request);
-        $user = $this->requests->requireUser($idpUserId, $response);
+        $user = $this->requests->requireUser($idp_user_id, $response);
         if ($user instanceof Response) {
             return $user;
         }

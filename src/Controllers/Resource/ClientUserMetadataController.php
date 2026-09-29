@@ -88,10 +88,10 @@ final class ClientUserMetadataController
             new OA\Response(response: 404, description: 'Unknown user, login, or metadata'),
         ]
     )]
-    public function getUserMetadata(Request $request, Response $response, string $idpUserId): Response
+    public function getUserMetadata(Request $request, Response $response, string $idp_user_id): Response
     {
         $client = $this->requests->client($request);
-        $context = $this->requests->requireUserAndLoginFromQuery($idpUserId, $request, $response);
+        $context = $this->requests->requireUserAndLoginFromQuery($idp_user_id, $request, $response);
         if ($context instanceof Response) {
             return $context;
         }
@@ -122,10 +122,10 @@ final class ClientUserMetadataController
             new OA\Response(response: 404, description: 'Unknown user or login'),
         ]
     )]
-    public function deleteUserMetadata(Request $request, Response $response, string $idpUserId): Response
+    public function deleteUserMetadata(Request $request, Response $response, string $idp_user_id): Response
     {
         $client = $this->requests->client($request);
-        $context = $this->requests->requireUserAndLoginFromQuery($idpUserId, $request, $response);
+        $context = $this->requests->requireUserAndLoginFromQuery($idp_user_id, $request, $response);
         if ($context instanceof Response) {
             return $context;
         }
