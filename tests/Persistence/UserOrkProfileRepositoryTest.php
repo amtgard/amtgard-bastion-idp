@@ -339,6 +339,33 @@ class UserOrkProfileRepositoryTest extends TestCase
         $this->assertSame($updatedAt, $profile->getUpdatedAt());
     }
 
+    public function testUnlinkByUserIdDeletesTheStoredProfile(): void
+    {
+        $repository = $this->getMockBuilder(UserOrkProfileRepository::class)
+            ->onlyMethods(['fetchBy', 'clear', 'delete', '__set'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())->method('fetchBy')->with('user_id', 10)->willReturn(new UserOrkProfileEntity());
+        $repository->expects($this->once())->method('clear');
+        $repository->expects($this->once())->method('__set')->with('user_id', 10);
+        $repository->expects($this->once())->method('delete')->with(null);
+
+        $this->assertTrue($repository->unlinkByUserId(10));
+    }
+
+    public function testUnlinkByUserIdDoesNothingWhenNoProfile(): void
+    {
+        $repository = $this->getMockBuilder(UserOrkProfileRepository::class)
+            ->onlyMethods(['fetchBy', 'clear', 'delete'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())->method('fetchBy')->with('user_id', 10)->willReturn(null);
+        $repository->expects($this->never())->method('clear');
+        $repository->expects($this->never())->method('delete');
+
+        $this->assertFalse($repository->unlinkByUserId(10));
+    }
+
     public function testTableAndEntityClassMetadata(): void
     {
         $this->assertSame('user_ork_profiles', UserOrkProfileRepository::getTableName());

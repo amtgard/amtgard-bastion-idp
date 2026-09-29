@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Config;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Controllers\Resource\OrkAccountUnlinkController;
 use Amtgard\IdP\Middleware\ConfidentialClientBasicAuthMiddleware;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
@@ -65,6 +66,7 @@ final class ContainerResolutionOrderTest extends TestCase
             $userRepository = $this->container->get(UserRepository::class);
             $assembler = $this->container->get(AuthorizationJwtAssembler::class);
             $idpJwt = $this->container->get(AmtgardIdpJwt::class);
+            $unlink = $this->container->get(OrkAccountUnlinkController::class);
         } catch (Throwable $e) {
             $this->markTestSkipped('Infrastructure not reachable for container integration: ' . $e->getMessage());
         }
@@ -74,6 +76,7 @@ final class ContainerResolutionOrderTest extends TestCase
         $this->assertInstanceOf(UserRepository::class, $userRepository);
         $this->assertInstanceOf(AuthorizationJwtAssembler::class, $assembler);
         $this->assertInstanceOf(AmtgardIdpJwt::class, $idpJwt);
+        $this->assertInstanceOf(OrkAccountUnlinkController::class, $unlink);
     }
 
     private function applyPhpUnitEnvironmentOverrides(): void
