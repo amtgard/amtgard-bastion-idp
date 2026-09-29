@@ -10,6 +10,7 @@ use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Controllers\Client\GoogleAuthController;
 use Amtgard\IdP\Controllers\HomeController;
 use Amtgard\IdP\Controllers\Resource\ClientResourcesController;
+use Amtgard\IdP\Controllers\Resource\ClientUserLookupController;
 use Amtgard\IdP\Controllers\Resource\LowLatencyController;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Management\ClientAccessController;
@@ -120,6 +121,10 @@ return function (App $app) {
         $group->get('/client/policy-claims/{idp_user_id}', [ClientResourcesController::class, 'listPolicyClaims'])
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.policy_claims.list');
+
+        $group->get('/client/users/by-email', [ClientUserLookupController::class, 'resolveUserByEmail'])
+            ->add(ConfidentialClientAuthMiddleware::class)
+            ->setName('resources.client.users.by_email');
 
         $group->put('/client/user-metadata', [ClientResourcesController::class, 'upsertUserMetadata'])
             ->add(ConfidentialClientAuthMiddleware::class)

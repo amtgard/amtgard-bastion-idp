@@ -9,7 +9,7 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Optional\Optional;
 
 /**
- * Resolves client IAM API inputs (idp_user_id, login_id) against persistence.
+ * Resolver: looks up client IAM API inputs (idp_user_id, login_id, email) against persistence.
  * Keeps controllers free of branching lookup logic.
  */
 final class ClientResourcesRequestResolver
@@ -22,6 +22,11 @@ final class ClientResourcesRequestResolver
     public function findUserByPublicId(string $idpUserId): Optional
     {
         return Optional::ofNullable($this->userRepository->findUserByUserId($idpUserId));
+    }
+
+    public function findUserByEmail(string $email): Optional
+    {
+        return Optional::ofNullable($this->userRepository->getUserByEmail($email));
     }
 
     public function findLoginIdForUser(int $loginId, int $userDbId): Optional

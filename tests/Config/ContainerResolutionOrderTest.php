@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Config;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Controllers\Resource\ClientUserLookupController;
 use Amtgard\IdP\Controllers\Resource\OrkAccountUnlinkController;
 use Amtgard\IdP\Middleware\ConfidentialClientBasicAuthMiddleware;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
@@ -12,6 +13,7 @@ use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Tests\Support\OAuthTestEnvironment;
+use DI\Bridge\Slim\Bridge;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Throwable;
@@ -67,6 +69,7 @@ final class ContainerResolutionOrderTest extends TestCase
             $assembler = $this->container->get(AuthorizationJwtAssembler::class);
             $idpJwt = $this->container->get(AmtgardIdpJwt::class);
             $unlink = $this->container->get(OrkAccountUnlinkController::class);
+            $userLookup = $this->container->get(ClientUserLookupController::class);
         } catch (Throwable $e) {
             $this->markTestSkipped('Infrastructure not reachable for container integration: ' . $e->getMessage());
         }
@@ -77,6 +80,21 @@ final class ContainerResolutionOrderTest extends TestCase
         $this->assertInstanceOf(AuthorizationJwtAssembler::class, $assembler);
         $this->assertInstanceOf(AmtgardIdpJwt::class, $idpJwt);
         $this->assertInstanceOf(OrkAccountUnlinkController::class, $unlink);
+        $this->assertInstanceOf(ClientUserLookupController::class, $userLookup);
+    }
+
+    public function testClientUserByEmailRouteResolvesItsController(): void
+    {
+        $app = Bridge::create($this->container);
+        (require dirname(__DIR__, 2) . '/config/routes.php')($app);
+        $route = $app->getRouteCollector()->getNamedRoute('resources.client.users.by_email');
+
+        $this->assertSame(['GET'], $route->getMethods());
+        $this->assertSame('/resources/client/users/by-email', $route->getPattern());
+        $this->assertSame(
+            [ClientUserLookupController::class, 'resolveUserByEmail'],
+            $route->getCallable()
+        );
     }
 
     private function applyPhpUnitEnvironmentOverrides(): void
