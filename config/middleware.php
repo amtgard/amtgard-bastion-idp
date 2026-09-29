@@ -9,6 +9,7 @@ use Psr\Log\LoggerInterface;
 use Slim\App;
 use Slim\Exception\HttpNotFoundException;
 use Slim\Middleware\MethodOverrideMiddleware;
+use Twig\Environment as TwigEnvironment;
 
 return function (App $app) {
     // Parse json, form data and xml
@@ -32,13 +33,15 @@ return function (App $app) {
     // Log exceptions to Monolog (logs/app.log); display details only when APP_DEBUG=true
     $displayErrorDetails = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
     $logger = $app->getContainer()->get(LoggerInterface::class);
+    $view = $app->getContainer()->get(TwigEnvironment::class);
 
     $errorMiddleware = $app->addErrorMiddleware($displayErrorDetails, true, true, $logger);
     $errorMiddleware->setDefaultErrorHandler(
         new ApiAwareErrorHandler(
             $app->getCallableResolver(),
             $app->getResponseFactory(),
-            $logger
+            $logger,
+            $view
         )
     );
     $errorMiddleware->setErrorHandler(
@@ -46,7 +49,8 @@ return function (App $app) {
         new NotFoundErrorHandler(
             $app->getCallableResolver(),
             $app->getResponseFactory(),
-            $logger
+            $logger,
+            $view
         )
     );
 
