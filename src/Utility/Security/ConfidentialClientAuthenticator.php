@@ -51,12 +51,16 @@ final class ConfidentialClientAuthenticator
         }
 
         if ($mode === ConfidentialClientAuthMode::RequireIamService) {
-            Optional::ofNullable($client->getIamService())
+            $namespace = Optional::ofNullable($client->getIamService())
+                ->map(fn (string $iamService) => trim($iamService))
                 ->filter(fn (string $iamService) => $iamService !== '')
-                ->orElseThrow(new HttpUnauthorizedException(
-                    $request,
-                    'Client is not configured with an IAM service namespace.'
-                ));
+                ->orElse(null);
+            if ($namespace === null) {
+                $this->logger->warning('ConfidentialClientAuth: client has no IAM service namespace', [
+                    'client_id' => $basic->clientId,
+                ]);
+                throw new MissingIamServiceNamespace();
+            }
         }
 
         $this->logger->debug('ConfidentialClientAuth: credentials accepted', [

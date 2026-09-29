@@ -1125,7 +1125,7 @@ Typical lifecycle:
 4. Your app calls `GET /resources/jwt` then `GET /resources/userinfo`; decode the JWT from `/resources/jwt` for `policy` and `client_metadata`.
 5. Your API handlers call `/api/is_authorized` or evaluate `policy` locally before sensitive actions.
 
-You **cannot** use Client IAM without an assigned `iam_service`. You **cannot** read or modify another client's claims or metadata.
+You **cannot** use Client IAM without an assigned `iam_service`. A confidential client that authenticates but has no namespace receives **403** with `{ "error": "Client is not configured with an IAM service namespace." }`. That is a configuration rejection, not a server failure. You **cannot** read or modify another client's claims or metadata.
 
 ### Authentication
 
@@ -1136,6 +1136,11 @@ Authorization: Basic base64(client_id:client_secret)
 ```
 
 Use the same `client_id` and `client_secret` as your OAuth confidential client.
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `401` | Slim unauthorized response | Missing or invalid client credentials |
+| `403` | `{ "error": "Client is not configured with an IAM service namespace." }` | Credentials are valid, and an IdP admin has not assigned `iam_service` yet |
 
 ### Policy claims
 

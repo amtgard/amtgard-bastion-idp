@@ -8,6 +8,7 @@ use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Utility\Security\ConfidentialClientAuthMode;
 use Amtgard\IdP\Utility\Security\ConfidentialClientAuthenticator;
+use Amtgard\IdP\Utility\Security\MissingIamServiceNamespace;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
@@ -74,8 +75,46 @@ class ConfidentialClientAuthenticatorTest extends TestCase
         $this->clientRepository->method('validateClient')->willReturn(true);
         $this->clientRepository->method('findClientByIdentifier')->willReturn($client);
 
-        $this->expectException(HttpUnauthorizedException::class);
+        $this->expectException(MissingIamServiceNamespace::class);
         $this->authenticator->authenticate($this->request, ConfidentialClientAuthMode::RequireIamService);
+    }
+
+    public function testAuthenticateRejectsBlankIamService(): void
+    {
+        $client = new class extends Client {
+            public function getIsConfidential(): bool { return true; }
+            public function getIamService(): ?string { return '   '; }
+        };
+
+        $this->request->method('getHeaderLine')
+            ->willReturn('Basic ' . base64_encode('app:secret'));
+        $this->clientRepository->method('validateClient')->willReturn(true);
+        $this->clientRepository->method('findClientByIdentifier')->willReturn($client);
+
+        $this->expectException(MissingIamServiceNamespace::class);
+        $this->authenticator->authenticate($this->request, ConfidentialClientAuthMode::RequireIamService);
+    }
+
+    public function testAuthenticateLogsWhenIamServiceIsMissing(): void
+    {
+        $client = new class extends Client {
+            public function getIsConfidential(): bool { return true; }
+            public function getIamService(): ?string { return null; }
+        };
+
+        $this->request->method('getHeaderLine')
+            ->willReturn('Basic ' . base64_encode('app:secret'));
+        $this->clientRepository->method('validateClient')->willReturn(true);
+        $this->clientRepository->method('findClientByIdentifier')->willReturn($client);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('warning')
+            ->with('ConfidentialClientAuth: client has no IAM service namespace', ['client_id' => 'app']);
+        $authenticator = new ConfidentialClientAuthenticator($this->clientRepository, $logger);
+
+        $this->expectException(MissingIamServiceNamespace::class);
+        $authenticator->authenticate($this->request, ConfidentialClientAuthMode::RequireIamService);
     }
 
     public function testAuthenticateReturnsClientWhenValid(): void
