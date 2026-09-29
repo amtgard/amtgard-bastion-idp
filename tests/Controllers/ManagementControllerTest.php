@@ -270,10 +270,43 @@ class ManagementControllerTest extends TestCase
 
         $result = $this->controller->updateClient($this->request, $this->response, 5);
         $this->assertSame($this->response, $result);
-        
+
         // Use AARO Data getters (magic methods mapped in Client/RepositoryEntity)
         $this->assertEquals('updated-client', $client->getIdentifier());
         $this->assertEquals('new-secret', $client->getClientSecret());
+    }
+
+    public function testUpdateClientPersistsIamNamespaceOnExistingClient(): void
+    {
+        $client = Client::builder()
+            ->identifier('old-client')
+            ->clientSecret('old-secret')
+            ->name('Old Name')
+            ->redirectUri('http://old-redirect')
+            ->isConfidential(true)
+            ->isDev(false)
+            ->build();
+
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->request->method('getParsedBody')->willReturn([
+            'client_id' => 'old-client',
+            'client_secret' => 'old-secret',
+            'name' => 'Old Name',
+            'redirect_uri' => 'http://old-redirect',
+            'is_confidential' => '1',
+            'iam_service' => 'Skbc',
+            'iam_service_format' => '["Configuration","Kingdom"]',
+        ]);
+
+        $this->controller->updateClient($this->request, $this->response, 5);
+
+        $this->assertSame('Skbc', $client->getIamService());
+        $this->assertSame('["Configuration","Kingdom"]', $client->getIamServiceFormat());
+        $this->assertSame('Skbc', $client->getInternalEntity()->getChanges()['iam_service']);
+        $this->assertSame(
+            '["Configuration","Kingdom"]',
+            $client->getInternalEntity()->getChanges()['iam_service_format']
+        );
     }
 
     public function testSearchUsersReturnsEmptyWhenQueryTooShort(): void

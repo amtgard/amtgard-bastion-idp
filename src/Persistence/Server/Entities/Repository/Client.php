@@ -44,24 +44,4 @@ class Client extends RepositoryEntity
 
     #[Field('iam_service_format')]
     private ?string $iamServiceFormat = null;
-
-    public function getIamService(): ?string
-    {
-        return $this->iamService;
-    }
-
-    public function setIamService(?string $iamService): void
-    {
-        $this->iamService = $iamService;
-    }
-
-    public function getIamServiceFormat(): ?string
-    {
-        return $this->iamServiceFormat;
-    }
-
-    public function setIamServiceFormat(?string $iamServiceFormat): void
-    {
-        $this->iamServiceFormat = $iamServiceFormat;
-    }
 }
