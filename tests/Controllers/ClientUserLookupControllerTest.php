@@ -11,6 +11,7 @@ use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\ActiveRecordOrm\Schema\FieldDefinition;
 use Amtgard\ActiveRecordOrm\Schema\FieldType;
 use Amtgard\ActiveRecordOrm\Schema\TableSchema;
+use Amtgard\IdP\Controllers\Resource\ClientIamRequestInterpreter;
 use Amtgard\IdP\Controllers\Resource\ClientUserLookupController;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
@@ -172,7 +173,9 @@ final class ClientUserLookupControllerTest extends TestCase
     {
         return new ClientUserLookupController(
             $logger,
-            new ClientResourcesRequestResolver($users, $this->createStub(UserLoginRepository::class)),
+            new ClientIamRequestInterpreter(
+                new ClientResourcesRequestResolver($users, $this->createStub(UserLoginRepository::class)),
+            ),
         );
     }
 

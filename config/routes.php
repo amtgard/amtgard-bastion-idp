@@ -9,8 +9,10 @@ use Amtgard\IdP\Controllers\Client\FacebookAuthController;
 use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Controllers\Client\GoogleAuthController;
 use Amtgard\IdP\Controllers\HomeController;
-use Amtgard\IdP\Controllers\Resource\ClientResourcesController;
+use Amtgard\IdP\Controllers\Resource\ClientPolicyClaimsController;
+use Amtgard\IdP\Controllers\Resource\ClientServiceFormatController;
 use Amtgard\IdP\Controllers\Resource\ClientUserLookupController;
+use Amtgard\IdP\Controllers\Resource\ClientUserMetadataController;
 use Amtgard\IdP\Controllers\Resource\LowLatencyController;
 use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Management\ClientAccessController;
@@ -110,15 +112,15 @@ return function (App $app) {
             ->add(OAuthAccessTokenElevationMiddleware::class)
             ->setName('resources.jwt');
 
-        $group->post('/client/policy-claims', [ClientResourcesController::class, 'addPolicyClaim'])
+        $group->post('/client/policy-claims', [ClientPolicyClaimsController::class, 'addPolicyClaim'])
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.policy_claims.add');
 
-        $group->delete('/client/policy-claims', [ClientResourcesController::class, 'deletePolicyClaim'])
+        $group->delete('/client/policy-claims', [ClientPolicyClaimsController::class, 'deletePolicyClaim'])
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.policy_claims.delete');
 
-        $group->get('/client/policy-claims/{idp_user_id}', [ClientResourcesController::class, 'listPolicyClaims'])
+        $group->get('/client/policy-claims/{idp_user_id}', [ClientPolicyClaimsController::class, 'listPolicyClaims'])
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.policy_claims.list');
 
@@ -126,27 +128,27 @@ return function (App $app) {
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.users.by_email');
 
-        $group->put('/client/user-metadata', [ClientResourcesController::class, 'upsertUserMetadata'])
+        $group->put('/client/user-metadata', [ClientUserMetadataController::class, 'upsertUserMetadata'])
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.user_metadata.upsert');
 
-        $group->get('/client/user-metadata/{idp_user_id}', [ClientResourcesController::class, 'getUserMetadata'])
+        $group->get('/client/user-metadata/{idp_user_id}', [ClientUserMetadataController::class, 'getUserMetadata'])
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.user_metadata.get');
 
-        $group->delete('/client/user-metadata/{idp_user_id}', [ClientResourcesController::class, 'deleteUserMetadata'])
+        $group->delete('/client/user-metadata/{idp_user_id}', [ClientUserMetadataController::class, 'deleteUserMetadata'])
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.user_metadata.delete');
 
-        $group->get('/client/service-format', [ClientResourcesController::class, 'getServiceFormat'])
+        $group->get('/client/service-format', [ClientServiceFormatController::class, 'getServiceFormat'])
             ->add(ConfidentialClientCredentialMiddleware::class)
             ->setName('resources.client.service_format.get');
 
-        $group->post('/client/service-format', [ClientResourcesController::class, 'createServiceFormat'])
+        $group->post('/client/service-format', [ClientServiceFormatController::class, 'createServiceFormat'])
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.service_format.create');
 
-        $group->put('/client/service-format', [ClientResourcesController::class, 'replaceServiceFormat'])
+        $group->put('/client/service-format', [ClientServiceFormatController::class, 'replaceServiceFormat'])
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.service_format.replace');
     });

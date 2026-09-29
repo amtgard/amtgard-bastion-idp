@@ -10,12 +10,16 @@ use Amtgard\ActiveRecordOrm\Entity\Policy\RepositoryPolicy;
 use Amtgard\ActiveRecordOrm\Schema\TableSchema;
 use Amtgard\ActiveRecordOrm\Schema\FieldDefinition;
 use Amtgard\ActiveRecordOrm\Schema\FieldType;
-use Amtgard\IdP\Controllers\Resource\ClientResourcesController;
+use Amtgard\IdP\Controllers\Resource\ClientIamRequestInterpreter;
+use Amtgard\IdP\Controllers\Resource\ClientPolicyClaimsController;
+use Amtgard\IdP\Controllers\Resource\ClientServiceFormatController;
+use Amtgard\IdP\Controllers\Resource\ClientUserMetadataController;
 use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
 use Amtgard\IdP\Services\ClientIamMetadataService;
 use Amtgard\IdP\Services\ClientIamPolicyService;
+use Amtgard\IdP\Services\ClientIamServiceFormatService;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use PHPUnit\Framework\TestCase;
@@ -85,7 +89,7 @@ class ClientResourcesControllerTest extends TestCase
                 \Amtgard\IdP\Utility\ClientMetadataValidator::ENCODING_JSON
             );
 
-        $controller = $this->makeController(
+        $controller = $this->metadataController(
             new ClientResourcesRequestResolver($userRepository, $userLoginRepository),
             $metadataRepository
         );
@@ -117,7 +121,7 @@ class ClientResourcesControllerTest extends TestCase
             ->iamService('Skbc')
             ->build();
 
-        $controller = $this->makeController();
+        $controller = $this->serviceFormatController();
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -148,7 +152,7 @@ class ClientResourcesControllerTest extends TestCase
             ->iamServiceFormat('["Configuration","Kingdom"]')
             ->build();
 
-        $controller = $this->makeController();
+        $controller = $this->serviceFormatController();
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -177,7 +181,7 @@ class ClientResourcesControllerTest extends TestCase
             ->iamService('Skbc')
             ->build();
 
-        $controller = $this->makeController();
+        $controller = $this->serviceFormatController();
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -209,7 +213,7 @@ class ClientResourcesControllerTest extends TestCase
             ->iamServiceFormat('["tenant-id","Kingdom","event-series"]')
             ->build();
 
-        $controller = $this->makeController();
+        $controller = $this->serviceFormatController();
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -239,7 +243,7 @@ class ClientResourcesControllerTest extends TestCase
             ->iamService('Skbc')
             ->build();
 
-        $controller = $this->makeController();
+        $controller = $this->serviceFormatController();
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -259,7 +263,7 @@ class ClientResourcesControllerTest extends TestCase
     public function testCreateServiceFormatReturns400WhenServiceFormatMissing(): void
     {
         $client = $this->serviceFormatClient();
-        $controller = $this->makeController();
+        $controller = $this->serviceFormatController();
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -278,7 +282,7 @@ class ClientResourcesControllerTest extends TestCase
     public function testCreateServiceFormatReturns400WhenServiceFormatEmpty(): void
     {
         $client = $this->serviceFormatClient();
-        $controller = $this->makeController();
+        $controller = $this->serviceFormatController();
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -297,7 +301,7 @@ class ClientResourcesControllerTest extends TestCase
     public function testReplaceServiceFormatReturns400WhenSlotNameEmpty(): void
     {
         $client = $this->serviceFormatClient();
-        $controller = $this->makeController();
+        $controller = $this->serviceFormatController();
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -326,7 +330,7 @@ class ClientResourcesControllerTest extends TestCase
             ->iamService('Skbc')
             ->build();
 
-        $controller = $this->makeController();
+        $controller = $this->serviceFormatController();
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -358,7 +362,7 @@ class ClientResourcesControllerTest extends TestCase
             5
         );
 
-        $controller = $this->makeController($resolver, null, $policyRepo);
+        $controller = $this->policyController($resolver, $policyRepo);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -380,7 +384,7 @@ class ClientResourcesControllerTest extends TestCase
         [$user, $client, $resolver, $policyRepo] = $this->policyContext();
         $policyRepo->method('addClaim')->willThrowException(new \InvalidArgumentException('Invalid ORN claim'));
 
-        $controller = $this->makeController($resolver, null, $policyRepo);
+        $controller = $this->policyController($resolver, $policyRepo);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')
             ->with(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE)
@@ -403,7 +407,7 @@ class ClientResourcesControllerTest extends TestCase
         [$user, $client, $resolver, $policyRepo] = $this->policyContext();
         $policyRepo->expects($this->once())->method('deleteClaim');
 
-        $controller = $this->makeController($resolver, null, $policyRepo);
+        $controller = $this->policyController($resolver, $policyRepo);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')->willReturn($client);
         $request->method('getParsedBody')->willReturn([
@@ -425,7 +429,7 @@ class ClientResourcesControllerTest extends TestCase
             ['service' => 'Skbc', 'provisos' => ':0::::', 'resource' => 'Officer/Approve'],
         ]);
 
-        $controller = $this->makeController($resolver, null, $policyRepo);
+        $controller = $this->policyController($resolver, $policyRepo);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')->willReturn($client);
 
@@ -449,7 +453,7 @@ class ClientResourcesControllerTest extends TestCase
             'encoding' => 'json',
         ]);
 
-        $controller = $this->makeController($resolver, $metadataRepository);
+        $controller = $this->metadataController($resolver, $metadataRepository);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')->willReturn($client);
         $request->method('getQueryParams')->willReturn(['login_id' => '42']);
@@ -472,7 +476,7 @@ class ClientResourcesControllerTest extends TestCase
         $metadataRepository = $this->createMock(UserLoginClientRepository::class);
         $metadataRepository->method('getMetadata')->willReturn(null);
 
-        $controller = $this->makeController($resolver, $metadataRepository);
+        $controller = $this->metadataController($resolver, $metadataRepository);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')->willReturn($client);
         $request->method('getQueryParams')->willReturn(['login_id' => '42']);
@@ -490,7 +494,7 @@ class ClientResourcesControllerTest extends TestCase
         $metadataRepository = $this->createMock(UserLoginClientRepository::class);
         $metadataRepository->expects($this->once())->method('deleteMetadata')->with(42, 5);
 
-        $controller = $this->makeController($resolver, $metadataRepository);
+        $controller = $this->metadataController($resolver, $metadataRepository);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')->willReturn($client);
         $request->method('getQueryParams')->willReturn(['login_id' => '42']);
@@ -519,7 +523,7 @@ class ClientResourcesControllerTest extends TestCase
             $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository::class),
         );
 
-        $controller = $this->makeController($resolver);
+        $controller = $this->policyController($resolver);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')->willReturn($client);
         $request->method('getParsedBody')->willReturn(['idp_user_id' => 'missing']);
@@ -549,7 +553,7 @@ class ClientResourcesControllerTest extends TestCase
             $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository::class),
         );
 
-        $controller = $this->makeController($resolver);
+        $controller = $this->policyController($resolver);
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getAttribute')->willReturn($client);
         $request->method('getParsedBody')->willReturn([]);
@@ -601,22 +605,37 @@ class ClientResourcesControllerTest extends TestCase
             ->build();
     }
 
-    private function makeController(
-        ?ClientResourcesRequestResolver $resolver = null,
-        ?UserLoginClientRepository $metadataRepository = null,
+    private function policyController(
+        ClientResourcesRequestResolver $resolver,
         ?UserPolicyClaimRepository $policyRepository = null,
-    ): ClientResourcesController {
-        $policyRepo = $policyRepository ?? $this->createMock(UserPolicyClaimRepository::class);
-        $metadataRepo = $metadataRepository ?? $this->createMock(UserLoginClientRepository::class);
-
-        return new ClientResourcesController(
+    ): ClientPolicyClaimsController {
+        return new ClientPolicyClaimsController(
             $this->createMock(LoggerInterface::class),
-            $resolver ?? new ClientResourcesRequestResolver(
+            new ClientIamRequestInterpreter($resolver),
+            ClientIamPolicyService::builder()
+                ->policyClaimRepository($policyRepository ?? $this->createMock(UserPolicyClaimRepository::class))
+                ->build(),
+        );
+    }
+
+    private function metadataController(
+        ClientResourcesRequestResolver $resolver,
+        UserLoginClientRepository $metadataRepository,
+    ): ClientUserMetadataController {
+        return new ClientUserMetadataController(
+            new ClientIamRequestInterpreter($resolver),
+            ClientIamMetadataService::builder()->metadataRepository($metadataRepository)->build(),
+        );
+    }
+
+    private function serviceFormatController(): ClientServiceFormatController
+    {
+        return new ClientServiceFormatController(
+            new ClientIamRequestInterpreter(new ClientResourcesRequestResolver(
                 $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class),
                 $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository::class),
-            ),
-            ClientIamPolicyService::builder()->policyClaimRepository($policyRepo)->build(),
-            ClientIamMetadataService::builder()->metadataRepository($metadataRepo)->build(),
+            )),
+            new ClientIamServiceFormatService(),
         );
     }
 

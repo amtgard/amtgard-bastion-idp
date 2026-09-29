@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Controllers\Resource;
 
-use Amtgard\IdP\Middleware\ConfidentialClientAuthMiddleware;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Utility\Client\ClientEmailLookupRejection;
-use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use Amtgard\IdP\Utility\JsonResponseBody;
 use OpenApi\Attributes as OA;
 use Optional\Optional;
@@ -17,13 +15,13 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 
 /**
- * Controller for a confidential client's lookup of an IdP user by account email.
+ * HTTP edge for a confidential client's lookup of an IdP user by account email.
  */
 final class ClientUserLookupController
 {
     public function __construct(
         private LoggerInterface $logger,
-        private ClientResourcesRequestResolver $requestResolver,
+        private ClientIamRequestInterpreter $requests,
     ) {}
 
     #[OA\Get(
@@ -48,7 +46,7 @@ final class ClientUserLookupController
     )]
     public function resolveUserByEmail(Request $request, Response $response): Response
     {
-        $client = $this->registeredClient($request);
+        $client = $this->requests->client($request);
         $email = trim((string) ($request->getQueryParams()['email'] ?? ''));
 
         return Optional::of($email)
@@ -63,7 +61,7 @@ final class ClientUserLookupController
 
     private function respondWithUserForEmail(Client $client, string $email, Response $response): Response
     {
-        return $this->requestResolver->findUserByEmail($email)
+        return $this->requests->findUserByEmail($email)
             ->map(fn (UserEntity $user): Response => $this->respondWithResolvedUser($client, $user, $response))
             ->orElseGet(fn (): Response => $this->rejectEmailLookup(
                 $client,
@@ -96,13 +94,5 @@ final class ClientUserLookupController
         ]);
 
         return JsonResponseBody::writeError($response, $rejection->message(), $rejection->httpStatus());
-    }
-
-    private function registeredClient(Request $request): Client
-    {
-        /** @var Client $client */
-        $client = $request->getAttribute(ConfidentialClientAuthMiddleware::REQUEST_ATTRIBUTE);
-
-        return $client;
     }
 }
