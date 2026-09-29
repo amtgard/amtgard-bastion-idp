@@ -791,6 +791,7 @@ Requires HTTP Basic auth with your OAuth `client_id` and `client_secret`. Your c
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
+| `/resources/client/users/by-email` | GET | Resolve an IdP user UUID from an account email (`?email=`) |
 | `/resources/client/policy-claims` | POST | Add an IAM policy claim for a user (scoped to your `iam_service`) |
 | `/resources/client/policy-claims` | DELETE | Remove a policy claim |
 | `/resources/client/policy-claims/{idp_user_id}` | GET | List policy claims for a user in your service namespace |
@@ -1141,6 +1142,26 @@ Use the same `client_id` and `client_secret` as your OAuth confidential client.
 |--------|------|---------|
 | `401` | Slim unauthorized response | Missing or invalid client credentials |
 | `403` | `{ "error": "Client is not configured with an IAM service namespace." }` | Credentials are valid, and an IdP admin has not assigned `iam_service` yet |
+
+### Resolve a user by email
+
+`GET /resources/client/users/by-email?email=player@amtgard.com`
+
+Use this when the person is not the one who just signed in. The address must match the account email stored on the IdP. A hit returns that user's public id:
+
+```json
+{
+  "idp_user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "player@amtgard.com"
+}
+```
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `400` | `{ "error": "email is required" }` | Query `email` is missing or not an email address |
+| `404` | `{ "error": "unknown email" }` | No IdP account uses that address |
+
+Pass `idp_user_id` to the policy-claim calls below. Metadata still needs a `login_id` for one of that user's login methods. This lookup does not return login ids.
 
 ### Policy claims
 
