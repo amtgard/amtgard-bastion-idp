@@ -20,6 +20,7 @@ final class TestMailboxChallengeEntity extends MailboxChallengeEntity
         private string $testSentToHash = 'hash',
         private ?DateTimeInterface $testConsumedAt = null,
         private ?DateTimeInterface $testExpiresAt = null,
+        private ?int $testMundaneId = 1001,
     ) {
         $this->testExpiresAt = $testExpiresAt ?? new DateTime('+5 minutes');
     }
@@ -62,5 +63,10 @@ final class TestMailboxChallengeEntity extends MailboxChallengeEntity
     public function getExpiresAt(): DateTimeInterface
     {
         return $this->testExpiresAt;
+    }
+
+    public function getMundaneId(): ?int
+    {
+        return $this->testMundaneId;
     }
 }

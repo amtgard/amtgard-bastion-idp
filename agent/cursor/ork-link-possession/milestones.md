@@ -36,7 +36,7 @@ No HTTP behavior change.
 - [x] Phinx `mailbox_challenges` as specified in the design §3
 - [x] `MailboxChallengeService`: issue, resend, check, consume. HMAC with `MAILBOX_CODE_PEPPER`. 10-minute TTL, 5 attempts, 5 sends per destination per purpose per hour
 - [x] Unit tests: wrong code increments attempts; sixth consumes; resend invalidates the previous hash; expired row fails; a code for another `challenge_id` fails; pepper mismatch fails
-- [x] `OutboundMail`, `LogOutboundMail`, `SmtpOutboundMail` behind `MAIL_DSN`
+- [x] `OutboundMail` and `LogOutboundMail` behind `MAIL_TRANSPORT` (`log` or `php`)
 - [x] `.env.example` documents both vars. Log transport never writes the code
 - [x] Wire the service in the container. Routes call it as of I2–I5 (I1-only “no route yet” is no longer true)
 

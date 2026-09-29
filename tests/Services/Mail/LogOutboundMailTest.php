@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdP\Tests\Services\Mailbox;
+namespace Amtgard\IdP\Tests\Services\Mail;
 
-use Amtgard\IdP\Services\Mailbox\LogOutboundMail;
+use Amtgard\IdP\Services\Mail\LogOutboundMail;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -16,14 +16,19 @@ final class LogOutboundMailTest extends TestCase
         $context = null;
         $logger->expects($this->once())
             ->method('info')
-            ->with('mailbox.log.sent', $this->callback(function (array $logged) use (&$context): bool {
+            ->with('mail.sent', $this->callback(function (array $logged) use (&$context): bool {
                 $context = $logged;
 
                 return true;
             }));
 
-        (new LogOutboundMail($logger))->send('secret@example.com', 'Your Amtgard verification code', 'Your verification code is 123456');
+        (new LogOutboundMail($logger))->send(
+            'secret@example.com',
+            'Your Amtgard verification code',
+            'Your verification code is 123456',
+        );
 
+        $this->assertSame('log', $context['carrier']);
         $this->assertSame(hash('sha256', 'secret@example.com'), $context['sent_to_hash']);
         $this->assertSame('Your Amtgard verification code', $context['subject']);
         $this->assertArrayNotHasKey('to', $context);

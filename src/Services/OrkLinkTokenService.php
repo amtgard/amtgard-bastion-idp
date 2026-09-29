@@ -189,6 +189,54 @@ class OrkLinkTokenService
         return $raw;
     }
 
+    public function mintMailboxMagicLink(string $idpUserId, int $mundaneId, string $challengeId): string
+    {
+        $now = time();
+
+        return $this->encode([
+            'iss' => 'idp',
+            'aud' => 'idp',
+            'sub' => $idpUserId,
+            'mundane_id' => $mundaneId,
+            'challenge_id' => $challengeId,
+            'purpose' => 'claim_ork_magic',
+            'jti' => bin2hex(random_bytes(18)),
+            'iat' => $now,
+            'exp' => $now + MailboxChallengeService::TTL_SECONDS,
+        ]);
+    }
+
+    /**
+     * @return array{idp_user_id: string, mundane_id: int, challenge_id: string, jti: string}|null
+     */
+    public function peekMailboxMagicLink(string $jwt): ?array
+    {
+        return Optional::ofNullable($this->decode($jwt, 'idp', 'idp'))
+            ->map(function (object $decoded) {
+                $mundaneId = (int) ($decoded->mundane_id ?? 0);
+                $challengeId = (string) ($decoded->challenge_id ?? '');
+                $idpUserId = (string) ($decoded->sub ?? '');
+                $valid = ($decoded->purpose ?? '') === 'claim_ork_magic'
+                    && $idpUserId !== ''
+                    && $challengeId !== ''
+                    && $mundaneId > 0
+                    && !empty($decoded->jti);
+                if (!$valid) {
+                    $this->logger->warning('OrkLinkToken missing required claim');
+
+                    return null;
+                }
+
+                return [
+                    'idp_user_id' => $idpUserId,
+                    'mundane_id' => $mundaneId,
+                    'challenge_id' => $challengeId,
+                    'jti' => (string) $decoded->jti,
+                ];
+            })
+            ->orElse(null);
+    }
+
     public function flowAClaimRedirectUrl(string $jwt, string $username): string
     {
         return $this->orkBaseUrl()

@@ -124,9 +124,9 @@ First address on a linked blank record uses `confirm_first_email`. The code is s
 | File | Change |
 |---|---|
 | `db/migrations/*_mailbox_challenges.php` | New table |
-| `src/Services/Mailbox/OutboundMail.php` | `send(to, subject, text): void` |
-| `src/Services/Mailbox/LogOutboundMail.php` | Dev default. Logs `sent_to_hash` and subject, not the code. |
-| `src/Services/Mailbox/SmtpOutboundMail.php` | Used when `MAIL_DSN` is set |
+| `src/Services/Mail/OutboundMail.php` | `send(to, subject, text): void` |
+| `src/Services/Mail/LogOutboundMail.php` | Dev default (`MAIL_TRANSPORT` unset or `log`). Logs `sent_to_hash` and subject, not the code. |
+| `src/Services/Mail/MailCarrier.php` | Selects the carrier. `php` uses PHP `mail()`. API carriers register here. |
 | `src/Services/MailboxChallengeService.php` | Issue, resend, check, consume |
 | `src/Services/OrkLinkTokenService.php` | Verify Flow A completion JWT and Flow B handoff. Ignore email as a bind key. |
 | `src/Controllers/Client/ConnectController.php` | Show code form. Remove password-match bind and register-then-link. |
@@ -135,7 +135,7 @@ First address on a linked blank record uses `confirm_first_email`. The code is s
 | `templates/connect.twig` | Code entry. Password fields only after a registration code has succeeded, on the same submit that creates the user. |
 | `templates/profile.twig` | Username field to start Flow A. Change-email form. |
 | `templates/api.md` | Section 7 rewritten to this contract |
-| `.env.example` | `MAILBOX_CODE_PEPPER`, `MAIL_DSN` |
+| `.env.example` | `MAILBOX_CODE_PEPPER`, `MAIL_TRANSPORT` |
 | `tests/Controllers/ConnectControllerTest.php` | Replace login/register bind cases with the cases in milestone I3 |
 | `tests/Controllers/ResourcesControllerTest.php` | Mirror without `challenge_id` is 400. Password post does not link. |
 

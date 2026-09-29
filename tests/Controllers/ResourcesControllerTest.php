@@ -462,6 +462,34 @@ class ResourcesControllerTest extends TestCase
         $this->assertSame($this->response, $this->controller->linkOrkAccount($this->request, $this->response));
     }
 
+    public function testLinkOrkAccountByCodeDoesNotUseTheOrkPassword(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $challenge = new TestMailboxChallengeEntity(testId: 'chal-code', testIdpUserId: '123', testMundaneId: 55);
+        $this->request->method('getParsedBody')->willReturn([
+            'username' => 'ork-user',
+            'password' => '',
+            'code' => '123456',
+        ]);
+        $this->mailboxChallenges->method('findLatestOpenByUserAndPurpose')
+            ->with('123', MailboxChallengePurpose::CLAIM_ORK)
+            ->willReturn($challenge);
+        $this->mailboxChallenges->method('check')
+            ->with('chal-code', '123456')
+            ->willReturn(new MailboxChallengeCheckResult(MailboxChallengeCheckResult::OK, $challenge));
+        $this->orkService->expects($this->never())->method('authorize');
+        $this->orkProfileRepository->expects($this->once())
+            ->method('linkExistingUserToMundane')
+            ->with(123, 55, 'claim_ork_code');
+        $this->mailboxChallenges->expects($this->once())->method('consume')->with('chal-code');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?success=linked')
+            ->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->linkOrkAccount($this->request, $this->response));
+    }
+
     public function testLinkOrkAccountLogsWhenMundaneIsAlreadyLinked(): void
     {
         $_SESSION['user_id'] = 123;
@@ -497,6 +525,70 @@ class ResourcesControllerTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('database down');
         $this->controller->linkOrkAccount($this->request, $this->response);
+    }
+
+    public function testSendOrkLinkCodeMailsTheOrkAddressAndHidesMisses(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $_ENV['APP_URL'] = 'http://localhost:37080';
+        $this->request->method('getParsedBody')->willReturn(['username' => 'OrkUser']);
+        $this->orkService->method('searchUsernames')->with('OrkUser', 10)->willReturn([
+            [
+                'mundaneId' => 55,
+                'username' => 'OrkUser',
+                'persona' => 'Persona',
+                'parkName' => 'Park',
+                'kingdomName' => 'Kingdom',
+            ],
+        ]);
+        $this->orkProfileRepository->method('findByMundaneId')->with(55)->willReturn(null);
+        $this->orkService->method('getPlayerByMundaneId')->with(55)->willReturn([
+            'Email' => 'Player@Example.com',
+            'Suspended' => 0,
+            'PenaltyBox' => 0,
+        ]);
+        $this->orkLinkTokenService->method('mintMailboxMagicLink')->willReturn('magic-jwt');
+        $this->mailboxChallenges->expects($this->once())
+            ->method('issue')
+            ->with(
+                MailboxChallengePurpose::CLAIM_ORK,
+                'player@example.com',
+                '123',
+                55,
+                null,
+                null,
+                null,
+                $this->isCallable(),
+            )
+            ->willReturn(new MailboxChallengeIssueResult('chal-mail', 'hash', true));
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?success=ork_code_sent')
+            ->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->sendOrkLinkCode($this->request, $this->response));
+    }
+
+    public function testSearchOrkUsernamesReturnsMatchesWithoutEmail(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getQueryParams')->willReturn(['q' => 'ork']);
+        $this->orkService->method('searchUsernames')->with('ork', 8)->willReturn([
+            [
+                'mundaneId' => 55,
+                'username' => 'OrkUser',
+                'persona' => 'Persona',
+                'parkName' => 'Park',
+                'kingdomName' => 'Kingdom',
+            ],
+        ]);
+        $this->stream->expects($this->once())->method('write')->with($this->callback(function (string $json): bool {
+            $decoded = json_decode($json, true);
+
+            return $decoded[0]['username'] === 'OrkUser' && !array_key_exists('Email', $decoded[0]);
+        }));
+
+        $this->controller->searchOrkUsernames($this->request, $this->response);
     }
 
     public function testLinkOrkAccountFailure(): void

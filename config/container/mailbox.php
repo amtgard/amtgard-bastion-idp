@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Persistence\Client\Repositories\MailboxChallengeRepository;
-use Amtgard\IdP\Services\Mailbox\LogOutboundMail;
-use Amtgard\IdP\Services\Mailbox\OutboundMail;
-use Amtgard\IdP\Services\Mailbox\SmtpOutboundMail;
+use Amtgard\IdP\Services\Mail\MailCarrier;
+use Amtgard\IdP\Services\Mail\OutboundMail;
+use Amtgard\IdP\Services\Mail\OutboundMailFactory;
 use Amtgard\IdP\Services\MailboxChallengeService;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -17,12 +17,8 @@ return [
     },
 
     OutboundMail::class => function (ContainerInterface $container) {
-        $dsn = trim((string) ($_ENV['MAIL_DSN'] ?? ''));
-        if ($dsn !== '') {
-            return new SmtpOutboundMail($dsn, $container->get(LoggerInterface::class));
-        }
-
-        return new LogOutboundMail($container->get(LoggerInterface::class));
+        return (new OutboundMailFactory($container->get(LoggerInterface::class)))
+            ->forCarrier(MailCarrier::fromEnv());
     },
 
     MailboxChallengeService::class => function (ContainerInterface $container) {

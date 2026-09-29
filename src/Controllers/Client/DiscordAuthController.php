@@ -88,7 +88,7 @@ class DiscordAuthController extends BaseAuthController
                 }
 
                 return Optional::ofNullable($this->logins->getLoginByProviderId((string) $userData['id']))
-                    ->map(fn ($login) => $login->user)
+                    ->map(fn ($login) => $this->userForProviderLogin($this->users, $login))
                     ->orElseGet(function () use ($userData, $email, &$redirectPolicy) {
                         return Optional::ofNullable($this->users->getUserByEmail($email))
                             ->orElseGet(function () use ($userData, &$redirectPolicy) {

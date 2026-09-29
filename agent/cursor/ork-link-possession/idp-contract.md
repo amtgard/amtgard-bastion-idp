@@ -53,7 +53,7 @@ When `challenge_id` is present on `POST /resources/link-ork-profile`, it must be
 
 ## IDP email change
 
-`POST /resources/profile/email/start` mails the current `users.email`. `confirm` checks that code and mails `new_email`. `commit` checks the second code and then writes `users.email`. Social login does not overwrite an existing user's email. `MAIL_DSN` unset means the IDP logs a destination hash and does not send mail.
+`POST /resources/profile/email/start` mails the current `users.email`. `confirm` checks that code and mails `new_email`. `commit` checks the second code and then writes `users.email`. Social login does not overwrite an existing user's email. `MAIL_TRANSPORT` unset or `log` means the IDP logs a destination hash and does not send mail.
 
 `confirm_first_email` is a purpose constant only. There is no route.
 

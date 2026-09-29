@@ -9,7 +9,7 @@ use Amtgard\IdP\Persistence\Client\Repositories\MailboxChallengeRepository;
 use Amtgard\IdP\Services\Mailbox\MailboxChallengeCheckResult;
 use Amtgard\IdP\Services\Mailbox\MailboxChallengeIssueResult;
 use Amtgard\IdP\Services\Mailbox\MailboxChallengePurpose;
-use Amtgard\IdP\Services\Mailbox\OutboundMail;
+use Amtgard\IdP\Services\Mail\OutboundMail;
 use DateTime;
 use Optional\Optional;
 use Psr\Log\LoggerInterface;
@@ -37,6 +37,7 @@ final class MailboxChallengeService
         ?string $newEmail = null,
         ?string $stage = null,
         ?string $challengeId = null,
+        ?callable $magicLinkFor = null,
     ): MailboxChallengeIssueResult {
         $this->assertKnownPurpose($purpose);
         $pepper = $this->pepper();
@@ -79,7 +80,8 @@ final class MailboxChallengeService
             ->createdAt($now)
             ->build();
         $this->challenges->persist($row);
-        $this->deliver($destination, $code, $id, $sentToHash, $purpose);
+        $magicLink = $magicLinkFor !== null ? $magicLinkFor($id, $code) : null;
+        $this->deliver($destination, $code, $id, $sentToHash, $purpose, is_string($magicLink) ? $magicLink : null);
 
         return new MailboxChallengeIssueResult($id, $sentToHash, true);
     }
@@ -286,12 +288,22 @@ final class MailboxChallengeService
             });
     }
 
-    private function deliver(string $destination, string $code, string $challengeId, string $sentToHash, string $purpose): void
-    {
+    private function deliver(
+        string $destination,
+        string $code,
+        string $challengeId,
+        string $sentToHash,
+        string $purpose,
+        ?string $magicLink = null,
+    ): void {
+        $text = "Your Amtgard verification code is {$code}. It expires in 10 minutes.";
+        if ($magicLink !== null && $magicLink !== '') {
+            $text .= "\n\nOr open this link while you are signed in to Amtgard:\n{$magicLink}";
+        }
         $this->mail->send(
             $destination,
             'Your Amtgard verification code',
-            "Your verification code is {$code}. It expires in 10 minutes.",
+            $text,
         );
         $this->logger->info('mailbox.challenge.issued', [
             'challenge_id' => $challengeId,

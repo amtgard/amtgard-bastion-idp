@@ -88,7 +88,7 @@ class AppleAuthController extends BaseAuthController
                 &$appleUser,
             ) {
                 return Optional::ofNullable($existingLogin)
-                    ->map(fn ($login) => $login->user)
+                    ->map(fn ($login) => $this->userForProviderLogin($this->users, $login))
                     ->orElseGet(function () use (&$appleUser, &$redirectPolicy) {
                         $email = $appleUser->getEmail();
 

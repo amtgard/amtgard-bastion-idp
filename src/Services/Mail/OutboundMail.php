@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdP\Services\Mailbox;
+namespace Amtgard\IdP\Services\Mail;
 
 interface OutboundMail
 {

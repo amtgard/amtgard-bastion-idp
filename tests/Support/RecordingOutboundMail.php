@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Support;
 
-use Amtgard\IdP\Services\Mailbox\OutboundMail;
+use Amtgard\IdP\Services\Mail\OutboundMail;
 
 final class RecordingOutboundMail implements OutboundMail
 {

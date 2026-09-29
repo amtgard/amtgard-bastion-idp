@@ -83,7 +83,7 @@ class FacebookAuthController extends BaseAuthController
             })
             ->resolveUser(function (array $userData, AuthorizationFinalizeRedirect &$redirectPolicy) {
                 return Optional::ofNullable($this->logins->getLoginByProviderId($userData['id']))
-                    ->map(fn ($login) => $login->user)
+                    ->map(fn ($login) => $this->userForProviderLogin($this->users, $login))
                     ->orElseGet(function () use ($userData, &$redirectPolicy) {
                         return Optional::ofNullable($this->users->getUserByEmail($userData['email']))
                             ->orElseGet(function () use ($userData, &$redirectPolicy) {

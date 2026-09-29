@@ -85,10 +85,23 @@ return function (App $app) {
             ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.authorizations');
 
+        $group->get('/profile/ork-usernames', [ResourcesController::class, 'searchOrkUsernames'])
+            ->add(LocalIdpAuthMiddleware::class)
+            ->setName('resources.profile.ork_usernames');
+
         $group->post('/profile/link-ork', [ResourcesController::class, 'linkOrkAccount'])
             ->add(CsrfMiddleware::class)
             ->add(ClientRestrictedAuthMiddleware::class)
             ->setName('resources.profile.link_ork');
+
+        $group->post('/profile/link-ork-code-mail', [ResourcesController::class, 'sendOrkLinkCode'])
+            ->add(CsrfMiddleware::class)
+            ->add(ClientRestrictedAuthMiddleware::class)
+            ->setName('resources.profile.link_ork_code_mail');
+
+        $group->get('/profile/link-ork/magic', [ResourcesController::class, 'completeOrkMagicLink'])
+            ->add(LocalIdpAuthMiddleware::class)
+            ->setName('resources.profile.link_ork_magic');
 
         // Future ORK possession flow. Today's profile form still posts username
         // and password to link-ork. ORK calls this once Login/claim_ork exists.

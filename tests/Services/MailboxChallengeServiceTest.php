@@ -61,6 +61,24 @@ final class MailboxChallengeServiceTest extends TestCase
         $this->assertSame(44, $row->getMundaneId());
     }
 
+    public function testIssueIncludesMagicLinkWhenProvided(): void
+    {
+        $issued = $this->service->issue(
+            MailboxChallengePurpose::CLAIM_ORK,
+            'player@example.com',
+            'user-1',
+            55,
+            null,
+            null,
+            null,
+            fn (string $challengeId, string $code): string => 'http://localhost/magic?c=' . $challengeId,
+        );
+
+        $this->assertTrue($issued->mailed);
+        $this->assertStringContainsString('http://localhost/magic?c=' . $issued->challengeId, $this->mail->messages[0]['text']);
+        $this->assertMatchesRegularExpression('/^\d{6}$/', $this->mail->lastCode());
+    }
+
     public function testWrongCodeIncrementsAttempts(): void
     {
         $issued = $this->service->issue(MailboxChallengePurpose::CLAIM_IDP, 'a@example.com');
