@@ -220,6 +220,8 @@ The integ social include still `new`s the four League providers. The integ ORK i
 
 Done when a process with `ENVIRONMENT=DEV_INTEG` resolves `Google` as the real League class and its HTTP client as `DevIntegHttpClient`, and `ENVIRONMENT=DEV` resolves a real Guzzle client. `composer test` stays green. Unit-test the fake’s URL dispatch: Google host returns the canned user, `integ-deny` returns 400, ORK host returns the canned player, an unknown host throws.
 
+**Completed (milestone 4):** Branch `stack/dev-integ-4-mode-switch`. Added `config/container/integ/DevIntegHttpClient.php` (Guzzle handler dispatch for Google/Facebook/Discord/Apple/ORK), `auth-providers.integ.php`, and `ork.integ.php`; `EnvironmentLoader` registers integ filenames for auth-providers and ork. Unit tests: `tests/Config/DevIntegHttpClientTest.php` (canned user, `integ-deny` 400, ORK player, unknown host, info log on answer), `tests/Config/DevIntegContainerModeTest.php` (`DEV_INTEG` → real `Google` + `DevIntegHttpClient`; `DEV` → shared real Guzzle). Gates: `composer test` OK (638 tests). Log-tested: `DevIntegHttpClient answered request` at info (host only).
+
 ### 5. `stack/dev-integ-5-harness`
 
 Add the overlay, `scripts/integ-up.sh`, `scripts/integ-down.sh`, `scripts/integ.sh`, seed script, exclude `tests/Integration` from default `phpunit.xml`, add `phpunit.integ.xml`, and `composer integ`.
