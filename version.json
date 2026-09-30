@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-09-30.247",
+  "build_id": "2026-09-30.248",
   "date": "2026-09-30",
-  "revision": 247,
-  "branch": "stack/dev-integ-d11-split-megatests"
+  "revision": 248,
+  "branch": "stack/dev-integ-d12-junit-artifact"
 }
