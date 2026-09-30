@@ -6,7 +6,6 @@ namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
 use DevIntegHttpClient;
-use Firebase\JWT\JWT;
 require_once dirname(__DIR__, 2) . '/config/container/integ/DevIntegHttpClient.php';
 
 /** Mode A — ORK connect JWT handoff, profile link/refresh/unlink, and OAuth revoke. */
@@ -20,7 +19,11 @@ final class OrkAndProfileTest extends IntegTestCase
         $http = new IntegHttp($baseUrl);
 
         $jti = 'integ-jti-' . bin2hex(random_bytes(8));
-        $linkToken = $this->mintConnectToken($jti);
+        $linkToken = IntegFixtures::mintConnectLinkToken(
+            $jti,
+            IntegFixtures::PLAYER_EMAIL,
+            DevIntegHttpClient::INTEG_MUNDANE_ID,
+        );
 
         $connectPage = $http->get('/auth/connect?link_token=' . urlencode($linkToken));
         $this->assertSame(200, $connectPage->getStatusCode(), (string) $connectPage->getBody());
@@ -160,16 +163,4 @@ final class OrkAndProfileTest extends IntegTestCase
         $this->assertContains($finalize->getStatusCode(), [301, 302]);
     }
 
-    private function mintConnectToken(string $jti): string
-    {
-        return JWT::encode([
-            'iss' => 'ork',
-            'aud' => 'idp',
-            'sub' => (string) DevIntegHttpClient::INTEG_MUNDANE_ID,
-            'email' => IntegFixtures::PLAYER_EMAIL,
-            'jti' => $jti,
-            'iat' => time(),
-            'exp' => time() + 900,
-        ], IntegFixtures::ORK_SHARED_SECRET, 'HS256');
-    }
 }

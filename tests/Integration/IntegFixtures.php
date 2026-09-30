@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Integration;
 
+use Firebase\JWT\JWT;
+
 /** Shared fixture identifiers for integration seed data and later milestones. */
 final class IntegFixtures
 {
@@ -30,4 +32,21 @@ final class IntegFixtures
     public const ORK_SHARED_SECRET = 'integ-ork-shared-secret-thirty-two-chars';
 
     public const ORK_LINK_PASSWORD = 'integ-ork-canned-password';
+
+    /** Base mundane id for connect-register integ (tests add random offset). */
+    public const CONNECT_REGISTER_MUNDANE_ID = 91000;
+
+    /** Mint an ORK→IDP connect handoff JWT (HS256, shared secret). */
+    public static function mintConnectLinkToken(string $jti, string $email, int $mundaneId): string
+    {
+        return JWT::encode([
+            'iss' => 'ork',
+            'aud' => 'idp',
+            'sub' => (string) $mundaneId,
+            'email' => $email,
+            'jti' => $jti,
+            'iat' => time(),
+            'exp' => time() + 900,
+        ], self::ORK_SHARED_SECRET, 'HS256');
+    }
 }

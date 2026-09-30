@@ -13,7 +13,7 @@ Stack from **`stack/dev-integ-14-client-iam`** (or `main` after merge). **Do not
 | C3 | `stack/dev-integ-c3-per-test-reseed` | [x] |
 | C4 | `stack/dev-integ-c4-route-matrix-doc` | [x] |
 
-**Resume from:** D3 (`stack/dev-integ-d3-connect-register`.)
+**Resume from:** D4 (`stack/dev-integ-d4-oauth-errors`.)
 
 ## Phase D — Coverage expansion
 
@@ -21,7 +21,7 @@ Stack from **`stack/dev-integ-14-client-iam`** (or `main` after merge). **Do not
 |---|--------|------|
 | D1 | `stack/dev-integ-d1-static-docs` | [x] |
 | D2 | `stack/dev-integ-d2-auth-negatives` | [x] |
-| D3 | `stack/dev-integ-d3-connect-register` | [ ] |
+| D3 | `stack/dev-integ-d3-connect-register` | [x] |
 | D4 | `stack/dev-integ-d4-oauth-errors` | [ ] |
 | D5 | `stack/dev-integ-d5-oauth-scopes` | [ ] |
 | D6 | `stack/dev-integ-d6-resources-clients-ui` | [ ] |

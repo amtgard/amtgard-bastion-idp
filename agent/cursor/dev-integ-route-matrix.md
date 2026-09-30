@@ -1,6 +1,6 @@
 # DEV integ — route matrix
 
-Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d2-auth-negatives`** (stack 1–14 + phase C isolation + D1–D2). Update this file when phase D milestones add cases.
+Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d3-connect-register`** (stack 1–14 + phase C isolation + D1–D3). Update this file when phase D milestones add cases.
 
 **Modes** (see [dev-integ-milestones.md](./dev-integ-milestones.md)):
 
@@ -69,7 +69,7 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | POST | `/auth/apple/callback` | `auth.apple.callback` | A | y | `AppleCallbackTest` | form_post |
 | GET | `/auth/connect` | `auth.connect.show` | A | y | `OrkAndProfileTest` | |
 | POST | `/auth/connect/login` | `auth.connect.login` | A | y | `OrkAndProfileTest` | jti replay negative |
-| POST | `/auth/connect/register` | `auth.connect.register` | A | n | — | D3 |
+| POST | `/auth/connect/register` | `auth.connect.register` | A | y | `ConnectRegisterTest` | register tab happy path |
 | GET | `/management/cleantokens` | `management.cleantokens` | B | y | `PublicApiTest` | good + bad key |
 | GET | `/management/clients` | `management.clients` | A | y | `ManagementUiTest` | admin 200; player not 200 |
 | POST | `/management/clients` | `management.clients.create` | A | y | `ManagementUiTest` | |

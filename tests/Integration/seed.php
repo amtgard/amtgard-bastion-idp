@@ -122,6 +122,7 @@ function integPdo(): PDO
 function purgeFixtures(PDO $pdo): void
 {
     purgeIntegClientAuthorizations($pdo);
+    purgeEphemeralIntegUsers($pdo);
 
     $emails = [
         IntegFixtures::PLAYER_EMAIL,
@@ -149,6 +150,25 @@ function purgeFixtures(PDO $pdo): void
     foreach ($clientIds as $clientIdentifier) {
         purgeClientByIdentifier($pdo, $clientIdentifier);
     }
+}
+
+/** Remove integ-created accounts so type-ahead search stays deterministic. */
+function purgeEphemeralIntegUsers(PDO $pdo): void
+{
+    $stmt = $pdo->query("SELECT id, user_id FROM users WHERE email LIKE 'integ-%@example.com'");
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if ($rows !== []) {
+        $ids = array_map(static fn (array $row): int => (int) $row['id'], $rows);
+        $uuids = array_map(static fn (array $row): string => (string) $row['user_id'], $rows);
+        $in = implode(',', $ids);
+        purgeAuthorizationsForUserIdentifiers($pdo, $uuids);
+        $pdo->exec("DELETE FROM user_ork_profiles WHERE user_id IN ($in)");
+        $pdo->exec("DELETE FROM user_policy_claims WHERE user_id IN ($in)");
+        $pdo->exec("DELETE FROM user_logins WHERE user_id IN ($in)");
+        $pdo->exec("DELETE FROM users WHERE id IN ($in)");
+    }
+
+    $pdo->exec('DELETE FROM link_token_jti');
 }
 
 function purgeClientByIdentifier(PDO $pdo, string $clientIdentifier): void
