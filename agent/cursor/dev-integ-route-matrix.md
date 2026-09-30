@@ -1,6 +1,6 @@
 # DEV integ — route matrix
 
-Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d8-client-iam-negatives`** (stack 1–14 + phase C isolation + D1–D8). Update this file when phase D milestones add cases.
+Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d9-low-latency-validate`** (stack 1–14 + phase C isolation + D1–D9). Update this file when phase D milestones add cases.
 
 **Modes** (see [dev-integ-milestones.md](./dev-integ-milestones.md)):
 
@@ -31,7 +31,7 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | GET | `/docs/readme.md` | `swagger.docsify_content` | A | y | `StaticDocsTest` | |
 | GET | `/docs/README.md` | `swagger.docsify_content_upper` | A | y | `StaticDocsTest` | |
 | POST | `/api/is_authorized` | `api.is_authorized` | B | y | `PublicApiTest` | allow + deny |
-| GET | `/resources/validate` | `resources.validate` | B | y | `OAuthTokenAndResourcesTest` | Bearer authorization JWT |
+| GET | `/resources/validate` | `resources.validate` | B | y | `OAuthTokenAndResourcesTest`, `LowLatencyValidateTest` | LowLatency: auth JWT / compact only; OAuth access token → 401 ([notes](./dev-integ-validate-endpoint.md)) |
 | GET | `/resources/userinfo` | `resources.userinfo` | A+B | y | `OAuthTokenAndResourcesTest`, `SocialCallbacksTest`, `AppleCallbackTest` | A: Bearer after social; B: Bearer JWT |
 | GET | `/resources/profile` | `resources.profile` | A | y | `UiSessionTest`, `SocialCallbacksTest`, `AppleCallbackTest`, `OrkAndProfileTest`, `ManagementUiTest`, `OAuthApproveTest`, `OAuthTokenAndResourcesTest`, `AuthNegativesTest` | logged-out redirect; Bearer → 401 |
 | GET | `/resources/clients` | `resources.clients` | A | y | `ResourcesClientsUiTest` | player operator subset |

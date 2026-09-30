@@ -35,14 +35,14 @@ The IDP provides specific endpoints for retrieving user data and validating sess
 - **Response**: JSON object containing `id`, `email`, and `ork_profile` (if linked).
 
 ### Validate Endpoint
-**Endpoint**: `/resources/validate` (or `/oauth/validate`)
-- **Purpose**: A lightweight endpoint to quickly validate an Access Token and register "liveness".
-- **Use Case**: Used by clients to check if a user's session is still active without fetching the full profile.
+**Endpoint**: `GET /resources/validate` (`LowLatencyController`; no route middleware)
+- **Purpose**: Heartbeat / presence using the **authorization JWT** (fat `jwt` or `compact_jwt` from `GET /resources/jwt`), not a League OAuth access token.
+- **Use Case**: High-frequency liveness checks without loading full profile data from `GET /resources/userinfo`.
 - **Behavior**:
-  - Checks if the user is in the Redis cache.
-  - Triggers a PubSub event to notify other services that the user is online/active.
-  - Returns minimal user data (`id`, `email`).
-- **Differentiation**: unlike `userinfo`, `validate` is optimized for high-frequency "heartbeat" checks and presence tracking.
+  - Validates Bearer JWT signature, issuer, and `pvh`; seeds Redis on cache miss (userinfo does not).
+  - Enqueues PVH refresh work and publishes a PubSub presence event on success.
+  - Returns minimal JSON (`id`, `email`; optional echoed Bearer when `?jwt=1`).
+- **Differentiation**: `userinfo` accepts an OAuth access token via middleware fallback; validate does not. See `agent/cursor/dev-integ-validate-endpoint.md` and `templates/api.md`.
 
 ## Development
 
