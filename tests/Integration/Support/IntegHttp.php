@@ -49,8 +49,14 @@ final class IntegHttp
 
     public function parseCsrfToken(string $html): string
     {
-        if (preg_match('/name="_csrf_token"\s+value="([^"]+)"/', $html, $matches) !== 1) {
-            throw new \RuntimeException('CSRF token not found in HTML');
+        return $this->parseHiddenField($html, '_csrf_token');
+    }
+
+    public function parseHiddenField(string $html, string $name): string
+    {
+        $pattern = '/name="' . preg_quote($name, '/') . '"\s+value="([^"]+)"/';
+        if (preg_match($pattern, $html, $matches) !== 1) {
+            throw new \RuntimeException("Hidden field {$name} not found in HTML");
         }
 
         return $matches[1];
@@ -72,7 +78,8 @@ final class IntegHttp
 
     public function isRedirectToPath(ResponseInterface $response, string $path): bool
     {
-        if ($response->getStatusCode() !== 302) {
+        $status = $response->getStatusCode();
+        if ($status !== 301 && $status !== 302) {
             return false;
         }
         $location = $this->redirectLocation($response);

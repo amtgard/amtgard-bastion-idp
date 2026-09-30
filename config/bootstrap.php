@@ -6,7 +6,7 @@ use DI\ContainerBuilder;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-Dotenv\Dotenv::createMutable(__DIR__ . '/..')->safeLoad();
+Dotenv\Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
 
 $debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
 // Vendor packages may emit PHP 8.4 deprecations; keep them out of HTML/CLI noise.

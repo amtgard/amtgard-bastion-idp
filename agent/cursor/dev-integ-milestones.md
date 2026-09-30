@@ -235,7 +235,7 @@ Done when `./scripts/integ.sh` fails if Docker is down, and succeeds end-to-end 
 
 **Completed (milestone 5):** Branch `stack/dev-integ-5-harness`. Added `docker/compose.integ.yml`, `scripts/integ-{up,down,sh}.sh`, `tests/Integration/seed.php` (+ fixtures), `phpunit.integ.xml`, `composer integ`, and first HTTP tests (`VersionEndpointTest`, `LoginPageTest` via `IntegHttp`). `phinx.php` honors `MIGRATE_DB_NAME=idp_integ` for integ migrations. Gates: `composer test` OK (638 tests); `./scripts/integ.sh` OK (2 integ tests). No new `src/` decision-branch logs (harness-only).
 
-**Resume from:** milestone 7 (`stack/dev-integ-7-oauth-approve`).
+**Resume from:** milestone 8 (`stack/dev-integ-8-social-callbacks`).
 
 ### 6. `stack/dev-integ-6-ui-session`
 
@@ -258,6 +258,8 @@ Mode A, player logged in, client `integ_confidential`, scope `email`:
 - `POST /oauth/approve` `action=allow` → 302 to the redirect URI with `code` and `state`.
 
 Do not exchange the code here. Milestone 13 does.
+
+**Completed (milestone 7):** Branch `stack/dev-integ-7-oauth-approve`. Added `OAuthApproveTest` (logged-out login redirect, approve/deny/allow with callback `code`+`state`), extended `IntegHttp` (301/302 redirects, hidden fields), seed purge for `user_client_authorizations`, `Dotenv::createImmutable` so Compose `DB_NAME=idp_integ` wins, integ `php-fpm` env wiring, fixes for OAuth deny session cleanup, `hasAuthorization` SQL lookup, and strict session approve flag. Gates: `composer test` OK (639 tests); `./scripts/integ.sh` OK (5 integ tests). Log-tested: `OAuthSessionAuthRequestStore::isApproved` via `OAuthSessionAuthRequestStoreTest`.
 
 ### 8. `stack/dev-integ-8-social-callbacks`
 

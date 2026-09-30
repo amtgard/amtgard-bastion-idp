@@ -77,6 +77,16 @@ compose_sessions up -d
 echo "==> Applying integ overlay on web stack (${WEB_PROJECT})..."
 compose_web_integ up -d --build --remove-orphans --force-recreate amtgardidpapp
 
+echo "==> Wiring php-fpm env for integ (DB_NAME, ENVIRONMENT)..."
+docker exec "$APP_CONTAINER" bash -lc "
+    POOL=/etc/php/8.4/fpm/pool.d/www.conf
+    sed -i '/^env\[DB_NAME\]/d' \"\$POOL\"
+    sed -i '/^env\[ENVIRONMENT\]/d' \"\$POOL\"
+    echo \"env[ENVIRONMENT] = \$ENVIRONMENT\" >> \"\$POOL\"
+    echo \"env[DB_NAME] = \$DB_NAME\" >> \"\$POOL\"
+    service php8.4-fpm restart
+"
+
 echo "==> Ensuring integ schema idp_integ..."
 docker exec "$DB_CONTAINER" mariadb -uroot -proot -e \
     "CREATE DATABASE IF NOT EXISTS idp_integ CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

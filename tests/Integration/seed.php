@@ -39,7 +39,7 @@ $client = Client::builder()
     ->identifier(IntegFixtures::CONFIDENTIAL_CLIENT_ID)
     ->clientSecret(IntegFixtures::CONFIDENTIAL_CLIENT_SECRET)
     ->name('Integration confidential client')
-    ->redirectUri('http://localhost:37080/integ/callback')
+    ->redirectUri(IntegFixtures::CONFIDENTIAL_REDIRECT_URI)
     ->isConfidential(true)
     ->isDev(true)
     ->iamService('IntegApp')
@@ -77,7 +77,14 @@ function integPdo(): PDO
 
 function purgeFixtures(PDO $pdo): void
 {
+    purgeIntegClientAuthorizations($pdo);
+
     $emails = [IntegFixtures::PLAYER_EMAIL, IntegFixtures::ADMIN_EMAIL];
+    $userUuids = userUuidsForEmails($pdo, $emails);
+    if ($userUuids !== []) {
+        purgeAuthorizationsForUserIdentifiers($pdo, $userUuids);
+    }
+
     $ids = userIdsForEmails($pdo, $emails);
     if ($ids !== []) {
         $in = implode(',', array_map('intval', $ids));
@@ -88,6 +95,42 @@ function purgeFixtures(PDO $pdo): void
 
     $stmt = $pdo->prepare('DELETE FROM clients WHERE client_id = ?');
     $stmt->execute([IntegFixtures::CONFIDENTIAL_CLIENT_ID]);
+}
+
+function purgeIntegClientAuthorizations(PDO $pdo): void
+{
+    $stmt = $pdo->prepare('SELECT id FROM clients WHERE client_id = ?');
+    $stmt->execute([IntegFixtures::CONFIDENTIAL_CLIENT_ID]);
+    $clientIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    if ($clientIds === []) {
+        return;
+    }
+    $in = implode(',', $clientIds);
+    $pdo->exec("DELETE FROM user_client_authorizations WHERE client_id IN ($in)");
+}
+
+/** @param list<string> $userIdentifiers */
+function purgeAuthorizationsForUserIdentifiers(PDO $pdo, array $userIdentifiers): void
+{
+    if ($userIdentifiers === []) {
+        return;
+    }
+    $placeholders = implode(',', array_fill(0, count($userIdentifiers), '?'));
+    $stmt = $pdo->prepare("DELETE FROM user_client_authorizations WHERE user_identifier IN ($placeholders)");
+    $stmt->execute($userIdentifiers);
+}
+
+/** @param list<string> $emails */
+function userUuidsForEmails(PDO $pdo, array $emails): array
+{
+    if ($emails === []) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($emails), '?'));
+    $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email IN ($placeholders)");
+    $stmt->execute($emails);
+
+    return array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 }
 
 /** @param list<string> $emails */

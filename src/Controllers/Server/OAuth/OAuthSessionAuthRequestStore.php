@@ -39,7 +39,7 @@ final class OAuthSessionAuthRequestStore
 
     public function isApproved(): bool
     {
-        return array_key_exists('approved', $_SESSION);
+        return ($_SESSION['approved'] ?? false) === true;
     }
 
     public function markApproved(): void

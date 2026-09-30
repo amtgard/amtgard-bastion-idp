@@ -26,9 +26,16 @@ class UserClientAuthorizationRepository extends Repository implements EntityRepo
     public function hasAuthorization(string $userIdentifier, int $clientDbId): bool
     {
         $this->clear();
+        $this->query(
+            'SELECT id FROM user_client_authorizations
+             WHERE user_identifier = :user_identifier AND client_id = :client_id
+             LIMIT 1',
+        );
         $this->user_identifier = $userIdentifier;
         $this->client_id = $clientDbId;
-        return $this->find() > 0;
+        $this->execute();
+
+        return $this->next();
     }
 
     public function authorize(string $userIdentifier, int $clientDbId): void

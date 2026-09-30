@@ -12,4 +12,5 @@ final class IntegFixtures
     public const PASSWORD = 'integ-fixture-pass';
     public const CONFIDENTIAL_CLIENT_ID = 'integ_confidential';
     public const CONFIDENTIAL_CLIENT_SECRET = 'integ-confidential-secret';
+    public const CONFIDENTIAL_REDIRECT_URI = 'http://localhost:37080/integ/callback';
 }
