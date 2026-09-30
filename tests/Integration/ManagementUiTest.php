@@ -5,22 +5,25 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
+
 /** Mode A — admin management UI and operator redirect update; player denied admin routes. */
 final class ManagementUiTest extends IntegTestCase
 {
     private const MANAGEMENT_CLIENTS_PATH = '/management/clients';
 
-    public function testAdminClientsCreateRedirectSearchAndAccess(): void
+    public function testAdminManagementClientsListRendersManageClientsHeading(): void
     {
-        $baseUrl = (string) (getenv('IDP_BASE_URL') ?: 'http://localhost:37080');
-        $http = new IntegHttp($baseUrl);
-        $this->login($http, IntegFixtures::ADMIN_EMAIL);
+        $http = $this->newLoggedInAdminHttp();
 
         $listPage = $http->get(self::MANAGEMENT_CLIENTS_PATH);
         $this->assertSame(200, $listPage->getStatusCode(), (string) $listPage->getBody());
-        $listHtml = (string) $listPage->getBody();
-        $this->assertStringContainsString('Manage Clients', $listHtml);
-        $csrf = $http->parseCsrfToken($listHtml);
+        $this->assertStringContainsString('Manage Clients', (string) $listPage->getBody());
+    }
+
+    public function testAdminCreateClientRedirectsToClientList(): void
+    {
+        $http = $this->newLoggedInAdminHttp();
+        $csrf = $this->csrfFromManagementList($http);
 
         $createResponse = $http->postForm('/management/clients', [
             '_csrf_token' => $csrf,
@@ -36,22 +39,46 @@ final class ManagementUiTest extends IntegTestCase
             $http->isRedirectToPath($createResponse, self::MANAGEMENT_CLIENTS_PATH),
             'Expected 302 to client list after create; location=' . $createResponse->getHeaderLine('Location'),
         );
+    }
+
+    public function testAdminCreateClientShowsNewClientInList(): void
+    {
+        $http = $this->newLoggedInAdminHttp();
+        $this->createUiClientViaAdmin($http);
 
         $afterCreate = $http->get(self::MANAGEMENT_CLIENTS_PATH);
         $this->assertSame(200, $afterCreate->getStatusCode());
-        $afterCreateHtml = (string) $afterCreate->getBody();
-        $this->assertStringContainsString(IntegFixtures::UI_CREATED_CLIENT_ID, $afterCreateHtml);
-        $clientDbId = $this->parseClientDbId($afterCreateHtml, IntegFixtures::UI_CREATED_CLIENT_ID);
-        $csrf = $http->parseCsrfToken($afterCreateHtml);
+        $this->assertStringContainsString(
+            IntegFixtures::UI_CREATED_CLIENT_ID,
+            (string) $afterCreate->getBody(),
+        );
+    }
 
-        $selfAccess = $http->postForm('/management/clients/' . $clientDbId . '/access', [
-            '_csrf_token' => $csrf,
+    public function testAdminSelfAccessGrantReturns200(): void
+    {
+        $http = $this->newLoggedInAdminHttp();
+        $context = $this->createUiClientViaAdmin($http);
+
+        $selfAccess = $http->postForm('/management/clients/' . $context['clientDbId'] . '/access', [
+            '_csrf_token' => $context['csrf'],
+            'email' => IntegFixtures::ADMIN_EMAIL,
+        ]);
+        $this->assertSame(200, $selfAccess->getStatusCode(), (string) $selfAccess->getBody());
+    }
+
+    public function testOperatorRedirectUpdateReflectsInManagementList(): void
+    {
+        $http = $this->newLoggedInAdminHttp();
+        $context = $this->createUiClientViaAdmin($http);
+
+        $selfAccess = $http->postForm('/management/clients/' . $context['clientDbId'] . '/access', [
+            '_csrf_token' => $context['csrf'],
             'email' => IntegFixtures::ADMIN_EMAIL,
         ]);
         $this->assertSame(200, $selfAccess->getStatusCode(), (string) $selfAccess->getBody());
 
-        $redirectResponse = $http->postForm('/resources/clients/' . $clientDbId . '/redirect', [
-            '_csrf_token' => $csrf,
+        $redirectResponse = $http->postForm('/resources/clients/' . $context['clientDbId'] . '/redirect', [
+            '_csrf_token' => $context['csrf'],
             'redirect_uri' => IntegFixtures::UI_UPDATED_REDIRECT_URI,
         ]);
         $this->assertTrue(
@@ -62,11 +89,18 @@ final class ManagementUiTest extends IntegTestCase
 
         $afterRedirect = $http->get(self::MANAGEMENT_CLIENTS_PATH);
         $this->assertSame(200, $afterRedirect->getStatusCode());
-        $afterRedirectHtml = (string) $afterRedirect->getBody();
         $this->assertSame(
             IntegFixtures::UI_UPDATED_REDIRECT_URI,
-            $this->parseClientRedirectUri($afterRedirectHtml, IntegFixtures::UI_CREATED_CLIENT_ID),
+            $this->parseClientRedirectUri(
+                (string) $afterRedirect->getBody(),
+                IntegFixtures::UI_CREATED_CLIENT_ID,
+            ),
         );
+    }
+
+    public function testManagementUserSearchFindsFixturePlayer(): void
+    {
+        $http = $this->newLoggedInAdminHttp();
 
         $searchResponse = $http->get('/management/users/search?q=integ');
         $this->assertSame(200, $searchResponse->getStatusCode(), (string) $searchResponse->getBody());
@@ -79,9 +113,15 @@ final class ManagementUiTest extends IntegTestCase
             $users,
         );
         $this->assertContains(IntegFixtures::PLAYER_EMAIL, $emails);
+    }
 
-        $grantResponse = $http->postForm('/management/clients/' . $clientDbId . '/access', [
-            '_csrf_token' => $csrf,
+    public function testAdminGrantsPlayerAccessToCreatedClient(): void
+    {
+        $http = $this->newLoggedInAdminHttp();
+        $context = $this->createUiClientViaAdmin($http);
+
+        $grantResponse = $http->postForm('/management/clients/' . $context['clientDbId'] . '/access', [
+            '_csrf_token' => $context['csrf'],
             'email' => IntegFixtures::PLAYER_EMAIL,
         ]);
         $this->assertSame(200, $grantResponse->getStatusCode(), (string) $grantResponse->getBody());
@@ -90,10 +130,26 @@ final class ManagementUiTest extends IntegTestCase
         $playerUserId = (int) ($grantPayload['id'] ?? 0);
         $this->assertGreaterThan(0, $playerUserId);
         $this->assertSame(IntegFixtures::PLAYER_EMAIL, $grantPayload['email'] ?? null);
+    }
+
+    public function testAdminDeletesPlayerAccessFromClient(): void
+    {
+        $http = $this->newLoggedInAdminHttp();
+        $context = $this->createUiClientViaAdmin($http);
+
+        $grantResponse = $http->postForm('/management/clients/' . $context['clientDbId'] . '/access', [
+            '_csrf_token' => $context['csrf'],
+            'email' => IntegFixtures::PLAYER_EMAIL,
+        ]);
+        $this->assertSame(200, $grantResponse->getStatusCode(), (string) $grantResponse->getBody());
+        /** @var array<string, mixed> $grantPayload */
+        $grantPayload = json_decode((string) $grantResponse->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        $playerUserId = (int) ($grantPayload['id'] ?? 0);
+        $this->assertGreaterThan(0, $playerUserId);
 
         $deleteResponse = $http->postForm(
-            '/management/clients/' . $clientDbId . '/access/' . $playerUserId . '/delete',
-            ['_csrf_token' => $csrf],
+            '/management/clients/' . $context['clientDbId'] . '/access/' . $playerUserId . '/delete',
+            ['_csrf_token' => $context['csrf']],
         );
         $this->assertSame(200, $deleteResponse->getStatusCode(), (string) $deleteResponse->getBody());
         /** @var array<string, mixed> $deletePayload */
@@ -103,38 +159,11 @@ final class ManagementUiTest extends IntegTestCase
 
     public function testAdminUpdatesClientNameAndMetadataViaManagementPost(): void
     {
-        $baseUrl = $this->integBaseUrl();
-        $http = new IntegHttp($baseUrl);
-        $this->login($http, IntegFixtures::ADMIN_EMAIL);
+        $http = $this->newLoggedInAdminHttp();
+        $context = $this->createUiClientViaAdmin($http);
 
-        $listPage = $http->get(self::MANAGEMENT_CLIENTS_PATH);
-        $this->assertSame(200, $listPage->getStatusCode(), (string) $listPage->getBody());
-        $listHtml = (string) $listPage->getBody();
-        $csrf = $http->parseCsrfToken($listHtml);
-
-        $createResponse = $http->postForm('/management/clients', [
-            '_csrf_token' => $csrf,
-            'name' => 'Integration UI client',
-            'client_id' => IntegFixtures::UI_CREATED_CLIENT_ID,
-            'client_secret' => 'integ-from-ui-secret',
-            'redirect_uri' => IntegFixtures::UI_CREATED_REDIRECT_URI,
-            'is_confidential' => '1',
-            'is_dev' => '1',
-            'iam_service' => 'IntegFromUi',
-        ]);
-        $this->assertTrue(
-            $http->isRedirectToPath($createResponse, self::MANAGEMENT_CLIENTS_PATH),
-            'Expected 302 to client list after create; location=' . $createResponse->getHeaderLine('Location'),
-        );
-
-        $afterCreate = $http->get(self::MANAGEMENT_CLIENTS_PATH);
-        $this->assertSame(200, $afterCreate->getStatusCode());
-        $afterCreateHtml = (string) $afterCreate->getBody();
-        $clientDbId = $this->parseClientDbId($afterCreateHtml, IntegFixtures::UI_CREATED_CLIENT_ID);
-        $csrf = $http->parseCsrfToken($afterCreateHtml);
-
-        $updateResponse = $http->postForm('/management/clients/' . $clientDbId, [
-            '_csrf_token' => $csrf,
+        $updateResponse = $http->postForm('/management/clients/' . $context['clientDbId'], [
+            '_csrf_token' => $context['csrf'],
             'name' => IntegFixtures::UI_UPDATED_CLIENT_NAME,
             'client_id' => IntegFixtures::UI_CREATED_CLIENT_ID,
             'client_secret' => 'integ-from-ui-secret',
@@ -162,8 +191,7 @@ final class ManagementUiTest extends IntegTestCase
 
     public function testPlayerCannotPostManagementClientUpdate(): void
     {
-        $baseUrl = $this->integBaseUrl();
-        $http = new IntegHttp($baseUrl);
+        $http = new IntegHttp($this->integBaseUrl());
         $this->login($http, IntegFixtures::PLAYER_EMAIL);
 
         $profilePage = $http->get('/resources/profile');
@@ -188,12 +216,59 @@ final class ManagementUiTest extends IntegTestCase
 
     public function testPlayerCannotOpenManagementClients(): void
     {
-        $baseUrl = (string) (getenv('IDP_BASE_URL') ?: 'http://localhost:37080');
-        $http = new IntegHttp($baseUrl);
+        $http = new IntegHttp($this->integBaseUrl());
         $this->login($http, IntegFixtures::PLAYER_EMAIL);
 
         $response = $http->get(self::MANAGEMENT_CLIENTS_PATH);
         $this->assertNotSame(200, $response->getStatusCode(), 'Player must not receive management HTML');
+    }
+
+    private function newLoggedInAdminHttp(): IntegHttp
+    {
+        $http = new IntegHttp($this->integBaseUrl());
+        $this->login($http, IntegFixtures::ADMIN_EMAIL);
+
+        return $http;
+    }
+
+    private function csrfFromManagementList(IntegHttp $http): string
+    {
+        $listPage = $http->get(self::MANAGEMENT_CLIENTS_PATH);
+        $this->assertSame(200, $listPage->getStatusCode(), (string) $listPage->getBody());
+
+        return $http->parseCsrfToken((string) $listPage->getBody());
+    }
+
+    /**
+     * @return array{clientDbId: int, csrf: string}
+     */
+    private function createUiClientViaAdmin(IntegHttp $http): array
+    {
+        $csrf = $this->csrfFromManagementList($http);
+        $createResponse = $http->postForm('/management/clients', [
+            '_csrf_token' => $csrf,
+            'name' => 'Integration UI client',
+            'client_id' => IntegFixtures::UI_CREATED_CLIENT_ID,
+            'client_secret' => 'integ-from-ui-secret',
+            'redirect_uri' => IntegFixtures::UI_CREATED_REDIRECT_URI,
+            'is_confidential' => '1',
+            'is_dev' => '1',
+            'iam_service' => 'IntegFromUi',
+        ]);
+        $this->assertTrue(
+            $http->isRedirectToPath($createResponse, self::MANAGEMENT_CLIENTS_PATH),
+            'Expected 302 to client list after create; location=' . $createResponse->getHeaderLine('Location'),
+        );
+
+        $afterCreate = $http->get(self::MANAGEMENT_CLIENTS_PATH);
+        $this->assertSame(200, $afterCreate->getStatusCode());
+        $afterCreateHtml = (string) $afterCreate->getBody();
+        $clientDbId = $this->parseClientDbId($afterCreateHtml, IntegFixtures::UI_CREATED_CLIENT_ID);
+
+        return [
+            'clientDbId' => $clientDbId,
+            'csrf' => $http->parseCsrfToken($afterCreateHtml),
+        ];
     }
 
     private function login(IntegHttp $http, string $email): void

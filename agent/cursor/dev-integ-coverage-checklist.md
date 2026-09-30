@@ -13,7 +13,7 @@ Stack from **`stack/dev-integ-14-client-iam`** (or `main` after merge). **Do not
 | C3 | `stack/dev-integ-c3-per-test-reseed` | [x] |
 | C4 | `stack/dev-integ-c4-route-matrix-doc` | [x] |
 
-**Resume from:** D11 (`stack/dev-integ-d11-split-megatests`.)
+**Resume from:** D12 (`stack/dev-integ-d12-junit-artifact`.)
 
 ## Phase D — Coverage expansion
 
@@ -29,7 +29,7 @@ Stack from **`stack/dev-integ-14-client-iam`** (or `main` after merge). **Do not
 | D8 | `stack/dev-integ-d8-client-iam-negatives` | [x] |
 | D9 | `stack/dev-integ-d9-low-latency-validate` | [x] |
 | D10 | `stack/dev-integ-d10-pvh-happy` | [x] |
-| D11 | `stack/dev-integ-d11-split-megatests` | [ ] |
+| D11 | `stack/dev-integ-d11-split-megatests` | [x] |
 | D12 | `stack/dev-integ-d12-junit-artifact` | [ ] |
 
 ## Harness (landed separately)

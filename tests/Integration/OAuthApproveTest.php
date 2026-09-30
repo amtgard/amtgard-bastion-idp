@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
+
 /** Mode A — OAuth authorize consent: login gate, approve, deny, and allow with code. */
 final class OAuthApproveTest extends IntegTestCase
 {
     public function testAuthorizeWhileLoggedOutRedirectsToLogin(): void
     {
-        $baseUrl = (string) (getenv('IDP_BASE_URL') ?: 'http://localhost:37080');
-        $http = new IntegHttp($baseUrl);
+        $http = new IntegHttp($this->integBaseUrl());
         $state = 'integ-state-logged-out-' . bin2hex(random_bytes(4));
 
         $response = $http->get($this->authorizePath($state));
@@ -22,50 +22,79 @@ final class OAuthApproveTest extends IntegTestCase
         );
     }
 
-    public function testApproveDenyAndAllowForConfidentialClient(): void
+    public function testLoggedInAuthorizeRedirectsToApprovePage(): void
     {
-        $baseUrl = (string) (getenv('IDP_BASE_URL') ?: 'http://localhost:37080');
         $state = 'integ-state-' . bin2hex(random_bytes(4));
-        $authorizePath = $this->authorizePath($state);
+        $http = $this->newLoggedInPlayerHttp();
 
-        $http = new IntegHttp($baseUrl);
-        $this->loginPlayer($http);
-
-        $firstAuthorize = $http->get($authorizePath);
+        $firstAuthorize = $http->get($this->authorizePath($state));
         $this->assertTrue(
             $http->isRedirectToPath($firstAuthorize, '/oauth/approve'),
             'First authorize for client must redirect to approve; status=' . $firstAuthorize->getStatusCode()
             . ' location=' . $firstAuthorize->getHeaderLine('Location'),
         );
+    }
 
+    public function testApprovePageRendersWithCsrfAndCallback(): void
+    {
+        $state = 'integ-state-' . bin2hex(random_bytes(4));
+        $http = $this->newLoggedInPlayerHttp();
+
+        $firstAuthorize = $http->get($this->authorizePath($state));
         $approvePage = $http->get($firstAuthorize->getHeaderLine('Location'));
         $this->assertSame(200, $approvePage->getStatusCode(), (string) $approvePage->getBody());
-        $approveCsrf = $http->parseCsrfToken((string) $approvePage->getBody());
-        $callback = $http->parseHiddenField((string) $approvePage->getBody(), 'callback');
+        $approveHtml = (string) $approvePage->getBody();
+        $this->assertNotSame('', $http->parseCsrfToken($approveHtml));
+        $this->assertNotSame('', $http->parseHiddenField($approveHtml, 'callback'));
+    }
+
+    public function testDenyOnApproveRedirectsHome(): void
+    {
+        $state = 'integ-state-' . bin2hex(random_bytes(4));
+        $http = $this->newLoggedInPlayerHttp();
+        $form = $this->fetchApproveForm($http, $state);
 
         $denyResponse = $http->postForm('/oauth/approve', [
-            '_csrf_token' => $approveCsrf,
-            'callback' => $callback,
+            '_csrf_token' => $form['csrf'],
+            'callback' => $form['callback'],
             'action' => 'deny',
         ]);
         $this->assertTrue(
             $http->isRedirectToPath($denyResponse, '/'),
             'Deny must redirect home; location=' . $denyResponse->getHeaderLine('Location'),
         );
+    }
+
+    public function testAuthorizeAfterDenyShowsApproveAgain(): void
+    {
+        $state = 'integ-state-' . bin2hex(random_bytes(4));
+        $authorizePath = $this->authorizePath($state);
+        $http = $this->newLoggedInPlayerHttp();
+        $form = $this->fetchApproveForm($http, $state);
+
+        $http->postForm('/oauth/approve', [
+            '_csrf_token' => $form['csrf'],
+            'callback' => $form['callback'],
+            'action' => 'deny',
+        ]);
 
         $secondAuthorize = $http->get($authorizePath);
         $this->assertTrue(
             $http->isRedirectToPath($secondAuthorize, '/oauth/approve'),
             'Authorize after deny must show approve again; location=' . $secondAuthorize->getHeaderLine('Location'),
         );
+    }
 
-        $approvePageAgain = $http->get($secondAuthorize->getHeaderLine('Location'));
-        $allowCsrf = $http->parseCsrfToken((string) $approvePageAgain->getBody());
-        $callbackAgain = $http->parseHiddenField((string) $approvePageAgain->getBody(), 'callback');
+    public function testAllowOnApproveResumesAuthorizeFlow(): void
+    {
+        $state = 'integ-state-' . bin2hex(random_bytes(4));
+        $http = $this->newLoggedInPlayerHttp();
+        $this->denyOnceThenReachApproveAgain($http, $state);
+        $form = $this->fetchApproveForm($http, $state);
 
         $allowResponse = $http->postForm('/oauth/approve', [
-            '_csrf_token' => $allowCsrf,
-            'callback' => $callbackAgain,
+            '_csrf_token' => $form['csrf'],
+            'callback' => $form['callback'],
             'action' => 'allow',
         ]);
         $this->assertTrue(
@@ -76,6 +105,22 @@ final class OAuthApproveTest extends IntegTestCase
         $finalizeAuthorize = $http->get('/oauth/authorize');
         $finalizeStatus = $finalizeAuthorize->getStatusCode();
         $this->assertContains($finalizeStatus, [301, 302], 'Approved authorize must redirect to client');
+    }
+
+    public function testAllowCompletesAuthorizationWithCodeAndState(): void
+    {
+        $state = 'integ-state-' . bin2hex(random_bytes(4));
+        $http = $this->newLoggedInPlayerHttp();
+        $this->denyOnceThenReachApproveAgain($http, $state);
+        $form = $this->fetchApproveForm($http, $state);
+
+        $http->postForm('/oauth/approve', [
+            '_csrf_token' => $form['csrf'],
+            'callback' => $form['callback'],
+            'action' => 'allow',
+        ]);
+
+        $finalizeAuthorize = $http->get('/oauth/authorize');
         $callbackLocation = $http->redirectLocation($finalizeAuthorize);
         $this->assertNotNull($callbackLocation);
         $this->assertStringStartsWith(IntegFixtures::CONFIDENTIAL_REDIRECT_URI, $callbackLocation);
@@ -84,6 +129,41 @@ final class OAuthApproveTest extends IntegTestCase
         parse_str((string) parse_url($callbackLocation, PHP_URL_QUERY), $query);
         $this->assertSame($state, $query['state'] ?? null, 'Callback must echo authorize state');
         $this->assertNotEmpty($query['code'] ?? null, 'Callback must include authorization code');
+    }
+
+    private function newLoggedInPlayerHttp(): IntegHttp
+    {
+        $http = new IntegHttp($this->integBaseUrl());
+        $this->loginPlayer($http);
+
+        return $http;
+    }
+
+    /**
+     * @return array{csrf: string, callback: string}
+     */
+    private function fetchApproveForm(IntegHttp $http, string $state): array
+    {
+        $authorize = $http->get($this->authorizePath($state));
+        $approvePage = $http->get($authorize->getHeaderLine('Location'));
+        $approveHtml = (string) $approvePage->getBody();
+
+        return [
+            'csrf' => $http->parseCsrfToken($approveHtml),
+            'callback' => $http->parseHiddenField($approveHtml, 'callback'),
+        ];
+    }
+
+    private function denyOnceThenReachApproveAgain(IntegHttp $http, string $state): void
+    {
+        $authorizePath = $this->authorizePath($state);
+        $form = $this->fetchApproveForm($http, $state);
+        $http->postForm('/oauth/approve', [
+            '_csrf_token' => $form['csrf'],
+            'callback' => $form['callback'],
+            'action' => 'deny',
+        ]);
+        $http->get($authorizePath);
     }
 
     private function loginPlayer(IntegHttp $http): void
