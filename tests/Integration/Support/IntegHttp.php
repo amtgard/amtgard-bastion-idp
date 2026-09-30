@@ -58,6 +58,31 @@ final class IntegHttp
         ]);
     }
 
+    /** @param array<string, string> $fields */
+    public function postFormWithBasicAuth(
+        string $path,
+        array $fields,
+        string $clientId,
+        string $clientSecret,
+    ): ResponseInterface {
+        return $this->client->post(ltrim($path, '/'), [
+            'form_params' => $fields,
+            'headers' => [
+                'Content-Type' => 'application/x-www-form-urlencoded',
+                'Authorization' => 'Basic ' . base64_encode($clientId . ':' . $clientSecret),
+            ],
+        ]);
+    }
+
+    public function getWithBearerToken(string $path, string $bearerToken): ResponseInterface
+    {
+        return $this->client->get(ltrim($path, '/'), [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $bearerToken,
+            ],
+        ]);
+    }
+
     public function parseCsrfToken(string $html): string
     {
         return $this->parseHiddenField($html, '_csrf_token');

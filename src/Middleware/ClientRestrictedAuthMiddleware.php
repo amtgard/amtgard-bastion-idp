@@ -43,19 +43,19 @@ final class ClientRestrictedAuthMiddleware implements MiddlewareInterface
 
         $jwt = Optional::ofNullable(Jwt::validateJwtRequest($request, $this->logger))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
         $payload = Optional::ofNullable(value: Jwt::parseJwt($jwt))->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
-        $oauthUserId = Optional::ofNullable($payload['sub'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
-        $clientId = Optional::ofNullable($payload['aud'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
-
-        if (!in_array($clientId, $this->validClients->getClientIds())) {
-            throw new HttpUnauthorizedException($request, "Not authorized.");
-        }
-
         if (!Jwt::isAuthorizationPayload($payload)) {
             return $this->oauthAccessTokenFallback->authenticate(
                 $request,
                 $handler,
                 $this->proceed(...)
             );
+        }
+
+        $oauthUserId = Optional::ofNullable($payload['sub'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
+        $clientId = Optional::ofNullable($payload['aud'])->orElseThrow(new HttpUnauthorizedException($request, "Not authorized."));
+
+        if (!in_array($clientId, $this->validClients->getClientIds())) {
+            throw new HttpUnauthorizedException($request, "Not authorized.");
         }
 
         $userUuid = (string) $oauthUserId;

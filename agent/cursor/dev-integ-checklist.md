@@ -17,7 +17,7 @@ Stack from **`main`**. Git-branchless stacked branches. **Do not push** unless t
 | 10 | `stack/dev-integ-10-ork-and-profile` | [x] |
 | 11 | `stack/dev-integ-11-management-ui` | [x] |
 | 12 | `stack/dev-integ-12-public-api` | [x] |
-| 13 | `stack/dev-integ-13-oauth-and-resources` | [ ] |
+| 13 | `stack/dev-integ-13-oauth-and-resources` | [x] |
 | 14 | `stack/dev-integ-14-client-iam` | [ ] |
 
-**Resume from:** 13
+**Resume from:** 14

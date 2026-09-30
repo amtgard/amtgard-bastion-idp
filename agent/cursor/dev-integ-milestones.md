@@ -310,7 +310,7 @@ Player `integ-player@example.com` `GET /management/clients` is not 200.
 
 **Completed (milestone 11):** Branch `stack/dev-integ-11-management-ui`. Added `ManagementUiTest` (admin client list/create, operator redirect update after self-access grant, user search, access grant/delete; player denied management), integ fixture constants and seed purge for `integ_from_ui` and `integ-apple@example.com`, and Ork revoke OAuth helper tolerates prior suite authorization. Gates: `composer test` OK (642 tests); `./scripts/integ.sh` OK (13 integ tests). No new `src/` decision-branch logs (integration-only).
 
-**Resume from:** milestone 13 (`stack/dev-integ-13-oauth-and-resources`).
+**Resume from:** milestone 14 (`stack/dev-integ-14-client-iam`).
 
 ### 12. `stack/dev-integ-12-public-api`
 
@@ -333,6 +333,8 @@ Mode B, no cookie:
 - Repeat `GET /resources/jwt` with only the Mode A session cookie and no Bearer → 200.
 
 Redis is real. A stale `pvh` case can wait; the happy path must not 409 on a token just issued.
+
+**Completed (milestone 13):** Branch `stack/dev-integ-13-oauth-and-resources`. Added `OAuthTokenAndResourcesTest` (Mode A allow-flow code capture, Mode B authorization_code and refresh_token exchange, Bearer access token on `/resources/jwt`, authorization JWT on userinfo and validate, access token on authorizations, session-only `/resources/jwt` repeat), extended `IntegHttp` (`postFormWithBasicAuth`, `getWithBearerToken`), and fixed `ClientRestrictedAuthMiddleware` to route League access-token JWTs through `OAuthAccessTokenFallback` before the IDP authorized-client allowlist. Gates: `composer test` OK; `./scripts/integ.sh` OK (19 integ tests).
 
 ### 14. `stack/dev-integ-14-client-iam`
 
