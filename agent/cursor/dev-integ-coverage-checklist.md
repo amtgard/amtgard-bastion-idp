@@ -11,9 +11,9 @@ Stack from **`stack/dev-integ-14-client-iam`** (or `main` after merge). **Do not
 | C1 | `stack/dev-integ-c1-integ-infra-compose` | [x] |
 | C2 | `stack/dev-integ-c2-integ-wire-hosts` | [x] |
 | C3 | `stack/dev-integ-c3-per-test-reseed` | [x] |
-| C4 | `stack/dev-integ-c4-route-matrix-doc` | [ ] |
+| C4 | `stack/dev-integ-c4-route-matrix-doc` | [x] |
 
-**Resume from:** C4 (per-test `IntegTestCase` reseed + random-order `composer integ`.)
+**Resume from:** D1 (`stack/dev-integ-d1-static-docs`.)
 
 ## Phase D — Coverage expansion
 
