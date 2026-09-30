@@ -25,6 +25,10 @@ final class IntegFixtures
     public const UI_CREATED_REDIRECT_URI = 'http://localhost:37080/integ/from-ui/callback';
     public const UI_UPDATED_REDIRECT_URI = 'http://localhost:37080/integ/from-ui/updated';
 
+    /** Player operator list UI (D6 integ). */
+    public const PLAYER_OPERATOR_CLIENT_ID = 'integ_player_operator';
+    public const PLAYER_OPERATOR_REDIRECT_URI = 'http://localhost:37080/integ/player-operator/callback';
+
     /** Matches `MANAGEMENT_KEY` in docker/compose.integ.yml for cleantokens. */
     public const MANAGEMENT_KEY = 'integ-management-key-thirty-two-chars';
 

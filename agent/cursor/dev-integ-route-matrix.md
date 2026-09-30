@@ -1,6 +1,6 @@
 # DEV integ — route matrix
 
-Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d5-oauth-scopes`** (stack 1–14 + phase C isolation + D1–D5). Update this file when phase D milestones add cases.
+Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d6-resources-clients-ui`** (stack 1–14 + phase C isolation + D1–D6). Update this file when phase D milestones add cases.
 
 **Modes** (see [dev-integ-milestones.md](./dev-integ-milestones.md)):
 
@@ -17,7 +17,7 @@ Maps every route registered in `config/routes.php` to integration coverage as of
 
 When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Test class** lists the class(es).
 
-**Summary (D5):** 58 route registrations · **y** 53 · **n** 4 · **excluded** 1 · mailbox (no routes) excluded by policy. D5 adds OAuth authorize scope negatives (unknown scope → 400 protocol error page) and empty / omitted scope consent through code issue (token without `scope` field).
+**Summary (D6):** 58 route registrations · **y** 54 · **n** 3 · **excluded** 1 · mailbox (no routes) excluded by policy. D6 adds logged-in player `GET /resources/clients` (operator view lists granted clients only, not the full admin catalog).
 
 ## Matrix
 
@@ -34,7 +34,7 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | GET | `/resources/validate` | `resources.validate` | B | y | `OAuthTokenAndResourcesTest` | Bearer authorization JWT |
 | GET | `/resources/userinfo` | `resources.userinfo` | A+B | y | `OAuthTokenAndResourcesTest`, `SocialCallbacksTest`, `AppleCallbackTest` | A: Bearer after social; B: Bearer JWT |
 | GET | `/resources/profile` | `resources.profile` | A | y | `UiSessionTest`, `SocialCallbacksTest`, `AppleCallbackTest`, `OrkAndProfileTest`, `ManagementUiTest`, `OAuthApproveTest`, `OAuthTokenAndResourcesTest`, `AuthNegativesTest` | logged-out redirect; Bearer → 401 |
-| GET | `/resources/clients` | `resources.clients` | A | n | — | D6 player list |
+| GET | `/resources/clients` | `resources.clients` | A | y | `ResourcesClientsUiTest` | player operator subset |
 | POST | `/resources/clients/{id}/redirect` | `resources.clients.redirect` | A | y | `ManagementUiTest` | admin operator |
 | GET | `/resources/authorizations` | `resources.authorizations` | B | y | `OAuthTokenAndResourcesTest` | access token Bearer |
 | POST | `/resources/profile/link-ork` | `resources.profile.link_ork` | A | y | `OrkAndProfileTest` | hits `DevIntegHttpClient` ORK |

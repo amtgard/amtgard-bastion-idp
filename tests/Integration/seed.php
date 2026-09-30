@@ -146,6 +146,7 @@ function purgeFixtures(PDO $pdo): void
         IntegFixtures::CONFIDENTIAL_CLIENT_ID,
         IntegFixtures::NO_IAM_CLIENT_ID,
         IntegFixtures::UI_CREATED_CLIENT_ID,
+        IntegFixtures::PLAYER_OPERATOR_CLIENT_ID,
     ];
     foreach ($clientIds as $clientIdentifier) {
         purgeClientByIdentifier($pdo, $clientIdentifier);
