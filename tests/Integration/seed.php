@@ -61,6 +61,19 @@ $noIamClient = Client::builder()
 
 EntityManager::getManager()->persist($noIamClient);
 
+$peerIamClient = Client::builder()
+    ->identifier(IntegFixtures::PEER_IAM_CLIENT_ID)
+    ->clientSecret(IntegFixtures::PEER_IAM_CLIENT_SECRET)
+    ->name('Integration peer IAM client')
+    ->redirectUri(IntegFixtures::PEER_IAM_REDIRECT_URI)
+    ->isConfidential(true)
+    ->isDev(true)
+    ->iamService(IntegFixtures::PEER_IAM_SERVICE)
+    ->iamServiceFormat(null)
+    ->build();
+
+EntityManager::getManager()->persist($peerIamClient);
+
 fwrite(STDOUT, "Integ fixtures seeded (schema {$_ENV['DB_NAME']}).\n");
 
 function integApplyCliEnvironment(): void
@@ -145,6 +158,7 @@ function purgeFixtures(PDO $pdo): void
     $clientIds = [
         IntegFixtures::CONFIDENTIAL_CLIENT_ID,
         IntegFixtures::NO_IAM_CLIENT_ID,
+        IntegFixtures::PEER_IAM_CLIENT_ID,
         IntegFixtures::UI_CREATED_CLIENT_ID,
         IntegFixtures::PLAYER_OPERATOR_CLIENT_ID,
     ];

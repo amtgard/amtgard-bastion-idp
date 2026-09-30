@@ -1,6 +1,6 @@
 # DEV integ — route matrix
 
-Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d7-management-update`** (stack 1–14 + phase C isolation + D1–D7). Update this file when phase D milestones add cases.
+Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d8-client-iam-negatives`** (stack 1–14 + phase C isolation + D1–D8). Update this file when phase D milestones add cases.
 
 **Modes** (see [dev-integ-milestones.md](./dev-integ-milestones.md)):
 
@@ -44,12 +44,12 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | POST | `/resources/link-ork-profile` | `resources.link_ork_profile` | B | y | `ClientIamTest` | no live ORK |
 | POST | `/resources/unlink-ork-profile` | `resources.unlink_ork_profile` | B | y | `ClientIamTest` | |
 | GET | `/resources/jwt` | `resources.jwt` | A+B | y | `OAuthTokenAndResourcesTest`, `SocialCallbacksTest` | B: access token; A: session only; negative in SocialCallbacksTest |
-| POST | `/resources/client/policy-claims` | `resources.client.policy_claims.add` | B | y | `ClientIamTest` | |
+| POST | `/resources/client/policy-claims` | `resources.client.policy_claims.add` | B | y | `ClientIamTest`, `ClientIamNegativesTest` | malformed provisos → 400 |
 | DELETE | `/resources/client/policy-claims` | `resources.client.policy_claims.delete` | B | y | `ClientIamTest` | |
-| GET | `/resources/client/policy-claims/{idp_user_id}` | `resources.client.policy_claims.list` | B | y | `ClientIamTest` | |
+| GET | `/resources/client/policy-claims/{idp_user_id}` | `resources.client.policy_claims.list` | B | y | `ClientIamTest`, `ClientIamNegativesTest` | cross-client list empty |
 | GET | `/resources/client/users/by-email` | `resources.client.users.by_email` | B | y | `ClientIamTest` | |
-| PUT | `/resources/client/user-metadata` | `resources.client.user_metadata.upsert` | B | y | `ClientIamTest` | |
-| GET | `/resources/client/user-metadata/{idp_user_id}` | `resources.client.user_metadata.get` | B | y | `ClientIamTest` | |
+| PUT | `/resources/client/user-metadata` | `resources.client.user_metadata.upsert` | B | y | `ClientIamTest`, `ClientIamNegativesTest` | wrong `login_id` → 404 |
+| GET | `/resources/client/user-metadata/{idp_user_id}` | `resources.client.user_metadata.get` | B | y | `ClientIamTest`, `ClientIamNegativesTest` | cross-client → 404 |
 | DELETE | `/resources/client/user-metadata/{idp_user_id}` | `resources.client.user_metadata.delete` | B | y | `ClientIamTest` | |
 | GET | `/resources/client/service-format` | `resources.client.service_format.get` | B | y | `ClientIamTest` | incl. empty `iam_service` client |
 | POST | `/resources/client/service-format` | `resources.client.service_format.create` | B | y | `ClientIamTest` | 409 on second POST |

@@ -21,6 +21,12 @@ final class IntegFixtures
     public const NO_IAM_CLIENT_ID = 'integ_no_iam';
     public const NO_IAM_CLIENT_SECRET = 'integ-no-iam-secret';
 
+    /** Second IAM namespace client for cross-client isolation integ (D8). */
+    public const PEER_IAM_CLIENT_ID = 'integ_confidential_peer';
+    public const PEER_IAM_CLIENT_SECRET = 'integ-confidential-peer-secret';
+    public const PEER_IAM_SERVICE = 'IntegPeer';
+    public const PEER_IAM_REDIRECT_URI = 'http://localhost:37080/integ/peer/callback';
+
     public const UI_CREATED_CLIENT_ID = 'integ_from_ui';
     public const UI_CREATED_REDIRECT_URI = 'http://localhost:37080/integ/from-ui/callback';
     public const UI_UPDATED_REDIRECT_URI = 'http://localhost:37080/integ/from-ui/updated';

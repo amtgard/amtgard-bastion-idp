@@ -13,7 +13,7 @@ Stack from **`stack/dev-integ-14-client-iam`** (or `main` after merge). **Do not
 | C3 | `stack/dev-integ-c3-per-test-reseed` | [x] |
 | C4 | `stack/dev-integ-c4-route-matrix-doc` | [x] |
 
-**Resume from:** D8 (`stack/dev-integ-d8-client-iam-negatives`.)
+**Resume from:** D9 (`stack/dev-integ-d9-low-latency-validate`.)
 
 ## Phase D — Coverage expansion
 
@@ -26,7 +26,7 @@ Stack from **`stack/dev-integ-14-client-iam`** (or `main` after merge). **Do not
 | D5 | `stack/dev-integ-d5-oauth-scopes` | [x] |
 | D6 | `stack/dev-integ-d6-resources-clients-ui` | [x] |
 | D7 | `stack/dev-integ-d7-management-update` | [x] |
-| D8 | `stack/dev-integ-d8-client-iam-negatives` | [ ] |
+| D8 | `stack/dev-integ-d8-client-iam-negatives` | [x] |
 | D9 | `stack/dev-integ-d9-low-latency-validate` | [ ] |
 | D10 | `stack/dev-integ-d10-pvh-happy` | [ ] |
 | D11 | `stack/dev-integ-d11-split-megatests` | [ ] |
