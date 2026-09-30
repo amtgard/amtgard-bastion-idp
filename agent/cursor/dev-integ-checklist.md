@@ -10,9 +10,9 @@ Stack from **`main`**. Git-branchless stacked branches. **Do not push** unless t
 | 3 | `stack/dev-integ-3-ork-http-seam` | [x] |
 | 4 | `stack/dev-integ-4-mode-switch` | [x] |
 | 5 | `stack/dev-integ-5-harness` | [x] |
-| 6 | `stack/dev-integ-6-ui-session` | [ ] |
-| 7 | `stack/dev-integ-7-oauth-approve` | [ ] |
-| 8 | `stack/dev-integ-8-social-callbacks` | [ ] |
+| 6 | `stack/dev-integ-6-ui-session` | [x] |
+| 7 | `stack/dev-integ-7-oauth-approve` | [x] |
+| 8 | `stack/dev-integ-8-social-callbacks` | [x] |
 | 9 | `stack/dev-integ-9-apple-callback` | [ ] |
 | 10 | `stack/dev-integ-10-ork-and-profile` | [ ] |
 | 11 | `stack/dev-integ-11-management-ui` | [ ] |
@@ -20,4 +20,4 @@ Stack from **`main`**. Git-branchless stacked branches. **Do not push** unless t
 | 13 | `stack/dev-integ-13-oauth-and-resources` | [ ] |
 | 14 | `stack/dev-integ-14-client-iam` | [ ] |
 
-**Resume from:** 5
+**Resume from:** 9

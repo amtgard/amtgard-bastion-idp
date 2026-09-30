@@ -76,6 +76,65 @@ final class IntegHttp
         return rtrim($this->baseUrl, '/') . $location;
     }
 
+    public function idpHost(): string
+    {
+        $host = parse_url($this->baseUrl, PHP_URL_HOST);
+        if (!is_string($host) || $host === '') {
+            throw new \RuntimeException('Invalid IDP_BASE_URL host');
+        }
+
+        return strtolower($host);
+    }
+
+    public function locationHost(ResponseInterface $response): ?string
+    {
+        $location = $this->redirectLocation($response);
+        if ($location === null) {
+            return null;
+        }
+        $host = parse_url($location, PHP_URL_HOST);
+        if (!is_string($host) || $host === '') {
+            return null;
+        }
+
+        return strtolower($host);
+    }
+
+    public function parseQueryParam(string $url, string $name): string
+    {
+        $query = parse_url($url, PHP_URL_QUERY);
+        if (!is_string($query) || $query === '') {
+            throw new \RuntimeException("Query string missing in URL for param {$name}");
+        }
+        parse_str($query, $params);
+        $value = $params[$name] ?? null;
+        if (!is_string($value) || $value === '') {
+            throw new \RuntimeException("Query param {$name} not found in URL");
+        }
+
+        return $value;
+    }
+
+    public function getBearer(string $path): ResponseInterface
+    {
+        $jwtResponse = $this->get('/resources/jwt');
+        if ($jwtResponse->getStatusCode() !== 200) {
+            throw new \RuntimeException('Expected 200 from /resources/jwt; status=' . $jwtResponse->getStatusCode());
+        }
+        /** @var array<string, mixed> $payload */
+        $payload = json_decode((string) $jwtResponse->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        $jwt = $payload['jwt'] ?? null;
+        if (!is_string($jwt) || $jwt === '') {
+            throw new \RuntimeException('Authorization JWT missing from /resources/jwt');
+        }
+
+        return $this->client->get(ltrim($path, '/'), [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $jwt,
+            ],
+        ]);
+    }
+
     public function isRedirectToPath(ResponseInterface $response, string $path): bool
     {
         $status = $response->getStatusCode();

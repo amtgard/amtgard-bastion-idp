@@ -235,7 +235,7 @@ Done when `./scripts/integ.sh` fails if Docker is down, and succeeds end-to-end 
 
 **Completed (milestone 5):** Branch `stack/dev-integ-5-harness`. Added `docker/compose.integ.yml`, `scripts/integ-{up,down,sh}.sh`, `tests/Integration/seed.php` (+ fixtures), `phpunit.integ.xml`, `composer integ`, and first HTTP tests (`VersionEndpointTest`, `LoginPageTest` via `IntegHttp`). `phinx.php` honors `MIGRATE_DB_NAME=idp_integ` for integ migrations. Gates: `composer test` OK (638 tests); `./scripts/integ.sh` OK (2 integ tests). No new `src/` decision-branch logs (harness-only).
 
-**Resume from:** milestone 8 (`stack/dev-integ-8-social-callbacks`).
+**Resume from:** milestone 9 (`stack/dev-integ-9-apple-callback`).
 
 ### 6. `stack/dev-integ-6-ui-session`
 
@@ -271,6 +271,8 @@ Mode A, three cases (Google, Facebook, Discord). Shared steps:
 - Final hop is a 302 into the IDP and `GET /resources/profile` is 200 for the canned email.
 
 One negative: `code=integ-deny` on the Google callback does not establish the canned Google user (profile is not 200 for that email).
+
+**Completed (milestone 8):** Branch `stack/dev-integ-8-social-callbacks`. Added `SocialCallbacksTest` (Google/Facebook/Discord vendor redirect + `code=integ-ok` callback → profile + userinfo canned email; Google `integ-deny` negative), extended `IntegHttp` (query param, vendor host, JWT userinfo helper), and completed `DevIntegHttpClient` Google/Facebook profile fields for real login persistence. Gates: `composer test` OK (639 tests); `./scripts/integ.sh` OK (9 integ tests). No new `src/` decision-branch logs (integration + integ fake payloads).
 
 ### 9. `stack/dev-integ-9-apple-callback`
 

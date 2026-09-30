@@ -67,6 +67,7 @@ final class DevIntegHttpClient extends Client
                 'name' => 'Integ Google',
                 'given_name' => 'Integ',
                 'family_name' => 'Google',
+                'picture' => 'https://example.com/integ-google-avatar.png',
             ]),
             'graph.facebook.com' => self::facebookGraphResponse($path),
             'discord.com' => self::discordResponse($path),
@@ -170,6 +171,9 @@ final class DevIntegHttpClient extends Client
                 'id' => 'integ-facebook-id',
                 'name' => 'Integ Facebook',
                 'email' => 'integ-facebook@example.com',
+                'first_name' => 'Integ',
+                'last_name' => 'Facebook',
+                'picture_url' => 'https://example.com/integ-facebook-avatar.png',
             ]);
         }
 
