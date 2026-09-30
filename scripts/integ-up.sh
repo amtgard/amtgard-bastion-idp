@@ -53,6 +53,7 @@ compose_worker() {
     docker compose --project-directory "$ROOT" -p "$WORKER_PROJECT" \
         -f docker/compose.worker.yml \
         -f docker/compose.worker.dev.yml \
+        -f docker/compose.worker.integ.yml \
         "$@"
 }
 
@@ -118,6 +119,11 @@ docker exec "$APP_CONTAINER" bash -lc "
     sed -i '/^env\[ORK_BASE_URL\]/d' \"\$POOL\"
     sed -i '/^env\[MANAGEMENT_KEY\]/d' \"\$POOL\"
     sed -i '/^env\[LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS\]/d' \"\$POOL\"
+    sed -i '/^env\[REDIS_PUBSUB_HOST\]/d' \"\$POOL\"
+    sed -i '/^env\[REDIS_PUBSUB_PORT\]/d' \"\$POOL\"
+    sed -i '/^env\[REDIS_PUBSUB_DB\]/d' \"\$POOL\"
+    sed -i '/^env\[REDIS_PUBSUB_QUEUE_NAME\]/d' \"\$POOL\"
+    sed -i '/^env\[REDIS_PVH_QUEUE_NAME\]/d' \"\$POOL\"
     IDP_ORK_SHARED_SECRET=\"\$(printenv IDP_ORK_SHARED_SECRET || true)\"
     ORK_BASE_URL=\"\$(printenv ORK_BASE_URL || true)\"
     MANAGEMENT_KEY=\"\$(printenv MANAGEMENT_KEY || true)\"
@@ -126,6 +132,16 @@ docker exec "$APP_CONTAINER" bash -lc "
     echo \"env[DB_HOST] = ${DB_HOST}\" >> \"\$POOL\"
     echo \"env[DB_NAME] = \$DB_NAME\" >> \"\$POOL\"
     echo \"env[SESSION_REDIS_HOST] = ${SESSION_REDIS_HOST}\" >> \"\$POOL\"
+    REDIS_PUBSUB_HOST=\"\$(printenv REDIS_PUBSUB_HOST || true)\"
+    REDIS_PUBSUB_PORT=\"\$(printenv REDIS_PUBSUB_PORT || true)\"
+    REDIS_PUBSUB_DB=\"\$(printenv REDIS_PUBSUB_DB || true)\"
+    REDIS_PUBSUB_QUEUE_NAME=\"\$(printenv REDIS_PUBSUB_QUEUE_NAME || true)\"
+    REDIS_PVH_QUEUE_NAME=\"\$(printenv REDIS_PVH_QUEUE_NAME || true)\"
+    echo \"env[REDIS_PUBSUB_HOST] = \${REDIS_PUBSUB_HOST}\" >> \"\$POOL\"
+    echo \"env[REDIS_PUBSUB_PORT] = \${REDIS_PUBSUB_PORT}\" >> \"\$POOL\"
+    echo \"env[REDIS_PUBSUB_DB] = \${REDIS_PUBSUB_DB}\" >> \"\$POOL\"
+    echo \"env[REDIS_PUBSUB_QUEUE_NAME] = \${REDIS_PUBSUB_QUEUE_NAME}\" >> \"\$POOL\"
+    echo \"env[REDIS_PVH_QUEUE_NAME] = \${REDIS_PVH_QUEUE_NAME}\" >> \"\$POOL\"
     echo \"env[APPLE_KEY_FILE_PATH] = ${APPLE_KEY_FILE_PATH}\" >> \"\$POOL\"
     echo \"env[APPLE_LOGIN_ENABLED] = ${APPLE_LOGIN_ENABLED}\" >> \"\$POOL\"
     echo \"env[IDP_ORK_SHARED_SECRET] = \${IDP_ORK_SHARED_SECRET}\" >> \"\$POOL\"
@@ -138,6 +154,10 @@ docker exec "$APP_CONTAINER" bash -lc "
 echo "==> Flushing integ session Redis..."
 SESSION_REDIS_DB="$(docker exec "$APP_CONTAINER" printenv SESSION_REDIS_DB || echo 1)"
 docker exec "$INTEG_SESSIONS_CONTAINER" redis-cli -n "$SESSION_REDIS_DB" FLUSHDB
+
+echo "==> Flushing integ pub/sub Redis (PVH cache + queues)..."
+PUBSUB_REDIS_DB="$(docker exec "$APP_CONTAINER" printenv REDIS_PUBSUB_DB || echo 0)"
+docker exec "$INTEG_SESSIONS_CONTAINER" redis-cli -n "$PUBSUB_REDIS_DB" FLUSHDB
 
 echo "==> Migrating integ database (schema idp on ${INTEG_DB_CONTAINER})..."
 docker exec "$APP_CONTAINER" bash -lc \

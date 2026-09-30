@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 WEB_PROJECT="${WEB_PROJECT:-amtgard-idp}"
+WORKER_PROJECT="${WORKER_PROJECT:-amtgard-idp-worker}"
 APP_CONTAINER="${APP_CONTAINER:-amtgard-idp}"
 
 require_docker() {
@@ -44,6 +45,13 @@ compose_web_dev() {
         "$@"
 }
 
+compose_worker_dev() {
+    docker compose --project-directory "$ROOT" -p "$WORKER_PROJECT" \
+        -f docker/compose.worker.yml \
+        -f docker/compose.worker.dev.yml \
+        "$@"
+}
+
 require_docker
 
 if ! docker inspect "$APP_CONTAINER" >/dev/null 2>&1; then
@@ -71,6 +79,11 @@ docker exec "$APP_CONTAINER" bash -lc "
     sed -i '/^env\[ORK_BASE_URL\]/d' \"\$POOL\"
     sed -i '/^env\[MANAGEMENT_KEY\]/d' \"\$POOL\"
     sed -i '/^env\[LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS\]/d' \"\$POOL\"
+    sed -i '/^env\[REDIS_PUBSUB_HOST\]/d' \"\$POOL\"
+    sed -i '/^env\[REDIS_PUBSUB_PORT\]/d' \"\$POOL\"
+    sed -i '/^env\[REDIS_PUBSUB_DB\]/d' \"\$POOL\"
+    sed -i '/^env\[REDIS_PUBSUB_QUEUE_NAME\]/d' \"\$POOL\"
+    sed -i '/^env\[REDIS_PVH_QUEUE_NAME\]/d' \"\$POOL\"
     echo \"env[ENVIRONMENT] = DEV\" >> \"\$POOL\"
     echo \"env[DB_HOST] = ${DEV_DB_HOST}\" >> \"\$POOL\"
     echo \"env[DB_NAME] = ${DEV_DB_NAME}\" >> \"\$POOL\"
@@ -97,5 +110,8 @@ fi
 
 docker exec "$APP_CONTAINER" bash -lc \
     'cd /var/www/idp.amtgard.com && php tests/Integration/verify_dev_http_client.php'
+
+echo "==> Restoring jwt-worker for dev (.env pub/sub Redis)..."
+compose_worker_dev up -d --force-recreate
 
 echo "Dev stack restored."

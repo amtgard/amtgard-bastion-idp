@@ -39,4 +39,4 @@ The milestone question is whether validate behaves like **middleware-backed Bear
 | `OAuthTokenAndResourcesTest` | Happy path: authorization JWT on validate → 200 (stack 13) |
 | `LowLatencyValidateTest` | Authorization JWT → 200 + minimal JSON; `compact_jwt` → 200; OAuth access token → 401; missing Bearer → 401; access token on userinfo → 200 (contrast) |
 
-Deferred to **D10**: fresh-token PVH / Redis path without 409 after issue (`dev-integ-coverage-plan.md`).
+**D10** (`PvhHappyPathTest`): after OAuth token issue and `GET /resources/jwt`, integ asserts `pvh:{sub}:{aud}` on **integ** pub/sub Redis matches the minted JWT, then `GET /resources/validate` and middleware `GET /resources/userinfo` return **200** (not **409**) on that fresh token. Integ overlay wires `REDIS_PUBSUB_*` to `amtgard-idp-sessions-integ` with integ-only queue names; see `docker/compose.integ.yml` and `docker/compose.worker.integ.yml`.

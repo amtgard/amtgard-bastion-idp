@@ -23,6 +23,7 @@ final class IntegFixtureReseeder
     public static function reseedForTest(): void
     {
         self::flushIntegSessionRedis();
+        IntegPubSubRedis::flushPubSubDatabase();
         self::runSeedScript();
     }
 
