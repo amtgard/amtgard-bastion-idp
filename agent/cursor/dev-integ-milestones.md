@@ -235,7 +235,7 @@ Done when `./scripts/integ.sh` fails if Docker is down, and succeeds end-to-end 
 
 **Completed (milestone 5):** Branch `stack/dev-integ-5-harness`. Added `docker/compose.integ.yml`, `scripts/integ-{up,down,sh}.sh`, `tests/Integration/seed.php` (+ fixtures), `phpunit.integ.xml`, `composer integ`, and first HTTP tests (`VersionEndpointTest`, `LoginPageTest` via `IntegHttp`). `phinx.php` honors `MIGRATE_DB_NAME=idp_integ` for integ migrations. Gates: `composer test` OK (638 tests); `./scripts/integ.sh` OK (2 integ tests). No new `src/` decision-branch logs (harness-only).
 
-**Resume from:** milestone 10 (`stack/dev-integ-10-ork-and-profile`).
+**Resume from:** milestone 11 (`stack/dev-integ-11-management-ui`).
 
 ### 6. `stack/dev-integ-6-ui-session`
 
@@ -293,6 +293,10 @@ Mode A:
 - `POST /resources/profile/refresh-ork` → 302 `?success=refreshed`.
 - `POST /resources/profile/unlink-ork` → 302 `?success=unlinked`.
 - `POST /resources/profile/revoke` with `client_id=integ_confidential` → 302 `?success=revoked`.
+
+**Completed (milestone 10):** Branch `stack/dev-integ-10-ork-and-profile`. Added `OrkAndProfileTest` (connect JWT handoff + jti replay, link/refresh/unlink via `DevIntegHttpClient`, OAuth revoke by client identifier), integ overlay env (`IDP_ORK_SHARED_SECRET`, `ORK_BASE_URL`) and php-fpm wiring, ORK fake `UserId` + ORK-shaped `GetPlayer` payload, connect handoff session `client_id`, profile revoke resolves OAuth `client_id` strings, and placeholder ORK profile field defaults for handoff rows. Gates: `composer test` OK (642 tests); `./scripts/integ.sh` OK (11 integ tests). Log-tested: connect handoff `client_id` via `ConnectControllerTest`.
+
+**Resume from:** milestone 11 (`stack/dev-integ-11-management-ui`).
 
 ### 11. `stack/dev-integ-11-management-ui`
 

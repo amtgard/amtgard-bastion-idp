@@ -8,6 +8,7 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Services\RegistrationService;
+use Amtgard\IdP\Utility\Constants;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -147,7 +148,7 @@ class ConnectController
         if (!session_regenerate_id(true)) {
             $this->logger->warning('session_regenerate_id failed during connect handoff', ['user_id' => $user->getUserId()]);
         }
-        $_SESSION['user_id'] = $user->getUserId();
+        $this->establishBrowserSession($user);
         return $this->redirectBackToOrk($response, $user->getUserId(), $claims['mundane_id']);
     }
 
@@ -248,8 +249,19 @@ class ConnectController
         if (!session_regenerate_id(true)) {
             $this->logger->warning('session_regenerate_id failed during connect handoff', ['user_id' => $user->getUserId()]);
         }
-        $_SESSION['user_id'] = $user->getUserId();
+        $this->establishBrowserSession($user);
         return $this->redirectBackToOrk($response, $user->getUserId(), $claims['mundane_id']);
+    }
+
+    /**
+     * Match {@see BaseAuthController::finalizeAuthorization} session keys so
+     * profile routes gated by {@see ClientRestrictedAuthMiddleware} work after
+     * connect handoff without a separate IDP login.
+     */
+    private function establishBrowserSession(\Amtgard\IdP\Persistence\Client\Entities\UserEntity $user): void
+    {
+        $_SESSION['client_id'] = Constants::$AMTGARD_IDP_CLIENT_ID;
+        $_SESSION['user_id'] = $user->getUserId();
     }
 
     /**

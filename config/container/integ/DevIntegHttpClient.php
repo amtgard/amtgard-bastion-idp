@@ -122,6 +122,7 @@ final class DevIntegHttpClient extends Client
                 return self::jsonResponse([
                     'Status' => ['Status' => 0],
                     'Token' => 'integ-ork-token',
+                    'UserId' => self::INTEG_MUNDANE_ID,
                 ]);
             }
 
@@ -134,10 +135,19 @@ final class DevIntegHttpClient extends Client
                 return self::jsonResponse([
                     'Status' => ['Status' => 0],
                     'Player' => [
-                        'name' => 'IntegOrk',
+                        'UserName' => self::INTEG_ORK_USERNAME,
+                        'Persona' => 'IntegOrk',
                         'MundaneId' => self::INTEG_MUNDANE_ID,
                         'ParkId' => 42,
+                        'KingdomId' => 1,
                         'KingdomName' => 'Dragonspine',
+                        'Suspended' => 0,
+                        'Email' => '',
+                        'Image' => null,
+                        'Heraldry' => null,
+                        'SuspendedAt' => null,
+                        'SuspendedUntil' => null,
+                        'DuesThrough' => null,
                     ],
                 ]);
             }

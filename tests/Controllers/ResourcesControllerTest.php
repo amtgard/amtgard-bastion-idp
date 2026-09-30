@@ -14,6 +14,8 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
+use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Services\ResourcesUserinfoService;
@@ -45,6 +47,23 @@ class TestResourcesUserEntity extends UserEntity
     public function getEmail(): string { return $this->testEmail; }
     public function getFullName(): string { return $this->testFullName; }
     public function getId(): int { return $this->testUserId; }
+}
+
+class TestRevokeRepositoryClient extends Client
+{
+    private ?int $testId = null;
+
+    public function setId(int $id): self
+    {
+        $this->testId = $id;
+
+        return $this;
+    }
+
+    public function getId(): ?int
+    {
+        return $this->testId;
+    }
 }
 
 class TestUserOrkProfileEntity extends UserOrkProfileEntity
@@ -648,6 +667,40 @@ class ResourcesControllerTest extends TestCase
         $this->userClientAuthorizationRepository->expects($this->once())
             ->method('revokeAuthorization')
             ->with('123', 456);
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?success=revoked')
+            ->willReturnSelf();
+
+        $result = $this->controller->revokeAuthorization($this->request, $this->response);
+        $this->assertSame($this->response, $result);
+    }
+
+    public function testRevokeAuthorizationResolvesOAuthClientIdentifier(): void
+    {
+        $_SESSION['user_id'] = 123;
+
+        $repositoryClient = (new TestRevokeRepositoryClient())
+            ->setId(77);
+
+        $oauthClient = OAuthClient::builder()
+            ->clientEntity($repositoryClient)
+            ->identifier('integ_confidential')
+            ->isConfidential(true)
+            ->name('Integ')
+            ->redirectUri(['http://localhost/cb'])
+            ->build();
+
+        $this->request->method('getParsedBody')->willReturn(['client_id' => 'integ_confidential']);
+        $this->clientRepository->expects($this->once())
+            ->method('getClientEntity')
+            ->with('integ_confidential')
+            ->willReturn($oauthClient);
+
+        $this->userClientAuthorizationRepository->expects($this->once())
+            ->method('revokeAuthorization')
+            ->with('123', 77);
 
         $this->response->expects($this->once())
             ->method('withHeader')

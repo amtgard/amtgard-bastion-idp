@@ -13,4 +13,9 @@ final class IntegFixtures
     public const CONFIDENTIAL_CLIENT_ID = 'integ_confidential';
     public const CONFIDENTIAL_CLIENT_SECRET = 'integ-confidential-secret';
     public const CONFIDENTIAL_REDIRECT_URI = 'http://localhost:37080/integ/callback';
+
+    /** Matches `IDP_ORK_SHARED_SECRET` in docker/compose.integ.yml for connect JWT minting. */
+    public const ORK_SHARED_SECRET = 'integ-ork-shared-secret-thirty-two-chars';
+
+    public const ORK_LINK_PASSWORD = 'integ-ork-canned-password';
 }

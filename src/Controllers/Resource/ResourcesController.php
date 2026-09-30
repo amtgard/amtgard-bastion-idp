@@ -478,7 +478,7 @@ class ResourcesController
         }
 
         $params = (array) $request->getParsedBody();
-        $clientId = isset($params['client_id']) ? (int) $params['client_id'] : 0;
+        $clientId = $this->resolveRevokeClientDbId($params['client_id'] ?? null);
 
         if ($clientId <= 0) {
             return $response->withHeader('Location', '/resources/profile?error=invalid_client')->withStatus(302);
@@ -492,6 +492,27 @@ class ResourcesController
         // Implementing full token revocation would require AccessTokenRepository method.
 
         return $response->withHeader('Location', '/resources/profile?success=revoked')->withStatus(302);
+    }
+
+    private function resolveRevokeClientDbId(mixed $raw): int
+    {
+        if (is_int($raw) && $raw > 0) {
+            return $raw;
+        }
+        $asString = trim((string) ($raw ?? ''));
+        if ($asString === '') {
+            return 0;
+        }
+        if (ctype_digit($asString)) {
+            return (int) $asString;
+        }
+
+        $client = $this->clientRepository->getClientEntity($asString);
+        if ($client === null) {
+            return 0;
+        }
+
+        return (int) $client->getClientEntity()->getId();
     }
 
 }
