@@ -14,4 +14,9 @@ abstract class IntegTestCase extends TestCase
         parent::setUp();
         IntegFixtureReseeder::reseedForTest();
     }
+
+    protected function integBaseUrl(): string
+    {
+        return (string) (getenv('IDP_BASE_URL') ?: 'http://localhost:37080');
+    }
 }

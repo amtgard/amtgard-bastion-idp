@@ -1,6 +1,6 @@
 # DEV integ — route matrix
 
-Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d1-static-docs`** (stack 1–14 + phase C isolation + D1 static docs). Update this file when phase D milestones add cases.
+Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d2-auth-negatives`** (stack 1–14 + phase C isolation + D1–D2). Update this file when phase D milestones add cases.
 
 **Modes** (see [dev-integ-milestones.md](./dev-integ-milestones.md)):
 
@@ -17,7 +17,7 @@ Maps every route registered in `config/routes.php` to integration coverage as of
 
 When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Test class** lists the class(es).
 
-**Summary (D1):** 58 route registrations · **y** 53 · **n** 4 · **excluded** 1 · mailbox (no routes) excluded by policy.
+**Summary (D2):** 58 route registrations · **y** 53 · **n** 4 · **excluded** 1 · mailbox (no routes) excluded by policy. D2 adds explicit negatives on login/register CSRF and profile session gate (logged-out redirect, Bearer → 401).
 
 ## Matrix
 
@@ -33,7 +33,7 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | POST | `/api/is_authorized` | `api.is_authorized` | B | y | `PublicApiTest` | allow + deny |
 | GET | `/resources/validate` | `resources.validate` | B | y | `OAuthTokenAndResourcesTest` | Bearer authorization JWT |
 | GET | `/resources/userinfo` | `resources.userinfo` | A+B | y | `OAuthTokenAndResourcesTest`, `SocialCallbacksTest`, `AppleCallbackTest` | A: Bearer after social; B: Bearer JWT |
-| GET | `/resources/profile` | `resources.profile` | A | y | `UiSessionTest`, `SocialCallbacksTest`, `AppleCallbackTest`, `OrkAndProfileTest`, `ManagementUiTest`, `OAuthApproveTest`, `OAuthTokenAndResourcesTest` | |
+| GET | `/resources/profile` | `resources.profile` | A | y | `UiSessionTest`, `SocialCallbacksTest`, `AppleCallbackTest`, `OrkAndProfileTest`, `ManagementUiTest`, `OAuthApproveTest`, `OAuthTokenAndResourcesTest`, `AuthNegativesTest` | logged-out redirect; Bearer → 401 |
 | GET | `/resources/clients` | `resources.clients` | A | n | — | D6 player list |
 | POST | `/resources/clients/{id}/redirect` | `resources.clients.redirect` | A | y | `ManagementUiTest` | admin operator |
 | GET | `/resources/authorizations` | `resources.authorizations` | B | y | `OAuthTokenAndResourcesTest` | access token Bearer |
@@ -55,9 +55,9 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | POST | `/resources/client/service-format` | `resources.client.service_format.create` | B | y | `ClientIamTest` | 409 on second POST |
 | PUT | `/resources/client/service-format` | `resources.client.service_format.replace` | B | y | `ClientIamTest` | |
 | GET | `/auth/login` | `auth.login` | A | y | `LoginPageTest`, others | session + CSRF |
-| POST | `/auth/login` | *(unnamed)* | A | y | `UiSessionTest`, `OAuthApproveTest`, `ManagementUiTest`, `OAuthTokenAndResourcesTest` | |
+| POST | `/auth/login` | *(unnamed)* | A | y | `UiSessionTest`, `OAuthApproveTest`, `ManagementUiTest`, `OAuthTokenAndResourcesTest`, `AuthNegativesTest` | CSRF missing/invalid → 403 |
 | GET | `/auth/register` | `auth.register` | A | y | `UiSessionTest` | |
-| POST | `/auth/register` | *(unnamed)* | A | y | `UiSessionTest` | |
+| POST | `/auth/register` | *(unnamed)* | A | y | `UiSessionTest`, `AuthNegativesTest` | CSRF missing → 403 |
 | GET | `/auth/logout` | `auth.logout` | A | y | `UiSessionTest` | |
 | GET | `/auth/google` | `auth.google` | A | y | `SocialCallbacksTest` | vendor redirect only |
 | GET | `/auth/google/callback` | `auth.google.callback` | A | y | `SocialCallbacksTest` | incl. `integ-deny` negative |
