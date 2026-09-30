@@ -68,4 +68,23 @@ final class DevIntegHttpClientTest extends TestCase
         $this->expectException(RequestException::class);
         $this->client->request('GET', 'https://unknown.integ.example/nope');
     }
+
+    public function testAppleTokenResponseIncludesCannedIdTokenClaims(): void
+    {
+        $_ENV['APPLE_CLIENT_ID'] = 'apple_service_id';
+
+        $keysResponse = $this->client->request('GET', 'https://appleid.apple.com/auth/keys');
+        /** @var array<string, mixed> $jwks */
+        $jwks = json_decode((string) $keysResponse->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame('EC', $jwks['keys'][0]['kty'] ?? null);
+
+        $tokenResponse = $this->client->request('POST', 'https://appleid.apple.com/auth/token', [
+            'body' => http_build_query(['code' => 'integ-ok', 'grant_type' => 'authorization_code']),
+            'headers' => ['Content-Type' => 'application/x-www-form-urlencoded'],
+        ]);
+        /** @var array<string, mixed> $tokenPayload */
+        $tokenPayload = json_decode((string) $tokenResponse->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame('integ-apple-access', $tokenPayload['access_token'] ?? null);
+        $this->assertIsString($tokenPayload['id_token'] ?? null);
+    }
 }

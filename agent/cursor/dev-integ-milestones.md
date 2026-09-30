@@ -235,7 +235,7 @@ Done when `./scripts/integ.sh` fails if Docker is down, and succeeds end-to-end 
 
 **Completed (milestone 5):** Branch `stack/dev-integ-5-harness`. Added `docker/compose.integ.yml`, `scripts/integ-{up,down,sh}.sh`, `tests/Integration/seed.php` (+ fixtures), `phpunit.integ.xml`, `composer integ`, and first HTTP tests (`VersionEndpointTest`, `LoginPageTest` via `IntegHttp`). `phinx.php` honors `MIGRATE_DB_NAME=idp_integ` for integ migrations. Gates: `composer test` OK (638 tests); `./scripts/integ.sh` OK (2 integ tests). No new `src/` decision-branch logs (harness-only).
 
-**Resume from:** milestone 9 (`stack/dev-integ-9-apple-callback`).
+**Resume from:** milestone 10 (`stack/dev-integ-10-ork-and-profile`).
 
 ### 6. `stack/dev-integ-6-ui-session`
 
@@ -281,6 +281,8 @@ Overlay has Apple enabled.
 - `GET /auth/apple` → 302 to Apple. Do not follow.
 - `POST /auth/apple/callback` with the jar, `code=integ-ok`, and Apple’s `user` JSON containing `integ-apple@example.com`.
 - Profile 200 for that user.
+
+**Completed (milestone 9):** Branch `stack/dev-integ-9-apple-callback`. Added `AppleCallbackTest` (Apple vendor redirect + form_post callback with `user` JSON → profile + userinfo for `integ-apple@example.com`); integ Apple ES256 fixture + fake JWKS/id_token alignment; php-fpm Apple env wiring in `integ-up.sh`; migration `user_logins.type` includes `apple`. Gates: `composer test` OK (640 tests); `./scripts/integ.sh` OK (10 integ tests). No new `src/` decision-branch logs (integration + schema/fixture).
 
 ### 10. `stack/dev-integ-10-ork-and-profile`
 

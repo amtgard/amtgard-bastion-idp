@@ -77,13 +77,19 @@ compose_sessions up -d
 echo "==> Applying integ overlay on web stack (${WEB_PROJECT})..."
 compose_web_integ up -d --build --remove-orphans --force-recreate amtgardidpapp
 
-echo "==> Wiring php-fpm env for integ (DB_NAME, ENVIRONMENT)..."
+echo "==> Wiring php-fpm env for integ (DB_NAME, ENVIRONMENT, Apple)..."
+APPLE_KEY_FILE_PATH="$(docker exec "$APP_CONTAINER" printenv APPLE_KEY_FILE_PATH || true)"
+APPLE_LOGIN_ENABLED="$(docker exec "$APP_CONTAINER" printenv APPLE_LOGIN_ENABLED || true)"
 docker exec "$APP_CONTAINER" bash -lc "
     POOL=/etc/php/8.4/fpm/pool.d/www.conf
     sed -i '/^env\[DB_NAME\]/d' \"\$POOL\"
     sed -i '/^env\[ENVIRONMENT\]/d' \"\$POOL\"
+    sed -i '/^env\[APPLE_KEY_FILE_PATH\]/d' \"\$POOL\"
+    sed -i '/^env\[APPLE_LOGIN_ENABLED\]/d' \"\$POOL\"
     echo \"env[ENVIRONMENT] = \$ENVIRONMENT\" >> \"\$POOL\"
     echo \"env[DB_NAME] = \$DB_NAME\" >> \"\$POOL\"
+    echo \"env[APPLE_KEY_FILE_PATH] = ${APPLE_KEY_FILE_PATH}\" >> \"\$POOL\"
+    echo \"env[APPLE_LOGIN_ENABLED] = ${APPLE_LOGIN_ENABLED}\" >> \"\$POOL\"
     service php8.4-fpm restart
 "
 

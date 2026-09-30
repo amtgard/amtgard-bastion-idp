@@ -57,11 +57,19 @@ return [
 
         JWT::$leeway = 60;
 
+        $projectRoot = dirname(__DIR__, 2);
+        $keyFilePath = (string) ($_ENV['APPLE_KEY_FILE_PATH'] ?? '');
+        if ($keyFilePath === '' || !is_readable($keyFilePath)) {
+            $keyFilePath = $projectRoot . '/tests/fixtures/integ-apple-es256.pem';
+        } elseif ($keyFilePath[0] !== '/') {
+            $keyFilePath = $projectRoot . '/' . ltrim($keyFilePath, '/');
+        }
+
         return new Apple([
             'clientId' => $_ENV['APPLE_CLIENT_ID'],
             'teamId' => $_ENV['APPLE_TEAM_ID'],
             'keyFileId' => $_ENV['APPLE_KEY_FILE_ID'],
-            'keyFilePath' => $_ENV['APPLE_KEY_FILE_PATH'],
+            'keyFilePath' => $keyFilePath,
             'redirectUri' => $_ENV['APPLE_REDIRECT_URI'],
         ], [
             'httpClient' => $container->get(DevIntegHttpClient::class),

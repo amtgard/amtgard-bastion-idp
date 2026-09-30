@@ -212,6 +212,7 @@ final class DevIntegHttpClient extends Client
                 'access_token' => 'integ-apple-access',
                 'token_type' => 'Bearer',
                 'expires_in' => 3600,
+                'refresh_token' => 'integ-apple-refresh',
                 'id_token' => self::appleIdToken(),
             ]);
         }
@@ -222,37 +223,49 @@ final class DevIntegHttpClient extends Client
     /**
      * @return array<string, mixed>
      */
+    private static function appleSigningKeyPath(): string
+    {
+        return dirname(__DIR__, 3) . '/tests/fixtures/integ-apple-es256.pem';
+    }
+
+    private static function appleSigningPrivateKey(): \OpenSSLAsymmetricKey|false
+    {
+        return openssl_pkey_get_private('file://' . self::appleSigningKeyPath());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private static function appleJwks(): array
     {
-        $pemPath = dirname(__DIR__, 3) . '/vendor/code-rhapsodie/oauth2-apple/test/src/private_key.pem';
-        $details = openssl_pkey_get_details(openssl_pkey_get_private('file://' . $pemPath));
-        $n = rtrim(strtr(base64_encode($details['rsa']['n']), '+/', '-_'), '=');
-        $e = rtrim(strtr(base64_encode($details['rsa']['e']), '+/', '-_'), '=');
+        $details = openssl_pkey_get_details(self::appleSigningPrivateKey());
+        $x = rtrim(strtr(base64_encode($details['ec']['x']), '+/', '-_'), '=');
+        $y = rtrim(strtr(base64_encode($details['ec']['y']), '+/', '-_'), '=');
 
         return [
             'keys' => [[
-                'kty' => 'RSA',
+                'kty' => 'EC',
+                'crv' => 'P-256',
                 'kid' => 'integ-apple-test',
                 'use' => 'sig',
-                'alg' => 'RS256',
-                'n' => $n,
-                'e' => $e,
+                'alg' => 'ES256',
+                'x' => $x,
+                'y' => $y,
             ]],
         ];
     }
 
     private static function appleIdToken(): string
     {
-        $pemPath = dirname(__DIR__, 3) . '/vendor/code-rhapsodie/oauth2-apple/test/src/private_key.pem';
-        $privateKey = openssl_pkey_get_private('file://' . $pemPath);
+        $clientId = $_ENV['APPLE_CLIENT_ID'] ?? getenv('APPLE_CLIENT_ID') ?: 'apple_service_id';
 
         return JWT::encode([
             'iss' => 'https://appleid.apple.com',
-            'aud' => 'integ-apple-client',
+            'aud' => $clientId,
             'sub' => 'integ-apple-sub',
             'email' => 'integ-apple@example.com',
             'email_verified' => true,
-        ], $privateKey, 'RS256', 'integ-apple-test');
+        ], self::appleSigningPrivateKey(), 'ES256', 'integ-apple-test');
     }
 
     /**
