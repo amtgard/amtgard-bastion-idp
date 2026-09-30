@@ -70,7 +70,7 @@ Server: http://localhost:37080/
 
 ### Integration tests (DEV_INTEG)
 
-HTTP integration runs against the live app on port 37080 with `ENVIRONMENT=DEV_INTEG` (fake OAuth/ORK HTTP, schema `idp_integ`). Unit tests stay on `composer test`; integration is opt-in.
+HTTP integration runs against the live app on port 37080 with `ENVIRONMENT=DEV_INTEG` (fake OAuth/ORK HTTP, dedicated integ MariaDB schema `idp`). Unit tests stay on `composer test`; integration is opt-in.
 
 Integration uses a **parallel Docker Compose project** (`amtgard-idp-integ`) for dedicated MariaDB and session Redis, alongside the normal dev web stack (`amtgard-idp`). Both attach to the external network `amtgard-idp-shared`. Integ infra volumes are separate from dev (`amtgard-idp-integ-data-db`, `amtgard-idp-integ-session-data`).
 
@@ -86,7 +86,7 @@ Start integ infra only (no app overlay):
 docker compose -p amtgard-idp-integ -f docker/compose.integ-infra.yml up -d
 ```
 
-Full harness (starts integ infra, then dev sessions + web integ overlay; app DB/Redis hosts still point at dev until a later milestone wires `DB_HOST` / `SESSION_REDIS_HOST` at integ services):
+Full harness (starts integ infra, then dev sessions + web integ overlay with `DB_HOST=amtgard-idp-db-integ` and `SESSION_REDIS_HOST=amtgard-idp-sessions-integ`):
 
 ```bash
 ./scripts/integ.sh          # integ-up → composer integ → integ-down

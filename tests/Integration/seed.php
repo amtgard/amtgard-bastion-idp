@@ -65,7 +65,11 @@ fwrite(STDOUT, "Integ fixtures seeded (schema {$_ENV['DB_NAME']}).\n");
 
 function integApplyCliEnvironment(): void
 {
-    foreach (['ENVIRONMENT' => 'DEV_INTEG', 'DB_NAME' => 'idp_integ'] as $key => $value) {
+    foreach ([
+        'ENVIRONMENT' => 'DEV_INTEG',
+        'DB_HOST' => 'amtgard-idp-db-integ',
+        'DB_NAME' => 'idp',
+    ] as $key => $value) {
         putenv("{$key}={$value}");
         $_ENV[$key] = $value;
         $_SERVER[$key] = $value;

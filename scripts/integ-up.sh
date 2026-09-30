@@ -10,8 +10,8 @@ WEB_PROJECT="${WEB_PROJECT:-amtgard-idp}"
 SESSIONS_PROJECT="${SESSIONS_PROJECT:-amtgard-idp-sessions}"
 WORKER_PROJECT="${WORKER_PROJECT:-amtgard-idp-worker}"
 APP_CONTAINER="${APP_CONTAINER:-amtgard-idp}"
-DB_CONTAINER="${DB_CONTAINER:-amtgard-idp-db}"
 INTEG_DB_CONTAINER="${INTEG_DB_CONTAINER:-amtgard-idp-db-integ}"
+INTEG_SESSIONS_CONTAINER="${INTEG_SESSIONS_CONTAINER:-amtgard-idp-sessions-integ}"
 
 require_docker() {
     if ! docker info >/dev/null 2>&1; then
@@ -101,12 +101,16 @@ compose_sessions up -d
 echo "==> Applying integ overlay on web stack (${WEB_PROJECT})..."
 compose_web_integ up -d --build --remove-orphans --force-recreate amtgardidpapp
 
-echo "==> Wiring php-fpm env for integ (DB_NAME, ENVIRONMENT, Apple)..."
+echo "==> Wiring php-fpm env for integ (DB/Redis hosts, ENVIRONMENT, Apple)..."
 APPLE_KEY_FILE_PATH="$(docker exec "$APP_CONTAINER" printenv APPLE_KEY_FILE_PATH || true)"
 APPLE_LOGIN_ENABLED="$(docker exec "$APP_CONTAINER" printenv APPLE_LOGIN_ENABLED || true)"
+DB_HOST="$(docker exec "$APP_CONTAINER" printenv DB_HOST || true)"
+SESSION_REDIS_HOST="$(docker exec "$APP_CONTAINER" printenv SESSION_REDIS_HOST || true)"
 docker exec "$APP_CONTAINER" bash -lc "
     POOL=/etc/php/8.4/fpm/pool.d/www.conf
+    sed -i '/^env\[DB_HOST\]/d' \"\$POOL\"
     sed -i '/^env\[DB_NAME\]/d' \"\$POOL\"
+    sed -i '/^env\[SESSION_REDIS_HOST\]/d' \"\$POOL\"
     sed -i '/^env\[ENVIRONMENT\]/d' \"\$POOL\"
     sed -i '/^env\[APPLE_KEY_FILE_PATH\]/d' \"\$POOL\"
     sed -i '/^env\[APPLE_LOGIN_ENABLED\]/d' \"\$POOL\"
@@ -119,7 +123,9 @@ docker exec "$APP_CONTAINER" bash -lc "
     MANAGEMENT_KEY=\"\$(printenv MANAGEMENT_KEY || true)\"
     LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS=\"\$(printenv LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS || true)\"
     echo \"env[ENVIRONMENT] = \$ENVIRONMENT\" >> \"\$POOL\"
+    echo \"env[DB_HOST] = ${DB_HOST}\" >> \"\$POOL\"
     echo \"env[DB_NAME] = \$DB_NAME\" >> \"\$POOL\"
+    echo \"env[SESSION_REDIS_HOST] = ${SESSION_REDIS_HOST}\" >> \"\$POOL\"
     echo \"env[APPLE_KEY_FILE_PATH] = ${APPLE_KEY_FILE_PATH}\" >> \"\$POOL\"
     echo \"env[APPLE_LOGIN_ENABLED] = ${APPLE_LOGIN_ENABLED}\" >> \"\$POOL\"
     echo \"env[IDP_ORK_SHARED_SECRET] = \${IDP_ORK_SHARED_SECRET}\" >> \"\$POOL\"
@@ -129,14 +135,12 @@ docker exec "$APP_CONTAINER" bash -lc "
     service php8.4-fpm restart
 "
 
-echo "==> Ensuring integ schema idp_integ..."
-docker exec "$DB_CONTAINER" mariadb -uroot -proot -e \
-    "CREATE DATABASE IF NOT EXISTS idp_integ CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-     GRANT ALL PRIVILEGES ON idp_integ.* TO 'idp'@'%';
-     FLUSH PRIVILEGES;"
+echo "==> Flushing integ session Redis..."
+SESSION_REDIS_DB="$(docker exec "$APP_CONTAINER" printenv SESSION_REDIS_DB || echo 1)"
+docker exec "$INTEG_SESSIONS_CONTAINER" redis-cli -n "$SESSION_REDIS_DB" FLUSHDB
 
-echo "==> Migrating integ schema..."
-docker exec -e MIGRATE_DB_NAME=idp_integ "$APP_CONTAINER" bash -lc \
+echo "==> Migrating integ database (schema idp on ${INTEG_DB_CONTAINER})..."
+docker exec "$APP_CONTAINER" bash -lc \
     'cd /var/www/idp.amtgard.com && vendor/robmorgan/phinx/bin/phinx migrate'
 
 echo "==> Seeding integ fixtures..."
@@ -149,4 +153,4 @@ compose_worker up -d --build
 echo "==> Waiting for app health..."
 wait_for_app
 
-echo "Integ stack is up (ENVIRONMENT=DEV_INTEG, DB_NAME=idp_integ)."
+echo "Integ stack is up (ENVIRONMENT=DEV_INTEG, DB_HOST=${DB_HOST}, DB_NAME=idp, SESSION_REDIS_HOST=${SESSION_REDIS_HOST})."

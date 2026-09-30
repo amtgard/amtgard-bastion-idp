@@ -15,5 +15,10 @@
     </testsuites>
     <php>
         <env name="IDP_BASE_URL" value="http://localhost:37080"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="36307"/>
+        <env name="DB_NAME" value="idp"/>
+        <env name="DB_USER" value="idp"/>
+        <env name="DB_PASS" value="secret"/>
     </php>
 </phpunit>

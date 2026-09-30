@@ -31,8 +31,8 @@ final class IntegDb
     private static function connect(): PDO
     {
         $host = (string) (getenv('DB_HOST') ?: '127.0.0.1');
-        $port = (string) (getenv('DB_PORT') ?: '36306');
-        $name = (string) (getenv('DB_NAME') ?: 'idp_integ');
+        $port = (string) (getenv('DB_PORT') ?: '36307');
+        $name = (string) (getenv('DB_NAME') ?: 'idp');
         $user = (string) (getenv('DB_USER') ?: 'idp');
         $pass = (string) (getenv('DB_PASS') ?: 'secret');
 

@@ -2,7 +2,7 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-Dotenv\Dotenv::createMutable(__DIR__)->safeLoad();
+Dotenv\Dotenv::createImmutable(__DIR__)->safeLoad();
 
 $migrateDbName = getenv('MIGRATE_DB_NAME');
 if ($migrateDbName !== false && $migrateDbName !== '') {

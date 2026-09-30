@@ -1,12 +1,14 @@
 # Overlay on compose.prod.yml + compose.blue.yml + compose.dev.yml (see scripts/integ-up.sh).
-# DEV integration: separate schema, fake outbound HTTP, isolated session Redis prefix.
+# DEV integration: dedicated MariaDB + session Redis (compose.integ-infra.yml), fake outbound HTTP.
 name: amtgard-idp
 
 services:
   amtgardidpapp:
     environment:
       ENVIRONMENT: DEV_INTEG
-      DB_NAME: idp_integ
+      DB_HOST: amtgard-idp-db-integ
+      DB_NAME: idp
+      SESSION_REDIS_HOST: amtgard-idp-sessions-integ
       APPLE_LOGIN_ENABLED: "true"
       APPLE_KEY_FILE_PATH: /var/www/idp.amtgard.com/tests/fixtures/integ-apple-es256.pem
       SESSION_REDIS_PREFIX: "INTEGSESS:"
