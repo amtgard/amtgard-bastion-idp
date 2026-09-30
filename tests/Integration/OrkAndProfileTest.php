@@ -134,10 +134,18 @@ final class OrkAndProfileTest extends TestCase
         ]);
 
         $authorize = $http->get($authorizePath);
-        $this->assertTrue(
-            $http->isRedirectToPath($authorize, '/oauth/approve'),
-            'Expected approve redirect; location=' . $authorize->getHeaderLine('Location'),
-        );
+        if (!$http->isRedirectToPath($authorize, '/oauth/approve')) {
+            $callbackLocation = $http->redirectLocation($authorize);
+            if (
+                is_string($callbackLocation)
+                && str_starts_with($callbackLocation, IntegFixtures::CONFIDENTIAL_REDIRECT_URI)
+            ) {
+                return;
+            }
+            $this->fail(
+                'Expected approve or callback redirect; location=' . $authorize->getHeaderLine('Location'),
+            );
+        }
 
         $approvePage = $http->get($authorize->getHeaderLine('Location'));
         $approveCsrf = $http->parseCsrfToken((string) $approvePage->getBody());

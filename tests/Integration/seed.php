@@ -79,7 +79,11 @@ function purgeFixtures(PDO $pdo): void
 {
     purgeIntegClientAuthorizations($pdo);
 
-    $emails = [IntegFixtures::PLAYER_EMAIL, IntegFixtures::ADMIN_EMAIL];
+    $emails = [
+        IntegFixtures::PLAYER_EMAIL,
+        IntegFixtures::ADMIN_EMAIL,
+        IntegFixtures::APPLE_EMAIL,
+    ];
     $userUuids = userUuidsForEmails($pdo, $emails);
     if ($userUuids !== []) {
         purgeAuthorizationsForUserIdentifiers($pdo, $userUuids);
@@ -93,8 +97,26 @@ function purgeFixtures(PDO $pdo): void
         $pdo->exec("DELETE FROM users WHERE id IN ($in)");
     }
 
-    $stmt = $pdo->prepare('DELETE FROM clients WHERE client_id = ?');
-    $stmt->execute([IntegFixtures::CONFIDENTIAL_CLIENT_ID]);
+    $clientIds = [
+        IntegFixtures::CONFIDENTIAL_CLIENT_ID,
+        IntegFixtures::UI_CREATED_CLIENT_ID,
+    ];
+    foreach ($clientIds as $clientIdentifier) {
+        purgeClientByIdentifier($pdo, $clientIdentifier);
+    }
+}
+
+function purgeClientByIdentifier(PDO $pdo, string $clientIdentifier): void
+{
+    $stmt = $pdo->prepare('SELECT id FROM clients WHERE client_id = ?');
+    $stmt->execute([$clientIdentifier]);
+    $ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    if ($ids === []) {
+        return;
+    }
+    $in = implode(',', $ids);
+    $pdo->exec("DELETE FROM client_access WHERE client_id IN ($in)");
+    $pdo->exec("DELETE FROM clients WHERE id IN ($in)");
 }
 
 function purgeIntegClientAuthorizations(PDO $pdo): void

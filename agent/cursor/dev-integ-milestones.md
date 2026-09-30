@@ -296,8 +296,6 @@ Mode A:
 
 **Completed (milestone 10):** Branch `stack/dev-integ-10-ork-and-profile`. Added `OrkAndProfileTest` (connect JWT handoff + jti replay, link/refresh/unlink via `DevIntegHttpClient`, OAuth revoke by client identifier), integ overlay env (`IDP_ORK_SHARED_SECRET`, `ORK_BASE_URL`) and php-fpm wiring, ORK fake `UserId` + ORK-shaped `GetPlayer` payload, connect handoff session `client_id`, profile revoke resolves OAuth `client_id` strings, and placeholder ORK profile field defaults for handoff rows. Gates: `composer test` OK (642 tests); `./scripts/integ.sh` OK (11 integ tests). Log-tested: connect handoff `client_id` via `ConnectControllerTest`.
 
-**Resume from:** milestone 11 (`stack/dev-integ-11-management-ui`).
-
 ### 11. `stack/dev-integ-11-management-ui`
 
 Mode A as `integ-admin@example.com`:
@@ -309,6 +307,10 @@ Mode A as `integ-admin@example.com`:
 - `POST /management/clients/{id}/access` with the player email → 200, then delete → 200 `{ok:true}`.
 
 Player `integ-player@example.com` `GET /management/clients` is not 200.
+
+**Completed (milestone 11):** Branch `stack/dev-integ-11-management-ui`. Added `ManagementUiTest` (admin client list/create, operator redirect update after self-access grant, user search, access grant/delete; player denied management), integ fixture constants and seed purge for `integ_from_ui` and `integ-apple@example.com`, and Ork revoke OAuth helper tolerates prior suite authorization. Gates: `composer test` OK (642 tests); `./scripts/integ.sh` OK (13 integ tests). No new `src/` decision-branch logs (integration-only).
+
+**Resume from:** milestone 12 (`stack/dev-integ-12-public-api`).
 
 ### 12. `stack/dev-integ-12-public-api`
 

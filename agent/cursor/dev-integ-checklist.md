@@ -15,9 +15,9 @@ Stack from **`main`**. Git-branchless stacked branches. **Do not push** unless t
 | 8 | `stack/dev-integ-8-social-callbacks` | [x] |
 | 9 | `stack/dev-integ-9-apple-callback` | [x] |
 | 10 | `stack/dev-integ-10-ork-and-profile` | [x] |
-| 11 | `stack/dev-integ-11-management-ui` | [ ] |
+| 11 | `stack/dev-integ-11-management-ui` | [x] |
 | 12 | `stack/dev-integ-12-public-api` | [ ] |
 | 13 | `stack/dev-integ-13-oauth-and-resources` | [ ] |
 | 14 | `stack/dev-integ-14-client-iam` | [ ] |
 
-**Resume from:** 11
+**Resume from:** 12

@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 final class AppleCallbackTest extends TestCase
 {
     private const PROFILE_PATH = '/resources/profile';
-    private const EXPECTED_EMAIL = 'integ-apple@example.com';
+    private const EXPECTED_EMAIL = IntegFixtures::APPLE_EMAIL;
 
     public function testAppleStartRedirectsToVendorAndFormPostCallbackLogsInWithCannedEmail(): void
     {
