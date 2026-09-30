@@ -47,6 +47,77 @@ final class IntegHttp
         ]);
     }
 
+    public function getWithBasicAuth(string $path, string $clientId, string $clientSecret): ResponseInterface
+    {
+        return $this->client->get(ltrim($path, '/'), [
+            'headers' => [
+                'Authorization' => $this->basicAuthorizationHeader($clientId, $clientSecret),
+            ],
+        ]);
+    }
+
+    /** @param array<string, mixed> $body */
+    public function postJsonWithBasicAuth(
+        string $path,
+        array $body,
+        string $clientId,
+        string $clientSecret,
+    ): ResponseInterface {
+        return $this->client->post(ltrim($path, '/'), [
+            'json' => $body,
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => $this->basicAuthorizationHeader($clientId, $clientSecret),
+            ],
+        ]);
+    }
+
+    /** @param array<string, mixed> $body */
+    public function putJsonWithBasicAuth(
+        string $path,
+        array $body,
+        string $clientId,
+        string $clientSecret,
+    ): ResponseInterface {
+        return $this->client->put(ltrim($path, '/'), [
+            'json' => $body,
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => $this->basicAuthorizationHeader($clientId, $clientSecret),
+            ],
+        ]);
+    }
+
+    /** @param array<string, mixed> $body */
+    public function deleteJsonWithBasicAuth(
+        string $path,
+        array $body,
+        string $clientId,
+        string $clientSecret,
+    ): ResponseInterface {
+        return $this->client->delete(ltrim($path, '/'), [
+            'json' => $body,
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => $this->basicAuthorizationHeader($clientId, $clientSecret),
+            ],
+        ]);
+    }
+
+    public function deleteWithBasicAuth(string $path, string $clientId, string $clientSecret): ResponseInterface
+    {
+        return $this->client->delete(ltrim($path, '/'), [
+            'headers' => [
+                'Authorization' => $this->basicAuthorizationHeader($clientId, $clientSecret),
+            ],
+        ]);
+    }
+
+    private function basicAuthorizationHeader(string $clientId, string $clientSecret): string
+    {
+        return 'Basic ' . base64_encode($clientId . ':' . $clientSecret);
+    }
+
     /** @param array<string, string> $fields */
     public function postForm(string $path, array $fields): ResponseInterface
     {

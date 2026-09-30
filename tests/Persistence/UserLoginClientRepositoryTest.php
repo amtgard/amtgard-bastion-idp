@@ -58,10 +58,11 @@ class UserLoginClientRepositoryTest extends TestCase
         };
 
         $repository = $this->getMockBuilder(UserLoginClientRepository::class)
-            ->onlyMethods(['clear', 'find', 'getCurrent', '__set'])
+            ->onlyMethods(['clear', 'find', 'next', 'getCurrent', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->method('find')->willReturn(1);
+        $repository->method('next')->willReturn(true);
         $repository->method('getCurrent')->willReturn($row);
 
         $result = $repository->getMetadata(2, 3);
@@ -78,10 +79,11 @@ class UserLoginClientRepositoryTest extends TestCase
         };
 
         $repository = $this->getMockBuilder(UserLoginClientRepository::class)
-            ->onlyMethods(['clear', 'find', 'getCurrent', '__set'])
+            ->onlyMethods(['clear', 'find', 'next', 'getCurrent', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->method('find')->willReturn(1);
+        $repository->method('next')->willReturn(true);
         $repository->method('getCurrent')->willReturn($row);
 
         $this->assertSame('abc123', $repository->getMetadataForJwt(2, 3));
@@ -105,10 +107,11 @@ class UserLoginClientRepositoryTest extends TestCase
             public function getEncoding(): string { return ClientMetadataValidator::ENCODING_BASE64; }
         };
         $repository = $this->getMockBuilder(UserLoginClientRepository::class)
-            ->onlyMethods(['clear', 'find', 'getCurrent', '__set'])
+            ->onlyMethods(['clear', 'find', 'next', 'getCurrent', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->method('find')->willReturn(1);
+        $repository->method('next')->willReturn(true);
         $repository->method('getCurrent')->willReturn($row);
 
         $this->assertSame([
@@ -124,10 +127,11 @@ class UserLoginClientRepositoryTest extends TestCase
             public function getEncoding(): string { return ClientMetadataValidator::ENCODING_JSON; }
         };
         $repository = $this->getMockBuilder(UserLoginClientRepository::class)
-            ->onlyMethods(['clear', 'find', 'getCurrent', '__set'])
+            ->onlyMethods(['clear', 'find', 'next', 'getCurrent', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->method('find')->willReturn(1);
+        $repository->method('next')->willReturn(true);
         $repository->method('getCurrent')->willReturn($row);
 
         $this->assertSame(['tier' => 'gold'], $repository->getMetadataForJwt(2, 3));
@@ -153,19 +157,23 @@ class UserLoginClientRepositoryTest extends TestCase
 
     public function testUpsertMetadataUpdatesExistingRow(): void
     {
-        $row = new class extends RepositoryEntity {
-            public ?string $metadata = null;
-            public ?string $encoding = null;
-            public ?\DateTimeImmutable $updated_at = null;
-        };
         $fields = [];
+        $row = $this->createMock(UserLoginClient::class);
+        $row->expects($this->once())
+            ->method('replaceMetadata')
+            ->with(
+                '{"theme":"dark"}',
+                ClientMetadataValidator::ENCODING_JSON,
+                $this->matchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/'),
+            );
 
         $repository = $this->getMockBuilder(UserLoginClientRepository::class)
-            ->onlyMethods(['clear', 'find', 'getCurrent', 'persist', '__set'])
+            ->onlyMethods(['clear', 'find', 'next', 'getCurrent', 'persist', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->expects($this->once())->method('clear');
         $repository->expects($this->once())->method('find')->willReturn(1);
+        $repository->expects($this->once())->method('next')->willReturn(true);
         $repository->expects($this->once())->method('getCurrent')->willReturn($row);
         $repository->expects($this->once())->method('persist')->with($row)->willReturn($row);
         $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
@@ -176,9 +184,6 @@ class UserLoginClientRepositoryTest extends TestCase
 
         $this->assertSame(2, $fields['login_id']);
         $this->assertSame(3, $fields['client_id']);
-        $this->assertSame('{"theme":"dark"}', $row->metadata);
-        $this->assertSame(ClientMetadataValidator::ENCODING_JSON, $row->encoding);
-        $this->assertInstanceOf(\DateTimeImmutable::class, $row->updated_at);
     }
 
     public function testUpsertMetadataCreatesRowWhenMissing(): void
@@ -186,7 +191,7 @@ class UserLoginClientRepositoryTest extends TestCase
         $fields = [];
         $persisted = null;
         $repository = $this->getMockBuilder(UserLoginClientRepository::class)
-            ->onlyMethods(['clear', 'find', 'persist', '__set'])
+            ->onlyMethods(['clear', 'find', 'next', 'persist', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->expects($this->once())->method('find')->willReturn(0);

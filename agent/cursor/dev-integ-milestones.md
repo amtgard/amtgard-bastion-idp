@@ -310,8 +310,6 @@ Player `integ-player@example.com` `GET /management/clients` is not 200.
 
 **Completed (milestone 11):** Branch `stack/dev-integ-11-management-ui`. Added `ManagementUiTest` (admin client list/create, operator redirect update after self-access grant, user search, access grant/delete; player denied management), integ fixture constants and seed purge for `integ_from_ui` and `integ-apple@example.com`, and Ork revoke OAuth helper tolerates prior suite authorization. Gates: `composer test` OK (642 tests); `./scripts/integ.sh` OK (13 integ tests). No new `src/` decision-branch logs (integration-only).
 
-**Resume from:** milestone 14 (`stack/dev-integ-14-client-iam`).
-
 ### 12. `stack/dev-integ-12-public-api`
 
 Mode B, no cookie:
@@ -347,6 +345,10 @@ Mode B as `integ_confidential`:
 - `POST /resources/link-ork-profile` and `POST /resources/unlink-ork-profile` → 204. These do not call `OrkService`.
 
 Basic auth for a client with an empty `iam_service` receives 403 on policy-claims and 200 on `GET /resources/client/service-format`. Seed that second client in this milestone’s test setup.
+
+**Completed (milestone 14):** Branch `stack/dev-integ-14-client-iam`. Added `ClientIamTest` (by-email lookup, policy-claims CRUD, user-metadata CRUD, service-format GET/POST/409/PUT, link/unlink ORK profile mirror without live ORK), `IntegDb` login_id lookup, `IntegHttp` Basic-auth helpers, seed client `integ_no_iam`, and `integ-up.sh` php-fpm wiring for `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS`. Fixed `UserLoginClientRepository` metadata persistence (`updated_at` as MySQL datetime string, `next()` before `getCurrent()` on finds, `replaceMetadata()` on updates). Gates: `composer test` OK (643 tests); `./scripts/integ.sh` OK (21 integ tests). Infection on `UserLoginClient*` covered MSI 86%. No new decision-branch logs.
+
+**Dev-integ stack:** milestones 1–14 complete on the stacked branches through `stack/dev-integ-14-client-iam`.
 
 ## Working rules for every milestone
 

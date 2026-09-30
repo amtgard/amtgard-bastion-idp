@@ -67,17 +67,15 @@ class UserLoginClientRepository extends Repository implements EntityRepositoryIn
         string $payload,
         string $encoding
     ): void {
-        $now = new \DateTimeImmutable();
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
 
         $this->clear();
         $this->login_id = $loginDbId;
         $this->client_id = $clientDbId;
-        if ($this->find() > 0) {
+        if ($this->find() > 0 && $this->next()) {
             /** @var UserLoginClient $existing */
             $existing = $this->getCurrent();
-            $existing->metadata = $payload;
-            $existing->encoding = $encoding;
-            $existing->updated_at = $now;
+            $existing->replaceMetadata($payload, $encoding, $now);
             $this->persist($existing);
             return;
         }
@@ -108,7 +106,7 @@ class UserLoginClientRepository extends Repository implements EntityRepositoryIn
         $this->clear();
         $this->login_id = $loginDbId;
         $this->client_id = $clientDbId;
-        if ($this->find() === 0) {
+        if ($this->find() === 0 || !$this->next()) {
             return null;
         }
 

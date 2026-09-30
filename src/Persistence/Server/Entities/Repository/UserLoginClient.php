@@ -36,7 +36,7 @@ class UserLoginClient extends RepositoryEntity
     private string $encoding;
 
     #[Field('updated_at')]
-    private \DateTimeInterface $updatedAt;
+    private string $updatedAt;
 
     public function getUserId(): int
     {
@@ -63,8 +63,15 @@ class UserLoginClient extends RepositoryEntity
         return $this->encoding;
     }
 
-    public function getUpdatedAt(): \DateTimeInterface
+    public function getUpdatedAt(): string
     {
         return $this->updatedAt;
+    }
+
+    public function replaceMetadata(string $payload, string $encoding, string $updatedAt): void
+    {
+        $this->metadata = $payload;
+        $this->encoding = $encoding;
+        $this->updatedAt = $updatedAt;
     }
 }

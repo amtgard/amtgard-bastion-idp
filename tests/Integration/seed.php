@@ -48,6 +48,19 @@ $client = Client::builder()
 
 EntityManager::getManager()->persist($client);
 
+$noIamClient = Client::builder()
+    ->identifier(IntegFixtures::NO_IAM_CLIENT_ID)
+    ->clientSecret(IntegFixtures::NO_IAM_CLIENT_SECRET)
+    ->name('Integration client without IAM namespace')
+    ->redirectUri('http://localhost:37080/integ/no-iam/callback')
+    ->isConfidential(true)
+    ->isDev(true)
+    ->iamService(null)
+    ->iamServiceFormat(null)
+    ->build();
+
+EntityManager::getManager()->persist($noIamClient);
+
 fwrite(STDOUT, "Integ fixtures seeded (schema {$_ENV['DB_NAME']}).\n");
 
 function integApplyCliEnvironment(): void
@@ -99,6 +112,7 @@ function purgeFixtures(PDO $pdo): void
 
     $clientIds = [
         IntegFixtures::CONFIDENTIAL_CLIENT_ID,
+        IntegFixtures::NO_IAM_CLIENT_ID,
         IntegFixtures::UI_CREATED_CLIENT_ID,
     ];
     foreach ($clientIds as $clientIdentifier) {

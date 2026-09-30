@@ -15,6 +15,10 @@ final class IntegFixtures
     public const CONFIDENTIAL_CLIENT_SECRET = 'integ-confidential-secret';
     public const CONFIDENTIAL_REDIRECT_URI = 'http://localhost:37080/integ/callback';
 
+    /** Confidential client with no iam_service (credential-only routes). */
+    public const NO_IAM_CLIENT_ID = 'integ_no_iam';
+    public const NO_IAM_CLIENT_SECRET = 'integ-no-iam-secret';
+
     public const UI_CREATED_CLIENT_ID = 'integ_from_ui';
     public const UI_CREATED_REDIRECT_URI = 'http://localhost:37080/integ/from-ui/callback';
     public const UI_UPDATED_REDIRECT_URI = 'http://localhost:37080/integ/from-ui/updated';

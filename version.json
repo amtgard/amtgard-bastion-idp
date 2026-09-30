@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-09-30.231",
+  "build_id": "2026-09-30.232",
   "date": "2026-09-30",
-  "revision": 231,
-  "branch": "stack/dev-integ-13-oauth-and-resources"
+  "revision": 232,
+  "branch": "stack/dev-integ-14-client-iam"
 }
