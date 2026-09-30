@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
-use PHPUnit\Framework\TestCase;
-
 /** Mode B — public API and management key routes without a session cookie. */
-final class PublicApiTest extends TestCase
+final class PublicApiTest extends IntegTestCase
 {
     private const ADMIN_EDIT_CLIENT = 'Idp:0::::IDP/EditClient';
 
@@ -16,6 +14,7 @@ final class PublicApiTest extends TestCase
 
     protected function setUp(): void
     {
+        parent::setUp();
         $baseUrl = (string) (getenv('IDP_BASE_URL') ?: 'http://localhost:37080');
         $this->http = new IntegHttp($baseUrl);
     }

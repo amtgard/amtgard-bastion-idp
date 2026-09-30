@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
-use PHPUnit\Framework\TestCase;
-
 /** Mode A — register, logout, login, and failed login in one cookie jar. */
-final class UiSessionTest extends TestCase
+final class UiSessionTest extends IntegTestCase
 {
     private const PROFILE_PATH = '/resources/profile';
 

@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
-use PHPUnit\Framework\TestCase;
-
 /** Mode A — Apple Sign In redirect and form_post callback login. */
-final class AppleCallbackTest extends TestCase
+final class AppleCallbackTest extends IntegTestCase
 {
     private const PROFILE_PATH = '/resources/profile';
     private const EXPECTED_EMAIL = IntegFixtures::APPLE_EMAIL;

@@ -11,6 +11,7 @@
             <exclude>tests/Integration/verify_dev_http_client.php</exclude>
             <exclude>tests/Integration/Support</exclude>
             <exclude>tests/Integration/IntegFixtures.php</exclude>
+            <exclude>tests/Integration/IntegTestCase.php</exclude>
         </testsuite>
     </testsuites>
     <php>

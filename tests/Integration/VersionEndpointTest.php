@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
-use PHPUnit\Framework\TestCase;
-
 /** Mode B — public JSON health of the live dev stack under integ overlay. */
-final class VersionEndpointTest extends TestCase
+final class VersionEndpointTest extends IntegTestCase
 {
     public function testVersionReturnsJson(): void
     {

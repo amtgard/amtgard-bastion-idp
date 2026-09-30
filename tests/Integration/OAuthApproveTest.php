@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
-use PHPUnit\Framework\TestCase;
-
 /** Mode A — OAuth authorize consent: login gate, approve, deny, and allow with code. */
-final class OAuthApproveTest extends TestCase
+final class OAuthApproveTest extends IntegTestCase
 {
     public function testAuthorizeWhileLoggedOutRedirectsToLogin(): void
     {

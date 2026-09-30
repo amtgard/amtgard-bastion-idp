@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
-use PHPUnit\Framework\TestCase;
-
 /** Mode A — admin management UI and operator redirect update; player denied admin routes. */
-final class ManagementUiTest extends TestCase
+final class ManagementUiTest extends IntegTestCase
 {
     private const MANAGEMENT_CLIENTS_PATH = '/management/clients';
 

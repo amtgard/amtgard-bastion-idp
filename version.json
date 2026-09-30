@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-09-30.234",
+  "build_id": "2026-09-30.235",
   "date": "2026-09-30",
-  "revision": 234,
-  "branch": "stack/dev-integ-c2-integ-wire-hosts"
+  "revision": 235,
+  "branch": "stack/dev-integ-c3-per-test-reseed"
 }

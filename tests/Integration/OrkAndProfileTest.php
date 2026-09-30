@@ -7,12 +7,10 @@ namespace Amtgard\IdP\Tests\Integration;
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
 use DevIntegHttpClient;
 use Firebase\JWT\JWT;
-use PHPUnit\Framework\TestCase;
-
 require_once dirname(__DIR__, 2) . '/config/container/integ/DevIntegHttpClient.php';
 
 /** Mode A — ORK connect JWT handoff, profile link/refresh/unlink, and OAuth revoke. */
-final class OrkAndProfileTest extends TestCase
+final class OrkAndProfileTest extends IntegTestCase
 {
     private const PROFILE_PATH = '/resources/profile';
 

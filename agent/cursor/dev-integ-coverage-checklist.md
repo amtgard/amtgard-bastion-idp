@@ -10,10 +10,10 @@ Stack from **`stack/dev-integ-14-client-iam`** (or `main` after merge). **Do not
 | C0 | `stack/dev-integ-c0-integ-zero-warnings` | [x] |
 | C1 | `stack/dev-integ-c1-integ-infra-compose` | [x] |
 | C2 | `stack/dev-integ-c2-integ-wire-hosts` | [x] |
-| C3 | `stack/dev-integ-c3-per-test-reseed` | [ ] |
+| C3 | `stack/dev-integ-c3-per-test-reseed` | [x] |
 | C4 | `stack/dev-integ-c4-route-matrix-doc` | [ ] |
 
-**Resume from:** C3 (C2: integ overlay + php-fpm wire `DB_HOST` / `SESSION_REDIS_HOST` to integ services; migrate/seed integ MariaDB only.)
+**Resume from:** C4 (per-test `IntegTestCase` reseed + random-order `composer integ`.)
 
 ## Phase D — Coverage expansion
 

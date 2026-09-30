@@ -15,7 +15,7 @@ integApplyCliEnvironment();
 $container = require dirname(__DIR__, 2) . '/config/bootstrap.php';
 integApplyCliEnvironment();
 
-if (($_ENV['ENVIRONMENT'] ?? '') !== 'DEV_INTEG') {
+if ((getenv('ENVIRONMENT') ?: '') !== 'DEV_INTEG') {
     fwrite(STDERR, "seed.php requires ENVIRONMENT=DEV_INTEG\n");
     exit(1);
 }
@@ -65,24 +65,51 @@ fwrite(STDOUT, "Integ fixtures seeded (schema {$_ENV['DB_NAME']}).\n");
 
 function integApplyCliEnvironment(): void
 {
-    foreach ([
-        'ENVIRONMENT' => 'DEV_INTEG',
-        'DB_HOST' => 'amtgard-idp-db-integ',
-        'DB_NAME' => 'idp',
-    ] as $key => $value) {
-        putenv("{$key}={$value}");
-        $_ENV[$key] = $value;
-        $_SERVER[$key] = $value;
+    integForceEnv('ENVIRONMENT', 'DEV_INTEG');
+    integApplyEnvDefault('DB_HOST', 'amtgard-idp-db-integ');
+    integApplyEnvDefault('DB_NAME', 'idp');
+}
+
+function integForceEnv(string $key, string $value): void
+{
+    putenv("{$key}={$value}");
+    $_ENV[$key] = $value;
+    $_SERVER[$key] = $value;
+}
+
+function integApplyEnvDefault(string $key, string $default): void
+{
+    $existing = getenv($key);
+    if ($existing !== false && $existing !== '') {
+        return;
     }
+
+    putenv("{$key}={$default}");
+    $_ENV[$key] = $default;
+    $_SERVER[$key] = $default;
+}
+
+function integEnvString(string $key, string $default): string
+{
+    $fromEnv = getenv($key);
+    if ($fromEnv !== false && $fromEnv !== '') {
+        return $fromEnv;
+    }
+
+    if (isset($_ENV[$key]) && is_string($_ENV[$key]) && $_ENV[$key] !== '') {
+        return $_ENV[$key];
+    }
+
+    return $default;
 }
 
 function integPdo(): PDO
 {
-    $host = (string) ($_ENV['DB_HOST'] ?? 'localhost');
-    $port = (string) ($_ENV['DB_PORT'] ?? '3306');
-    $name = (string) ($_ENV['DB_NAME'] ?? '');
-    $user = (string) ($_ENV['DB_USER'] ?? '');
-    $pass = (string) ($_ENV['DB_PASS'] ?? '');
+    $host = integEnvString('DB_HOST', 'localhost');
+    $port = integEnvString('DB_PORT', '3306');
+    $name = integEnvString('DB_NAME', '');
+    $user = integEnvString('DB_USER', '');
+    $pass = integEnvString('DB_PASS', '');
 
     return new PDO(
         sprintf('mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4', $host, $port, $name),

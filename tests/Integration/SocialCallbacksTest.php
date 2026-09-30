@@ -6,10 +6,8 @@ namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
 use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
-
 /** Mode A — Google, Facebook, and Discord OAuth start redirects and callback login. */
-final class SocialCallbacksTest extends TestCase
+final class SocialCallbacksTest extends IntegTestCase
 {
     private const PROFILE_PATH = '/resources/profile';
 

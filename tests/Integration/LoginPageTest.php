@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
-use PHPUnit\Framework\TestCase;
-
 /** Mode A — session cookie and CSRF field on the login form. */
-final class LoginPageTest extends TestCase
+final class LoginPageTest extends IntegTestCase
 {
     public function testLoginPageSetsSessionCookieAndCsrfField(): void
     {

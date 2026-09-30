@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
-use PHPUnit\Framework\TestCase;
-
 /** Mode A allow + Mode B token exchange and resource Bearer endpoints. */
-final class OAuthTokenAndResourcesTest extends TestCase
+final class OAuthTokenAndResourcesTest extends IntegTestCase
 {
     public function testAuthorizationCodeRefreshAndResourceEndpoints(): void
     {
