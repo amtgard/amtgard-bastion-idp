@@ -1,6 +1,6 @@
 # DEV integ — route matrix
 
-Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-c4-route-matrix-doc`** (stack 1–14 + phase C isolation). Update this file when phase D milestones add cases.
+Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d1-static-docs`** (stack 1–14 + phase C isolation + D1 static docs). Update this file when phase D milestones add cases.
 
 **Modes** (see [dev-integ-milestones.md](./dev-integ-milestones.md)):
 
@@ -17,19 +17,19 @@ Maps every route registered in `config/routes.php` to integration coverage as of
 
 When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Test class** lists the class(es).
 
-**Summary (C4):** 58 route registrations · **y** 48 · **n** 9 · **excluded** 1 · mailbox (no routes) excluded by policy.
+**Summary (D1):** 58 route registrations · **y** 53 · **n** 4 · **excluded** 1 · mailbox (no routes) excluded by policy.
 
 ## Matrix
 
 | Method | Path | Route name | Mode | Covered | Test class | Notes |
 |--------|------|------------|------|---------|------------|-------|
-| GET | `/` | `home` | A | n | — | D1 |
+| GET | `/` | `home` | A | y | `StaticDocsTest` | |
 | GET | `/version` | `version` | B | y | `VersionEndpointTest` | |
-| GET | `/swagger` | `swagger.documentation` | A | n | — | D1 |
+| GET | `/swagger` | `swagger.documentation` | A | y | `StaticDocsTest` | |
 | GET | `/openapi.json` | `swagger.openapi` | B | y | `PublicApiTest` | |
-| GET | `/docs` | `swagger.docsify` | A | n | — | D1; optional trailing `/` |
-| GET | `/docs/readme.md` | `swagger.docsify_content` | A | n | — | D1 |
-| GET | `/docs/README.md` | `swagger.docsify_content_upper` | A | n | — | D1 |
+| GET | `/docs` | `swagger.docsify` | A | y | `StaticDocsTest` | incl. trailing `/` |
+| GET | `/docs/readme.md` | `swagger.docsify_content` | A | y | `StaticDocsTest` | |
+| GET | `/docs/README.md` | `swagger.docsify_content_upper` | A | y | `StaticDocsTest` | |
 | POST | `/api/is_authorized` | `api.is_authorized` | B | y | `PublicApiTest` | allow + deny |
 | GET | `/resources/validate` | `resources.validate` | B | y | `OAuthTokenAndResourcesTest` | Bearer authorization JWT |
 | GET | `/resources/userinfo` | `resources.userinfo` | A+B | y | `OAuthTokenAndResourcesTest`, `SocialCallbacksTest`, `AppleCallbackTest` | A: Bearer after social; B: Bearer JWT |

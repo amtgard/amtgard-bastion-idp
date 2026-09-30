@@ -13,13 +13,13 @@ Stack from **`stack/dev-integ-14-client-iam`** (or `main` after merge). **Do not
 | C3 | `stack/dev-integ-c3-per-test-reseed` | [x] |
 | C4 | `stack/dev-integ-c4-route-matrix-doc` | [x] |
 
-**Resume from:** D1 (`stack/dev-integ-d1-static-docs`.)
+**Resume from:** D2 (`stack/dev-integ-d2-auth-negatives`.)
 
 ## Phase D — Coverage expansion
 
 | # | Branch | Done |
 |---|--------|------|
-| D1 | `stack/dev-integ-d1-static-docs` | [ ] |
+| D1 | `stack/dev-integ-d1-static-docs` | [x] |
 | D2 | `stack/dev-integ-d2-auth-negatives` | [ ] |
 | D3 | `stack/dev-integ-d3-connect-register` | [ ] |
 | D4 | `stack/dev-integ-d4-oauth-errors` | [ ] |
