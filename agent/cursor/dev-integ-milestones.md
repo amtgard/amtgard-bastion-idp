@@ -210,6 +210,8 @@ Done when social unit tests still pass with mocked provider objects, and a focus
 
 Done when `OrkService` unit tests and Infection on `src/Services/OrkService.php` meet the project gates (`--min-msi=80 --min-covered-msi=80` for that filter). Log lines that already exist stay. Do not add a log on the constructor.
 
+**Completed (milestone 3):** Branch `stack/dev-integ-3-ork-http-seam`. Added `OrkHttpClient` factory (`src/Utility/Http/OrkHttpClient.php`) and container key; `config/container/ork.php` registers the real Guzzle client (User-Agent, Referer, `verify => false`) and injects it into `OrkService`. `OrkService` constructor takes `ClientInterface` + `LoggerInterface` only. Unit tests: `tests/Services/OrkServiceTest.php` (constructor injection + log assertions on existing ORK branches), `tests/Utility/Http/OrkHttpClientTest.php` (env + client config). Gates: `composer test` OK (632 tests); Infection on `OrkService` covered MSI 96%. No new decision-branch logs (wiring-only seam).
+
 ### 4. `stack/dev-integ-4-mode-switch`
 
 Add `config/container/integ/DevIntegHttpClient.php` and the two `*.integ.php` includes. `container.php` selects them only when `ENVIRONMENT=DEV_INTEG`. Production includes still construct the real clients.
