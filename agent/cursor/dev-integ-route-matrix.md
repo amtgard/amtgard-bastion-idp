@@ -1,6 +1,6 @@
 # DEV integ — route matrix
 
-Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d6-resources-clients-ui`** (stack 1–14 + phase C isolation + D1–D6). Update this file when phase D milestones add cases.
+Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d7-management-update`** (stack 1–14 + phase C isolation + D1–D7). Update this file when phase D milestones add cases.
 
 **Modes** (see [dev-integ-milestones.md](./dev-integ-milestones.md)):
 
@@ -17,7 +17,7 @@ Maps every route registered in `config/routes.php` to integration coverage as of
 
 When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Test class** lists the class(es).
 
-**Summary (D6):** 58 route registrations · **y** 54 · **n** 3 · **excluded** 1 · mailbox (no routes) excluded by policy. D6 adds logged-in player `GET /resources/clients` (operator view lists granted clients only, not the full admin catalog).
+**Summary (D7):** 58 route registrations · **y** 55 · **n** 2 · **excluded** 1 · mailbox (no routes) excluded by policy. D7 adds admin `POST /management/clients/{id}` (name + IAM metadata update) and player denied on that POST.
 
 ## Matrix
 
@@ -73,7 +73,7 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | GET | `/management/cleantokens` | `management.cleantokens` | B | y | `PublicApiTest` | good + bad key |
 | GET | `/management/clients` | `management.clients` | A | y | `ManagementUiTest` | admin 200; player not 200 |
 | POST | `/management/clients` | `management.clients.create` | A | y | `ManagementUiTest` | |
-| POST | `/management/clients/{id}` | `management.clients.update` | A | n | — | D7 |
+| POST | `/management/clients/{id}` | `management.clients.update` | A | y | `ManagementUiTest` | admin update name/metadata; player redirected |
 | GET | `/management/users/search` | `management.users.search` | A | y | `ManagementUiTest` | |
 | POST | `/management/clients/{id}/access` | `management.clients.access.add` | A | y | `ManagementUiTest` | |
 | POST | `/management/clients/{id}/access/{userId}/delete` | `management.clients.access.remove` | A | y | `ManagementUiTest` | |

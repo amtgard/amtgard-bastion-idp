@@ -101,6 +101,91 @@ final class ManagementUiTest extends IntegTestCase
         $this->assertTrue($deletePayload['ok'] ?? false);
     }
 
+    public function testAdminUpdatesClientNameAndMetadataViaManagementPost(): void
+    {
+        $baseUrl = $this->integBaseUrl();
+        $http = new IntegHttp($baseUrl);
+        $this->login($http, IntegFixtures::ADMIN_EMAIL);
+
+        $listPage = $http->get(self::MANAGEMENT_CLIENTS_PATH);
+        $this->assertSame(200, $listPage->getStatusCode(), (string) $listPage->getBody());
+        $listHtml = (string) $listPage->getBody();
+        $csrf = $http->parseCsrfToken($listHtml);
+
+        $createResponse = $http->postForm('/management/clients', [
+            '_csrf_token' => $csrf,
+            'name' => 'Integration UI client',
+            'client_id' => IntegFixtures::UI_CREATED_CLIENT_ID,
+            'client_secret' => 'integ-from-ui-secret',
+            'redirect_uri' => IntegFixtures::UI_CREATED_REDIRECT_URI,
+            'is_confidential' => '1',
+            'is_dev' => '1',
+            'iam_service' => 'IntegFromUi',
+        ]);
+        $this->assertTrue(
+            $http->isRedirectToPath($createResponse, self::MANAGEMENT_CLIENTS_PATH),
+            'Expected 302 to client list after create; location=' . $createResponse->getHeaderLine('Location'),
+        );
+
+        $afterCreate = $http->get(self::MANAGEMENT_CLIENTS_PATH);
+        $this->assertSame(200, $afterCreate->getStatusCode());
+        $afterCreateHtml = (string) $afterCreate->getBody();
+        $clientDbId = $this->parseClientDbId($afterCreateHtml, IntegFixtures::UI_CREATED_CLIENT_ID);
+        $csrf = $http->parseCsrfToken($afterCreateHtml);
+
+        $updateResponse = $http->postForm('/management/clients/' . $clientDbId, [
+            '_csrf_token' => $csrf,
+            'name' => IntegFixtures::UI_UPDATED_CLIENT_NAME,
+            'client_id' => IntegFixtures::UI_CREATED_CLIENT_ID,
+            'client_secret' => 'integ-from-ui-secret',
+            'redirect_uri' => IntegFixtures::UI_CREATED_REDIRECT_URI,
+            'is_confidential' => '1',
+            'is_dev' => '1',
+            'iam_service' => IntegFixtures::UI_UPDATED_IAM_SERVICE,
+            'iam_service_format' => IntegFixtures::UI_UPDATED_IAM_FORMAT,
+        ]);
+        $this->assertTrue(
+            $http->isRedirectToPath($updateResponse, self::MANAGEMENT_CLIENTS_PATH),
+            'Expected 302 to client list after update; location=' . $updateResponse->getHeaderLine('Location'),
+        );
+
+        $afterUpdate = $http->get(self::MANAGEMENT_CLIENTS_PATH);
+        $this->assertSame(200, $afterUpdate->getStatusCode());
+        $client = $this->parseClientRecord(
+            (string) $afterUpdate->getBody(),
+            IntegFixtures::UI_CREATED_CLIENT_ID,
+        );
+        $this->assertSame(IntegFixtures::UI_UPDATED_CLIENT_NAME, $client['name'] ?? null);
+        $this->assertSame(IntegFixtures::UI_UPDATED_IAM_SERVICE, $client['iamService'] ?? null);
+        $this->assertSame('["Configuration","Game"]', $client['iamServiceFormat'] ?? null);
+    }
+
+    public function testPlayerCannotPostManagementClientUpdate(): void
+    {
+        $baseUrl = $this->integBaseUrl();
+        $http = new IntegHttp($baseUrl);
+        $this->login($http, IntegFixtures::PLAYER_EMAIL);
+
+        $profilePage = $http->get('/resources/profile');
+        $this->assertSame(200, $profilePage->getStatusCode(), (string) $profilePage->getBody());
+        $csrf = $http->parseCsrfToken((string) $profilePage->getBody());
+
+        $updateResponse = $http->postForm('/management/clients/1', [
+            '_csrf_token' => $csrf,
+            'name' => 'Player tamper attempt',
+            'client_id' => IntegFixtures::CONFIDENTIAL_CLIENT_ID,
+            'client_secret' => 'stolen-secret',
+            'redirect_uri' => IntegFixtures::CONFIDENTIAL_REDIRECT_URI,
+            'is_confidential' => '1',
+            'iam_service' => 'EvilService',
+        ]);
+        $this->assertTrue(
+            $http->isRedirectToPath($updateResponse, '/resources/profile'),
+            'Player must be redirected away from management update; status=' . $updateResponse->getStatusCode()
+            . ' location=' . $updateResponse->getHeaderLine('Location'),
+        );
+    }
+
     public function testPlayerCannotOpenManagementClients(): void
     {
         $baseUrl = (string) (getenv('IDP_BASE_URL') ?: 'http://localhost:37080');
@@ -131,6 +216,20 @@ final class ManagementUiTest extends IntegTestCase
 
     private function parseClientDbId(string $html, string $identifier): int
     {
+        $client = $this->parseClientRecord($html, $identifier);
+        $id = (int) ($client['id'] ?? 0);
+        if ($id <= 0) {
+            throw new \RuntimeException("Client {$identifier} has no id in management HTML");
+        }
+
+        return $id;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function parseClientRecord(string $html, string $identifier): array
+    {
         preg_match_all('/data-client="([^"]+)"/', $html, $matches);
         foreach ($matches[1] as $encoded) {
             $json = html_entity_decode($encoded, ENT_QUOTES | ENT_HTML5);
@@ -140,10 +239,7 @@ final class ManagementUiTest extends IntegTestCase
                 continue;
             }
             if (($client['identifier'] ?? '') === $identifier) {
-                $id = (int) ($client['id'] ?? 0);
-                if ($id > 0) {
-                    return $id;
-                }
+                return $client;
             }
         }
 

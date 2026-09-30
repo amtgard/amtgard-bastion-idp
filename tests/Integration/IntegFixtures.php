@@ -25,6 +25,11 @@ final class IntegFixtures
     public const UI_CREATED_REDIRECT_URI = 'http://localhost:37080/integ/from-ui/callback';
     public const UI_UPDATED_REDIRECT_URI = 'http://localhost:37080/integ/from-ui/updated';
 
+    /** Admin management POST /management/clients/{id} (D7 integ). */
+    public const UI_UPDATED_CLIENT_NAME = 'Integration UI client (updated)';
+    public const UI_UPDATED_IAM_SERVICE = 'IntegFromUiUpdated';
+    public const UI_UPDATED_IAM_FORMAT = 'Configuration,Game';
+
     /** Player operator list UI (D6 integ). */
     public const PLAYER_OPERATOR_CLIENT_ID = 'integ_player_operator';
     public const PLAYER_OPERATOR_REDIRECT_URI = 'http://localhost:37080/integ/player-operator/callback';
