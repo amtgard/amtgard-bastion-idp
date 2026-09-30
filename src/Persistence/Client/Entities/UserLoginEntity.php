@@ -58,4 +58,9 @@ class UserLoginEntity extends RepositoryEntity
     {
         return $this->id;
     }
+
+    public function getLinkedUserId(): ?int
+    {
+        return isset($this->userId) ? $this->userId : null;
+    }
 }

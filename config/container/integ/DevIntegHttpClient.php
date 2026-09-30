@@ -21,6 +21,8 @@ final class DevIntegHttpClient extends Client
 
     public const INTEG_ORK_USERNAME = 'integ-ork';
 
+    public const INTEG_ORK_MAILBOX_EMAIL = 'integ-ork-mailbox@example.com';
+
     private const INTEG_DENY_CODE = 'integ-deny';
 
     public function __construct(LoggerInterface $logger)
@@ -129,6 +131,28 @@ final class DevIntegHttpClient extends Client
             return self::jsonResponse(['Status' => ['Status' => 1]]);
         }
 
+        if ($call === 'SearchService/Player') {
+            $search = strtolower(trim((string) ($query['search'] ?? $requestPayload['search'] ?? '')));
+            if ($search === '' || strlen($search) < 2) {
+                return self::jsonResponse(['Status' => ['Status' => 0], 'Result' => []]);
+            }
+            if (str_contains(strtolower(self::INTEG_ORK_USERNAME), $search)
+                || str_contains($search, 'integ')) {
+                return self::jsonResponse([
+                    'Status' => ['Status' => 0],
+                    'Result' => [[
+                        'UserName' => self::INTEG_ORK_USERNAME,
+                        'Persona' => 'IntegOrk',
+                        'MundaneId' => self::INTEG_MUNDANE_ID,
+                        'ParkName' => 'Integ Park',
+                        'KingdomName' => 'Dragonspine',
+                    ]],
+                ]);
+            }
+
+            return self::jsonResponse(['Status' => ['Status' => 0], 'Result' => []]);
+        }
+
         if ($call === 'Player/GetPlayer') {
             $mundaneId = (int) ($requestPayload['MundaneId'] ?? 0);
             if ($mundaneId === self::INTEG_MUNDANE_ID) {
@@ -142,7 +166,7 @@ final class DevIntegHttpClient extends Client
                         'KingdomId' => 1,
                         'KingdomName' => 'Dragonspine',
                         'Suspended' => 0,
-                        'Email' => '',
+                        'Email' => self::INTEG_ORK_MAILBOX_EMAIL,
                         'Image' => null,
                         'Heraldry' => null,
                         'SuspendedAt' => null,

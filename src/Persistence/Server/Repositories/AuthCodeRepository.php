@@ -8,6 +8,7 @@ namespace Amtgard\IdP\Persistence\Server\Repositories;
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\EntityManager;
+use Amtgard\IdP\Controllers\Server\OAuth\OAuthSessionAuthRequestStore;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAuthCode;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AuthCode;
@@ -17,7 +18,7 @@ use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use Ramsey\Uuid\Uuid;
 
 #[RepositoryOf('auth_codes', AuthCode::class)]
-class AuthCodeRepository extends Repository implements AuthCodeRepositoryInterface
+class AuthCodeRepository extends Repository implements AuthCodeRepositoryInterface, AuthCodeNonceLookup
 {
 
     static function getTableName()
@@ -61,7 +62,22 @@ class AuthCodeRepository extends Repository implements AuthCodeRepositoryInterfa
         $authCode->setExpiryDateTime($oAuthAuthCode->getExpiryDateTime());
         $authCode->setUserIdentifier($oAuthAuthCode->getUserIdentifier());
         $authCode->setRedirectUri($oAuthAuthCode->getRedirectUri());
+        $sessionStore = new OAuthSessionAuthRequestStore();
+        $authCode->setNonce($sessionStore->nonce());
+        $sessionStore->clearNonce();
         $authCode->persist($authCode->getMapper());
+    }
+
+    public function findNonceByAuthCodeId(string $authCodeId): ?string
+    {
+        $authCode = $this->fetchBy('identifier', $authCodeId);
+        if (!$authCode instanceof AuthCode) {
+            return null;
+        }
+
+        $nonce = $authCode->getNonce();
+
+        return is_string($nonce) && $nonce !== '' ? $nonce : null;
     }
 
     public function revokeAuthCode($codeId)

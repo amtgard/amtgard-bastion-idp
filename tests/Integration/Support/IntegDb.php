@@ -9,6 +9,19 @@ use PDO;
 /** Read-only DB helper for integ fixture lookups (host → published MariaDB port). */
 final class IntegDb
 {
+    public static function idpUserUuidForEmail(string $email): string
+    {
+        $pdo = self::connect();
+        $stmt = $pdo->prepare('SELECT user_id FROM users WHERE email = ? LIMIT 1');
+        $stmt->execute([$email]);
+        $userId = $stmt->fetchColumn();
+        if ($userId === false || !is_string($userId) || $userId === '') {
+            throw new \RuntimeException("No users.user_id for email {$email}");
+        }
+
+        return $userId;
+    }
+
     public static function passwordLoginIdForEmail(string $email): int
     {
         $pdo = self::connect();

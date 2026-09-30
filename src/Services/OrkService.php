@@ -94,6 +94,100 @@ final class OrkService
             return null;
         }
     }
+
+    /**
+     * Public username search. The result never includes the ORK email.
+     *
+     * @return list<array{mundaneId: int, username: string, persona: string, parkName: string, kingdomName: string}>
+     */
+    public function searchUsernames(string $term, int $limit = 8): array
+    {
+        $term = trim($term);
+        if (strlen($term) < 2) {
+            return [];
+        }
+
+        $limit = max(1, min(10, $limit));
+
+        try {
+            $response = $this->httpClient->get(self::BASE_URL, [
+                'query' => [
+                    'call' => 'SearchService/Player',
+                    'type' => 'USER',
+                    'search' => $term,
+                    'limit' => (string) $limit,
+                ],
+            ]);
+            $data = json_decode($response->getBody()->getContents(), true);
+            $rows = is_array($data['Result'] ?? null) ? $data['Result'] : [];
+            $matches = [];
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $username = trim((string) ($row['UserName'] ?? ''));
+                $mundaneId = (int) ($row['MundaneId'] ?? 0);
+                if ($username === '' || $mundaneId <= 0) {
+                    continue;
+                }
+                $matches[] = [
+                    'mundaneId' => $mundaneId,
+                    'username' => $username,
+                    'persona' => trim((string) ($row['Persona'] ?? '')),
+                    'parkName' => trim((string) ($row['ParkName'] ?? '')),
+                    'kingdomName' => trim((string) ($row['KingdomName'] ?? '')),
+                ];
+            }
+
+            return $matches;
+        } catch (GuzzleException $e) {
+            $this->logger->error('ORK username search exception', ['exception' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Player record used to mail the address stored on the ORK mundane.
+     * Callers must not return Email to the browser.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getPlayerByMundaneId(int $mundaneId): ?array
+    {
+        if ($mundaneId <= 0) {
+            return null;
+        }
+
+        try {
+            $response = $this->httpClient->get(self::BASE_URL, [
+                'query' => [
+                    'call' => 'Player/GetPlayer',
+                    'request' => [
+                        'MundaneId' => $mundaneId,
+                    ],
+                ],
+            ]);
+            $data = json_decode($response->getBody()->getContents(), true);
+            if (isset($data['Status']['Status']) && $data['Status']['Status'] === 0 && isset($data['Player']) && is_array($data['Player'])) {
+                return $data['Player'];
+            }
+
+            $this->logger->warning('ORK GetPlayer by mundane id failed', [
+                'mundaneId' => $mundaneId,
+                'status' => $data['Status'] ?? null,
+            ]);
+
+            return null;
+        } catch (GuzzleException $e) {
+            $this->logger->error('ORK GetPlayer by mundane id exception', [
+                'mundaneId' => $mundaneId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
     public function getParkShortInfo(int $parkId): ?array
     {
         $request = [

@@ -64,4 +64,45 @@ final class IntegFixtures
             'exp' => time() + 900,
         ], self::ORK_SHARED_SECRET, 'HS256');
     }
+
+    /** Mint a possession handoff JWT (Flow B with challenge_id + idp_email hint). */
+    public static function mintPossessionConnectLinkToken(
+        string $jti,
+        string $idpEmail,
+        int $mundaneId,
+        string $orkChallengeId,
+    ): string {
+        return JWT::encode([
+            'iss' => 'ork',
+            'aud' => 'idp',
+            'sub' => (string) $mundaneId,
+            'idp_email' => $idpEmail,
+            'challenge_id' => $orkChallengeId,
+            'jti' => $jti,
+            'iat' => time(),
+            'exp' => time() + 900,
+        ], self::ORK_SHARED_SECRET, 'HS256');
+    }
+
+    /** Mint an ORK→IDP Flow A completion JWT after claim_ork. */
+    public static function mintFlowACompletionToken(
+        string $challengeId,
+        string $idpUserId,
+        int $mundaneId,
+        string $jti,
+    ): string {
+        $now = time();
+
+        return JWT::encode([
+            'iss' => 'ork',
+            'aud' => 'idp',
+            'challenge_id' => $challengeId,
+            'idp_user_id' => $idpUserId,
+            'mundane_id' => $mundaneId,
+            'purpose' => 'claim_ork',
+            'jti' => $jti,
+            'iat' => $now,
+            'exp' => $now + 300,
+        ], self::ORK_SHARED_SECRET, 'HS256');
+    }
 }

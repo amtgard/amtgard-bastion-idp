@@ -13,6 +13,10 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
+use Amtgard\IdP\Services\IdpEmailMigrationService;
+use Amtgard\IdP\Services\Mailbox\MailboxChallengePurpose;
+use Amtgard\IdP\Services\MailboxChallengeService;
+use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Services\ResourcesUserinfoService;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
@@ -47,6 +51,9 @@ class ResourcesController
     private CurrentUserResolverInterface $currentUserResolver;
     private ResourcesUserinfoService $userinfoService;
     private ClientAccessRepository $clientAccessRepository;
+    private MailboxChallengeService $mailboxChallenges;
+    private OrkLinkTokenService $orkLinkTokenService;
+    private IdpEmailMigrationService $emailMigration;
 
 
     public function __construct(
@@ -66,6 +73,9 @@ class ResourcesController
         CurrentUserResolverInterface $currentUserResolver,
         ResourcesUserinfoService $userinfoService,
         ClientAccessRepository $clientAccessRepository,
+        MailboxChallengeService $mailboxChallenges,
+        OrkLinkTokenService $orkLinkTokenService,
+        IdpEmailMigrationService $emailMigration,
     ) {
         $this->logger = $logger;
         $this->twig = $twig;
@@ -83,6 +93,9 @@ class ResourcesController
         $this->currentUserResolver = $currentUserResolver;
         $this->clientAccessRepository = $clientAccessRepository;
         $this->userinfoService = $userinfoService;
+        $this->mailboxChallenges = $mailboxChallenges;
+        $this->orkLinkTokenService = $orkLinkTokenService;
+        $this->emailMigration = $emailMigration;
     }
 
     #[OA\Get(
@@ -273,15 +286,49 @@ class ResourcesController
     }
 
 
+    #[OA\Post(
+        path: '/resources/profile/link-ork',
+        operationId: 'linkOrkAccount',
+        summary: 'Link the signed-in IDP user to ORK with username and password',
+        description: 'Current ORK contract. The profile form posts ORK username and password. The IDP calls ORK authorize and stores the profile. Possession claims use POST /resources/profile/link-ork-code instead.',
+        tags: ['ORK Integration'],
+        security: [['idpSession' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'application/x-www-form-urlencoded',
+                schema: new OA\Schema(
+                    required: ['username', 'password', '_csrf_token'],
+                    properties: [
+                        new OA\Property(property: 'username', type: 'string'),
+                        new OA\Property(property: 'password', type: 'string'),
+                        new OA\Property(property: '_csrf_token', type: 'string'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 302, description: 'Redirect to the profile, or to a pending OAuth URL after a successful link. Unauthenticated requests redirect to /auth/login.'),
+        ]
+    )]
     public function linkOrkAccount(Request $request, Response $response): Response
     {
         $params = (array) $request->getParsedBody();
-        $username = $params['username'] ?? '';
-        $password = $params['password'] ?? '';
+        $username = trim((string) ($params['username'] ?? ''));
+        $password = (string) ($params['password'] ?? '');
+        $code = trim((string) ($params['code'] ?? ''));
 
         $user = $this->currentUserResolver->resolve();
         if (!$user) {
             return $response->withHeader('Location', '/auth/login')->withStatus(302);
+        }
+
+        if ($password === '' && $code !== '') {
+            return $this->linkOrkAccountByCode($user, $code, $response);
+        }
+
+        if ($password === '') {
+            return $response->withHeader('Location', '/resources/profile?error=ork_credentials_required')->withStatus(302);
         }
 
         $authData = $this->orkService->authorize($username, $password);
@@ -317,14 +364,405 @@ class ResourcesController
                 ->withStatus(302);
         }
 
+        return $this->redirectAfterOrkLink($user, $response);
+    }
+
+    #[OA\Get(
+        path: '/resources/profile/ork-usernames',
+        operationId: 'searchOrkUsernames',
+        summary: 'Type-ahead ORK usernames',
+        description: 'Returns persona, park, and kingdom for a username prefix. Does not return the ORK email.',
+        tags: ['ORK Integration'],
+        security: [['idpSession' => []]],
+        parameters: [
+            new OA\QueryParameter(name: 'q', required: true, schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'JSON list of username matches. Fewer than two characters returns an empty list.'),
+            new OA\Response(response: 401, description: 'Not signed in.'),
+        ]
+    )]
+    public function searchOrkUsernames(Request $request, Response $response): Response
+    {
+        if ($this->currentUserResolver->resolve() === null) {
+            $response->getBody()->write('[]');
+
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
+        }
+
+        $term = trim((string) ($request->getQueryParams()['q'] ?? ''));
+        $matches = $this->orkService->searchUsernames($term, 8);
+        $response->getBody()->write((string) json_encode($matches));
+
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    #[OA\Post(
+        path: '/resources/profile/link-ork-code-mail',
+        operationId: 'sendOrkLinkCode',
+        summary: 'Mail a link code to the ORK address on record',
+        description: 'Looks up the ORK username, then mails a code and magic link to that mundane email. The response does not say whether the username or mailbox exists.',
+        tags: ['ORK Integration'],
+        security: [['idpSession' => []]],
+        responses: [
+            new OA\Response(response: 302, description: 'Redirect to the profile. success=ork_code_sent when the request was accepted.'),
+        ]
+    )]
+    public function sendOrkLinkCode(Request $request, Response $response): Response
+    {
+        $user = $this->currentUserResolver->resolve();
+        if ($user === null) {
+            return $response->withHeader('Location', '/auth/login')->withStatus(302);
+        }
+
+        $username = trim((string) (((array) $request->getParsedBody())['username'] ?? ''));
+        if ($username === '') {
+            return $response->withHeader('Location', '/resources/profile?error=ork_username_required')->withStatus(302);
+        }
+
+        $this->mailOrkLinkCode($user, $username);
+
+        return $response->withHeader('Location', '/resources/profile?success=ork_code_sent')->withStatus(302);
+    }
+
+    #[OA\Get(
+        path: '/resources/profile/link-ork/magic',
+        operationId: 'completeOrkMagicLink',
+        summary: 'Finish an ORK link from the mailed magic link',
+        tags: ['ORK Integration'],
+        security: [['idpSession' => []]],
+        parameters: [
+            new OA\QueryParameter(name: 't', required: true, schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(response: 302, description: 'Redirect to the profile after the link, or to login when signed out.'),
+        ]
+    )]
+    public function completeOrkMagicLink(Request $request, Response $response): Response
+    {
+        $user = $this->currentUserResolver->resolve();
+        if ($user === null) {
+            return $response->withHeader('Location', '/auth/login')->withStatus(302);
+        }
+
+        $token = trim((string) ($request->getQueryParams()['t'] ?? ''));
+        $claims = $token === '' ? null : $this->orkLinkTokenService->peekMailboxMagicLink($token);
+        if ($claims === null || $claims['idp_user_id'] !== $user->getUserId() || !$this->orkLinkTokenService->consumeJti($claims['jti'])) {
+            return $response->withHeader('Location', '/resources/profile?error=ork_code_failed')->withStatus(302);
+        }
+
+        $challenge = $this->mailboxChallenges->findById($claims['challenge_id']);
+        $matches = $challenge !== null
+            && $challenge->getPurpose() === MailboxChallengePurpose::CLAIM_ORK
+            && $challenge->getIdpUserId() === $user->getUserId()
+            && (int) $challenge->getMundaneId() === $claims['mundane_id']
+            && $challenge->getConsumedAt() === null
+            && $challenge->getExpiresAt() >= new \DateTime();
+        if (!$matches) {
+            return $response->withHeader('Location', '/resources/profile?error=ork_code_failed')->withStatus(302);
+        }
+
+        return $this->finishOrkCodeLink($user, $claims['challenge_id'], $claims['mundane_id'], $response);
+    }
+
+    private function linkOrkAccountByCode(UserEntity $user, string $code, Response $response): Response
+    {
+        $challenge = $this->mailboxChallenges->findLatestOpenByUserAndPurpose(
+            $user->getUserId(),
+            MailboxChallengePurpose::CLAIM_ORK,
+        );
+        if ($challenge === null || $challenge->getIdpUserId() !== $user->getUserId()) {
+            return $response->withHeader('Location', '/resources/profile?error=ork_code_failed')->withStatus(302);
+        }
+
+        $checked = $this->mailboxChallenges->check($challenge->getId(), $code);
+        $mundaneId = (int) $challenge->getMundaneId();
+        if (!$checked->ok() || $mundaneId <= 0) {
+            return $response->withHeader('Location', '/resources/profile?error=ork_code_failed')->withStatus(302);
+        }
+
+        return $this->finishOrkCodeLink($user, $challenge->getId(), $mundaneId, $response);
+    }
+
+    private function finishOrkCodeLink(UserEntity $user, string $challengeId, int $mundaneId, Response $response): Response
+    {
+        try {
+            $this->orkProfileRepository->linkExistingUserToMundane($user->getId(), $mundaneId, 'claim_ork_code');
+        } catch (\RuntimeException $e) {
+            if (str_contains($e->getMessage(), 'conflict')) {
+                return $response->withHeader('Location', '/resources/profile?error=ork_link_conflict')->withStatus(302);
+            }
+
+            throw $e;
+        }
+
+        $this->mailboxChallenges->consume($challengeId);
+
+        return $this->redirectAfterOrkLink($user, $response);
+    }
+
+    private function mailOrkLinkCode(UserEntity $user, string $username): void
+    {
+        $match = null;
+        foreach ($this->orkService->searchUsernames($username, 10) as $row) {
+            if (strcasecmp($row['username'], $username) === 0) {
+                $match = $row;
+                break;
+            }
+        }
+        if ($match === null) {
+            $this->logger->info('mailbox.flow_a.mail_skipped', ['reason' => 'no_username']);
+
+            return;
+        }
+
+        $mundaneId = $match['mundaneId'];
+        $existing = $this->orkProfileRepository->findByMundaneId($mundaneId);
+        if ($existing !== null && (int) $existing->getUserId() !== $user->getId()) {
+            $this->logger->info('mailbox.flow_a.mail_skipped', [
+                'reason' => 'linked_elsewhere',
+                'mundane_id' => $mundaneId,
+            ]);
+
+            return;
+        }
+
+        $player = $this->orkService->getPlayerByMundaneId($mundaneId);
+        $email = strtolower(trim((string) ($player['Email'] ?? '')));
+        $blocked = $player === null
+            || $email === ''
+            || !str_contains($email, '@')
+            || (int) ($player['Suspended'] ?? 0) !== 0
+            || !empty($player['PenaltyBox']);
+        if ($blocked) {
+            $this->logger->info('mailbox.flow_a.mail_skipped', [
+                'reason' => 'no_mailbox',
+                'mundane_id' => $mundaneId,
+            ]);
+
+            return;
+        }
+
+        $appUrl = rtrim((string) ($_ENV['APP_URL'] ?? ''), '/');
+        $this->mailboxChallenges->issue(
+            MailboxChallengePurpose::CLAIM_ORK,
+            $email,
+            $user->getUserId(),
+            $mundaneId,
+            null,
+            null,
+            null,
+            $appUrl === '' ? null : function (string $challengeId) use ($user, $mundaneId, $appUrl): string {
+                $jwt = $this->orkLinkTokenService->mintMailboxMagicLink($user->getUserId(), $mundaneId, $challengeId);
+
+                return $appUrl . '/resources/profile/link-ork/magic?t=' . rawurlencode($jwt);
+            },
+        );
+    }
+
+    private function redirectAfterOrkLink(UserEntity $user, Response $response): Response
+    {
         $storedRedirect = RedirectValidator::sanitizeOrNull($_SESSION['redirect'] ?? null);
         if ($storedRedirect !== null) {
             unset($_SESSION['redirect']);
             $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($user);
+
             return $response->withHeader('Location', $storedRedirect . "?jwt=$jwt")->withStatus(302);
         }
 
         return $response->withHeader('Location', '/resources/profile?success=linked')->withStatus(302);
+    }
+
+    /**
+     * Future possession claim. ORK mails a code to the mundane address.
+     * Not used by the profile form until Login/claim_ork exists.
+     */
+    #[OA\Post(
+        path: '/resources/profile/link-ork-code',
+        operationId: 'startOrkCodeClaim',
+        summary: 'Start an IDP-claims-ORK possession flow',
+        description: 'Reserves a claim_ork challenge and redirects to ORK Login/claim_ork with an IDP-signed handoff JWT. Does not accept an ORK password. Unused until ORK implements that route.',
+        tags: ['ORK Integration'],
+        security: [['idpSession' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'application/x-www-form-urlencoded',
+                schema: new OA\Schema(
+                    required: ['username', '_csrf_token'],
+                    properties: [
+                        new OA\Property(property: 'username', type: 'string', description: 'ORK persona username. ORK mails the code to that mundane.'),
+                        new OA\Property(property: '_csrf_token', type: 'string'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 302, description: 'Redirect to ORK Login/claim_ork, back to the profile when username is empty, or to /auth/login when signed out.'),
+        ]
+    )]
+    public function startOrkCodeClaim(Request $request, Response $response): Response
+    {
+        return Optional::ofNullable($this->currentUserResolver->resolve())
+            ->map(function (UserEntity $user) use ($request, $response) {
+                $username = trim((string) (((array) $request->getParsedBody())['username'] ?? ''));
+                if ($username === '') {
+                    return $response->withHeader('Location', '/resources/profile?error=ork_username_required')->withStatus(302);
+                }
+
+                $challenge = $this->mailboxChallenges->reserve(
+                    MailboxChallengePurpose::CLAIM_ORK,
+                    $user->getUserId(),
+                );
+                $jwt = $this->orkLinkTokenService->mintFlowAHandoff($user->getUserId(), $challenge->getId());
+                $this->logger->info('mailbox.flow_a.started', [
+                    'challenge_id' => $challenge->getId(),
+                    'sent_to_hash' => $challenge->getSentToHash(),
+                ]);
+
+                return $response
+                    ->withHeader('Location', $this->orkLinkTokenService->flowAClaimRedirectUrl($jwt, $username))
+                    ->withStatus(302);
+            })
+            ->orElseGet(fn () => $response->withHeader('Location', '/auth/login')->withStatus(302));
+    }
+
+    #[OA\Get(
+        path: '/auth/connect/complete',
+        operationId: 'completeOrkClaim',
+        summary: 'Finish an IDP-claims-ORK possession handoff',
+        description: 'ORK redirects the signed-in browser here with a completion JWT (purpose claim_ork). The IDP links only when the JWT mundane id and idp user id match the consumed challenge row.',
+        tags: ['ORK Integration'],
+        security: [['idpSession' => []]],
+        parameters: [
+            new OA\QueryParameter(name: 't', required: true, schema: new OA\Schema(type: 'string'), description: 'ORK-signed completion JWT'),
+        ],
+        responses: [
+            new OA\Response(response: 302, description: 'Redirect to the profile or a pending OAuth URL. Failures use a profile error query. Signed-out requests redirect to /auth/login.'),
+        ]
+    )]
+    public function completeOrkClaim(Request $request, Response $response): Response
+    {
+        return Optional::ofNullable($this->currentUserResolver->resolve())
+            ->map(fn (UserEntity $user) => $this->finishFlowA($user, $request, $response))
+            ->orElseGet(fn () => $response->withHeader('Location', '/auth/login')->withStatus(302));
+    }
+
+    #[OA\Post(
+        path: '/resources/profile/email/start',
+        operationId: 'startEmailMigration',
+        summary: 'Mail a code to the current IDP address',
+        description: 'First step of an IDP email change. The code goes to the address already stored on the user, not to new_email.',
+        tags: ['ORK Integration'],
+        security: [['idpSession' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'application/x-www-form-urlencoded',
+                schema: new OA\Schema(
+                    required: ['new_email', '_csrf_token'],
+                    properties: [
+                        new OA\Property(property: 'new_email', type: 'string', format: 'email'),
+                        new OA\Property(property: '_csrf_token', type: 'string'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 302, description: 'Redirect to the profile. success=email_code_sent or error=email_invalid.'),
+        ]
+    )]
+    public function startEmailMigration(Request $request, Response $response): Response
+    {
+        return Optional::ofNullable($this->currentUserResolver->resolve())
+            ->map(function (UserEntity $user) use ($request, $response) {
+                $newEmail = trim((string) (((array) $request->getParsedBody())['new_email'] ?? ''));
+                try {
+                    $issued = $this->emailMigration->start($user, $newEmail);
+                    $_SESSION['email_migration_challenge_id'] = $issued->challengeId;
+                } catch (\InvalidArgumentException) {
+                    return $response->withHeader('Location', '/resources/profile?error=email_invalid')->withStatus(302);
+                }
+
+                return $response->withHeader('Location', '/resources/profile?success=email_code_sent')->withStatus(302);
+            })
+            ->orElseGet(fn () => $response->withHeader('Location', '/auth/login')->withStatus(302));
+    }
+
+    #[OA\Post(
+        path: '/resources/profile/email/confirm',
+        operationId: 'confirmEmailMigration',
+        summary: 'Confirm the current-address code and mail the new address',
+        tags: ['ORK Integration'],
+        security: [['idpSession' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'application/x-www-form-urlencoded',
+                schema: new OA\Schema(
+                    required: ['code', '_csrf_token'],
+                    properties: [
+                        new OA\Property(property: 'code', type: 'string', description: '6-digit code sent to the current IDP email'),
+                        new OA\Property(property: '_csrf_token', type: 'string'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 302, description: 'Redirect to the profile. A valid code mails the proposed address.'),
+        ]
+    )]
+    public function confirmEmailMigration(Request $request, Response $response): Response
+    {
+        return Optional::ofNullable($this->currentUserResolver->resolve())
+            ->map(function (UserEntity $user) use ($request, $response) {
+                $code = trim((string) (((array) $request->getParsedBody())['code'] ?? ''));
+                $result = $this->emailMigration->confirm($user, $code);
+                $location = $result->ok()
+                    ? '/resources/profile?success=email_code_sent'
+                    : '/resources/profile?error=email_code_failed';
+
+                return $response->withHeader('Location', $location)->withStatus(302);
+            })
+            ->orElseGet(fn () => $response->withHeader('Location', '/auth/login')->withStatus(302));
+    }
+
+    #[OA\Post(
+        path: '/resources/profile/email/commit',
+        operationId: 'commitEmailMigration',
+        summary: 'Confirm the new-address code and save the IDP email',
+        tags: ['ORK Integration'],
+        security: [['idpSession' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'application/x-www-form-urlencoded',
+                schema: new OA\Schema(
+                    required: ['code', '_csrf_token'],
+                    properties: [
+                        new OA\Property(property: 'code', type: 'string', description: '6-digit code sent to the proposed IDP email'),
+                        new OA\Property(property: '_csrf_token', type: 'string'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 302, description: 'Redirect to the profile. users.email changes only after this code succeeds.'),
+        ]
+    )]
+    public function commitEmailMigration(Request $request, Response $response): Response
+    {
+        return Optional::ofNullable($this->currentUserResolver->resolve())
+            ->map(function (UserEntity $user) use ($request, $response) {
+                $code = trim((string) (((array) $request->getParsedBody())['code'] ?? ''));
+                $result = $this->emailMigration->commit($user, $code);
+                $location = $result->ok()
+                    ? '/resources/profile?success=email_updated'
+                    : '/resources/profile?error=email_code_failed';
+
+                return $response->withHeader('Location', $location)->withStatus(302);
+            })
+            ->orElseGet(fn () => $response->withHeader('Location', '/auth/login')->withStatus(302));
     }
 
     public function refreshOrkAccount(Request $request, Response $response): Response
@@ -375,13 +813,14 @@ class ResourcesController
      * so only the configured ORK confidential client can invoke it.
      *
      * Request:  { "idp_user_id": "<uuid string>", "mundane_id": 12345 }
+     * Optional challenge_id must already be consumed. Omitting it keeps the current ORK mirror.
      * Response: 204 on success, 400/404/409 on failure (idempotent).
      */
     #[OA\Post(
         path: '/resources/link-ork-profile',
         operationId: 'linkOrkProfile',
         summary: 'Mirror an ORK account link into the IDP (ORK server-to-server)',
-        description: 'Called by ORK3 after linking on the ORK side. Writes `user_ork_profiles` on the IDP. Restricted to confidential clients listed in `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS`. Browser handoff flows are documented in /docs Section 7.',
+        description: 'ORK server-to-server mirror. `{idp_user_id, mundane_id}` is the current contract. When `challenge_id` is sent it must be a consumed mailbox challenge. Restricted to confidential clients listed in `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS`.',
         tags: ['ORK Integration'],
         security: [['orkConfidentialClient' => []]],
         requestBody: new OA\RequestBody(
@@ -393,6 +832,7 @@ class ResourcesController
                     properties: [
                         new OA\Property(property: 'idp_user_id', type: 'string', format: 'uuid', description: 'IDP user UUID'),
                         new OA\Property(property: 'mundane_id', type: 'integer', minimum: 1, description: 'ORK mundane player ID'),
+                        new OA\Property(property: 'challenge_id', type: 'string', format: 'uuid', description: 'Optional. When present, must be a consumed mailbox challenge. Omitted by the current ORK mirror.'),
                     ]
                 )
             )
@@ -433,9 +873,27 @@ class ResourcesController
             ->map(fn($v) => (int)$v)
             ->filter(fn($v) => $v > 0)
             ->orElse(null);
+        $challengeId = Optional::ofNullable($body['challenge_id'] ?? null)
+            ->map(fn($v) => trim((string)$v))
+            ->filter(fn($v) => $v !== '')
+            ->orElse(null);
 
-        if ($idpUserId === null || $mundaneId === null) {
+        $completeBody = Optional::ofNullable($idpUserId)
+            ->filter(fn () => Optional::ofNullable($mundaneId)->isPresent());
+        if (!$completeBody->isPresent()) {
             $response->getBody()->write(json_encode(['error' => 'idp_user_id (string) and mundane_id (positive int) are required']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
+        $challengeReady = Optional::ofNullable($challengeId)
+            ->map(fn (string $id) => $this->mailboxChallenges->isConsumedForUser($id, $idpUserId))
+            ->orElse(true);
+        if (!$challengeReady) {
+            $this->logger->info('linkOrkProfile rejected challenge', [
+                'challenge_id' => $challengeId,
+                'idp_user_id' => $idpUserId,
+            ]);
+            $response->getBody()->write(json_encode(['error' => 'challenge_id is missing, unknown, expired, unconsumed, or for another user']));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
 
@@ -467,6 +925,68 @@ class ResourcesController
 
         $this->logger->info('linkOrkProfile success', ['idp_user_id' => $idpUserId, 'mundane_id' => $mundaneId]);
         return $response->withStatus(204);
+    }
+
+    private function finishFlowA(UserEntity $user, Request $request, Response $response): Response
+    {
+        $jwt = (string) (($request->getQueryParams()['t'] ?? ''));
+
+        return Optional::ofNullable($this->orkLinkTokenService->peekFlowACompletion($jwt))
+            ->filter(fn (array $claims) => $claims['idp_user_id'] === $user->getUserId())
+            ->map(function (array $claims) use ($user, $response) {
+                return Optional::ofNullable($this->mailboxChallenges->findById($claims['challenge_id']))
+                    ->filter(fn ($row) => $row->getPurpose() === MailboxChallengePurpose::CLAIM_ORK)
+                    ->filter(fn ($row) => $row->getIdpUserId() === $user->getUserId())
+                    ->filter(fn ($row) => !Optional::ofNullable($row->getConsumedAt())->isPresent())
+                    ->filter(fn ($row) => $row->getExpiresAt() >= new \DateTime())
+                    ->map(function ($row) use ($claims, $user, $response) {
+                        try {
+                            $consumedJti = $this->orkLinkTokenService->consumeJti($claims['jti']);
+                        } catch (\Throwable $e) {
+                            $this->logger->error('completeOrkClaim consumeJti failed', [
+                                'challenge_id' => $row->getId(),
+                                'msg' => $e->getMessage(),
+                            ]);
+
+                            return $response->withHeader('Location', '/resources/profile?error=ork_complete_failed')->withStatus(302);
+                        }
+                        if (!$consumedJti) {
+                            return $response->withHeader('Location', '/resources/profile?error=ork_complete_replay')->withStatus(302);
+                        }
+
+                        try {
+                            $this->orkProfileRepository->linkExistingUserToMundane($user->getId(), $claims['mundane_id'], 'ork_handoff');
+                        } catch (\RuntimeException $e) {
+                            if (str_contains($e->getMessage(), 'conflict')) {
+                                $this->logger->warning('completeOrkClaim conflict', [
+                                    'challenge_id' => $row->getId(),
+                                    'msg' => $e->getMessage(),
+                                ]);
+
+                                return $response->withHeader('Location', '/resources/profile?error=ork_link_conflict')->withStatus(302);
+                            }
+                            throw $e;
+                        }
+
+                        $this->mailboxChallenges->consume($row->getId());
+                        $this->logger->info('mailbox.flow_a.completed', [
+                            'challenge_id' => $row->getId(),
+                            'sent_to_hash' => $row->getSentToHash(),
+                        ]);
+
+                        $storedRedirect = RedirectValidator::sanitizeOrNull($_SESSION['redirect'] ?? null);
+                        return Optional::ofNullable($storedRedirect)
+                            ->map(function (string $redirect) use ($user, $response) {
+                                unset($_SESSION['redirect']);
+                                $jwt = $this->amtgardIdpJwt->buildAuthorizationJwt($user);
+
+                                return $response->withHeader('Location', $redirect . "?jwt=$jwt")->withStatus(302);
+                            })
+                            ->orElseGet(fn () => $response->withHeader('Location', '/resources/profile?success=linked')->withStatus(302));
+                    })
+                    ->orElseGet(fn () => $response->withHeader('Location', '/resources/profile?error=ork_complete_failed')->withStatus(302));
+            })
+            ->orElseGet(fn () => $response->withHeader('Location', '/resources/profile?error=ork_complete_failed')->withStatus(302));
     }
 
     public function revokeAuthorization(Request $request, Response $response): Response

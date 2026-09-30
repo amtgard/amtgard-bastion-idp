@@ -21,9 +21,9 @@
                 </div>
             {% endif %}
 
-            {% if error == 'ork_auth_failed' %}
+            {% if error == 'ork_username_required' %}
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-                    <span class="block sm:inline">ORK Authorization failed. Please check your username and password.</span>
+                    <span class="block sm:inline">Enter your ORK username to start the link.</span>
                 </div>
             {% elseif error == 'ork_already_linked' %}
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
@@ -31,10 +31,27 @@
                 </div>
             {% elseif error == 'ork_player_failed' %}
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-                     <span class="block sm:inline">Failed to retrieve ORK player details.</span>
+                    <span class="block sm:inline">ORK could not verify that username and password.</span>
                 </div>
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
-                    <span class="block sm:inline">Successfully linked ORK account!</span>
+            {% elseif error == 'ork_complete_failed' or error == 'ork_complete_replay' %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">That link request could not be completed. Start again from your profile.</span>
+                </div>
+            {% elseif error == 'ork_link_conflict' %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">That ORK profile is already linked to a different Amtgard account.</span>
+                </div>
+            {% elseif error == 'ork_auth_failed' %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">That ORK username and password were not accepted.</span>
+                </div>
+            {% elseif error == 'ork_code_failed' %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">That code could not be used. Request a new one and try again.</span>
+                </div>
+            {% elseif error == 'ork_credentials_required' %}
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">Enter your ORK password or the code from the email.</span>
                 </div>
             {% elseif error == 'malformed_policy' %}
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
@@ -47,6 +64,14 @@
             {% elseif success == 'unlinked' %}
                 <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
                     <span class="block sm:inline">ORK player record unlinked from this Amtgard account.</span>
+                </div>
+            {% elseif success == 'linked' %}
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">Successfully linked ORK account!</span>
+                </div>
+            {% elseif success == 'ork_code_sent' %}
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <span class="block sm:inline">If that ORK account can receive mail, a code and link were sent to the email on the record.</span>
                 </div>
             {% endif %}
 
@@ -163,29 +188,42 @@
                     <div class="bg-gray-50 rounded-lg border border-gray-200">
                          <div class="p-6 cursor-pointer flex justify-between items-center" onclick="const form = document.getElementById('ork-link-form'); const icon = document.getElementById('ork-chevron'); form.classList.toggle('hidden'); icon.classList.toggle('rotate-180');">
                             <h4 class="font-bold text-lg">Link ORK Player Record</h4>
-                            <svg id="ork-chevron" class="w-6 h-6 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            <svg id="ork-chevron" class="w-6 h-6 transform rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                          </div>
-                        <div id="ork-link-form" class="hidden px-6 pb-6">
-                            <p class="mb-4 text-sm text-gray-600">Enter your ORK username and password to link your ORK player record to your Amtgard Sign-In. This is the account your park officers set up for you &mdash; not your Amtgard Sign-In password.</p>
-                            <form action="/resources/profile/link-ork" method="POST" class="max-w-sm">
+                        <div id="ork-link-form" class="px-6 pb-6">
+                            <form action="/resources/profile/link-ork" method="POST" class="max-w-md">
                                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                                 <div class="mb-4">
-                                    <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
-                                        ORK Username
-                                    </label>
-                                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="username" name="username" type="text" required>
+                                 <div class="mb-4 relative">
+                                    <label class="block text-gray-700 text-sm font-bold mb-2" for="ork-username">ORK Username</label>
+                                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="ork-username" name="username" type="text" autocomplete="off">
+                                    <ul id="ork-username-results" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-y-auto"></ul>
                                  </div>
-                                 <div class="mb-6">
-                                     <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
-                                         ORK Password
-                                     </label>
-                                     <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" id="password" name="password" type="password" required>
-                                 </div>
-                                 <div class="flex items-center justify-between">
-                                    <button class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors duration-200" type="submit">
+                                 <button class="bg-white border border-gray-300 text-gray-800 font-bold py-2 px-4 rounded mb-4 opacity-50 cursor-not-allowed" type="submit" formaction="/resources/profile/link-ork-code-mail" disabled>
+                                    Email Code
+                                 </button>
+                                 <div class="flex items-end gap-3 mb-4">
+                                    <div class="flex-grow">
+                                       <label class="block text-gray-700 text-sm font-bold mb-2" for="ork-code">Code</label>
+                                       <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-500 leading-tight bg-gray-100 cursor-not-allowed" id="ork-code" name="code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" disabled>
+                                    </div>
+                                    <button class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded whitespace-nowrap" type="submit">
                                         Link Account
                                     </button>
-                                </div>
+                                 </div>
+                                 <button id="ork-use-login" class="hidden bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 font-bold py-2 px-4 rounded mb-4" type="button">
+                                    Use Login
+                                 </button>
+                                 <div id="ork-login-fields">
+                                    <div class="flex items-end gap-3">
+                                       <div class="flex-grow">
+                                          <label class="block text-gray-700 text-sm font-bold mb-2" for="password">ORK Password</label>
+                                          <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="password" name="password" type="password" autocomplete="current-password">
+                                       </div>
+                                       <button class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded whitespace-nowrap" type="submit">
+                                          Link Account
+                                       </button>
+                                    </div>
+                                 </div>
                             </form>
                         </div>
                     </div>
@@ -320,6 +358,64 @@
     function closeJwtModal() {
         document.getElementById('jwt-modal').classList.add('hidden');
     }
+
+    document.getElementById('ork-use-login')?.addEventListener('click', () => {
+        document.getElementById('ork-login-fields')?.classList.remove('hidden');
+        document.getElementById('ork-use-login')?.classList.add('hidden');
+        document.getElementById('password')?.focus();
+    });
+
+    const orkUsername = document.getElementById('ork-username');
+    const orkUsernameResults = document.getElementById('ork-username-results');
+    let orkUsernameTimer = null;
+
+    function hideOrkUsernameResults() {
+        orkUsernameResults?.classList.add('hidden');
+    }
+
+    orkUsername?.addEventListener('input', () => {
+        clearTimeout(orkUsernameTimer);
+        const query = orkUsername.value.trim();
+        if (query.length < 2) {
+            orkUsernameResults.innerHTML = '';
+            hideOrkUsernameResults();
+            return;
+        }
+
+        orkUsernameTimer = setTimeout(async () => {
+            const response = await fetch('/resources/profile/ork-usernames?q=' + encodeURIComponent(query), {
+                headers: { 'Accept': 'application/json' },
+            });
+            if (!response.ok) {
+                hideOrkUsernameResults();
+                return;
+            }
+            const matches = await response.json();
+            orkUsernameResults.innerHTML = '';
+            matches.forEach((match) => {
+                const item = document.createElement('li');
+                item.className = 'px-3 py-2 cursor-pointer hover:bg-gray-100';
+                const label = document.createElement('div');
+                label.className = 'font-medium text-gray-800';
+                label.textContent = match.username;
+                const meta = document.createElement('div');
+                meta.className = 'text-xs text-gray-500';
+                meta.textContent = [match.persona, match.parkName, match.kingdomName].filter(Boolean).join(' · ');
+                item.append(label, meta);
+                item.addEventListener('mousedown', (event) => {
+                    event.preventDefault();
+                    orkUsername.value = match.username;
+                    hideOrkUsernameResults();
+                });
+                orkUsernameResults.append(item);
+            });
+            orkUsernameResults.classList.toggle('hidden', matches.length === 0);
+        }, 250);
+    });
+
+    orkUsername?.addEventListener('blur', () => {
+        setTimeout(hideOrkUsernameResults, 150);
+    });
 
     document.querySelector('a[href="/auth/logout"]')?.addEventListener('click', clearStoredJwt);
 

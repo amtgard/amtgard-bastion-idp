@@ -76,6 +76,18 @@ class UserOrkProfileRepositoryTest extends TestCase
         $this->assertSame($profile, $repository->findByUserId(10));
     }
 
+    public function testFindByMundaneIdFetchesByMundaneId(): void
+    {
+        $profile = new UserOrkProfileEntity();
+        $repository = $this->getMockBuilder(UserOrkProfileRepository::class)
+            ->onlyMethods(['fetchBy'])
+            ->disableOriginalConstructor()
+            ->getMock();
+        $repository->expects($this->once())->method('fetchBy')->with('mundane_id', 44)->willReturn($profile);
+
+        $this->assertSame($profile, $repository->findByMundaneId(44));
+    }
+
     public function testSaveOrUpdateProfileCreatesNewProfileAndParsesDates(): void
     {
         $captured = null;

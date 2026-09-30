@@ -54,6 +54,17 @@ class UserLoginRepositoryTest extends TestCase
         );
     }
 
+    public function testGetLinkedUserIdIgnoresUnloadedUserRelation(): void
+    {
+        $login = new UserLoginEntity();
+        $this->assertNull($login->getLinkedUserId());
+
+        $property = new \ReflectionProperty(UserLoginEntity::class, 'userId');
+        $property->setValue($login, 42);
+
+        $this->assertSame(42, $login->getLinkedUserId());
+    }
+
     public function testGetLoginByProviderIdFetchesByProviderId(): void
     {
         $login = new UserLoginEntity();

@@ -41,19 +41,29 @@ compose_web_dev() {
 }
 
 compose_web_integ() {
+    local coverage_args=()
+    if [[ "${INTEG_COVERAGE:-}" == "1" ]]; then
+        coverage_args=(-f docker/compose.integ-coverage.yml)
+    fi
     docker compose --project-directory "$ROOT" -p "$WEB_PROJECT" \
         -f docker/compose.prod.yml \
         -f docker/compose.blue.yml \
         -f docker/compose.dev.yml \
         -f docker/compose.integ.yml \
+        "${coverage_args[@]}" \
         "$@"
 }
 
 compose_worker() {
+    local coverage_args=()
+    if [[ "${INTEG_COVERAGE:-}" == "1" ]]; then
+        coverage_args=(-f docker/compose.worker.integ-coverage.yml)
+    fi
     docker compose --project-directory "$ROOT" -p "$WORKER_PROJECT" \
         -f docker/compose.worker.yml \
         -f docker/compose.worker.dev.yml \
         -f docker/compose.worker.integ.yml \
+        "${coverage_args[@]}" \
         "$@"
 }
 
@@ -119,15 +129,19 @@ docker exec "$APP_CONTAINER" bash -lc "
     sed -i '/^env\[ORK_BASE_URL\]/d' \"\$POOL\"
     sed -i '/^env\[MANAGEMENT_KEY\]/d' \"\$POOL\"
     sed -i '/^env\[LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS\]/d' \"\$POOL\"
+    sed -i '/^env\[MAILBOX_CODE_PEPPER\]/d' \"\$POOL\"
     sed -i '/^env\[REDIS_PUBSUB_HOST\]/d' \"\$POOL\"
     sed -i '/^env\[REDIS_PUBSUB_PORT\]/d' \"\$POOL\"
     sed -i '/^env\[REDIS_PUBSUB_DB\]/d' \"\$POOL\"
     sed -i '/^env\[REDIS_PUBSUB_QUEUE_NAME\]/d' \"\$POOL\"
     sed -i '/^env\[REDIS_PVH_QUEUE_NAME\]/d' \"\$POOL\"
+    sed -i '/^env\[INTEG_COVERAGE_ENABLED\]/d' \"\$POOL\"
+    sed -i '/^env\[INTEG_COVERAGE_RAW_DIR\]/d' \"\$POOL\"
     IDP_ORK_SHARED_SECRET=\"\$(printenv IDP_ORK_SHARED_SECRET || true)\"
     ORK_BASE_URL=\"\$(printenv ORK_BASE_URL || true)\"
     MANAGEMENT_KEY=\"\$(printenv MANAGEMENT_KEY || true)\"
     LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS=\"\$(printenv LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS || true)\"
+    MAILBOX_CODE_PEPPER=\"\$(printenv MAILBOX_CODE_PEPPER || true)\"
     echo \"env[ENVIRONMENT] = \$ENVIRONMENT\" >> \"\$POOL\"
     echo \"env[DB_HOST] = ${DB_HOST}\" >> \"\$POOL\"
     echo \"env[DB_NAME] = \$DB_NAME\" >> \"\$POOL\"
@@ -148,6 +162,15 @@ docker exec "$APP_CONTAINER" bash -lc "
     echo \"env[ORK_BASE_URL] = \${ORK_BASE_URL}\" >> \"\$POOL\"
     echo \"env[MANAGEMENT_KEY] = \${MANAGEMENT_KEY}\" >> \"\$POOL\"
     echo \"env[LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS] = \${LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS}\" >> \"\$POOL\"
+    echo \"env[MAILBOX_CODE_PEPPER] = \${MAILBOX_CODE_PEPPER}\" >> \"\$POOL\"
+    INTEG_COVERAGE_ENABLED=\"\$(printenv INTEG_COVERAGE_ENABLED || true)\"
+    INTEG_COVERAGE_RAW_DIR=\"\$(printenv INTEG_COVERAGE_RAW_DIR || true)\"
+    if [[ -n \"\${INTEG_COVERAGE_ENABLED}\" ]]; then
+        echo \"env[INTEG_COVERAGE_ENABLED] = \${INTEG_COVERAGE_ENABLED}\" >> \"\$POOL\"
+    fi
+    if [[ -n \"\${INTEG_COVERAGE_RAW_DIR}\" ]]; then
+        echo \"env[INTEG_COVERAGE_RAW_DIR] = \${INTEG_COVERAGE_RAW_DIR}\" >> \"\$POOL\"
+    fi
     service php8.4-fpm restart
 "
 

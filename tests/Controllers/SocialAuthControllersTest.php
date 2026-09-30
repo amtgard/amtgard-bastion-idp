@@ -159,6 +159,50 @@ class SocialAuthControllersTest extends TestCase
         $this->assertSame('uuid-1', $_SESSION['user_id']);
     }
 
+    public function testGoogleCallbackIgnoresDifferingProviderEmailOnExistingLogin(): void
+    {
+        OAuth2StateManager::store('state-ok');
+        $provider = $this->createMock(Google::class);
+        $token = new AccessToken(['access_token' => 'at', 'refresh_token' => 'rt']);
+        $resourceOwner = new class {
+            public function toArray(): array
+            {
+                return [
+                    'email' => 'new-from-google@example.com',
+                    'sub' => 'google-sub',
+                    'given_name' => 'Test',
+                    'family_name' => 'User',
+                ];
+            }
+        };
+        $provider->method('getAccessToken')->willReturn($token);
+        $provider->method('getResourceOwner')->willReturn($resourceOwner);
+
+        $existingUser = new TestUserEntity('uuid-1', 'old@example.com', 'Old User');
+        $login = (new TestUserLoginEntity($existingUser, 'hash', 'avatar', 7))->withUnloadedUserRelation(42);
+        $this->logins->method('getLoginByProviderId')->with('google-sub')->willReturn($login);
+        $this->logins->method('updateLoginTokens')->willReturn($login);
+        $this->users->expects($this->once())->method('findUserById')->with(42)->willReturn($existingUser);
+        $this->users->expects($this->never())->method('getUserByEmail');
+        $this->users->expects($this->never())->method('createUserFromGoogleData');
+        $this->users->expects($this->never())->method('createUserFromOAuthProfile');
+        $this->amtgardIdpJwt->method('buildAuthorizationJwt')->willReturn('jwt-token');
+        $this->routeParser->method('urlFor')->willReturn('/resources/profile');
+        $this->request->method('getQueryParams')->willReturn(['code' => 'abc', 'state' => 'state-ok']);
+
+        $controller = new GoogleAuthController(
+            $this->users,
+            $this->logins,
+            $this->createMock(LoggerInterface::class),
+            $this->amtgardIdpJwt,
+            $provider,
+        );
+        $controller->handleGoogleCallback($this->request, $this->response);
+
+        $this->assertSame('uuid-1', $_SESSION['user_id']);
+        $this->assertSame('old@example.com', $existingUser->getEmail());
+    }
+
     public function testFacebookRedirectStoresState(): void
     {
         $provider = $this->createMock(Facebook::class);
@@ -221,7 +265,7 @@ class SocialAuthControllersTest extends TestCase
         $provider->expects($this->once())->method('getResourceOwner')->with($longToken)->willReturn($resourceOwner);
         $this->users->method('getUserByEmail')->with('fb@example.com')->willReturn(null);
         $this->users->expects($this->once())->method('createUserFromFacebookData')->willReturn($user);
-        $this->logins->expects($this->once())->method('getLoginByProviderId')->with('facebook-id')->willReturn(null);
+        $this->logins->method('getLoginByProviderId')->with('facebook-id')->willReturn(null);
         $this->logins->expects($this->once())->method('createLoginFromFacebookData')->with($user, $resourceOwner->toArray(), $longToken)->willReturn($login);
         $this->amtgardIdpJwt->method('buildAuthorizationJwt')->with($user)->willReturn('jwt-token');
         $this->routeParser->method('urlFor')->with('resources.profile')->willReturn('/resources/profile');
@@ -240,6 +284,52 @@ class SocialAuthControllersTest extends TestCase
 
         $this->assertSame('uuid-fb', $_SESSION['user_id']);
         $this->assertSame('fb@example.com', $_SESSION['user_email']);
+    }
+
+    public function testFacebookCallbackReusesExistingLoginWithoutUserRelation(): void
+    {
+        OAuth2StateManager::store('fb-state');
+        $provider = $this->createMock(Facebook::class);
+        $shortToken = new AccessToken(['access_token' => 'short']);
+        $longToken = new AccessToken(['access_token' => 'long', 'expires' => time() + 3600]);
+        $resourceOwner = new class {
+            public function toArray(): array
+            {
+                return [
+                    'id' => 'facebook-id',
+                    'email' => 'new-from-facebook@example.com',
+                    'first_name' => 'Face',
+                    'last_name' => 'Book',
+                    'picture_url' => 'https://facebook.example/avatar.jpg',
+                ];
+            }
+        };
+        $existingUser = new TestUserEntity('uuid-fb', 'old@example.com', 'Face Book');
+        $login = (new TestUserLoginEntity($existingUser, 'hash', 'avatar', 8))->withUnloadedUserRelation(18);
+
+        $provider->method('getAccessToken')->willReturn($shortToken);
+        $provider->method('getLongLivedAccessToken')->willReturn($longToken);
+        $provider->method('getResourceOwner')->willReturn($resourceOwner);
+        $this->logins->method('getLoginByProviderId')->with('facebook-id')->willReturn($login);
+        $this->logins->method('updateLoginTokens')->willReturn($login);
+        $this->users->expects($this->once())->method('findUserById')->with(18)->willReturn($existingUser);
+        $this->users->expects($this->never())->method('getUserByEmail');
+        $this->users->expects($this->never())->method('createUserFromFacebookData');
+        $this->amtgardIdpJwt->method('buildAuthorizationJwt')->willReturn('jwt-token');
+        $this->routeParser->method('urlFor')->willReturn('/resources/profile');
+        $this->request->method('getQueryParams')->willReturn(['code' => 'abc', 'state' => 'fb-state']);
+
+        $controller = new FacebookAuthController(
+            $this->users,
+            $this->logins,
+            $this->createMock(LoggerInterface::class),
+            $this->amtgardIdpJwt,
+            $provider,
+        );
+
+        $controller->handleFacebookCallback($this->request, $this->response);
+        $this->assertSame('uuid-fb', $_SESSION['user_id']);
+        $this->assertSame('old@example.com', $existingUser->getEmail());
     }
 
     public function testDiscordRedirectStoresStateAndRedirect(): void
@@ -324,7 +414,7 @@ class SocialAuthControllersTest extends TestCase
                 && $data['username'] === 'discorduser'
                 && $data['avatar'] === 'avatar-hash';
         }))->willReturn($user);
-        $this->logins->expects($this->once())->method('getLoginByProviderId')->with('discord-id')->willReturn(null);
+        $this->logins->method('getLoginByProviderId')->with('discord-id')->willReturn(null);
         $this->logins->expects($this->once())->method('createLoginFromDiscordData')->with($user, $resourceOwner->toArray(), $token)->willReturn($login);
         $this->amtgardIdpJwt->method('buildAuthorizationJwt')->with($user)->willReturn('jwt-token');
         $this->routeParser->method('urlFor')->with('resources.profile')->willReturn('/resources/profile');
@@ -343,6 +433,49 @@ class SocialAuthControllersTest extends TestCase
 
         $this->assertSame('uuid-dc', $_SESSION['user_id']);
         $this->assertSame('discord@example.com', $_SESSION['user_email']);
+    }
+
+    public function testDiscordCallbackReusesExistingLoginWithoutUserRelation(): void
+    {
+        OAuth2StateManager::store('dc-state');
+        $provider = $this->createMock(Discord::class);
+        $token = new AccessToken(['access_token' => 'at', 'refresh_token' => 'rt']);
+        $resourceOwner = new class {
+            public function toArray(): array
+            {
+                return [
+                    'id' => 'discord-id',
+                    'username' => 'discorduser',
+                    'email' => 'new-from-discord@example.com',
+                    'avatar' => 'avatar-hash',
+                ];
+            }
+        };
+        $existingUser = new TestUserEntity('uuid-dc', 'old@example.com', 'discorduser');
+        $login = (new TestUserLoginEntity($existingUser, 'hash', 'avatar', 9))->withUnloadedUserRelation(19);
+
+        $provider->method('getAccessToken')->willReturn($token);
+        $provider->method('getResourceOwner')->willReturn($resourceOwner);
+        $this->logins->method('getLoginByProviderId')->with('discord-id')->willReturn($login);
+        $this->logins->method('updateLoginTokens')->willReturn($login);
+        $this->users->expects($this->once())->method('findUserById')->with(19)->willReturn($existingUser);
+        $this->users->expects($this->never())->method('getUserByEmail');
+        $this->users->expects($this->never())->method('createUserFromDiscordData');
+        $this->amtgardIdpJwt->method('buildAuthorizationJwt')->willReturn('jwt-token');
+        $this->routeParser->method('urlFor')->willReturn('/resources/profile');
+        $this->request->method('getQueryParams')->willReturn(['code' => 'abc', 'state' => 'dc-state']);
+
+        $controller = new DiscordAuthController(
+            $this->users,
+            $this->logins,
+            $this->createMock(LoggerInterface::class),
+            $this->amtgardIdpJwt,
+            $provider,
+        );
+
+        $controller->handleDiscordCallback($this->request, $this->response);
+        $this->assertSame('uuid-dc', $_SESSION['user_id']);
+        $this->assertSame('old@example.com', $existingUser->getEmail());
     }
 
     public function testGoogleCallbackCreatesUserWhenEmailUnknown(): void
@@ -405,11 +538,12 @@ class SocialAuthControllersTest extends TestCase
             }
         };
         $user = new TestUserEntity('uuid-1', 'user@example.com', 'Test User');
-        $login = new TestUserLoginEntity($user, 'hash', 'avatar', 7);
+        $login = (new TestUserLoginEntity($user, 'hash', 'avatar', 7))->withUnloadedUserRelation(42);
 
         $provider->method('getAccessToken')->willReturn($token);
         $provider->method('getResourceOwner')->willReturn($resourceOwner);
-        $this->users->method('getUserByEmail')->willReturn($user);
+        $this->users->expects($this->once())->method('findUserById')->with(42)->willReturn($user);
+        $this->users->expects($this->never())->method('getUserByEmail');
         $this->logins->method('getLoginByProviderId')->willReturn($login);
         $this->logins->expects($this->once())->method('updateLoginTokens')->willReturn($login);
         $this->amtgardIdpJwt->method('buildAuthorizationJwt')->willReturn('signed-jwt');
@@ -626,11 +760,12 @@ class SocialAuthControllersTest extends TestCase
             }
         };
         $user = new TestUserEntity('uuid-returning', 'apple@example.com', 'Apple User');
-        $login = new TestUserLoginEntity($user, 'hash', '', 15);
+        $login = (new TestUserLoginEntity($user, 'hash', '', 15))->withUnloadedUserRelation(15);
 
         $provider->method('getAccessToken')->willReturn($token);
         $provider->method('getResourceOwner')->willReturn($resourceOwner);
         $this->logins->method('getLoginByProviderId')->with('apple-sub')->willReturn($login);
+        $this->users->expects($this->once())->method('findUserById')->with(15)->willReturn($user);
         $this->users->expects($this->never())->method('getUserByEmail');
         $this->logins->expects($this->once())->method('updateLoginTokens')->willReturn($login);
         $this->amtgardIdpJwt->method('buildAuthorizationJwt')->willReturn('jwt-token');

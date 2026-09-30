@@ -58,6 +58,7 @@ class TestUserLoginEntity extends UserLoginEntity
     private string $testPassword;
     private string $testAvatarUrl;
     private int $testId;
+    private ?int $linkedUserId = null;
     public $user;
 
     public function __construct($user, string $password, string $avatarUrl, int $testId = 1)
@@ -66,6 +67,19 @@ class TestUserLoginEntity extends UserLoginEntity
         $this->testPassword = $password;
         $this->testAvatarUrl = $avatarUrl;
         $this->testId = $testId;
+    }
+
+    public function withUnloadedUserRelation(int $userDbId): self
+    {
+        $this->linkedUserId = $userDbId;
+        $this->user = null;
+
+        return $this;
+    }
+
+    public function getLinkedUserId(): ?int
+    {
+        return $this->linkedUserId;
     }
 
     public function getId(): ?int

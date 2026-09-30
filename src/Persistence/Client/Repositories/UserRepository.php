@@ -89,6 +89,12 @@ class UserRepository extends Repository implements EntityRepositoryInterface, Us
         return $this->fetchBy('user_id', $userId);
     }
 
+    public function updateEmail(UserEntity $user, string $email): void
+    {
+        $user->setEmail($email);
+        $this->persist($user);
+    }
+
     public function findUserById(int $id): ?UserEntity
     {
         /** @var UserEntity|null $user */

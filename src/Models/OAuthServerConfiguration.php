@@ -5,16 +5,22 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Models;
 
+use Amtgard\IdP\Models\Oidc\OidcAuthCodeGrant;
+use Amtgard\IdP\Models\Oidc\OidcIdTokenResponse;
+use Amtgard\IdP\Models\Oidc\OidcNonceContext;
+use Amtgard\IdP\Utility\JwksFactory;
+use Amtgard\IdP\Utility\OAuthKeyMaterial;
 use Amtgard\Traits\Builder\Builder;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\CryptKey;
-use League\OAuth2\Server\Grant\AuthCodeGrant;
 use League\OAuth2\Server\Grant\RefreshTokenGrant;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\ScopeRepositoryInterface;
+use OpenIDConnectServer\ClaimExtractor;
+use OpenIDConnectServer\Repositories\IdentityProviderInterface;
 
 class OAuthServerConfiguration
 {
@@ -25,8 +31,12 @@ class OAuthServerConfiguration
     private AccessTokenRepositoryInterface $accessTokenRepository;
     private AuthCodeRepositoryInterface $authCodeRepository;
     private RefreshTokenRepositoryInterface $refreshTokenRepository;
+    private IdentityProviderInterface $identityProvider;
+    private ?OidcNonceContext $nonceContext = null;
 
     public function build(): AuthorizationServer {
+        $nonceContext = $this->nonceContext ?? new OidcNonceContext();
+
         // Path to private key
         $privateKey = new CryptKey(
             $_ENV['OAUTH_PRIVATE_KEY'],
@@ -34,20 +44,29 @@ class OAuthServerConfiguration
             false
         );
 
+        $kid = JwksFactory::fromPublicKeyPem(OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY'))->kid();
+
         // Setup the authorization server
         $server = new AuthorizationServer(
             $this->clientRepository,
             $this->accessTokenRepository,
             $this->scopeRepository,
             $privateKey,
-            $_ENV['AUTH_SERVER_DEFUSE_KEY']
+            $_ENV['AUTH_SERVER_DEFUSE_KEY'],
+            new OidcIdTokenResponse(
+                $this->identityProvider,
+                new ClaimExtractor(),
+                $kid,
+                $nonceContext
+            )
         );
 
         // Enable the authentication code grant on the server with a token TTL of 1 hour
-        $authCodeGrant = new AuthCodeGrant(
+        $authCodeGrant = new OidcAuthCodeGrant(
             $this->authCodeRepository,
             $this->refreshTokenRepository,
-            new \DateInterval($_ENV['OAUTH_AUTH_TOKEN_TTL']) // Authorization codes will expire after 10 minutes
+            new \DateInterval($_ENV['OAUTH_AUTH_TOKEN_TTL']), // Authorization codes will expire after 10 minutes
+            $nonceContext
         );
         $authCodeGrant->setRefreshTokenTTL(new \DateInterval($_ENV['OAUTH_REFRESH_TOKEN_TTL'])); // Refresh tokens will expire after 1 month
 

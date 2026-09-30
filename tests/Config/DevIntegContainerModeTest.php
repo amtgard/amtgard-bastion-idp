@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Config;
 
+use Amtgard\IdP\Services\Mail\IntegRecordingOutboundMail;
+use Amtgard\IdP\Services\Mail\OutboundMail;
 use Amtgard\IdP\Utility\Http\SocialOAuthHttpClient;
 use DevIntegHttpClient;
 use DI\ContainerBuilder;
@@ -30,6 +32,18 @@ final class DevIntegContainerModeTest extends TestCase
         $this->assertInstanceOf(DevIntegHttpClient::class, $google->getHttpClient());
     }
 
+    public function testDevIntegEnvironmentUsesRecordingOutboundMail(): void
+    {
+        try {
+            $container = $this->buildAuthContainer('DEV_INTEG');
+            $mail = $container->get(OutboundMail::class);
+        } catch (\RedisException) {
+            $this->markTestSkipped('Pub/sub Redis is required to resolve OutboundMail in DEV_INTEG');
+        }
+
+        $this->assertInstanceOf(IntegRecordingOutboundMail::class, $mail);
+    }
+
     public function testDevEnvironmentWiresGoogleProviderWithRealGuzzleClient(): void
     {
         $container = $this->buildAuthContainer('DEV');
@@ -54,6 +68,7 @@ final class DevIntegContainerModeTest extends TestCase
         $_ENV['DISCORD_CLIENT_ID'] = 'test_discord_client_id';
         $_ENV['DISCORD_CLIENT_SECRET'] = 'test_discord_client_secret';
         $_ENV['DISCORD_REDIRECT_URI'] = 'http://localhost:8080/auth/discord/callback';
+        $_ENV['MAILBOX_CODE_PEPPER'] = 'integ-unit-test-mailbox-pepper-value';
 
         $builder = new ContainerBuilder();
         $builder->addDefinitions(require dirname(__DIR__, 2) . '/config/container.php');

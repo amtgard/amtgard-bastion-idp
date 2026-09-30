@@ -16,3 +16,4 @@ dev-keys/
 .env.prod
 .phinx.env
 .deploy-state/
+.infection-tmp/

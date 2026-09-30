@@ -1,0 +1,11 @@
+# Overlay for INTEG_COVERAGE=1 (see scripts/integ-coverage.sh). PCOV in php-fpm only; does not affect normal integ.sh.
+name: amtgard-idp
+
+services:
+  amtgardidpapp:
+    volumes:
+      - ./build/integ-coverage:/var/www/idp.amtgard.com/build/integ-coverage
+      - ./docker/pcov.integ.ini:/etc/php/8.4/fpm/conf.d/99-integ-coverage.ini:ro
+    environment:
+      INTEG_COVERAGE_ENABLED: "1"
+      INTEG_COVERAGE_RAW_DIR: /var/www/idp.amtgard.com/build/integ-coverage/raw

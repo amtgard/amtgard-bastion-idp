@@ -1,0 +1,21 @@
+# Worker overlay when INTEG_COVERAGE=1 (long-lived CLI: one PCOV dump on SIGTERM at integ-down).
+services:
+  jwt-worker:
+    volumes:
+      - ./build/integ-coverage:/var/www/idp.amtgard.com/build/integ-coverage
+    environment:
+      INTEG_COVERAGE_ENABLED: "1"
+      INTEG_COVERAGE_RAW_DIR: /var/www/idp.amtgard.com/build/integ-coverage/raw
+    command:
+      - php
+      - -d
+      - xdebug.mode=off
+      - -d
+      - pcov.enabled=1
+      - -d
+      - pcov.directory=/var/www/idp.amtgard.com/src
+      - -d
+      - auto_prepend_file=/var/www/idp.amtgard.com/scripts/integ-coverage-fpm-prepend.php
+      - -d
+      - memory_limit=256M
+      - /var/www/idp.amtgard.com/bin/jwt-pvh-worker.php

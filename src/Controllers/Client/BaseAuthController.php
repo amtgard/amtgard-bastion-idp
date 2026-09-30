@@ -6,7 +6,9 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Controllers\Client;
 
 use Amtgard\IdP\Models\AmtgardIdpJwt;
+use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
+use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\Security\RedirectValidator;
@@ -24,6 +26,16 @@ class BaseAuthController
     {
         $this->logger = $logger;
         $this->amtgardIdpJwt = $amtgardIdpJwt;
+    }
+
+    protected function userForProviderLogin(UserRepository $users, UserLoginEntity $login): ?UserEntity
+    {
+        $userId = $login->getLinkedUserId();
+        if ($userId === null) {
+            return null;
+        }
+
+        return $users->findUserById($userId);
     }
 
     protected function finalizeAuthorization(

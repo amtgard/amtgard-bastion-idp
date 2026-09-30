@@ -23,6 +23,7 @@
         "robmorgan/phinx": "^0.16.8",
         "slim/psr7": "^1.5",
         "slim/slim": "^4.9",
+        "steverhoades/oauth2-openid-connect-server": "^3.0",
         "twig/twig": "^3.21",
         "vlucas/phpdotenv": "^5.4",
         "wohali/oauth2-discord-new": "^1.2",
@@ -52,6 +53,7 @@
         "start": "php -S localhost:8080 -t public",
         "test": "phpunit",
         "integ": "phpunit -c phpunit.integ.xml --testdox --order-by=random",
+        "integ:coverage": "bash scripts/integ-coverage.sh",
         "cs": "phpcs",
         "stan": "phpstan analyse src tests"
     },
