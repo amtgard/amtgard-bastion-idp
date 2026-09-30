@@ -35,14 +35,14 @@ The IDP provides specific endpoints for retrieving user data and validating sess
 - **Response**: JSON object containing `id`, `email`, and `ork_profile` (if linked).
 
 ### Validate Endpoint
-**Endpoint**: `/resources/validate` (or `/oauth/validate`)
-- **Purpose**: A lightweight endpoint to quickly validate an Access Token and register "liveness".
-- **Use Case**: Used by clients to check if a user's session is still active without fetching the full profile.
+**Endpoint**: `GET /resources/validate` (`LowLatencyController`; no route middleware)
+- **Purpose**: Heartbeat / presence using the **authorization JWT** (fat `jwt` or `compact_jwt` from `GET /resources/jwt`), not a League OAuth access token.
+- **Use Case**: High-frequency liveness checks without loading full profile data from `GET /resources/userinfo`.
 - **Behavior**:
-  - Checks if the user is in the Redis cache.
-  - Triggers a PubSub event to notify other services that the user is online/active.
-  - Returns minimal user data (`id`, `email`).
-- **Differentiation**: unlike `userinfo`, `validate` is optimized for high-frequency "heartbeat" checks and presence tracking.
+  - Validates Bearer JWT signature, issuer, and `pvh`; seeds Redis on cache miss (userinfo does not).
+  - Enqueues PVH refresh work and publishes a PubSub presence event on success.
+  - Returns minimal JSON (`id`, `email`; optional echoed Bearer when `?jwt=1`).
+- **Differentiation**: `userinfo` accepts an OAuth access token via middleware fallback; validate does not. See `agent/cursor/dev-integ-validate-endpoint.md` and `templates/api.md`.
 
 ## Development
 
@@ -67,6 +67,38 @@ Do not start a second worker with `exec php bin/jwt-pvh-worker.php` in the app c
 Server: http://localhost:37080/
 
 `.env` is gitignored. Production servers also keep a single `.env` on the host (never committed).
+
+### Integration tests (DEV_INTEG)
+
+HTTP integration runs against the live app on port 37080 with `ENVIRONMENT=DEV_INTEG` (fake OAuth/ORK HTTP, dedicated integ MariaDB schema `idp`). Unit tests stay on `composer test`; integration is opt-in.
+
+Integration uses a **parallel Docker Compose project** (`amtgard-idp-integ`) for dedicated MariaDB and session Redis, alongside the normal dev web stack (`amtgard-idp`). Both attach to the external network `amtgard-idp-shared`. Integ infra volumes are separate from dev (`amtgard-idp-integ-data-db`, `amtgard-idp-integ-session-data`).
+
+| Service | Container | Host port (MariaDB only) |
+|---------|-----------|--------------------------|
+| Integ MariaDB | `amtgard-idp-db-integ` | `36307` → 3306 |
+| Integ session Redis | `amtgard-idp-sessions-integ` | (internal on shared network) |
+| Dev MariaDB (unchanged) | `amtgard-idp-db` | `36306` → 3306 |
+
+Start integ infra only (no app overlay):
+
+```bash
+docker compose -p amtgard-idp-integ -f docker/compose.integ-infra.yml up -d
+```
+
+Full harness (starts integ infra, then dev sessions + web integ overlay with `DB_HOST=amtgard-idp-db-integ` and `SESSION_REDIS_HOST=amtgard-idp-sessions-integ`):
+
+```bash
+./scripts/integ.sh          # integ-up → composer integ → integ-down
+./scripts/integ.sh --keep   # leave the stack in DEV_INTEG after tests
+./scripts/integ-up.sh       # integ infra + overlay (migrate + seed)
+composer integ              # PHPUnit against http://localhost:37080
+./scripts/integ-down.sh     # restore ENVIRONMENT=DEV and the normal idp schema
+```
+
+Optional env overrides for scripts: `INTEG_PROJECT`, `INTEG_DB_CONTAINER`, `NETWORK`.
+
+`integ.sh` fails if Docker is not running. On failure it still runs `integ-down` unless you passed `--keep`.
 
 ### Versioning
 

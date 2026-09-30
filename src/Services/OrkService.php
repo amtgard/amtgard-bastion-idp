@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Services;
 
-use GuzzleHttp\Client;
+use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use Optional\Optional;
 use Psr\Log\LoggerInterface;
@@ -14,33 +14,19 @@ final class OrkService
 {
     private const BASE_URL = 'https://ork.amtgard.com/orkservice/Json/index.php';
 
-    private Client $tempClient; // Using a temp client for now, or could inject if configured
+    private ClientInterface $httpClient;
     private LoggerInterface $logger;
 
-    public function __construct(LoggerInterface $logger)
+    public function __construct(ClientInterface $httpClient, LoggerInterface $logger)
     {
+        $this->httpClient = $httpClient;
         $this->logger = $logger;
-
-        $userAgent = $_ENV['ORK_API_USER_AGENT'] ?? null;
-        $referer = $_ENV['ORK_API_REFERER'] ?? null;
-
-        if (empty($userAgent) || empty($referer)) {
-            throw new \RuntimeException('Missing required ORK API configuration: ORK_API_USER_AGENT and ORK_API_REFERER must be set.');
-        }
-
-        $this->tempClient = new Client([
-            'verify' => false, // Disable SSL verification for legacy server
-            'headers' => [
-                'User-Agent' => $userAgent,
-                'Referer' => $referer,
-            ]
-        ]);
     }
 
     public function authorize(string $username, string $password): ?array
     {
         try {
-            $response = $this->tempClient->get(self::BASE_URL, [
+            $response = $this->httpClient->get(self::BASE_URL, [
                 'query' => [
                     'call' => 'Authorization/Authorize',
                     'request' => [
@@ -74,7 +60,7 @@ final class OrkService
     public function getPlayer(string $token, int $mundaneId): ?array
     {
         try {
-            $response = $this->tempClient->get(self::BASE_URL, [
+            $response = $this->httpClient->get(self::BASE_URL, [
                 'query' => [
                     'call' => 'Player/GetPlayer',
                     'request' => [
@@ -120,7 +106,7 @@ final class OrkService
         }
 
         try {
-            $response = $this->tempClient->get(self::BASE_URL, [
+            $response = $this->httpClient->get(self::BASE_URL, [
                 'query' => [
                     'call' => $request['call'],
                     'request' => [

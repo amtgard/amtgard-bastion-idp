@@ -1,0 +1,23 @@
+# DEV integ — orchestrator checklist
+
+Source plan: [dev-integ-milestones.md](./dev-integ-milestones.md).  
+Stack from **`main`**. Git-branchless stacked branches. **Do not push** unless the user asks.
+
+| # | Branch | Done |
+|---|--------|------|
+| 1 | `stack/dev-integ-1-container-includes` | [x] |
+| 2 | `stack/dev-integ-2-social-http-seam` | [x] |
+| 3 | `stack/dev-integ-3-ork-http-seam` | [x] |
+| 4 | `stack/dev-integ-4-mode-switch` | [x] |
+| 5 | `stack/dev-integ-5-harness` | [x] |
+| 6 | `stack/dev-integ-6-ui-session` | [x] |
+| 7 | `stack/dev-integ-7-oauth-approve` | [x] |
+| 8 | `stack/dev-integ-8-social-callbacks` | [x] |
+| 9 | `stack/dev-integ-9-apple-callback` | [x] |
+| 10 | `stack/dev-integ-10-ork-and-profile` | [x] |
+| 11 | `stack/dev-integ-11-management-ui` | [x] |
+| 12 | `stack/dev-integ-12-public-api` | [x] |
+| 13 | `stack/dev-integ-13-oauth-and-resources` | [x] |
+| 14 | `stack/dev-integ-14-client-iam` | [ ] |
+
+**Resume from:** 14

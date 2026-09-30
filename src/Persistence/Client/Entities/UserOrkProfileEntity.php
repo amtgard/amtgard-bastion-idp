@@ -30,16 +30,16 @@ class UserOrkProfileEntity extends RepositoryEntity
     private ?string $linkedVia;
 
     #[Field('ork_token')]
-    private string $orkToken;
+    private string $orkToken = '';
 
     #[Field('mundane_id')]
     private int $mundaneId;
 
     #[Field('username')]
-    private string $username;
+    private string $username = '';
 
     #[Field('persona')]
-    private string $persona;
+    private string $persona = '';
 
     #[Field('suspended')]
     private int $suspended;
@@ -92,7 +92,7 @@ class UserOrkProfileEntity extends RepositoryEntity
 
     public function getOrkToken(): string
     {
-        return $this->orkToken;
+        return isset($this->orkToken) ? $this->orkToken : '';
     }
 
     public function setOrkToken(string $orkToken): void
@@ -112,7 +112,7 @@ class UserOrkProfileEntity extends RepositoryEntity
 
     public function getUsername(): string
     {
-        return $this->username;
+        return isset($this->username) ? $this->username : '';
     }
 
     public function setUsername(string $username): void
@@ -122,7 +122,7 @@ class UserOrkProfileEntity extends RepositoryEntity
 
     public function getPersona(): string
     {
-        return $this->persona;
+        return isset($this->persona) ? $this->persona : '';
     }
 
     public function setPersona(string $persona): void

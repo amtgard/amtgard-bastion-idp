@@ -159,6 +159,38 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
         $this->assertSame(self::CLIENT, $_SESSION['client_id']);
     }
 
+    public function testProcessUsesAccessTokenFallbackWhenAudIsNotAnAuthorizedClient(): void
+    {
+        @session_start();
+        $_SESSION['client_id'] = 'invalid-client';
+
+        $accessJwt = FirebaseJwtTestFactory::oauthAccessTokenForUserAndClient(self::USER, 'third-party-client');
+        $this->request->method('getHeaderLine')
+            ->with('Authorization')
+            ->willReturn("Bearer {$accessJwt}");
+
+        $this->redisCacheRepository->expects($this->never())->method('getPvhRecord');
+        $validated = $this->createMock(ServerRequestInterface::class);
+        $this->resourceServer->expects($this->once())
+            ->method('validateAuthenticatedRequest')
+            ->with($this->request)
+            ->willReturn($validated);
+        $validated->method('getAttribute')->willReturnMap([
+            ['oauth_user_id', self::USER],
+            ['oauth_client_id', 'third-party-client'],
+        ]);
+
+        $this->handler->expects($this->once())
+            ->method('handle')
+            ->with($validated)
+            ->willReturn($this->response);
+
+        $result = $this->middleware->process($this->request, $this->handler);
+        $this->assertSame($this->response, $result);
+        $this->assertSame(self::USER, $_SESSION['user_id']);
+        $this->assertSame('third-party-client', $_SESSION['client_id']);
+    }
+
     public function testProcessPrevPvhReturns409StaleToken(): void
     {
         @session_start();

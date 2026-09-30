@@ -89,7 +89,7 @@ final class OAuthApproveAction
                 ->withHeader('Location', $callback);
         }
 
-        $this->authRequestStore->clearAuthRequest();
+        $this->authRequestStore->clearAuthorizationState();
 
         return $response
             ->withStatus(302)

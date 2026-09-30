@@ -1,0 +1,12 @@
+# Overlay during scripts/integ-up.sh so PVH cache/queues use integ Redis + DB (not dev).
+services:
+  jwt-worker:
+    environment:
+      ENVIRONMENT: DEV_INTEG
+      DB_HOST: amtgard-idp-db-integ
+      DB_NAME: idp
+      REDIS_PUBSUB_HOST: amtgard-idp-sessions-integ
+      REDIS_PUBSUB_PORT: "6379"
+      REDIS_PUBSUB_DB: "0"
+      REDIS_PUBSUB_QUEUE_NAME: integ-amtgard-idp
+      REDIS_PVH_QUEUE_NAME: integ-amtgard-idp-pvh

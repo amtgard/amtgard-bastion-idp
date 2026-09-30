@@ -302,6 +302,7 @@ class OAuth2ServerControllerTest extends TestCase
         ]);
 
         $_SESSION['authRequest'] = 'some-serialized-data';
+        $_SESSION['approved'] = true;
 
         $this->response->expects($this->once())
             ->method('withHeader')
@@ -316,6 +317,7 @@ class OAuth2ServerControllerTest extends TestCase
         $result = $this->controller->approve($this->request, $this->response);
         $this->assertSame($this->response, $result);
         $this->assertArrayNotHasKey('authRequest', $_SESSION);
+        $this->assertArrayNotHasKey('approved', $_SESSION);
     }
 
     public function testApproveGet(): void

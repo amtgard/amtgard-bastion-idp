@@ -8,6 +8,7 @@ devfile.yaml
 .cursorrules
 .cursorignore
 .cursorignorerules
+build/
 cache/
 keys/
 dev-keys/

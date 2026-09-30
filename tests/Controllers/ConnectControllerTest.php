@@ -291,6 +291,7 @@ class ConnectControllerTest extends TestCase
         $this->controller->submitConnectLogin($request, $this->response);
 
         $this->assertSame('uuid-user', $_SESSION['user_id']);
+        $this->assertSame(\Amtgard\IdP\Utility\Constants::$AMTGARD_IDP_CLIENT_ID, $_SESSION['client_id']);
     }
 
     public function testSubmitConnectRegisterRejectsPasswordMismatch(): void

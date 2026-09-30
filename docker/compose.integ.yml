@@ -1,0 +1,23 @@
+# Overlay on compose.prod.yml + compose.blue.yml + compose.dev.yml (see scripts/integ-up.sh).
+# DEV integration: dedicated MariaDB + session Redis (compose.integ-infra.yml), fake outbound HTTP.
+name: amtgard-idp
+
+services:
+  amtgardidpapp:
+    environment:
+      ENVIRONMENT: DEV_INTEG
+      DB_HOST: amtgard-idp-db-integ
+      DB_NAME: idp
+      SESSION_REDIS_HOST: amtgard-idp-sessions-integ
+      REDIS_PUBSUB_HOST: amtgard-idp-sessions-integ
+      REDIS_PUBSUB_PORT: "6379"
+      REDIS_PUBSUB_DB: "0"
+      REDIS_PUBSUB_QUEUE_NAME: integ-amtgard-idp
+      REDIS_PVH_QUEUE_NAME: integ-amtgard-idp-pvh
+      APPLE_LOGIN_ENABLED: "true"
+      APPLE_KEY_FILE_PATH: /var/www/idp.amtgard.com/tests/fixtures/integ-apple-es256.pem
+      SESSION_REDIS_PREFIX: "INTEGSESS:"
+      MANAGEMENT_KEY: integ-management-key-thirty-two-chars
+      LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS: integ_confidential
+      IDP_ORK_SHARED_SECRET: integ-ork-shared-secret-thirty-two-chars
+      ORK_BASE_URL: https://ork.amtgard.com

@@ -52,11 +52,13 @@ class UserClientAuthorizationRepositoryTest extends TestCase
     {
         $fields = [];
         $repository = $this->getMockBuilder(UserClientAuthorizationRepository::class)
-            ->onlyMethods(['clear', 'find', '__set'])
+            ->onlyMethods(['clear', 'query', 'execute', 'next', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
         $repository->expects($this->once())->method('clear');
-        $repository->expects($this->once())->method('find')->willReturn(1);
+        $repository->expects($this->once())->method('query')->with($this->stringContains('user_client_authorizations'));
+        $repository->expects($this->once())->method('execute');
+        $repository->expects($this->once())->method('next')->willReturn(true);
         $repository->method('__set')->willReturnCallback(function (string $name, $value) use (&$fields): void {
             $fields[$name] = $value;
         });
@@ -69,10 +71,10 @@ class UserClientAuthorizationRepositoryTest extends TestCase
     public function testHasAuthorizationReturnsFalseWhenMissing(): void
     {
         $repository = $this->getMockBuilder(UserClientAuthorizationRepository::class)
-            ->onlyMethods(['clear', 'find', '__set'])
+            ->onlyMethods(['clear', 'query', 'execute', 'next', '__set'])
             ->disableOriginalConstructor()
             ->getMock();
-        $repository->method('find')->willReturn(0);
+        $repository->method('next')->willReturn(false);
 
         $this->assertFalse($repository->hasAuthorization('user-123', 456));
     }
