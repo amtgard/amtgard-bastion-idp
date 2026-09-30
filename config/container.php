@@ -23,6 +23,9 @@ use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 use Amtgard\IdP\Utility\Security\CsrfTokenManager;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
+use Amtgard\IdP\Services\ClientIamMetadataService;
+use Amtgard\IdP\Services\ClientIamPolicyService;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Services\ResourcesUserinfoService;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
@@ -257,6 +260,18 @@ return [
     ResourcesUserinfoService::class => function (ContainerInterface $container) {
         return ResourcesUserinfoService::builder()
             ->orkProfileRepository($container->get(UserOrkProfileRepository::class))
+            ->build();
+    },
+
+    ClientIamPolicyService::class => function (UserPolicyClaimRepository $policyClaimRepository) {
+        return ClientIamPolicyService::builder()
+            ->policyClaimRepository($policyClaimRepository)
+            ->build();
+    },
+
+    ClientIamMetadataService::class => function (UserLoginClientRepository $metadataRepository) {
+        return ClientIamMetadataService::builder()
+            ->metadataRepository($metadataRepository)
             ->build();
     },
 

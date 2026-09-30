@@ -9,6 +9,11 @@ use Amtgard\IdP\Controllers\Resource\ClientPolicyClaimsController;
 use Amtgard\IdP\Controllers\Resource\ClientServiceFormatController;
 use Amtgard\IdP\Controllers\Resource\ClientUserLookupController;
 use Amtgard\IdP\Controllers\Resource\ClientUserMetadataController;
+use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
+use Amtgard\IdP\Services\ClientIamMetadataService;
+use Amtgard\IdP\Services\ClientIamPolicyService;
+use ReflectionProperty;
 use Amtgard\IdP\Controllers\Resource\OrkAccountUnlinkController;
 use Amtgard\IdP\Middleware\ConfidentialClientBasicAuthMiddleware;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
@@ -76,6 +81,8 @@ final class ContainerResolutionOrderTest extends TestCase
             $policyClaims = $this->container->get(ClientPolicyClaimsController::class);
             $userMetadata = $this->container->get(ClientUserMetadataController::class);
             $serviceFormat = $this->container->get(ClientServiceFormatController::class);
+            $policyService = $this->container->get(ClientIamPolicyService::class);
+            $metadataService = $this->container->get(ClientIamMetadataService::class);
         } catch (Throwable $e) {
             $this->markTestSkipped('Infrastructure not reachable for container integration: ' . $e->getMessage());
         }
@@ -90,6 +97,14 @@ final class ContainerResolutionOrderTest extends TestCase
         $this->assertInstanceOf(ClientPolicyClaimsController::class, $policyClaims);
         $this->assertInstanceOf(ClientUserMetadataController::class, $userMetadata);
         $this->assertInstanceOf(ClientServiceFormatController::class, $serviceFormat);
+        $this->assertInstanceOf(
+            UserPolicyClaimRepository::class,
+            (new ReflectionProperty(ClientIamPolicyService::class, 'policyClaimRepository'))->getValue($policyService)
+        );
+        $this->assertInstanceOf(
+            UserLoginClientRepository::class,
+            (new ReflectionProperty(ClientIamMetadataService::class, 'metadataRepository'))->getValue($metadataService)
+        );
     }
 
     public function testClientUserByEmailRouteResolvesItsController(): void
