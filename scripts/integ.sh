@@ -22,6 +22,7 @@ if ! ./scripts/integ-up.sh; then
 fi
 
 if [[ "$fail" -eq 0 ]]; then
+    echo "==> Running integration tests (testdox)..."
     if ! composer integ; then
         fail=1
     fi

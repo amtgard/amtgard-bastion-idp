@@ -1,0 +1,49 @@
+# Dedicated MariaDB + session Redis for DEV integration tests (project amtgard-idp-integ).
+# Start alone: docker compose -p amtgard-idp-integ -f docker/compose.integ-infra.yml up -d
+# Or via scripts/integ-up.sh (starts this project before the web integ overlay).
+name: amtgard-idp-integ
+
+services:
+  amtgard-idp-db-integ:
+    image: mariadb:latest
+    container_name: amtgard-idp-db-integ
+    hostname: amtgard-idp-db-integ
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: idp
+      MARIADB_USER: idp
+      MARIADB_PASSWORD: secret
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - "36307:3306"
+    expose:
+      - "3306"
+    volumes:
+      - amtgard-idp-integ-data-db:/var/lib/mysql
+    networks:
+      - amtgard-idp-shared
+
+  amtgard-idp-sessions-integ:
+    image: redis:7-alpine
+    container_name: amtgard-idp-sessions-integ
+    hostname: amtgard-idp-sessions-integ
+    restart: unless-stopped
+    volumes:
+      - amtgard-idp-integ-session-data:/data
+    networks:
+      - amtgard-idp-shared
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+
+volumes:
+  amtgard-idp-integ-data-db:
+    name: amtgard-idp-integ-data-db
+  amtgard-idp-integ-session-data:
+    name: amtgard-idp-integ-session-data
+
+networks:
+  amtgard-idp-shared:
+    name: amtgard-idp-shared
+    external: true

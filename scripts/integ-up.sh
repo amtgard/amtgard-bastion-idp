@@ -5,17 +5,25 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 NETWORK="${NETWORK:-amtgard-idp-shared}"
+INTEG_PROJECT="${INTEG_PROJECT:-amtgard-idp-integ}"
 WEB_PROJECT="${WEB_PROJECT:-amtgard-idp}"
 SESSIONS_PROJECT="${SESSIONS_PROJECT:-amtgard-idp-sessions}"
 WORKER_PROJECT="${WORKER_PROJECT:-amtgard-idp-worker}"
 APP_CONTAINER="${APP_CONTAINER:-amtgard-idp}"
 DB_CONTAINER="${DB_CONTAINER:-amtgard-idp-db}"
+INTEG_DB_CONTAINER="${INTEG_DB_CONTAINER:-amtgard-idp-db-integ}"
 
 require_docker() {
     if ! docker info >/dev/null 2>&1; then
         echo "Docker is not running." >&2
         exit 1
     fi
+}
+
+compose_integ_infra() {
+    docker compose --project-directory "$ROOT" -p "$INTEG_PROJECT" \
+        -f docker/compose.integ-infra.yml \
+        "$@"
 }
 
 compose_sessions() {
@@ -56,6 +64,18 @@ ensure_shared_network() {
     docker network create "$NETWORK"
 }
 
+wait_for_integ_db() {
+    local attempt
+    for attempt in $(seq 1 30); do
+        if docker exec "$INTEG_DB_CONTAINER" mariadb-admin ping -uroot -proot --silent >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 1
+    done
+    echo "Timed out waiting for MariaDB in ${INTEG_DB_CONTAINER}" >&2
+    return 1
+}
+
 wait_for_app() {
     local attempt
     for attempt in $(seq 1 30); do
@@ -70,6 +90,10 @@ wait_for_app() {
 
 require_docker
 ensure_shared_network
+
+echo "==> Starting integ infra (${INTEG_PROJECT}: DB + session Redis)..."
+compose_integ_infra up -d
+wait_for_integ_db
 
 echo "==> Starting sessions (${SESSIONS_PROJECT})..."
 compose_sessions up -d

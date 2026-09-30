@@ -70,15 +70,33 @@ Server: http://localhost:37080/
 
 ### Integration tests (DEV_INTEG)
 
-HTTP integration runs against the live app on port 37080 with `ENVIRONMENT=DEV_INTEG` (fake OAuth/ORK HTTP, schema `idp_integ`). Unit tests stay on `composer test`; integration is opt-in:
+HTTP integration runs against the live app on port 37080 with `ENVIRONMENT=DEV_INTEG` (fake OAuth/ORK HTTP, schema `idp_integ`). Unit tests stay on `composer test`; integration is opt-in.
+
+Integration uses a **parallel Docker Compose project** (`amtgard-idp-integ`) for dedicated MariaDB and session Redis, alongside the normal dev web stack (`amtgard-idp`). Both attach to the external network `amtgard-idp-shared`. Integ infra volumes are separate from dev (`amtgard-idp-integ-data-db`, `amtgard-idp-integ-session-data`).
+
+| Service | Container | Host port (MariaDB only) |
+|---------|-----------|--------------------------|
+| Integ MariaDB | `amtgard-idp-db-integ` | `36307` → 3306 |
+| Integ session Redis | `amtgard-idp-sessions-integ` | (internal on shared network) |
+| Dev MariaDB (unchanged) | `amtgard-idp-db` | `36306` → 3306 |
+
+Start integ infra only (no app overlay):
+
+```bash
+docker compose -p amtgard-idp-integ -f docker/compose.integ-infra.yml up -d
+```
+
+Full harness (starts integ infra, then dev sessions + web integ overlay; app DB/Redis hosts still point at dev until a later milestone wires `DB_HOST` / `SESSION_REDIS_HOST` at integ services):
 
 ```bash
 ./scripts/integ.sh          # integ-up → composer integ → integ-down
 ./scripts/integ.sh --keep   # leave the stack in DEV_INTEG after tests
-./scripts/integ-up.sh       # overlay only (migrate + seed)
+./scripts/integ-up.sh       # integ infra + overlay (migrate + seed)
 composer integ              # PHPUnit against http://localhost:37080
 ./scripts/integ-down.sh     # restore ENVIRONMENT=DEV and the normal idp schema
 ```
+
+Optional env overrides for scripts: `INTEG_PROJECT`, `INTEG_DB_CONTAINER`, `NETWORK`.
 
 `integ.sh` fails if Docker is not running. On failure it still runs `integ-down` unless you passed `--keep`.
 
