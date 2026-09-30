@@ -36,6 +36,56 @@ final class IntegHttp
         return $this->client->get(ltrim($path, '/'));
     }
 
+    /** @param array<string, string> $fields */
+    public function postForm(string $path, array $fields): ResponseInterface
+    {
+        return $this->client->post(ltrim($path, '/'), [
+            'form_params' => $fields,
+            'headers' => [
+                'Content-Type' => 'application/x-www-form-urlencoded',
+            ],
+        ]);
+    }
+
+    public function parseCsrfToken(string $html): string
+    {
+        if (preg_match('/name="_csrf_token"\s+value="([^"]+)"/', $html, $matches) !== 1) {
+            throw new \RuntimeException('CSRF token not found in HTML');
+        }
+
+        return $matches[1];
+    }
+
+    public function redirectLocation(ResponseInterface $response): ?string
+    {
+        $location = $response->getHeaderLine('Location');
+        if ($location === '') {
+            return null;
+        }
+
+        if (str_starts_with($location, 'http://') || str_starts_with($location, 'https://')) {
+            return $location;
+        }
+
+        return rtrim($this->baseUrl, '/') . $location;
+    }
+
+    public function isRedirectToPath(ResponseInterface $response, string $path): bool
+    {
+        if ($response->getStatusCode() !== 302) {
+            return false;
+        }
+        $location = $this->redirectLocation($response);
+        if ($location === null) {
+            return false;
+        }
+        $normalizedPath = str_starts_with($path, '/') ? $path : '/' . $path;
+        $parsed = parse_url($location);
+        $locationPath = $parsed['path'] ?? '';
+
+        return $locationPath === $normalizedPath;
+    }
+
     public function hasSessionCookie(): bool
     {
         foreach ($this->jar->toArray() as $cookie) {

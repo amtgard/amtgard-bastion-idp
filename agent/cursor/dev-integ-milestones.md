@@ -235,7 +235,7 @@ Done when `./scripts/integ.sh` fails if Docker is down, and succeeds end-to-end 
 
 **Completed (milestone 5):** Branch `stack/dev-integ-5-harness`. Added `docker/compose.integ.yml`, `scripts/integ-{up,down,sh}.sh`, `tests/Integration/seed.php` (+ fixtures), `phpunit.integ.xml`, `composer integ`, and first HTTP tests (`VersionEndpointTest`, `LoginPageTest` via `IntegHttp`). `phinx.php` honors `MIGRATE_DB_NAME=idp_integ` for integ migrations. Gates: `composer test` OK (638 tests); `./scripts/integ.sh` OK (2 integ tests). No new `src/` decision-branch logs (harness-only).
 
-**Resume from:** milestone 6 (`stack/dev-integ-6-ui-session`).
+**Resume from:** milestone 7 (`stack/dev-integ-7-oauth-approve`).
 
 ### 6. `stack/dev-integ-6-ui-session`
 
@@ -245,6 +245,8 @@ Mode A, one jar:
 - `GET /auth/logout` → 302 `/`.
 - `POST /auth/login` as `integ-player@example.com` → 302 profile → `GET` profile 200.
 - `POST /auth/login` with a wrong password stays off the profile (assert the response is not a 302 to `/resources/profile`).
+
+**Completed (milestone 6):** Branch `stack/dev-integ-6-ui-session`. Extended `IntegHttp` (form POST, CSRF parse, redirect helpers) and added `UiSessionTest` (single-jar register → profile → logout → seeded player login → wrong-password guard). Seed unchanged (`integ-player@example.com` already in `tests/Integration/seed.php`). Gates: `composer test` OK; `./scripts/integ.sh` OK (3 integ tests). No new `src/` decision-branch logs (integration-only).
 
 ### 7. `stack/dev-integ-7-oauth-approve`
 
