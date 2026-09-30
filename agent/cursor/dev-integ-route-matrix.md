@@ -1,6 +1,6 @@
 # DEV integ — route matrix
 
-Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d3-connect-register`** (stack 1–14 + phase C isolation + D1–D3). Update this file when phase D milestones add cases.
+Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d4-oauth-errors`** (stack 1–14 + phase C isolation + D1–D4). Update this file when phase D milestones add cases.
 
 **Modes** (see [dev-integ-milestones.md](./dev-integ-milestones.md)):
 
@@ -17,7 +17,7 @@ Maps every route registered in `config/routes.php` to integration coverage as of
 
 When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Test class** lists the class(es).
 
-**Summary (D2):** 58 route registrations · **y** 53 · **n** 4 · **excluded** 1 · mailbox (no routes) excluded by policy. D2 adds explicit negatives on login/register CSRF and profile session gate (logged-out redirect, Bearer → 401).
+**Summary (D4):** 58 route registrations · **y** 53 · **n** 4 · **excluded** 1 · mailbox (no routes) excluded by policy. D4 adds OAuth authorize protocol errors (unknown client, bad redirect) and token exchange 401/400 negatives; after allow, resume authorize ignores tampered `state` in favor of the session auth request.
 
 ## Matrix
 
@@ -77,9 +77,9 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | GET | `/management/users/search` | `management.users.search` | A | y | `ManagementUiTest` | |
 | POST | `/management/clients/{id}/access` | `management.clients.access.add` | A | y | `ManagementUiTest` | |
 | POST | `/management/clients/{id}/access/{userId}/delete` | `management.clients.access.remove` | A | y | `ManagementUiTest` | |
-| GET | `/oauth/authorize` | `oauth.authorize` | A | y | `OAuthApproveTest`, `OAuthTokenAndResourcesTest`, `OrkAndProfileTest` | logged-out redirect in OAuthApproveTest |
+| GET | `/oauth/authorize` | `oauth.authorize` | A | y | `OAuthApproveTest`, `OAuthTokenAndResourcesTest`, `OrkAndProfileTest`, `OAuthErrorsTest` | logged-out redirect; invalid client/redirect 401; tampered state after allow |
 | POST | `/oauth/authorize` | *(unnamed)* | — | excluded | — | empty 200; not tested ([milestones](./dev-integ-milestones.md)) |
-| POST | `/oauth/token` | `oauth.token` | B | y | `OAuthTokenAndResourcesTest` | authorization_code + refresh_token |
+| POST | `/oauth/token` | `oauth.token` | B | y | `OAuthTokenAndResourcesTest`, `OAuthErrorsTest` | happy path + wrong secret 401 / bad code 400 |
 | GET | `/oauth/approve` | `oauth.approve` | A | n | — | integ uses POST only |
 | POST | `/oauth/approve` | `oauth.approve` | A | y | `OAuthApproveTest`, `OAuthTokenAndResourcesTest`, `OrkAndProfileTest` | allow + deny |
 
