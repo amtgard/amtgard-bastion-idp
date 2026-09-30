@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-09-30.240",
+  "build_id": "2026-09-30.241",
   "date": "2026-09-30",
-  "revision": 240,
-  "branch": "stack/dev-integ-d4-oauth-errors"
+  "revision": 241,
+  "branch": "stack/dev-integ-d5-oauth-scopes"
 }
