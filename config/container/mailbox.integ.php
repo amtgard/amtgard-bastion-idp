@@ -5,11 +5,10 @@ declare(strict_types=1);
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Persistence\Client\Repositories\MailboxChallengeRepository;
-use Amtgard\IdP\Services\Mail\MailCarrier;
-use Amtgard\IdP\Services\Mail\MailCarrierSettings;
+use Amtgard\IdP\Services\Mail\IntegRecordingOutboundMail;
 use Amtgard\IdP\Services\Mail\OutboundMail;
-use Amtgard\IdP\Services\Mail\OutboundMailFactory;
 use Amtgard\IdP\Services\MailboxChallengeService;
+use Amtgard\IdP\Utility\Redis\PubSubRedisConfig;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -24,10 +23,12 @@ return [
     },
 
     OutboundMail::class => function (ContainerInterface $container) {
-        return (new OutboundMailFactory(
+        $redis = PubSubRedisConfig::connect(new \Redis());
+
+        return new IntegRecordingOutboundMail(
+            $redis,
             $container->get(LoggerInterface::class),
-            MailCarrierSettings::fromEnv(),
-        ))->forCarrier(MailCarrier::fromEnv());
+        );
     },
 
     MailboxChallengeService::class => function (ContainerInterface $container) {

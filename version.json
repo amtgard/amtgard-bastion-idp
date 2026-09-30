@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-09-30.252",
+  "build_id": "2026-09-30.253",
   "date": "2026-09-30",
-  "revision": 252,
-  "branch": "HEAD"
+  "revision": 253,
+  "branch": "feature/mailbox-and-oidc"
 }

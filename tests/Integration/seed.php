@@ -134,6 +134,7 @@ function integPdo(): PDO
 
 function purgeFixtures(PDO $pdo): void
 {
+    $pdo->exec('DELETE FROM mailbox_challenges');
     purgeIntegClientAuthorizations($pdo);
     purgeEphemeralIntegUsers($pdo);
 

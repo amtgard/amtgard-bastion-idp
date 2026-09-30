@@ -21,3 +21,4 @@ services:
       LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS: integ_confidential
       IDP_ORK_SHARED_SECRET: integ-ork-shared-secret-thirty-two-chars
       ORK_BASE_URL: https://ork.amtgard.com
+      MAILBOX_CODE_PEPPER: integ-mailbox-pepper-not-for-production-use

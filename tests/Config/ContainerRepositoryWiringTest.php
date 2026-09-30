@@ -104,6 +104,7 @@ class ContainerRepositoryWiringTest extends TestCase
             ->with(MailboxChallengeRepository::class)
             ->willReturn($repository);
 
-        $this->assertSame($repository, $definitions[MailboxChallengeRepository::class]($entityManager));
+        $database = $this->createStub(\Amtgard\ActiveRecordOrm\Repository\Database::class);
+        $this->assertSame($repository, $definitions[MailboxChallengeRepository::class]($entityManager, $database));
     }
 }

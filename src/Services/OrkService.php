@@ -110,7 +110,7 @@ final class OrkService
         $limit = max(1, min(10, $limit));
 
         try {
-            $response = $this->tempClient->get(self::BASE_URL, [
+            $response = $this->httpClient->get(self::BASE_URL, [
                 'query' => [
                     'call' => 'SearchService/Player',
                     'type' => 'USER',
@@ -160,7 +160,7 @@ final class OrkService
         }
 
         try {
-            $response = $this->tempClient->get(self::BASE_URL, [
+            $response = $this->httpClient->get(self::BASE_URL, [
                 'query' => [
                     'call' => 'Player/GetPlayer',
                     'request' => [

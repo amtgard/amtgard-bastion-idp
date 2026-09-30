@@ -35,7 +35,7 @@ $envLoad->register('oauth-server', 'oauth-server.php', null);
 $envLoad->register('resources', 'resources.php', null);
 $envLoad->register('auth-providers', 'auth-providers.php', 'auth-providers.integ.php');
 $envLoad->register('ork', 'ork.php', 'ork.integ.php');
-$envLoad->register('mailbox', 'mailbox.php', null);
+$envLoad->register('mailbox', 'mailbox.php', 'mailbox.integ.php');
 
 return array_merge(
     require $envLoad->emit('persistence'),

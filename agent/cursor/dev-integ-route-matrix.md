@@ -1,6 +1,6 @@
 # DEV integ — route matrix
 
-Maps every route registered in `config/routes.php` to integration coverage as of **`stack/dev-integ-d10-pvh-happy`** (stack 1–14 + phase C isolation + D1–D10). Update this file when phase D milestones add cases.
+Maps every route registered in `config/routes.php` to integration coverage as of **`feature/mailbox-and-oidc`** (D1–D10 + mailbox/OIDC integ). Update this file when integ milestones add cases.
 
 **Modes** (see [dev-integ-milestones.md](./dev-integ-milestones.md)):
 
@@ -17,13 +17,15 @@ Maps every route registered in `config/routes.php` to integration coverage as of
 
 When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Test class** lists the class(es).
 
-**Summary (D7):** 58 route registrations · **y** 55 · **n** 2 · **excluded** 1 · mailbox (no routes) excluded by policy. D7 adds admin `POST /management/clients/{id}` (name + IAM metadata update) and player denied on that POST.
+**Summary:** 67 route registrations · **y** 64 · **n** 2 · **excluded** 1. Mailbox possession + OIDC discovery/JWKS/userinfo/`id_token` covered in `MailboxPossessionIntegTest` and `OidcDiscoveryIntegTest` ([plan](./mailbox-oidc-integ-plan.md)).
 
 ## Matrix
 
 | Method | Path | Route name | Mode | Covered | Test class | Notes |
 |--------|------|------------|------|---------|------------|-------|
 | GET | `/` | `home` | A | y | `StaticDocsTest` | |
+| GET | `/.well-known/openid-configuration` | `oidc.discovery` | B | y | `OidcDiscoveryIntegTest` | public JSON |
+| GET | `/.well-known/jwks.json` | `oidc.jwks` | B | y | `OidcDiscoveryIntegTest` | verifies live `id_token` kid |
 | GET | `/version` | `version` | B | y | `VersionEndpointTest` | |
 | GET | `/swagger` | `swagger.documentation` | A | y | `StaticDocsTest` | |
 | GET | `/openapi.json` | `swagger.openapi` | B | y | `PublicApiTest` | |
@@ -38,6 +40,9 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | POST | `/resources/clients/{id}/redirect` | `resources.clients.redirect` | A | y | `ManagementUiTest` | admin operator |
 | GET | `/resources/authorizations` | `resources.authorizations` | B | y | `OAuthTokenAndResourcesTest` | access token Bearer |
 | POST | `/resources/profile/link-ork` | `resources.profile.link_ork` | A | y | `OrkAndProfileTest` | hits `DevIntegHttpClient` ORK |
+| POST | `/resources/profile/link-ork-code-mail` | `resources.profile.link_ork_code_mail` | A | y | `MailboxPossessionIntegTest` | `IntegRecordingOutboundMail` + magic link |
+| GET | `/resources/profile/link-ork/magic` | `resources.profile.link_ork_magic` | A | y | `MailboxPossessionIntegTest` | mailed magic `t=` JWT |
+| POST | `/resources/profile/link-ork-code` | `resources.profile.link_ork_code` | A | y | `MailboxPossessionIntegTest` | redirects to ORK `claim_ork` |
 | POST | `/resources/profile/refresh-ork` | `resources.profile.refresh_ork` | A | y | `OrkAndProfileTest` | |
 | POST | `/resources/profile/unlink-ork` | `resources.profile.unlink_ork` | A | y | `OrkAndProfileTest` | |
 | POST | `/resources/profile/revoke` | `resources.profile.revoke` | A | y | `OrkAndProfileTest` | |
@@ -70,6 +75,8 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | GET | `/auth/connect` | `auth.connect.show` | A | y | `OrkAndProfileTest` | |
 | POST | `/auth/connect/login` | `auth.connect.login` | A | y | `OrkAndProfileTest` | jti replay negative |
 | POST | `/auth/connect/register` | `auth.connect.register` | A | y | `ConnectRegisterTest` | register tab happy path |
+| POST | `/auth/connect/code` | `auth.connect.code` | A | y | `MailboxPossessionIntegTest` | possession JWT + recorded code |
+| GET | `/auth/connect/complete` | `auth.connect.complete` | A | y | `MailboxPossessionIntegTest` | Flow A ORK completion JWT |
 | GET | `/management/cleantokens` | `management.cleantokens` | B | y | `PublicApiTest` | good + bad key |
 | GET | `/management/clients` | `management.clients` | A | y | `ManagementUiTest` | admin 200; player not 200 |
 | POST | `/management/clients` | `management.clients.create` | A | y | `ManagementUiTest` | |
@@ -79,7 +86,9 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | POST | `/management/clients/{id}/access/{userId}/delete` | `management.clients.access.remove` | A | y | `ManagementUiTest` | |
 | GET | `/oauth/authorize` | `oauth.authorize` | A | y | `OAuthApproveTest`, `OAuthTokenAndResourcesTest`, `OrkAndProfileTest`, `OAuthErrorsTest`, `OAuthScopesTest` | logged-out redirect; invalid client/redirect 401; unknown scope 400; empty/omitted scope approve + code; tampered state after allow |
 | POST | `/oauth/authorize` | *(unnamed)* | — | excluded | — | empty 200; not tested ([milestones](./dev-integ-milestones.md)) |
-| POST | `/oauth/token` | `oauth.token` | B | y | `OAuthTokenAndResourcesTest`, `OAuthErrorsTest` | happy path + wrong secret 401 / bad code 400 |
+| POST | `/oauth/token` | `oauth.token` | B | y | `OAuthTokenAndResourcesTest`, `OAuthErrorsTest`, `OidcDiscoveryIntegTest` | incl. `openid` → `id_token` |
+| GET | `/oauth/userinfo` | `oauth.userinfo` | B | y | `OidcDiscoveryIntegTest` | Bearer access token with `openid` |
+| POST | `/oauth/userinfo` | `oauth.userinfo` | B | y | `OidcDiscoveryIntegTest` | form `access_token` |
 | GET | `/oauth/approve` | `oauth.approve` | A | n | — | integ uses POST only |
 | POST | `/oauth/approve` | `oauth.approve` | A | y | `OAuthApproveTest`, `OAuthTokenAndResourcesTest`, `OrkAndProfileTest` | allow + deny |
 
@@ -87,7 +96,7 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 
 | Item | Reason |
 |------|--------|
-| Mailbox / SMTP | No routes or container keys yet ([dev-integ-milestones.md](./dev-integ-milestones.md)) |
+| Live SMTP / SendGrid / SES | Outbound mail stays faked in integ via `mailbox.integ.php` ([mailbox-oidc-integ-plan.md](./mailbox-oidc-integ-plan.md)) |
 | Live vendor / ORK HTTP | Must stay on `DevIntegHttpClient` in `ENVIRONMENT=DEV_INTEG` |
 
 ## Phase D backlog (from [dev-integ-coverage-plan.md](./dev-integ-coverage-plan.md))
