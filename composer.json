@@ -53,6 +53,7 @@
         "start": "php -S localhost:8080 -t public",
         "test": "phpunit",
         "integ": "phpunit -c phpunit.integ.xml --testdox --order-by=random",
+        "integ:coverage": "bash scripts/integ-coverage.sh",
         "cs": "phpcs",
         "stan": "phpstan analyse src tests"
     },

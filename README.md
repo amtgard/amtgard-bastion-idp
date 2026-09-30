@@ -124,6 +124,8 @@ Optional env overrides for scripts: `INTEG_PROJECT`, `INTEG_DB_CONTAINER`, `NETW
 
 `integ.sh` fails if Docker is not running. On failure it still runs `integ-down` unless you passed `--keep`.
 
+**Integration line coverage (spike):** PCOV inside integ php-fpm while the host runs `composer integ`. See [agent/cursor/integ-coverage.md](agent/cursor/integ-coverage.md). Quick run: `composer integ:coverage` → `build/integ-coverage/html/index.html`.
+
 ### Versioning
 
 Each commit records an orderable build id in `VERSION` and `version.json` (format: `YYYY-MM-DD.<revision>`, e.g. `2026-06-19.847`). The app displays `YYYY-MM-DD.<revision>+<short-sha>` by reading the current git HEAD at runtime. The revision number increases with each commit on the branch; compare it to `main` to see if production is behind.

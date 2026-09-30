@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y less gzip wget nginx nginx-extras zip u
 RUN add-apt-repository -y ppa:ondrej/php && apt-get update
 RUN apt-get install --no-install-recommends -y php8.4
 RUN apt-get install -y php8.4-fpm php8.4-cli php8.4-common php8.4-mysql php8.4-mbstring php8.4-curl php8.4-xml php8.4-memcached php8.4-redis php8.4-gd
-RUN apt-get install php8.4-xdebug
+RUN apt-get install -y php8.4-xdebug php8.4-pcov
 
 RUN sed -i 's/;\s*clear_env = no/clear_env = no/g' /etc/php/8.4/fpm/pool.d/www.conf
 RUN echo "env[ENVIRONMENT] = DEV" >> /etc/php/8.4/fpm/pool.d/www.conf
