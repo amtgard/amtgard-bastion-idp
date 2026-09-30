@@ -68,6 +68,20 @@ Server: http://localhost:37080/
 
 `.env` is gitignored. Production servers also keep a single `.env` on the host (never committed).
 
+### Integration tests (DEV_INTEG)
+
+HTTP integration runs against the live app on port 37080 with `ENVIRONMENT=DEV_INTEG` (fake OAuth/ORK HTTP, schema `idp_integ`). Unit tests stay on `composer test`; integration is opt-in:
+
+```bash
+./scripts/integ.sh          # integ-up → composer integ → integ-down
+./scripts/integ.sh --keep   # leave the stack in DEV_INTEG after tests
+./scripts/integ-up.sh       # overlay only (migrate + seed)
+composer integ              # PHPUnit against http://localhost:37080
+./scripts/integ-down.sh     # restore ENVIRONMENT=DEV and the normal idp schema
+```
+
+`integ.sh` fails if Docker is not running. On failure it still runs `integ-down` unless you passed `--keep`.
+
 ### Versioning
 
 Each commit records an orderable build id in `VERSION` and `version.json` (format: `YYYY-MM-DD.<revision>`, e.g. `2026-06-19.847`). The app displays `YYYY-MM-DD.<revision>+<short-sha>` by reading the current git HEAD at runtime. The revision number increases with each commit on the branch; compare it to `main` to see if production is behind.

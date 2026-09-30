@@ -233,6 +233,10 @@ First tests, Mode A unless noted:
 
 Done when `./scripts/integ.sh` fails if Docker is down, and succeeds end-to-end on a healthy dev stack. `./scripts/integ-down.sh` leaves `ENVIRONMENT=DEV` and real Guzzle on the app container.
 
+**Completed (milestone 5):** Branch `stack/dev-integ-5-harness`. Added `docker/compose.integ.yml`, `scripts/integ-{up,down,sh}.sh`, `tests/Integration/seed.php` (+ fixtures), `phpunit.integ.xml`, `composer integ`, and first HTTP tests (`VersionEndpointTest`, `LoginPageTest` via `IntegHttp`). `phinx.php` honors `MIGRATE_DB_NAME=idp_integ` for integ migrations. Gates: `composer test` OK (638 tests); `./scripts/integ.sh` OK (2 integ tests). No new `src/` decision-branch logs (harness-only).
+
+**Resume from:** milestone 6 (`stack/dev-integ-6-ui-session`).
+
 ### 6. `stack/dev-integ-6-ui-session`
 
 Mode A, one jar:

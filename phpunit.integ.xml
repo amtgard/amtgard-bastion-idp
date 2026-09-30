@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache">
+    <testsuites>
+        <testsuite name="Integration">
+            <directory>tests/Integration</directory>
+            <exclude>tests/Integration/seed.php</exclude>
+            <exclude>tests/Integration/verify_dev_http_client.php</exclude>
+            <exclude>tests/Integration/Support</exclude>
+            <exclude>tests/Integration/IntegFixtures.php</exclude>
+        </testsuite>
+    </testsuites>
+    <php>
+        <env name="IDP_BASE_URL" value="http://localhost:37080"/>
+    </php>
+</phpunit>

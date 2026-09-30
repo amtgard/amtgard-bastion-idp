@@ -4,6 +4,11 @@ require __DIR__ . '/vendor/autoload.php';
 
 Dotenv\Dotenv::createMutable(__DIR__)->safeLoad();
 
+$migrateDbName = getenv('MIGRATE_DB_NAME');
+if ($migrateDbName !== false && $migrateDbName !== '') {
+    $_ENV['DB_NAME'] = $migrateDbName;
+}
+
 $config = [
     'paths' => [
         'migrations' => 'db/migrations',
