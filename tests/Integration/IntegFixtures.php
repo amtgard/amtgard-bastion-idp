@@ -19,6 +19,9 @@ final class IntegFixtures
     public const UI_CREATED_REDIRECT_URI = 'http://localhost:37080/integ/from-ui/callback';
     public const UI_UPDATED_REDIRECT_URI = 'http://localhost:37080/integ/from-ui/updated';
 
+    /** Matches `MANAGEMENT_KEY` in docker/compose.integ.yml for cleantokens. */
+    public const MANAGEMENT_KEY = 'integ-management-key-thirty-two-chars';
+
     /** Matches `IDP_ORK_SHARED_SECRET` in docker/compose.integ.yml for connect JWT minting. */
     public const ORK_SHARED_SECRET = 'integ-ork-shared-secret-thirty-two-chars';
 

@@ -310,7 +310,7 @@ Player `integ-player@example.com` `GET /management/clients` is not 200.
 
 **Completed (milestone 11):** Branch `stack/dev-integ-11-management-ui`. Added `ManagementUiTest` (admin client list/create, operator redirect update after self-access grant, user search, access grant/delete; player denied management), integ fixture constants and seed purge for `integ_from_ui` and `integ-apple@example.com`, and Ork revoke OAuth helper tolerates prior suite authorization. Gates: `composer test` OK (642 tests); `./scripts/integ.sh` OK (13 integ tests). No new `src/` decision-branch logs (integration-only).
 
-**Resume from:** milestone 12 (`stack/dev-integ-12-public-api`).
+**Resume from:** milestone 13 (`stack/dev-integ-13-oauth-and-resources`).
 
 ### 12. `stack/dev-integ-12-public-api`
 
@@ -319,6 +319,8 @@ Mode B, no cookie:
 - `GET /version`, `GET /openapi.json`.
 - `POST /api/is_authorized` with a policy that passes and one that fails.
 - `GET /management/cleantokens?key=` with the overlay key → 200. Wrong key → 401 or 403 as the middleware already returns. Missing key length is not this test; the overlay key is long enough.
+
+**Completed (milestone 12):** Branch `stack/dev-integ-12-public-api`. Added `PublicApiTest` (openapi, is_authorized allow/deny, cleantokens good/bad key; `/version` remains in `VersionEndpointTest`), `IntegHttp::postJson`, `IntegFixtures::MANAGEMENT_KEY`, and php-fpm `MANAGEMENT_KEY` wiring in `integ-up.sh`. Gates: `composer test` OK (642 tests); `./scripts/integ.sh` OK (18 integ tests). No new `src/` decision-branch logs (integration-only).
 
 ### 13. `stack/dev-integ-13-oauth-and-resources`
 

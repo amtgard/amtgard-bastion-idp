@@ -36,6 +36,17 @@ final class IntegHttp
         return $this->client->get(ltrim($path, '/'));
     }
 
+    /** @param array<string, mixed> $body */
+    public function postJson(string $path, array $body): ResponseInterface
+    {
+        return $this->client->post(ltrim($path, '/'), [
+            'json' => $body,
+            'headers' => [
+                'Content-Type' => 'application/json',
+            ],
+        ]);
+    }
+
     /** @param array<string, string> $fields */
     public function postForm(string $path, array $fields): ResponseInterface
     {
