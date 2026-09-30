@@ -6,7 +6,7 @@ Stack from **`main`**. Git-branchless stacked branches. **Do not push** unless t
 | # | Branch | Done |
 |---|--------|------|
 | 1 | `stack/dev-integ-1-container-includes` | [x] |
-| 2 | `stack/dev-integ-2-social-http-seam` | [ ] |
+| 2 | `stack/dev-integ-2-social-http-seam` | [x] |
 | 3 | `stack/dev-integ-3-ork-http-seam` | [ ] |
 | 4 | `stack/dev-integ-4-mode-switch` | [ ] |
 | 5 | `stack/dev-integ-5-harness` | [ ] |
@@ -20,4 +20,4 @@ Stack from **`main`**. Git-branchless stacked branches. **Do not push** unless t
 | 13 | `stack/dev-integ-13-oauth-and-resources` | [ ] |
 | 14 | `stack/dev-integ-14-client-iam` | [ ] |
 
-**Resume from:** 2
+**Resume from:** 3

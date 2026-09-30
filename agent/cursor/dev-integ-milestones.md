@@ -202,6 +202,8 @@ Done when `composer test` passes and `GET /version` on the normal dev app still 
 
 Done when social unit tests still pass with mocked provider objects, and a focused test shows the object stored on the provider is that client. No integ overlay yet. Callbacks against the normal dev app still try the real vendors; do not call them.
 
+**Completed (milestone 2):** Branch `stack/dev-integ-2-social-http-seam`. Added `SocialOAuthHttpClient` factory (`src/Utility/Http/SocialOAuthHttpClient.php`) and container key; `config/container/auth-providers.php` registers one shared Guzzle client and passes it as League `collaborators['httpClient']` for Google, Facebook, Discord, and Apple. Unit tests: `tests/Utility/Http/SocialOAuthHttpClientTest.php`, `tests/Config/AuthProvidersHttpClientWiringTest.php` (shared client via `getHttpClient()`). Gates: `composer test` OK (618 tests). No new decision-branch logs (wiring-only seam). Whole-tree Infection unchanged (pre-existing enum parse failure).
+
 ### 3. `stack/dev-integ-3-ork-http-seam`
 
 `OrkService` takes `GuzzleHttp\ClientInterface` from the container instead of `new Client`. `ork.php` supplies the real client, including the User-Agent and Referer headers and `verify => false`. Update `tests/Services/OrkServiceTest.php` so it injects the fake client through the constructor instead of reflection on `tempClient`.

@@ -3,40 +3,53 @@
 declare(strict_types=1);
 
 use Amtgard\IdP\Utility\AppleLoginFeature;
+use Amtgard\IdP\Utility\Http\SocialOAuthHttpClient;
 use Firebase\JWT\JWT;
+use GuzzleHttp\ClientInterface;
 use League\OAuth2\Client\Provider\Apple;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
+use Psr\Container\ContainerInterface;
 use Wohali\OAuth2\Client\Provider\Discord;
 
 return [
-    Google::class => function () {
+    SocialOAuthHttpClient::class => static function (): ClientInterface {
+        return SocialOAuthHttpClient::createDefault();
+    },
+
+    Google::class => function (ContainerInterface $container) {
         return new Google([
             'clientId' => $_ENV['GOOGLE_CLIENT_ID'],
             'clientSecret' => $_ENV['GOOGLE_CLIENT_SECRET'],
             'redirectUri' => $_ENV['GOOGLE_REDIRECT_URI'],
             'scopes' => ['email', 'profile'],
+        ], [
+            'httpClient' => $container->get(SocialOAuthHttpClient::class),
         ]);
     },
 
-    Facebook::class => function () {
+    Facebook::class => function (ContainerInterface $container) {
         return new Facebook([
             'clientId' => $_ENV['FACEBOOK_CLIENT_ID'],
             'clientSecret' => $_ENV['FACEBOOK_CLIENT_SECRET'],
             'redirectUri' => $_ENV['FACEBOOK_REDIRECT_URI'],
             'graphApiVersion' => 'v12.0',
+        ], [
+            'httpClient' => $container->get(SocialOAuthHttpClient::class),
         ]);
     },
 
-    Discord::class => function () {
+    Discord::class => function (ContainerInterface $container) {
         return new Discord([
             'clientId' => $_ENV['DISCORD_CLIENT_ID'],
             'clientSecret' => $_ENV['DISCORD_CLIENT_SECRET'],
             'redirectUri' => $_ENV['DISCORD_REDIRECT_URI'],
+        ], [
+            'httpClient' => $container->get(SocialOAuthHttpClient::class),
         ]);
     },
 
-    Apple::class => function () {
+    Apple::class => function (ContainerInterface $container) {
         if (!AppleLoginFeature::isEnabled()) {
             throw new \RuntimeException('Apple login is not enabled.');
         }
@@ -49,6 +62,8 @@ return [
             'keyFileId' => $_ENV['APPLE_KEY_FILE_ID'],
             'keyFilePath' => $_ENV['APPLE_KEY_FILE_PATH'],
             'redirectUri' => $_ENV['APPLE_REDIRECT_URI'],
+        ], [
+            'httpClient' => $container->get(SocialOAuthHttpClient::class),
         ]);
     },
 ];
