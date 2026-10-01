@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-09-30.254",
+  "build_id": "2026-09-30.256",
   "date": "2026-09-30",
-  "revision": 254,
-  "branch": "feature/mailbox-and-oidc"
+  "revision": 256,
+  "branch": "chore/environment-loader-package"
 }
