@@ -6,6 +6,7 @@
         "php": "^8.4",
         "ext-redis": "*",
         "amtgard/active-record-orm": "^1.6",
+        "amtgard/environment-loader": "^1.0",
         "amtgard/ork-iam": "^2.1",
         "amtgard/ork-iam-orn-definitions": "^2.0",
         "amtgard/redis-set-queue": "^1.1",
@@ -57,6 +58,30 @@
         "cs": "phpcs",
         "stan": "phpstan analyse src tests"
     },
+    "repositories": [
+        {
+            "type": "package",
+            "package": {
+                "name": "amtgard/environment-loader",
+                "version": "1.0.0",
+                "dist": {
+                    "url": "https://api.github.com/repos/amtgard/environment-loader/zipball/v1.0.0",
+                    "type": "zip"
+                },
+                "require": {
+                    "php": "^8.1",
+                    "amtgard/builder-traits": "^2.0",
+                    "jedibc/optional": "^1.0",
+                    "psr/log": "^3.0"
+                },
+                "autoload": {
+                    "psr-4": {
+                        "Amtgard\\EnvironmentLoader\\": "src/"
+                    }
+                }
+            }
+        }
+    ],
     "config": {
         "process-timeout": 0,
         "sort-packages": true,

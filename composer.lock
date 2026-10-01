@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3ab0c39bdf2495d6ac21a68321552541",
+    "content-hash": "610eaedb18bf3872e398b3481b4f3097",
     "packages": [
         {
             "name": "amtgard/active-record-orm",
@@ -137,6 +137,26 @@
                 "source": "https://github.com/amtgard/builder-traits/tree/v2.2.2"
             },
             "time": "2025-12-24T19:23:37+00:00"
+        },
+        {
+            "name": "amtgard/environment-loader",
+            "version": "1.0.0",
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/amtgard/environment-loader/zipball/v1.0.0"
+            },
+            "require": {
+                "amtgard/builder-traits": "^2.0",
+                "jedibc/optional": "^1.0",
+                "php": "^8.1",
+                "psr/log": "^3.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Amtgard\\EnvironmentLoader\\": "src/"
+                }
+            }
         },
         {
             "name": "amtgard/fuzzywuzzy",
