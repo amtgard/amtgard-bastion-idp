@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Config;
 
-use DevIntegHttpClient;
+use Amtgard\IdP\Utility\Http\DevIntegHttpClient;
 use GuzzleHttp\Exception\RequestException;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
-
-require_once dirname(__DIR__, 2) . '/config/container/integ/DevIntegHttpClient.php';
 
 final class DevIntegHttpClientTest extends TestCase
 {

@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
-use DevIntegHttpClient;
-require_once dirname(__DIR__, 2) . '/config/container/integ/DevIntegHttpClient.php';
+use Amtgard\IdP\Utility\Http\DevIntegHttpClient;
 
 /** Mode A — ORK connect JWT handoff, profile link/refresh/unlink, and OAuth revoke. */
 final class OrkAndProfileTest extends IntegTestCase

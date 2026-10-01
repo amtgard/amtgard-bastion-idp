@@ -6,7 +6,7 @@ use Amtgard\IdP\Middleware\ManagementMiddleware;
 use Amtgard\IdP\Utility\AppleLoginFeature;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\BuildInfo;
-use Amtgard\IdP\Utility\Config\EnvironmentLoader;
+use Amtgard\EnvironmentLoader\EnvironmentLoader;
 use Amtgard\IdP\Utility\Constants;
 use Amtgard\IdP\Utility\Security\CsrfTokenManager;
 use Amtgard\IdP\Utility\Security\CurrentUserResolver;
@@ -22,29 +22,43 @@ use Twig\Environment as TwigEnvironment;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFunction;
 
-$envLoad = EnvironmentLoader::builder()
-    ->liveIncludesDir(__DIR__ . '/container')
-    ->integIncludesDir(__DIR__ . '/container')
-    ->environment($_ENV['ENVIRONMENT'] ?? 'DEV')
-    ->integEnvironment('DEV_INTEG')
-    ->build();
+define('PROD', 'PROD');
+define('INTEG', 'DEV_INTEG');
 
-$envLoad->register('persistence', 'persistence.php', null);
-$envLoad->register('sessions-redis', 'sessions-redis.php', null);
-$envLoad->register('oauth-server', 'oauth-server.php', null);
-$envLoad->register('resources', 'resources.php', null);
-$envLoad->register('auth-providers', 'auth-providers.php', 'auth-providers.integ.php');
-$envLoad->register('ork', 'ork.php', 'ork.integ.php');
-$envLoad->register('mailbox', 'mailbox.php', 'mailbox.integ.php');
+$environment = $_ENV['ENVIRONMENT'] ?? PROD;
+$containerDir = __DIR__ . '/container';
+
+$envLoad = EnvironmentLoader::builder()
+    ->build()
+    ->defaultPath(PROD, $containerDir)
+    ->defaultPath(INTEG, $containerDir . '/integ');
+
+$envLoad->register('persistence')
+    ->withEnvironment(PROD, 'persistence.php', EnvironmentLoader::DEFAULT);
+$envLoad->register('sessions-redis')
+    ->withEnvironment(PROD, 'sessions-redis.php', EnvironmentLoader::DEFAULT);
+$envLoad->register('oauth-server')
+    ->withEnvironment(PROD, 'oauth-server.php', EnvironmentLoader::DEFAULT);
+$envLoad->register('resources')
+    ->withEnvironment(PROD, 'resources.php', EnvironmentLoader::DEFAULT);
+$envLoad->register('auth-providers')
+    ->withEnvironment(PROD, 'auth-providers.php', EnvironmentLoader::DEFAULT)
+    ->withEnvironment(INTEG, 'auth-providers.php');
+$envLoad->register('ork')
+    ->withEnvironment(PROD, 'ork.php', EnvironmentLoader::DEFAULT)
+    ->withEnvironment(INTEG, 'ork.php');
+$envLoad->register('mailbox')
+    ->withEnvironment(PROD, 'mailbox.php', EnvironmentLoader::DEFAULT)
+    ->withEnvironment(INTEG, 'mailbox.php');
 
 return array_merge(
-    require $envLoad->emit('persistence'),
-    require $envLoad->emit('sessions-redis'),
-    require $envLoad->emit('oauth-server'),
-    require $envLoad->emit('resources'),
-    require $envLoad->emit('mailbox'),
-    require $envLoad->emit('auth-providers'),
-    require $envLoad->emit('ork'),
+    require $envLoad->emit('persistence', $environment),
+    require $envLoad->emit('sessions-redis', $environment),
+    require $envLoad->emit('oauth-server', $environment),
+    require $envLoad->emit('resources', $environment),
+    require $envLoad->emit('mailbox', $environment),
+    require $envLoad->emit('auth-providers', $environment),
+    require $envLoad->emit('ork', $environment),
     [
         LoggerInterface::class => function () {
             $logDir = __DIR__ . '/../logs';
@@ -75,7 +89,7 @@ return array_merge(
         TwigEnvironment::class => function (ContainerInterface $container) {
             $loader = new FilesystemLoader(__DIR__ . '/../templates');
             $twig = new TwigEnvironment($loader, [
-                'cache' => __DIR__ . '/cache/twig',
+                'cache' => __DIR__ . '/../cache/twig',
                 'auto_reload' => true,
             ]);
             $twig->addFunction(new TwigFunction('csrf_token', fn () => CsrfTokenManager::getOrCreate()));

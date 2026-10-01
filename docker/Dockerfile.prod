@@ -31,7 +31,7 @@ COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 
 COPY . .
-RUN mkdir -p logs config/cache/twig \
+RUN mkdir -p logs cache/twig \
     && chown -R www-data:www-data /var/www/idp.amtgard.com
 
 WORKDIR /var/www

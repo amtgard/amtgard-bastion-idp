@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Amtgard\IdP\Utility\AppleLoginFeature;
+use Amtgard\IdP\Utility\Http\DevIntegHttpClient;
 use Firebase\JWT\JWT;
 use GuzzleHttp\ClientInterface;
 use League\OAuth2\Client\Provider\Apple;
@@ -10,8 +11,6 @@ use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use Psr\Container\ContainerInterface;
 use Wohali\OAuth2\Client\Provider\Discord;
-
-require_once __DIR__ . '/integ/DevIntegHttpClient.php';
 
 return [
     DevIntegHttpClient::class => static function (ContainerInterface $container): ClientInterface {
@@ -57,7 +56,7 @@ return [
 
         JWT::$leeway = 60;
 
-        $projectRoot = dirname(__DIR__, 2);
+        $projectRoot = dirname(__DIR__, 3);
         $keyFilePath = (string) ($_ENV['APPLE_KEY_FILE_PATH'] ?? '');
         if ($keyFilePath === '' || !is_readable($keyFilePath)) {
             $keyFilePath = $projectRoot . '/tests/fixtures/integ-apple-es256.pem';

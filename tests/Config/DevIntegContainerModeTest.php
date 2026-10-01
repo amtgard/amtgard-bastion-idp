@@ -6,14 +6,12 @@ namespace Amtgard\IdP\Tests\Config;
 
 use Amtgard\IdP\Services\Mail\IntegRecordingOutboundMail;
 use Amtgard\IdP\Services\Mail\OutboundMail;
+use Amtgard\IdP\Utility\Http\DevIntegHttpClient;
 use Amtgard\IdP\Utility\Http\SocialOAuthHttpClient;
-use DevIntegHttpClient;
 use DI\ContainerBuilder;
 use GuzzleHttp\Client;
 use League\OAuth2\Client\Provider\Google;
 use PHPUnit\Framework\TestCase;
-
-require_once dirname(__DIR__, 2) . '/config/container/integ/DevIntegHttpClient.php';
 
 final class DevIntegContainerModeTest extends TestCase
 {
