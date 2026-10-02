@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Amtgard\IdP\Utility\Http;
+
 use Firebase\JWT\JWT;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;

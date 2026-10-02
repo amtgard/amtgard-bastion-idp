@@ -7,8 +7,7 @@ namespace Amtgard\IdP\Tests\Integration;
 use Amtgard\IdP\Tests\Integration\Support\IntegDb;
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
 use Amtgard\IdP\Tests\Integration\Support\IntegRecordedMail;
-use DevIntegHttpClient;
-require_once dirname(__DIR__, 2) . '/config/container/integ/DevIntegHttpClient.php';
+use Amtgard\IdP\Utility\Http\DevIntegHttpClient;
 
 /** Mode A — mailbox possession routes and ORK link-by-code flows. */
 final class MailboxPossessionIntegTest extends IntegTestCase

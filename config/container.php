@@ -22,35 +22,34 @@ use Twig\Environment as TwigEnvironment;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFunction;
 
-$environment = $_ENV['ENVIRONMENT'] ?? 'DEV';
+define('PROD', 'PROD');
+define('INTEG', 'DEV_INTEG');
+
+$environment = $_ENV['ENVIRONMENT'] ?? PROD;
 $containerDir = __DIR__ . '/container';
 
 $envLoad = EnvironmentLoader::builder()
     ->build()
-    ->defaultPath('DEV', $containerDir)
-    ->defaultPath('DEV_INTEG', $containerDir);
+    ->defaultPath(PROD, $containerDir)
+    ->defaultPath(INTEG, $containerDir . '/integ');
 
 $envLoad->register('persistence')
-    ->withEnvironment('DEV', 'persistence.php', EnvironmentLoader::DEFAULT)
-    ->withEnvironment('DEV_INTEG', 'persistence.php');
+    ->withEnvironment(PROD, 'persistence.php', EnvironmentLoader::DEFAULT);
 $envLoad->register('sessions-redis')
-    ->withEnvironment('DEV', 'sessions-redis.php', EnvironmentLoader::DEFAULT)
-    ->withEnvironment('DEV_INTEG', 'sessions-redis.php');
+    ->withEnvironment(PROD, 'sessions-redis.php', EnvironmentLoader::DEFAULT);
 $envLoad->register('oauth-server')
-    ->withEnvironment('DEV', 'oauth-server.php', EnvironmentLoader::DEFAULT)
-    ->withEnvironment('DEV_INTEG', 'oauth-server.php');
+    ->withEnvironment(PROD, 'oauth-server.php', EnvironmentLoader::DEFAULT);
 $envLoad->register('resources')
-    ->withEnvironment('DEV', 'resources.php', EnvironmentLoader::DEFAULT)
-    ->withEnvironment('DEV_INTEG', 'resources.php');
+    ->withEnvironment(PROD, 'resources.php', EnvironmentLoader::DEFAULT);
 $envLoad->register('auth-providers')
-    ->withEnvironment('DEV', 'auth-providers.php', EnvironmentLoader::DEFAULT)
-    ->withEnvironment('DEV_INTEG', 'auth-providers.integ.php');
+    ->withEnvironment(PROD, 'auth-providers.php', EnvironmentLoader::DEFAULT)
+    ->withEnvironment(INTEG, 'auth-providers.php');
 $envLoad->register('ork')
-    ->withEnvironment('DEV', 'ork.php', EnvironmentLoader::DEFAULT)
-    ->withEnvironment('DEV_INTEG', 'ork.integ.php');
+    ->withEnvironment(PROD, 'ork.php', EnvironmentLoader::DEFAULT)
+    ->withEnvironment(INTEG, 'ork.php');
 $envLoad->register('mailbox')
-    ->withEnvironment('DEV', 'mailbox.php', EnvironmentLoader::DEFAULT)
-    ->withEnvironment('DEV_INTEG', 'mailbox.integ.php');
+    ->withEnvironment(PROD, 'mailbox.php', EnvironmentLoader::DEFAULT)
+    ->withEnvironment(INTEG, 'mailbox.php');
 
 return array_merge(
     require $envLoad->emit('persistence', $environment),
@@ -90,7 +89,7 @@ return array_merge(
         TwigEnvironment::class => function (ContainerInterface $container) {
             $loader = new FilesystemLoader(__DIR__ . '/../templates');
             $twig = new TwigEnvironment($loader, [
-                'cache' => __DIR__ . '/cache/twig',
+                'cache' => __DIR__ . '/../cache/twig',
                 'auto_reload' => true,
             ]);
             $twig->addFunction(new TwigFunction('csrf_token', fn () => CsrfTokenManager::getOrCreate()));

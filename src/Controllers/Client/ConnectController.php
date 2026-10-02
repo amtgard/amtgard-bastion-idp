@@ -75,27 +75,27 @@ final class ConnectController
      */
     private function showCodeConnect(Response $response, string $linkToken, array $claims): Response
     {
-                $destination = $this->destinationForHint($claims['idp_email']);
-                $sentToHash = hash('sha256', $destination);
-                $challengeId = Optional::ofNullable(
-                    $this->challenges->findOpenByMundanePurposeAndHash(
-                        $claims['mundane_id'],
-                        MailboxChallengePurpose::CLAIM_IDP,
-                        $sentToHash,
-                    )
+        $destination = $this->destinationForHint($claims['idp_email']);
+        $sentToHash = hash('sha256', $destination);
+        $challengeId = Optional::ofNullable(
+                $this->challenges->findOpenByMundanePurposeAndHash(
+                    $claims['mundane_id'],
+                    MailboxChallengePurpose::CLAIM_IDP,
+                    $sentToHash,
                 )
-                    ->map(fn (MailboxChallengeEntity $row) => $row->getId())
-                    ->orElseGet(function () use ($claims, $destination) {
-                        $existing = $this->users->getUserByEmail($destination);
-                        $issued = $this->challenges->issue(
-                            MailboxChallengePurpose::CLAIM_IDP,
-                            $destination,
-                            Optional::ofNullable($existing)->map(fn (UserEntity $user) => $user->getUserId())->orElse(null),
-                            $claims['mundane_id'],
-                        );
+            )
+            ->map(fn (MailboxChallengeEntity $row) => $row->getId())
+            ->orElseGet(function () use ($claims, $destination) {
+                $existing = $this->users->getUserByEmail($destination);
+                $issued = $this->challenges->issue(
+                    MailboxChallengePurpose::CLAIM_IDP,
+                    $destination,
+                    Optional::ofNullable($existing)->map(fn (UserEntity $user) => $user->getUserId())->orElse(null),
+                    $claims['mundane_id'],
+                );
 
-                        return $issued->challengeId;
-                    });
+                return $issued->challengeId;
+            });
 
         $response->getBody()->write($this->twig->render('connect.twig', [
             'handoff' => 'code',
