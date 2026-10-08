@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Slim\Exception\HttpUnauthorizedException;
 
 class ClientRestrictedAuthMiddlewareTest extends TestCase
@@ -28,7 +28,6 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
     private const POLICY = '[]';
 
     private $entityManager;
-    private $logger;
     private $resourceServer;
     private $validClients;
     private $redisCacheRepository;
@@ -43,7 +42,6 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
 
         $this->entityManager = $this->createMock(EntityManager::class);
         \Amtgard\ActiveRecordOrm\EntityManager::configure($this->entityManager, true);
-        $this->logger = $this->createMock(LoggerInterface::class);
         $this->resourceServer = $this->createMock(ResourceServer::class);
         $this->validClients = AuthorizedClients::builder()
             ->clientIds(['valid-client'])
@@ -56,10 +54,11 @@ class ClientRestrictedAuthMiddlewareTest extends TestCase
         $pvhAuthorizationGate = PvhAuthorizationGate::builder()
             ->redisCacheRepository($this->redisCacheRepository)
             ->build();
-        $oauthAccessTokenFallback = new OAuthAccessTokenFallback($this->resourceServer);
+        $idpLogging = IdpLoggingTestFactory::create();
+        $oauthAccessTokenFallback = new OAuthAccessTokenFallback($this->resourceServer, $idpLogging);
 
         $this->middleware = new ClientRestrictedAuthMiddleware(
-            $this->logger,
+            $idpLogging,
             $this->resourceServer,
             $this->validClients,
             $pvhAuthorizationGate,

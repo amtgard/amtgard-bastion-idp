@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Utility;
 
 use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LoggerInterface;
 use Slim\Psr7\Factory\ResponseFactory;
 
 /**
@@ -28,30 +29,47 @@ final class PvhGate
     /**
      * @param array<string, mixed> $payload
      */
-    public static function evaluate(?PvhCacheRecord $cached, array $payload): PvhAccess
-    {
+    public static function evaluate(
+        ?PvhCacheRecord $cached,
+        array $payload,
+        ?LoggerInterface $logger = null,
+    ): PvhAccess {
         $pvhContext = Jwt::presentedPvhContext($payload);
 
-        return self::evaluatePresented($cached, $pvhContext['presented'], $pvhContext['fatPolicyHash']);
+        return self::evaluatePresented(
+            $cached,
+            $pvhContext['presented'],
+            $pvhContext['fatPolicyHash'],
+            $logger,
+        );
     }
 
     public static function evaluatePresented(
         ?PvhCacheRecord $cached,
         ?string $presentedPvh,
-        ?string $fatPolicyHash
+        ?string $fatPolicyHash,
+        ?LoggerInterface $logger = null,
     ): PvhAccess {
         if ($cached === null) {
+            $logger?->debug('pvh gate evaluate', ['access' => PvhAccess::Miss->name]);
+
             return PvhAccess::Miss;
         }
 
         if (self::presentedMatchesCache($presentedPvh, $fatPolicyHash, $cached->getPvh())) {
+            $logger?->debug('pvh gate evaluate', ['access' => PvhAccess::Current->name]);
+
             return PvhAccess::Current;
         }
 
         $prevPvh = $cached->getPrevPvh();
         if ($prevPvh !== null && self::presentedMatchesCache($presentedPvh, $fatPolicyHash, $prevPvh)) {
+            $logger?->debug('pvh gate evaluate', ['access' => PvhAccess::Previous->name]);
+
             return PvhAccess::Previous;
         }
+
+        $logger?->debug('pvh gate evaluate', ['access' => PvhAccess::Unknown->name]);
 
         return PvhAccess::Unknown;
     }

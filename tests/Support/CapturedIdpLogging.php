@@ -28,7 +28,7 @@ final class CapturedIdpLogging
                 $handlers = [];
                 $idpLogging = $this->createMock(IdpLogging::class);
 
-                foreach (['app', 'security', 'oauth', 'audit'] as $channel) {
+                foreach (['app', 'security', 'oauth', 'audit', 'pvh'] as $channel) {
                     $handler = new TestHandler();
                     $handlers[$channel] = $handler;
                     $logger = new Logger($channel);

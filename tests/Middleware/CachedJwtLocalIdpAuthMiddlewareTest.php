@@ -54,11 +54,12 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
         $pvhAuthorizationGate = PvhAuthorizationGate::builder()
             ->redisCacheRepository($this->redisCacheRepository)
             ->build();
-        $oauthAccessTokenFallback = new OAuthAccessTokenFallback($this->resourceServer);
+        $idpLogging = IdpLoggingTestFactory::create();
+        $oauthAccessTokenFallback = new OAuthAccessTokenFallback($this->resourceServer, $idpLogging);
 
         $this->middleware = new CachedJwtLocalIdpAuthMiddleware(
             $this->entityManager,
-            IdpLoggingTestFactory::create(),
+            $idpLogging,
             $pvhAuthorizationGate,
             $this->authorizedClients,
             $this->resourceServer,

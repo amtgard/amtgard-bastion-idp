@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-10-08.270",
+  "build_id": "2026-10-08.271",
   "date": "2026-10-08",
-  "revision": 270,
-  "branch": "stack/idp-log-l5-m2-auth-middleware"
+  "revision": 271,
+  "branch": "stack/idp-log-l6-m3-jwt-pvh"
 }

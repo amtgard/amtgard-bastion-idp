@@ -23,7 +23,8 @@
 | L3b | `stack/idp-log-l3b-logging-integ` | `LoggingCorrelationIntegTest`, integ compose `LOG_*`, `CorrelationMiddleware` response header fix |
 | L4 | `stack/idp-log-l4-m1-slice` | M1 checklist slice: `HttpObservabilityMiddleware` + instrument `/resources/validate` and `POST /oauth/token` per [instrumentation-checklist.md](./instrumentation-checklist.md) M1 |
 | L5 | `stack/idp-log-l5-m2-auth-middleware` | M2 auth middleware deny paths |
-| L6+ | `stack/idp-log-l6-…` | M3–M10 per checklist; Phase 1 log-read API on L10 |
+| L6 | `stack/idp-log-l6-m3-jwt-pvh` | M3 JWT, PVH gate, Optional throws |
+| L7+ | `stack/idp-log-l7-…` | M4–M10 per checklist; Phase 1 log-read API on L10 |
 
 Do not push unless the user asks.
 

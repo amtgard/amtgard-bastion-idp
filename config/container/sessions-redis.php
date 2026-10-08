@@ -71,9 +71,12 @@ return [
     },
 
     PvhAuthorizationGate::class => function (ContainerInterface $container) {
+        $idpLogging = $container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class);
+
         return PvhAuthorizationGate::builder()
             ->redisCacheRepository($container->get(RedisCacheRepository::class))
-            ->logger($container->get(LoggerInterface::class))
+            ->logger($idpLogging->pvh())
+            ->idpLogging($idpLogging)
             ->build();
     },
 ];

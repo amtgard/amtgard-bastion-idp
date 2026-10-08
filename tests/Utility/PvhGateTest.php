@@ -8,6 +8,8 @@ use Amtgard\IdP\Utility\Pvh;
 use Amtgard\IdP\Utility\PvhAccess;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\IdP\Utility\PvhGate;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Slim\Psr7\Factory\ResponseFactory;
 
@@ -35,6 +37,22 @@ class PvhGateTest extends TestCase
             PvhAccess::Miss,
             PvhGate::evaluate(null, ['pvh' => $this->samplePvh()])
         );
+    }
+
+    public function testEvaluateLogsAccessWhenLoggerProvided(): void
+    {
+        $handler = new TestHandler();
+        $logger = new Logger('pvh');
+        $logger->pushHandler($handler);
+
+        PvhGate::evaluate(null, ['pvh' => $this->samplePvh()], $logger);
+        $this->assertSame('Miss', $handler->getRecords()[0]['context']['access']);
+
+        $handler->clear();
+        $pvh = $this->samplePvh();
+        $cached = $this->record($pvh, null);
+        PvhGate::evaluate($cached, ['pvh' => $pvh], $logger);
+        $this->assertSame('Current', $handler->getRecords()[0]['context']['access']);
     }
 
     public function testEvaluateCurrentOnPvhMatch(): void

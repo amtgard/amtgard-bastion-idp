@@ -6,6 +6,7 @@ namespace Amtgard\IdP\Utility\Pvh;
 
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\Jwt;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\PvhAccess;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\IdP\Utility\PvhGate;
@@ -22,6 +23,8 @@ final class PvhAuthorizationGate
 
     protected ?LoggerInterface $logger = null;
 
+    protected ?IdpLogging $idpLogging = null;
+
     protected ?PvhAccess $lastAccess = null;
 
     protected ?PvhCacheRecord $lastCachedRecord = null;
@@ -36,7 +39,7 @@ final class PvhAuthorizationGate
 
         $cached = $this->redisCacheRepository->getPvhRecord($userUuid, $aud);
         $this->lastCachedRecord = $cached;
-        $access = PvhGate::evaluate($cached, $payload);
+        $access = PvhGate::evaluate($cached, $payload, $this->logger);
         $this->lastAccess = $access;
 
         $outcome = match ($access) {
@@ -96,6 +99,10 @@ final class PvhAuthorizationGate
         PvhGateOutcome $outcome,
     ): void {
         if ($this->logger === null) {
+            $this->idpLogging?->pvh()->warning('pvh authorization gate skipped', [
+                'reason' => 'pvh_logger_unbound',
+            ]);
+
             return;
         }
 
@@ -109,6 +116,12 @@ final class PvhAuthorizationGate
 
         if ($outcome === PvhGateOutcome::Proceed && $access === PvhAccess::Miss) {
             $this->logger->info('pvh authorization gate', $context);
+
+            return;
+        }
+
+        if ($access === PvhAccess::Previous || $access === PvhAccess::Unknown) {
+            $this->logger->error('pvh authorization gate', $context);
 
             return;
         }

@@ -44,3 +44,10 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - Instrumented M2 checklist: management key gate, local admin/session/OAuth middleware, CSRF, JWT elevation, confidential and allow-listed Basic auth (`IdpLogging` channels: `security`, `oauth`, `audit`, `app`).
 - Log-tested branches: `tests/Middleware/M2AuthMiddlewareLoggingTest.php` (dedicated assertions per decision path; behavior tests unchanged).
 - Gates: `composer test` (957 tests, line coverage ≥95%); `composer mutate` (covered MSI 85%); `./scripts/integ.sh` (85/87 pass; `LoggingCorrelationIntegTest` green; 2 pre-existing ORK mailbox failures).
+
+## L6 — M3 JWT, PVH gate, Optional throws
+
+- Branch: `stack/idp-log-l6-m3-jwt-pvh`
+- M3 checklist: cached/restricted JWT middleware, `OAuthAccessTokenFallback`, `Jwt` debug reasons, `PvhAuthorizationGate` / `PvhGate`, correlation identity on proceed (`RequestLogContext` + `CorrelationProcessor`).
+- Log-tested: `M3JwtPvhLoggingTest`, `JwtLoggingTest`, `PvhAuthorizationGateLoggingTest`, `CorrelationProcessorTest`.
+- Gates: `composer test`; `composer mutate`; `./scripts/integ.sh` (logging integ green).

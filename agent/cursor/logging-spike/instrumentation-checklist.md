@@ -181,35 +181,35 @@ Allow-listed Basic already logs missing/deny/accept (`AllowListedConfidentialCli
 
 Design: log **before** `orElseThrow` / HttpUnauthorized; 401/403 → `security` **error**.
 
-- [ ] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L39-L40` — error — missing/invalid Bearer JWT — `failure_reason=jwt_required`
-- [ ] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L42-L43` — error — `parseJwt` empty — `failure_reason=unparseable_jwt`
-- [ ] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L44-L45` — error — missing `sub` — `failure_reason=missing_sub`
-- [ ] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L46-L47` — error — missing `aud` — `failure_reason=missing_aud`
-- [ ] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L49-L54` — debug — non-authorization payload → access-token fallback — `aud`
-- [ ] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L61-L69` — debug — already logs proceed; add identity update for correlation processor — `user_uuid`, `aud`, `access`, `outcome`
-- [ ] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L73-L73` — error — `StaleToken` 409 (no log today) — `user_uuid`, `aud`, `outcome=StaleToken`
-- [ ] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L74-L74` — error — `Unauthorized` after gate — `user_uuid`, `aud`, `access=Unknown`
-- [ ] `src/Middleware/ClientRestrictedAuthMiddleware.php:L40-L42` — debug — session client allow-list bypass — `client_id`
-- [ ] `src/Middleware/ClientRestrictedAuthMiddleware.php:L44-L44` — error — JWT validate `orElseThrow` — `failure_reason=jwt_invalid`
-- [ ] `src/Middleware/ClientRestrictedAuthMiddleware.php:L45-L45` — error — parse `orElseThrow` — `failure_reason=unparseable_jwt`
-- [ ] `src/Middleware/ClientRestrictedAuthMiddleware.php:L46-L46` — error — missing `sub` — `failure_reason=missing_sub`
-- [ ] `src/Middleware/ClientRestrictedAuthMiddleware.php:L47-L47` — error — missing `aud` — `failure_reason=missing_aud`
-- [ ] `src/Middleware/ClientRestrictedAuthMiddleware.php:L49-L50` — error — `aud` not in restricted list — `client_id`, `failure_reason=client_not_restricted`
-- [ ] `src/Middleware/ClientRestrictedAuthMiddleware.php:L53-L58` — debug — access-token fallback — `aud`
-- [ ] `src/Middleware/ClientRestrictedAuthMiddleware.php:L77-L77` — error — stale 409 — `user_uuid`, `aud`, `outcome=StaleToken`
-- [ ] `src/Middleware/ClientRestrictedAuthMiddleware.php:L78-L78` — error — gate unauthorized — `user_uuid`, `aud`
-- [ ] `src/Utility/Security/OAuthAccessTokenFallback.php:L29-L32` — error — silent catch → 401 — `failure_reason=invalid_access_token`
-- [ ] `src/Utility/Security/OAuthAccessTokenFallback.php:L35-L38` — debug — fallback succeed — `user_uuid`, `client_id`
-- [ ] `src/Utility/Jwt.php:L33-L35` — debug — `validateJwt` empty parse — `reason=empty_payload`
-- [ ] `src/Utility/Jwt.php:L37-L49` — debug — aud/iss/exp mismatch — `reason` enum
-- [ ] `src/Utility/Jwt.php:L56-L67` — debug — policy mismatch — `reason=policy_mismatch` (no policy JSON)
-- [ ] `src/Utility/Jwt.php:L73-L87` — debug — signature fail (exists); keep + `exception_class` — `reason` (no JWT)
-- [ ] `src/Utility/Jwt.php:L97-L104` — debug — request has no Bearer — `reason=missing_bearer`
-- [ ] `src/Utility/Jwt.php:L119-L122` — debug — `parseJwt` not 3 segments — `reason=malformed_compact`
-- [ ] `src/Utility/Pvh/PvhAuthorizationGate.php:L42-L47` — error — `Previous`/`Unknown` outcomes (today debug-only in `logGateOutcome`) — `user_uuid`, `aud`, `access`, `outcome`
-- [ ] `src/Utility/Pvh/PvhAuthorizationGate.php:L76-L89` — info — cache miss seed (already info) — `user_uuid`, `aud`, `access=Miss`
-- [ ] `src/Utility/Pvh/PvhAuthorizationGate.php:L98-L99` — warning — logger null → gate silent — `reason=pvh_logger_unbound`
-- [ ] `src/Utility/PvhGate.php:L31-L56` — debug — evaluate Current/Previous/Miss/Unknown — `access` (no pvh hex)
+- [x] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L39-L40` — error — missing/invalid Bearer JWT — `failure_reason=jwt_required` *(L6)*
+- [x] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L42-L43` — error — `parseJwt` empty — `failure_reason=unparseable_jwt` *(L6)*
+- [x] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L44-L45` — error — missing `sub` — `failure_reason=missing_sub` *(L6)*
+- [x] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L46-L47` — error — missing `aud` — `failure_reason=missing_aud` *(L6)*
+- [x] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L49-L54` — debug — non-authorization payload → access-token fallback — `aud` *(L6)*
+- [x] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L61-L69` — debug — already logs proceed; add identity update for correlation processor — `user_uuid`, `aud`, `access`, `outcome` *(L6)*
+- [x] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L73-L73` — error — `StaleToken` 409 (no log today) — `user_uuid`, `aud`, `outcome=StaleToken` *(L6)*
+- [x] `src/Middleware/CachedJwtLocalIdpAuthMiddleware.php:L74-L74` — error — `Unauthorized` after gate — `user_uuid`, `aud`, `access=Unknown` *(L6)*
+- [x] `src/Middleware/ClientRestrictedAuthMiddleware.php:L40-L42` — debug — session client allow-list bypass — `client_id` *(L6)*
+- [x] `src/Middleware/ClientRestrictedAuthMiddleware.php:L44-L44` — error — JWT validate `orElseThrow` — `failure_reason=jwt_invalid` *(L6)*
+- [x] `src/Middleware/ClientRestrictedAuthMiddleware.php:L45-L45` — error — parse `orElseThrow` — `failure_reason=unparseable_jwt` *(L6)*
+- [x] `src/Middleware/ClientRestrictedAuthMiddleware.php:L46-L46` — error — missing `sub` — `failure_reason=missing_sub` *(L6)*
+- [x] `src/Middleware/ClientRestrictedAuthMiddleware.php:L47-L47` — error — missing `aud` — `failure_reason=missing_aud` *(L6)*
+- [x] `src/Middleware/ClientRestrictedAuthMiddleware.php:L49-L50` — error — `aud` not in restricted list — `client_id`, `failure_reason=client_not_restricted` *(L6)*
+- [x] `src/Middleware/ClientRestrictedAuthMiddleware.php:L53-L58` — debug — access-token fallback — `aud` *(L6)*
+- [x] `src/Middleware/ClientRestrictedAuthMiddleware.php:L77-L77` — error — stale 409 — `user_uuid`, `aud`, `outcome=StaleToken` *(L6)*
+- [x] `src/Middleware/ClientRestrictedAuthMiddleware.php:L78-L78` — error — gate unauthorized — `user_uuid`, `aud` *(L6)*
+- [x] `src/Utility/Security/OAuthAccessTokenFallback.php:L29-L32` — error — silent catch → 401 — `failure_reason=invalid_access_token` *(L6)*
+- [x] `src/Utility/Security/OAuthAccessTokenFallback.php:L35-L38` — debug — fallback succeed — `user_uuid`, `client_id` *(L6)*
+- [x] `src/Utility/Jwt.php:L33-L35` — debug — `validateJwt` empty parse — `reason=empty_payload` *(L6)*
+- [x] `src/Utility/Jwt.php:L37-L49` — debug — aud/iss/exp mismatch — `reason` enum *(L6)*
+- [x] `src/Utility/Jwt.php:L56-L67` — debug — policy mismatch — `reason=policy_mismatch` (no policy JSON) *(L6)*
+- [x] `src/Utility/Jwt.php:L73-L87` — debug — signature fail (exists); keep + `exception_class` — `reason` (no JWT) *(L6)*
+- [x] `src/Utility/Jwt.php:L97-L104` — debug — request has no Bearer — `reason=missing_bearer` *(L6)*
+- [x] `src/Utility/Jwt.php:L119-L122` — debug — `parseJwt` not 3 segments — `reason=malformed_compact` *(L6)*
+- [x] `src/Utility/Pvh/PvhAuthorizationGate.php:L42-L47` — error — `Previous`/`Unknown` outcomes (today debug-only in `logGateOutcome`) — `user_uuid`, `aud`, `access`, `outcome` *(L6)*
+- [x] `src/Utility/Pvh/PvhAuthorizationGate.php:L76-L89` — info — cache miss seed (already info) — `user_uuid`, `aud`, `access=Miss` *(L6)*
+- [x] `src/Utility/Pvh/PvhAuthorizationGate.php:L98-L99` — warning — logger null → gate silent — `reason=pvh_logger_unbound` *(L6)*
+- [x] `src/Utility/PvhGate.php:L31-L56` — debug — evaluate Current/Previous/Miss/Unknown — `access` (no pvh hex) *(L6)*
 
 **M3 count: 29**
 
