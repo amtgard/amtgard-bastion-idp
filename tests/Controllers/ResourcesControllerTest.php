@@ -24,6 +24,7 @@ use Amtgard\IdP\Services\Mailbox\MailboxChallengeCheckResult;
 use Amtgard\IdP\Services\Mailbox\MailboxChallengeIssueResult;
 use Amtgard\IdP\Services\Mailbox\MailboxChallengePurpose;
 use Amtgard\IdP\Services\MailboxChallengeService;
+use Amtgard\IdP\Services\Ork\OrkClaimSendNonceService;
 use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Services\ResourcesUserinfoService;
@@ -112,6 +113,7 @@ class ResourcesControllerTest extends TestCase
     private $mailboxChallenges;
     private $orkLinkTokenService;
     private $emailMigration;
+    private $orkClaimSendNonces;
     private $request;
     private $response;
     private $stream;
@@ -158,6 +160,7 @@ class ResourcesControllerTest extends TestCase
         $this->mailboxChallenges = $this->createMock(MailboxChallengeService::class);
         $this->orkLinkTokenService = $this->createMock(OrkLinkTokenService::class);
         $this->emailMigration = $this->createMock(IdpEmailMigrationService::class);
+        $this->orkClaimSendNonces = $this->createMock(OrkClaimSendNonceService::class);
 
         $this->controller = new ResourcesController(
             $this->logger,
@@ -179,6 +182,7 @@ class ResourcesControllerTest extends TestCase
             $this->mailboxChallenges,
             $this->orkLinkTokenService,
             $this->emailMigration,
+            $this->orkClaimSendNonces,
         );
     }
 
@@ -478,9 +482,16 @@ class ResourcesControllerTest extends TestCase
             ->with('chal-code', '123456')
             ->willReturn(new MailboxChallengeCheckResult(MailboxChallengeCheckResult::OK, $challenge));
         $this->orkService->expects($this->never())->method('authorize');
+        $player = ['MundaneId' => 55, 'UserName' => 'ork-user', 'Persona' => 'P', 'Suspended' => 0, 'Email' => ''];
+        $this->orkService->method('getPlayerByMundaneId')->with(55)->willReturn($player);
+        $this->orkService->method('resolveParkDataFromPlayer')->willReturn(null);
+        $this->orkProfileRepository->method('findByUserId')->with(123)->willReturn(null);
         $this->orkProfileRepository->expects($this->once())
             ->method('linkExistingUserToMundane')
             ->with(123, 55, 'claim_ork_code');
+        $this->orkProfileRepository->expects($this->once())
+            ->method('saveOrUpdateProfile')
+            ->with($player, null, '', 123);
         $this->mailboxChallenges->expects($this->once())->method('consume')->with('chal-code');
         $this->response->expects($this->once())
             ->method('withHeader')
@@ -561,12 +572,62 @@ class ResourcesControllerTest extends TestCase
                 $this->isCallable(),
             )
             ->willReturn(new MailboxChallengeIssueResult('chal-mail', 'hash', true));
+        $logged = [];
+        $this->logger->expects($this->atLeastOnce())
+            ->method('info')
+            ->willReturnCallback(function (string $message, array $context = []) use (&$logged): void {
+                $logged[$message] = $context;
+            });
         $this->response->expects($this->once())
             ->method('withHeader')
             ->with('Location', '/resources/profile?success=ork_code_sent')
             ->willReturnSelf();
 
         $this->assertSame($this->response, $this->controller->sendOrkLinkCode($this->request, $this->response));
+        $this->assertArrayHasKey('mailbox.flow_a.mail_evaluated', $logged);
+        $this->assertTrue($logged['mailbox.flow_a.mail_evaluated']['will_send']);
+        $this->assertSame(55, $logged['mailbox.flow_a.mail_evaluated']['mundane_id']);
+        $this->assertArrayHasKey('mailbox.flow_a.mail_dispatching', $logged);
+    }
+
+    public function testSendOrkLinkCodeLogsWhenOrkReturnsNoMailbox(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getParsedBody')->willReturn(['username' => 'OrkUser']);
+        $this->orkService->method('searchUsernames')->willReturn([
+            [
+                'mundaneId' => 4,
+                'username' => 'OrkUser',
+                'persona' => 'Persona',
+                'parkName' => 'Park',
+                'kingdomName' => 'Kingdom',
+            ],
+        ]);
+        $this->orkProfileRepository->method('findByMundaneId')->willReturn(null);
+        $this->orkService->method('getPlayerByMundaneId')->willReturn([
+            'Email' => '',
+            'MundaneId' => 4,
+            'Suspended' => 0,
+        ]);
+        $this->mailboxChallenges->expects($this->never())->method('issue');
+        $logged = [];
+        $this->logger->expects($this->atLeastOnce())
+            ->method('info')
+            ->willReturnCallback(function (string $message, array $context = []) use (&$logged): void {
+                $logged[$message] = $context;
+            });
+
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=ork_mailbox_not_set')
+            ->willReturnSelf();
+
+        $this->controller->sendOrkLinkCode($this->request, $this->response);
+
+        $this->assertSame('email_empty', $logged['mailbox.flow_a.mail_evaluated']['block_reason']);
+        $this->assertFalse($logged['mailbox.flow_a.mail_evaluated']['will_send']);
+        $this->assertSame('email_empty', $logged['mailbox.flow_a.mail_skipped']['block_reason']);
+        $this->assertSame(4, $logged['mailbox.flow_a.mail_skipped']['mundane_id']);
     }
 
     public function testSearchOrkUsernamesReturnsMatchesWithoutEmail(): void
@@ -1092,6 +1153,7 @@ class ResourcesControllerTest extends TestCase
             $this->mailboxChallenges,
             $this->orkLinkTokenService,
             $this->emailMigration,
+            $this->orkClaimSendNonces,
         );
         $this->controller->completeOrkClaim($this->request, $this->response);
         $this->assertArrayNotHasKey('redirect', $_SESSION);
@@ -1127,6 +1189,7 @@ class ResourcesControllerTest extends TestCase
             $this->mailboxChallenges,
             $this->orkLinkTokenService,
             $this->emailMigration,
+            $this->orkClaimSendNonces,
         );
         $this->controller->completeOrkClaim($this->request, $this->response);
     }

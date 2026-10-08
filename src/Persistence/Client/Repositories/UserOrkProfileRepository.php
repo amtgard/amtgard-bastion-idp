@@ -7,6 +7,7 @@ use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
 use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
+use Amtgard\IdP\Services\Ork\OrkPublicAssetUrl;
 use DateTime;
 use Optional\Optional;
 
@@ -68,8 +69,8 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
                     ->orElse(null)
             )
             ->kingdomName($parkData['KingdomInfo']['KingdomName'] ?? null)
-            ->image($playerData['Image'])
-            ->heraldry($playerData['Heraldry'])
+            ->image(OrkPublicAssetUrl::forBrowser(isset($playerData['Image']) ? (string) $playerData['Image'] : null))
+            ->heraldry(OrkPublicAssetUrl::forBrowser(isset($playerData['Heraldry']) ? (string) $playerData['Heraldry'] : null))
             ->suspendedAt($this->parseOrkDate($playerData['SuspendedAt']))
             ->suspendedUntil($this->parseOrkDate($playerData['SuspendedUntil']))
             ->duesThrough($this->parseOrkDate($playerData['DuesThrough']))

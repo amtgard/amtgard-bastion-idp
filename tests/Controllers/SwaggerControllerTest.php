@@ -63,6 +63,7 @@ class SwaggerControllerTest extends TestCase
                     '/resources/profile/email/confirm',
                     '/resources/profile/email/commit',
                     '/resources/link-ork-profile',
+                    '/resources/ork/validate-send-nonce',
                     '/auth/connect',
                     '/auth/connect/login',
                     '/auth/connect/register',

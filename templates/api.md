@@ -1053,7 +1053,9 @@ ORK's handoff JWT carries `email` and `sub` (mundane id) and does **not** carry 
 | `GET /auth/connect?link_token=<jwt>` | Login / Register form. Email comes from the JWT. |
 | `POST /auth/connect/login` | Password check against that email, then write the link |
 | `POST /auth/connect/register` | Create the IDP user at the JWT email, then write the link |
-| `POST /resources/profile/link-ork` | Signed-in user submits ORK username and password. The IDP checks them with ORK and stores the profile. |
+| `POST /resources/profile/link-ork` | Signed-in user submits ORK username and password. The IDP checks them with ORK and stores the profile. With an empty password and a `code` field, verifies a mailed claim code instead. |
+| `POST /resources/profile/link-ork-code-mail` | Email Code on the profile: resolves the username, then either ORK mails the code (`ORK_CLAIM_MAIL_VIA_ORK=1`) or the IDP mails locally (legacy). |
+| `POST /resources/ork/validate-send-nonce` | **ORK server only.** ORK calls this while handling `BeginClaimOrkMail` to bind `send_nonce` → `{idp_user_id, mundane_id}`. Same Basic auth allow list as `link-ork-profile`. |
 
 Completion redirect for this path is the existing JWT: `iss=idp`, `aud=ork`, `sub=<idp user uuid>`, `mundane_id`. No `challenge_id`.
 

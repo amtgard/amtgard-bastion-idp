@@ -1,0 +1,10 @@
+# Optional overlay for Flow A against a local ORK3 container on amtgard-idp-shared.
+# Usage: see agent/cursor/ork-link-possession/local-docker-validation.md
+name: amtgard-idp
+
+services:
+  amtgardidpapp:
+    environment:
+      ORK_CLAIM_MAIL_VIA_ORK: "1"
+      ORK_JSON_API_BASE_URL: "http://ork3-php8-app/orkservice/Json/index.php"
+      ORK_BASE_URL: "http://localhost:19080/orkui/"

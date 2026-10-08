@@ -15,7 +15,10 @@ use Amtgard\IdP\Persistence\Server\Repositories\ClientAccessRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Services\IdpEmailMigrationService;
 use Amtgard\IdP\Services\Mailbox\MailboxChallengePurpose;
+use Amtgard\IdP\Services\Mailbox\OrkFlowAMailDiagnostics;
 use Amtgard\IdP\Services\MailboxChallengeService;
+use Amtgard\IdP\Services\Ork\OrkClaimMailViaOrkFeature;
+use Amtgard\IdP\Services\Ork\OrkClaimSendNonceService;
 use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Services\ResourcesUserinfoService;
@@ -54,6 +57,7 @@ class ResourcesController
     private MailboxChallengeService $mailboxChallenges;
     private OrkLinkTokenService $orkLinkTokenService;
     private IdpEmailMigrationService $emailMigration;
+    private OrkClaimSendNonceService $orkClaimSendNonces;
 
 
     public function __construct(
@@ -76,6 +80,7 @@ class ResourcesController
         MailboxChallengeService $mailboxChallenges,
         OrkLinkTokenService $orkLinkTokenService,
         IdpEmailMigrationService $emailMigration,
+        OrkClaimSendNonceService $orkClaimSendNonces,
     ) {
         $this->logger = $logger;
         $this->twig = $twig;
@@ -96,6 +101,7 @@ class ResourcesController
         $this->mailboxChallenges = $mailboxChallenges;
         $this->orkLinkTokenService = $orkLinkTokenService;
         $this->emailMigration = $emailMigration;
+        $this->orkClaimSendNonces = $orkClaimSendNonces;
     }
 
     #[OA\Get(
@@ -269,6 +275,11 @@ class ResourcesController
 
         $pendingRedirect = RedirectValidator::sanitizeOrNull($_SESSION['redirect'] ?? null);
 
+        $orkClaimPending = null;
+        if ($user !== null) {
+            $orkClaimPending = $this->orkClaimSendNonces->findOpenPendingClaim($user->getUserId());
+        }
+
         $response->getBody()->write($this->twig->render('profile.twig', [
             'avatarUrl' => $avatarUrl,
             'userLogins' => $userLogins,
@@ -280,6 +291,7 @@ class ResourcesController
             'hasClientAccess' => $hasClientAccess,
             'pendingRedirect' => $pendingRedirect !== null,
             'sessionUserId' => $_SESSION['user_id'] ?? null,
+            'orkClaimPending' => $orkClaimPending,
         ]));
 
         return $response;
@@ -401,7 +413,7 @@ class ResourcesController
         path: '/resources/profile/link-ork-code-mail',
         operationId: 'sendOrkLinkCode',
         summary: 'Mail a link code to the ORK address on record',
-        description: 'Looks up the ORK username, then mails a code and magic link to that mundane email. The response does not say whether the username or mailbox exists.',
+        description: 'Looks up the ORK username. When ORK_CLAIM_MAIL_VIA_ORK is enabled, ORK mails the code after validating a send nonce with POST /resources/ork/validate-send-nonce. Otherwise the IDP mails locally (legacy). The redirect does not reveal whether the username or mailbox exists.',
         tags: ['ORK Integration'],
         security: [['idpSession' => []]],
         responses: [
@@ -420,7 +432,17 @@ class ResourcesController
             return $response->withHeader('Location', '/resources/profile?error=ork_username_required')->withStatus(302);
         }
 
-        $this->mailOrkLinkCode($user, $username);
+        $this->logger->info('mailbox.flow_a.mail_requested', [
+            'idp_user_id' => $user->getId(),
+            'submitted_username' => $username,
+        ]);
+
+        $mailError = $this->mailOrkLinkCode($user, $username);
+        if ($mailError !== null) {
+            return $response
+                ->withHeader('Location', '/resources/profile?error=' . rawurlencode($mailError))
+                ->withStatus(302);
+        }
 
         return $response->withHeader('Location', '/resources/profile?success=ork_code_sent')->withStatus(302);
     }
@@ -467,6 +489,10 @@ class ResourcesController
 
     private function linkOrkAccountByCode(UserEntity $user, string $code, Response $response): Response
     {
+        if (OrkClaimMailViaOrkFeature::enabled()) {
+            return $this->linkOrkAccountByOrkMailedCode($user, $code, $response);
+        }
+
         $challenge = $this->mailboxChallenges->findLatestOpenByUserAndPurpose(
             $user->getUserId(),
             MailboxChallengePurpose::CLAIM_ORK,
@@ -484,6 +510,51 @@ class ResourcesController
         return $this->finishOrkCodeLink($user, $challenge->getId(), $mundaneId, $response);
     }
 
+    private function linkOrkAccountByOrkMailedCode(UserEntity $user, string $code, Response $response): Response
+    {
+        $code = strtoupper(trim($code));
+        $pending = $this->orkClaimSendNonces->findOpenPendingClaim($user->getUserId());
+        if ($pending === null) {
+            return $response->withHeader('Location', '/resources/profile?error=ork_code_failed')->withStatus(302);
+        }
+
+        $validated = $this->orkService->validateClaimOrkCode(
+            $user->getUserId(),
+            $pending['mundane_id'],
+            $code,
+        );
+        if ($validated === null || $validated['mundaneId'] !== $pending['mundane_id']) {
+            $this->logger->info('ork.claim.code_rejected', [
+                'idp_user_id' => $user->getId(),
+                'expected_mundane_id' => $pending['mundane_id'],
+                'returned_mundane_id' => $validated['mundaneId'] ?? null,
+            ]);
+
+            return $response->withHeader('Location', '/resources/profile?error=ork_code_failed')->withStatus(302);
+        }
+
+        try {
+            $this->orkProfileRepository->linkExistingUserToMundane($user->getId(), $pending['mundane_id'], 'claim_ork_code');
+        } catch (\RuntimeException $e) {
+            if (str_contains($e->getMessage(), 'conflict')) {
+                return $response->withHeader('Location', '/resources/profile?error=ork_link_conflict')->withStatus(302);
+            }
+
+            throw $e;
+        }
+
+        $this->orkClaimSendNonces->completePendingClaim($pending['id']);
+        $this->logger->info('ork.claim.linked', [
+            'idp_user_id' => $user->getId(),
+            'mundane_id' => $pending['mundane_id'],
+            'ork_email_length' => strlen($validated['email']),
+        ]);
+
+        $this->hydrateOrkProfileAfterClaim($user, $pending['mundane_id'], 'claim_ork_code');
+
+        return $this->redirectAfterOrkLink($user, $response);
+    }
+
     private function finishOrkCodeLink(UserEntity $user, string $challengeId, int $mundaneId, Response $response): Response
     {
         try {
@@ -498,10 +569,44 @@ class ResourcesController
 
         $this->mailboxChallenges->consume($challengeId);
 
+        $this->hydrateOrkProfileAfterClaim($user, $mundaneId, 'claim_ork_code');
+
         return $this->redirectAfterOrkLink($user, $response);
     }
 
-    private function mailOrkLinkCode(UserEntity $user, string $username): void
+    /**
+     * After a possession link, pull persona/park/kingdom from ORK (tokenless GetPlayer by mundane id).
+     */
+    private function hydrateOrkProfileAfterClaim(UserEntity $user, int $mundaneId, string $logContext): void
+    {
+        $playerData = $this->orkService->getPlayerByMundaneId($mundaneId);
+        if ($playerData === null) {
+            $this->logger->warning('ORK claim link: player hydrate skipped (GetPlayer failed)', [
+                'user_id' => $user->getId(),
+                'mundane_id' => $mundaneId,
+                'context' => $logContext,
+            ]);
+
+            return;
+        }
+
+        $parkData = $this->orkService->resolveParkDataFromPlayer($playerData, $user->getId(), $logContext);
+        $existing = $this->orkProfileRepository->findByUserId($user->getId());
+        $token = $existing !== null ? $existing->getOrkToken() : '';
+
+        try {
+            $this->orkProfileRepository->saveOrUpdateProfile($playerData, $parkData, $token, $user->getId());
+        } catch (\RuntimeException $e) {
+            $this->logger->error('ORK claim link: profile hydrate failed', [
+                'user_id' => $user->getId(),
+                'mundane_id' => $mundaneId,
+                'context' => $logContext,
+                'exception' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function mailOrkLinkCode(UserEntity $user, string $username): ?string
     {
         $match = null;
         foreach ($this->orkService->searchUsernames($username, 10) as $row) {
@@ -513,7 +618,7 @@ class ResourcesController
         if ($match === null) {
             $this->logger->info('mailbox.flow_a.mail_skipped', ['reason' => 'no_username']);
 
-            return;
+            return OrkFlowAMailDiagnostics::profileErrorForMailSkip('no_username', null, null);
         }
 
         $mundaneId = $match['mundaneId'];
@@ -524,27 +629,45 @@ class ResourcesController
                 'mundane_id' => $mundaneId,
             ]);
 
-            return;
+            return OrkFlowAMailDiagnostics::profileErrorForMailSkip('linked_elsewhere', null, null);
+        }
+
+        if (OrkClaimMailViaOrkFeature::enabled()) {
+            return $this->mailOrkLinkCodeViaOrk($user, $username, $mundaneId);
         }
 
         $player = $this->orkService->getPlayerByMundaneId($mundaneId);
-        $email = strtolower(trim((string) ($player['Email'] ?? '')));
-        $blocked = $player === null
-            || $email === ''
-            || !str_contains($email, '@')
-            || (int) ($player['Suspended'] ?? 0) !== 0
-            || !empty($player['PenaltyBox']);
-        if ($blocked) {
+        $email = OrkFlowAMailDiagnostics::normalizeEmail($player);
+        $evaluation = OrkFlowAMailDiagnostics::buildLogContext(
+            $user->getId(),
+            $username,
+            $match,
+            $player,
+            $email,
+        );
+        $this->logger->info('mailbox.flow_a.mail_evaluated', $evaluation);
+
+        $blockReason = OrkFlowAMailDiagnostics::blockReason($player, $email);
+        if ($blockReason !== null) {
             $this->logger->info('mailbox.flow_a.mail_skipped', [
                 'reason' => 'no_mailbox',
+                'block_reason' => $blockReason,
                 'mundane_id' => $mundaneId,
+                'ork_email_fields' => $evaluation['ork_email_fields'],
+                'ork_player' => $evaluation['ork_player'],
             ]);
 
-            return;
+            return OrkFlowAMailDiagnostics::profileErrorForMailSkip('no_mailbox', $player, $blockReason);
         }
 
+        $this->logger->info('mailbox.flow_a.mail_dispatching', [
+            'mundane_id' => $mundaneId,
+            'idp_user_id' => $user->getId(),
+            'ork_email_fields' => $evaluation['ork_email_fields'],
+        ]);
+
         $appUrl = rtrim((string) ($_ENV['APP_URL'] ?? ''), '/');
-        $this->mailboxChallenges->issue(
+        $issued = $this->mailboxChallenges->issue(
             MailboxChallengePurpose::CLAIM_ORK,
             $email,
             $user->getUserId(),
@@ -558,6 +681,36 @@ class ResourcesController
                 return $appUrl . '/resources/profile/link-ork/magic?t=' . rawurlencode($jwt);
             },
         );
+        if (!$issued->mailed) {
+            $this->logger->info('mailbox.flow_a.mail_skipped', [
+                'reason' => 'throttled',
+                'mundane_id' => $mundaneId,
+            ]);
+
+            return 'ork_mail_throttled';
+        }
+
+        return null;
+    }
+
+    private function mailOrkLinkCodeViaOrk(UserEntity $user, string $username, int $mundaneId): ?string
+    {
+        $issued = $this->orkClaimSendNonces->issueForClaim($user->getUserId(), $mundaneId, $username);
+        $this->logger->info('mailbox.flow_a.ork_mail_dispatching', [
+            'mundane_id' => $mundaneId,
+            'idp_user_id' => $user->getId(),
+        ]);
+
+        if (!$this->orkService->beginClaimOrkMail($issued['send_nonce'])) {
+            $this->logger->info('mailbox.flow_a.mail_skipped', [
+                'reason' => 'ork_begin_failed',
+                'mundane_id' => $mundaneId,
+            ]);
+
+            return 'ork_claim_mail_failed';
+        }
+
+        return null;
     }
 
     private function redirectAfterOrkLink(UserEntity $user, Response $response): Response

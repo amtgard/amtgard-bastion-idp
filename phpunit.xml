@@ -8,6 +8,7 @@
         <testsuite name="Unit">
             <directory>tests</directory>
             <exclude>tests/Integration</exclude>
+            <exclude>tests/Live</exclude>
         </testsuite>
     </testsuites>
     <source>
@@ -40,5 +41,7 @@
         <env name="OAUTH_PUBLIC_KEY" value="file:///tmp/public.key"/>
         <env name="OAUTH_ENCRYPTION_KEY" value="test_encryption_key"/>
         <env name="MAILBOX_CODE_PEPPER" value="test-mailbox-pepper-not-for-production"/>
+        <env name="ORK_JSON_API_BASE_URL" value=""/>
+        <env name="ORK_CLAIM_MAIL_VIA_ORK" value=""/>
     </php>
 </phpunit>

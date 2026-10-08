@@ -37,7 +37,7 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | GET | `/resources/userinfo` | `resources.userinfo` | A+B | y | `OAuthTokenAndResourcesTest`, `SocialCallbacksTest`, `AppleCallbackTest` | A: Bearer after social; B: Bearer JWT |
 | GET | `/resources/profile` | `resources.profile` | A | y | `UiSessionTest`, `SocialCallbacksTest`, `AppleCallbackTest`, `OrkAndProfileTest`, `ManagementUiTest`, `OAuthApproveTest`, `OAuthTokenAndResourcesTest`, `AuthNegativesTest` | logged-out redirect; Bearer → 401 |
 | GET | `/resources/clients` | `resources.clients` | A | y | `ResourcesClientsUiTest` | player operator subset |
-| POST | `/resources/clients/{id}/redirect` | `resources.clients.redirect` | A | y | `ManagementUiTest` | admin operator |
+| POST | `/resources/clients/{id}/redirect` | `resources.clients.redirect` | A | y | `ManagementUiTest` | admin operator redirect + IAM fields |
 | GET | `/resources/authorizations` | `resources.authorizations` | B | y | `OAuthTokenAndResourcesTest` | access token Bearer |
 | POST | `/resources/profile/link-ork` | `resources.profile.link_ork` | A | y | `OrkAndProfileTest` | hits `DevIntegHttpClient` ORK |
 | POST | `/resources/profile/link-ork-code-mail` | `resources.profile.link_ork_code_mail` | A | y | `MailboxPossessionIntegTest` | `IntegRecordingOutboundMail` + magic link |
@@ -46,6 +46,7 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | POST | `/resources/profile/refresh-ork` | `resources.profile.refresh_ork` | A | y | `OrkAndProfileTest` | |
 | POST | `/resources/profile/unlink-ork` | `resources.profile.unlink_ork` | A | y | `OrkAndProfileTest` | |
 | POST | `/resources/profile/revoke` | `resources.profile.revoke` | A | y | `OrkAndProfileTest` | |
+| POST | `/resources/ork/validate-send-nonce` | `resources.ork.validate_send_nonce` | B | n | | ORK BeginClaimOrkMail callback |
 | POST | `/resources/link-ork-profile` | `resources.link_ork_profile` | B | y | `ClientIamTest` | no live ORK |
 | POST | `/resources/unlink-ork-profile` | `resources.unlink_ork_profile` | B | y | `ClientIamTest` | |
 | GET | `/resources/jwt` | `resources.jwt` | A+B | y | `OAuthTokenAndResourcesTest`, `SocialCallbacksTest` | B: access token; A: session only; negative in SocialCallbacksTest |

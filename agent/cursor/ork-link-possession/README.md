@@ -1,5 +1,7 @@
 # ORK ↔ IDP link by mailbox possession
 
+**Flow A (ORK mails the claim code, nonce callback):** [flow-a-ork-mail-plan.md](./flow-a-ork-mail-plan.md).
+
 **Agents implementing or changing this integration:** read [idp-contract.md](./idp-contract.md). It is the IDP behavior on `feature/ork-mailbox-possession`. The design and milestone files below still describe the original cutover. Where they disagree with the contract, the contract wins.
 
 Design pack for replacing email-equality auto-link and password-as-proof with a one-time code sent to the mailbox that owns the account being claimed.

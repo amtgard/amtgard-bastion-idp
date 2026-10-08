@@ -20,6 +20,7 @@ use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Management\ClientAccessController;
 use Amtgard\IdP\Controllers\Management\ManagementController;
 use Amtgard\IdP\Controllers\Resource\OrkAccountUnlinkController;
+use Amtgard\IdP\Controllers\Resource\OrkIntegrationController;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
 use Amtgard\IdP\Controllers\SwaggerController;
 use Amtgard\IdP\Controllers\VersionController;
@@ -142,6 +143,10 @@ return function (App $app) {
 
         // Server-to-server: ORK calls this to mirror a successful local link write
         // into the IDP. Basic auth against the confidential-client credentials.
+        $group->post('/ork/validate-send-nonce', [OrkIntegrationController::class, 'validateSendNonce'])
+            ->add(ConfidentialClientBasicAuthMiddleware::class)
+            ->setName('resources.ork.validate_send_nonce');
+
         $group->post('/link-ork-profile', [ResourcesController::class, 'linkOrkProfile'])
             ->add(ConfidentialClientBasicAuthMiddleware::class)
             ->setName('resources.link_ork_profile');

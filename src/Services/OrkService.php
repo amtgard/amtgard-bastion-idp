@@ -26,7 +26,7 @@ final class OrkService
     public function authorize(string $username, string $password): ?array
     {
         try {
-            $response = $this->httpClient->get(self::BASE_URL, [
+            $response = $this->httpClient->get($this->jsonApiBaseUrl(), [
                 'query' => [
                     'call' => 'Authorization/Authorize',
                     'request' => [
@@ -60,7 +60,7 @@ final class OrkService
     public function getPlayer(string $token, int $mundaneId): ?array
     {
         try {
-            $response = $this->httpClient->get(self::BASE_URL, [
+            $response = $this->httpClient->get($this->jsonApiBaseUrl(), [
                 'query' => [
                     'call' => 'Player/GetPlayer',
                     'request' => [
@@ -110,7 +110,7 @@ final class OrkService
         $limit = max(1, min(10, $limit));
 
         try {
-            $response = $this->httpClient->get(self::BASE_URL, [
+            $response = $this->httpClient->get($this->jsonApiBaseUrl(), [
                 'query' => [
                     'call' => 'SearchService/Player',
                     'type' => 'USER',
@@ -160,7 +160,7 @@ final class OrkService
         }
 
         try {
-            $response = $this->httpClient->get(self::BASE_URL, [
+            $response = $this->httpClient->get($this->jsonApiBaseUrl(), [
                 'query' => [
                     'call' => 'Player/GetPlayer',
                     'request' => [
@@ -170,7 +170,20 @@ final class OrkService
             ]);
             $data = json_decode($response->getBody()->getContents(), true);
             if (isset($data['Status']['Status']) && $data['Status']['Status'] === 0 && isset($data['Player']) && is_array($data['Player'])) {
-                return $data['Player'];
+                $player = $data['Player'];
+                $emailRaw = trim((string) ($player['Email'] ?? ''));
+                $this->logger->info('ORK GetPlayer by mundane id success', [
+                    'mundaneId' => $mundaneId,
+                    'emailKeyPresent' => array_key_exists('Email', $player),
+                    'emailRawLength' => strlen($emailRaw),
+                    'emailRawHasAt' => str_contains($emailRaw, '@'),
+                    'suspended' => $player['Suspended'] ?? null,
+                    'penaltyBox' => $player['PenaltyBox'] ?? null,
+                    'username' => $player['UserName'] ?? $player['username'] ?? null,
+                    'persona' => $player['Persona'] ?? null,
+                ]);
+
+                return $player;
             }
 
             $this->logger->warning('ORK GetPlayer by mundane id failed', [
@@ -200,7 +213,7 @@ final class OrkService
         }
 
         try {
-            $response = $this->httpClient->get(self::BASE_URL, [
+            $response = $this->httpClient->get($this->jsonApiBaseUrl(), [
                 'query' => [
                     'call' => $request['call'],
                     'request' => [
@@ -288,10 +301,33 @@ final class OrkService
         return $parkData;
     }
 
+    private function jsonApiBaseUrl(): string
+    {
+        $override = trim((string) ($_ENV['ORK_JSON_API_BASE_URL'] ?? ''));
+
+        return $override !== '' ? rtrim($override, '/') : self::BASE_URL;
+    }
+
     /**
-     * @param array<string, mixed> $data
-     * @return array<string, mixed>
+     * @param array<string, mixed>|null $data
      */
+    private function isOrkJsonSuccess(?array $data): bool
+    {
+        if ($data === null) {
+            return false;
+        }
+
+        if (isset($data['Status']) && is_array($data['Status'])) {
+            return (int) ($data['Status']['Status'] ?? -1) === 0;
+        }
+
+        if ($data['Status'] === true || (int) ($data['Status'] ?? -1) === 0) {
+            return true;
+        }
+
+        return (int) ($data['Code'] ?? -1) === 0 && ($data['Status'] ?? false) !== false;
+    }
+
     private function extractParkRelatedFields(array $data): array
     {
         $fields = [];
@@ -305,5 +341,81 @@ final class OrkService
         }
 
         return $fields;
+    }
+
+    /**
+     * Flow A v2: ORK mails the claim code after validating send_nonce with the IDP.
+     */
+    public function beginClaimOrkMail(string $sendNonce): bool
+    {
+        try {
+            $response = $this->httpClient->get($this->jsonApiBaseUrl(), [
+                'query' => [
+                    'call' => 'IdpIntegration/BeginClaimOrkMail',
+                    'request' => [
+                        'SendNonce' => $sendNonce,
+                    ],
+                ],
+            ]);
+            $data = json_decode($response->getBody()->getContents(), true);
+            $ok = $this->isOrkJsonSuccess(is_array($data) ? $data : null);
+            $this->logger->info('ORK BeginClaimOrkMail', [
+                'ok' => $ok,
+                'status' => is_array($data) ? ($data['Status'] ?? null) : null,
+                'code' => is_array($data) ? ($data['Code'] ?? null) : null,
+            ]);
+
+            return $ok;
+        } catch (GuzzleException $e) {
+            $this->logger->error('ORK BeginClaimOrkMail exception', ['exception' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    /**
+     * @return array{email: string, mundaneId: int}|null
+     */
+    public function validateClaimOrkCode(string $idpUserId, int $mundaneId, string $code): ?array
+    {
+        try {
+            $response = $this->httpClient->get($this->jsonApiBaseUrl(), [
+                'query' => [
+                    'call' => 'IdpIntegration/ValidateClaimOrkCode',
+                    'request' => [
+                        'IdpUserId' => $idpUserId,
+                        'MundaneId' => $mundaneId,
+                        'Code' => $code,
+                    ],
+                ],
+            ]);
+            $data = json_decode($response->getBody()->getContents(), true);
+            if (!is_array($data) || !$this->isOrkJsonSuccess($data)) {
+                $this->logger->info('ORK ValidateClaimOrkCode rejected', [
+                    'mundane_id' => $mundaneId,
+                    'status' => is_array($data) ? ($data['Status'] ?? null) : null,
+                ]);
+
+                return null;
+            }
+
+            $returnedMundane = (int) ($data['MundaneId'] ?? 0);
+            $email = trim((string) ($data['Email'] ?? ''));
+            if ($returnedMundane <= 0 || $email === '') {
+                return null;
+            }
+
+            return [
+                'email' => $email,
+                'mundaneId' => $returnedMundane,
+            ];
+        } catch (GuzzleException $e) {
+            $this->logger->error('ORK ValidateClaimOrkCode exception', [
+                'mundane_id' => $mundaneId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 }

@@ -462,6 +462,47 @@ class OrkServiceTest extends TestCase
         $this->assertSame(456, $warningMessages[1][1]['parkIdResolved']);
     }
 
+    public function testGetPlayerByMundaneIdLogsEmailFieldPresenceWithoutValue(): void
+    {
+        $responseMock = $this->jsonResponse([
+            'Status' => ['Status' => 0],
+            'Player' => [
+                'MundaneId' => 4,
+                'UserName' => 'orkuser',
+                'Email' => 'hidden@example.com',
+                'Suspended' => 0,
+            ],
+        ]);
+
+        $this->clientMock->expects($this->once())
+            ->method('get')
+            ->with(
+                self::anything(),
+                $this->callback(function (array $options): bool {
+                    $this->assertSame('Player/GetPlayer', $options['query']['call']);
+                    $this->assertSame(4, $options['query']['request']['MundaneId']);
+                    $this->assertArrayNotHasKey('Token', $options['query']['request']);
+
+                    return true;
+                }),
+            )
+            ->willReturn($responseMock);
+
+        $this->logger->expects($this->once())
+            ->method('info')
+            ->with('ORK GetPlayer by mundane id success', $this->callback(function (array $context): bool {
+                $this->assertTrue($context['emailKeyPresent']);
+                $this->assertSame(18, $context['emailRawLength']);
+                $this->assertTrue($context['emailRawHasAt']);
+                $this->assertArrayNotHasKey('Email', $context);
+
+                return true;
+            }));
+
+        $player = $this->service->getPlayerByMundaneId(4);
+        $this->assertSame('hidden@example.com', $player['Email']);
+    }
+
     public function testExtractParkRelatedFieldsIgnoresNonStringKeys(): void
     {
         $responseMock = $this->jsonResponse([
@@ -486,6 +527,15 @@ class OrkServiceTest extends TestCase
             ->willReturn($responseMock);
 
         $this->service->getPlayer('token', 1);
+    }
+
+    public function testBeginClaimOrkMailAcceptsFlatJsonServerStatus(): void
+    {
+        $this->clientMock->expects($this->once())
+            ->method('get')
+            ->willReturn($this->jsonResponse(['Status' => 0, 'Code' => 0, 'Error' => 'Success']));
+
+        $this->assertTrue($this->service->beginClaimOrkMail('nonce'));
     }
 
     /**
