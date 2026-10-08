@@ -20,7 +20,8 @@ final class CorrelationMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $previous = RequestLogContext::id();
-        RequestLogContext::set($this->resolveId($request));
+        $requestId = $this->resolveId($request);
+        RequestLogContext::set($requestId);
 
         try {
             $response = $handler->handle($request);
@@ -32,7 +33,7 @@ final class CorrelationMiddleware implements MiddlewareInterface
             }
         }
 
-        return $response->withHeader(self::HEADER, RequestLogContext::id() ?? '');
+        return $response->withHeader(self::HEADER, $requestId);
     }
 
     private function resolveId(ServerRequestInterface $request): string

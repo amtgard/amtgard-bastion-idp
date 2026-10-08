@@ -26,7 +26,7 @@ When a route is legitimately exercised in both modes, **Mode** is `A+B` and **Te
 | GET | `/` | `home` | A | y | `StaticDocsTest` | |
 | GET | `/.well-known/openid-configuration` | `oidc.discovery` | B | y | `OidcDiscoveryIntegTest` | public JSON |
 | GET | `/.well-known/jwks.json` | `oidc.jwks` | B | y | `OidcDiscoveryIntegTest` | verifies live `id_token` kid |
-| GET | `/version` | `version` | B | y | `VersionEndpointTest` | |
+| GET | `/version` | `version` | B | y | `VersionEndpointTest`, `LoggingCorrelationIntegTest` | JSON body + `X-Request-Id` echo/generate |
 | GET | `/swagger` | `swagger.documentation` | A | y | `StaticDocsTest` | |
 | GET | `/openapi.json` | `swagger.openapi` | B | y | `PublicApiTest` | |
 | GET | `/docs` | `swagger.docsify` | A | y | `StaticDocsTest` | incl. trailing `/` |

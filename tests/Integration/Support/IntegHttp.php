@@ -36,6 +36,14 @@ final class IntegHttp
         return $this->client->get(ltrim($path, '/'));
     }
 
+    /** @param array<string, string> $headers */
+    public function getWithHeaders(string $path, array $headers): ResponseInterface
+    {
+        return $this->client->get(ltrim($path, '/'), [
+            'headers' => $headers,
+        ]);
+    }
+
     /** @param array<string, mixed> $body */
     public function postJson(string $path, array $body): ResponseInterface
     {

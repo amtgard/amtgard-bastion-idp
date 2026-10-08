@@ -18,3 +18,12 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 
 - Branch: `stack/idp-log-l3-idp-logs-cli`
 - `bin/idp-logs.php` (`query`, `bundle`, `drain-once`).
+
+## L3b — logging HTTP integ
+
+- Branch: `stack/idp-log-l3b-logging-integ`
+- `LoggingCorrelationIntegTest` (Mode B): `GET /version` echoes valid `X-Request-Id` or returns 16-char hex when absent.
+- Fix: `CorrelationMiddleware` sets response header from resolved id after context teardown (L2 bug found by integ).
+- Integ overlay: `LOG_SPOOL_ENABLED=true`, `LOG_ROOT=/var/www/idp.amtgard.com/logs/bundles-integ`.
+- Spool drain from integ is host-side: after traffic with a known request id, operators run `php bin/idp-logs.php drain-once` (CLI covered in L3 unit tests).
+- Gates: `composer test`; `./scripts/integ.sh`.
