@@ -61,6 +61,7 @@ class OAuthActionWiringTest extends TestCase
             OAuthSessionAuthRequestStore::class => new OAuthSessionAuthRequestStore(),
             OAuthFlowErrorRenderer::class => $errorRenderer,
             TwigEnvironment::class => $this->createStub(TwigEnvironment::class),
+            \Amtgard\IdP\Utility\Log\IdpLogging::class => \Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create(),
         ]);
 
         $definitions = require __DIR__ . '/../../config/container.php';

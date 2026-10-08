@@ -20,7 +20,8 @@
 | L1 | `stack/idp-log-l1-spool-sqlite-writer` | `LogPathResolver`, `SqliteLogSchema`, `MonologJsonLineParser`, `JsonLogSpoolHandler`, `LogSpoolDrainer`, `SqliteLogQuery`, `bin/log-sqlite-writer.php`, unit tests |
 | L2 | `stack/idp-log-l2-idp-logging-wire` | `RequestLogContext`, `CorrelationMiddleware`, `CorrelationProcessor`, `RedactionProcessor`, `LogChannel` + `LogChannelFactory`, `IdpLogging`, container + middleware wiring, `.env.example`, optional `docker/compose.log-writer.yml` |
 | L3 | `stack/idp-log-l3-idp-logs-cli` | `bin/idp-logs.php` (`query`, `bundle`, `drain-once`), CLI tests |
-| L4 | `stack/idp-log-l4-m1-slice` | M1 checklist: `HttpObservabilityMiddleware` + instrument `/resources/validate` and `POST /oauth/token` per [instrumentation-checklist.md](./instrumentation-checklist.md) M1 |
+| L3b | `stack/idp-log-l3b-logging-integ` | `LoggingCorrelationIntegTest`, integ compose `LOG_*`, `CorrelationMiddleware` response header fix |
+| L4 | `stack/idp-log-l4-m1-slice` | M1 checklist slice: `HttpObservabilityMiddleware` + instrument `/resources/validate` and `POST /oauth/token` per [instrumentation-checklist.md](./instrumentation-checklist.md) M1 |
 | L5 | `stack/idp-log-l5-m2-auth-middleware` | M2 auth middleware deny paths |
 | L6+ | `stack/idp-log-l6-…` | M3–M10 per checklist; Phase 1 log-read API on L10 |
 

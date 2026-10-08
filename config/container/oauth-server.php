@@ -98,6 +98,7 @@ return [
         return OAuthTokenAction::builder()
             ->authorizationServer($container->get(AuthorizationServer::class))
             ->errorRenderer($container->get(OAuthFlowErrorRenderer::class))
+            ->idpLogging($container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class))
             ->build();
     },
 

@@ -166,6 +166,7 @@ final class OidcTokenExchangeHarness
         $action = OAuthTokenAction::builder()
             ->authorizationServer($server)
             ->errorRenderer($errorRenderer)
+            ->idpLogging(\Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create())
             ->build();
 
         $response = $action->handle($tokenRequest, (new ResponseFactory())->createResponse());

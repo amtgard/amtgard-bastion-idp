@@ -27,3 +27,13 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - Integ overlay: `LOG_SPOOL_ENABLED=true`, `LOG_ROOT=/var/www/idp.amtgard.com/logs/bundles-integ`.
 - Spool drain from integ is host-side: after traffic with a known request id, operators run `php bin/idp-logs.php drain-once` (CLI covered in L3 unit tests).
 - Gates: `composer test`; `./scripts/integ.sh`.
+
+## L4 — M1 slice (Phase 0 exit)
+
+- Branch: `stack/idp-log-l4-m1-slice`
+- `HttpObservabilityMiddleware` (one summary line per request; channel by path/status).
+- `/resources/validate` reject paths log at **error**; success paths at **info**.
+- `OAuthTokenAction` logs `oauth token rejected` on League `OAuthServerException`.
+- Integ: extend `LoggingCorrelationIntegTest` for `/resources/validate` 401 and `/oauth/token` 400 with `X-Request-Id`.
+- Gates: `composer test`; `./scripts/integ.sh` (logging integ green; stack may retain unrelated ORK/mailbox integ failures until ORK deploy).
+- Phase 0 exit: reconstruct one request from SQLite by `request_id` (operator: traffic → `bin/idp-logs.php drain-once` → `bundle --request-id=`).

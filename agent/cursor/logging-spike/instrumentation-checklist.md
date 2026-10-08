@@ -114,7 +114,7 @@ Wire correlation/redaction here; instrument the two spike routes so a `request_i
 **New types (create; no current lines):** `CorrelationMiddleware`, `HttpObservabilityMiddleware`, `CorrelationContext`, `CorrelationProcessor`, `RedactionProcessor`, `IdpLogging`, `AsyncLogQueueHandler`, `SqliteLogHandler` (writer process only), `LogChannelFactory`, `bin/log-sqlite-writer.php`, `bin/idp-agent-log-token` — see design-plan Appendix A.
 
 - [ ] `config/container.php:L72-L86` — emergency — register **`IdpLogging`** (single facade); stderr JSONL + async queue/spool; `LoggerInterface` → `app` delegate; fail-open — `log_root`, `trace_level` (no key material)
-- [ ] `config/middleware.php:L13-L30` — info — add correlation + HTTP observability after session, before CORS — `route`, `method` (no query)
+- [x] `config/middleware.php:L13-L30` — info — add correlation + HTTP observability after session, before CORS — `route`, `method` (no query) *(L4: `HttpObservabilityMiddleware` + `CorrelationMiddleware`)*
 - [ ] `config/middleware.php:L32-L53` — critical — Slim error middleware: keep logging on; attach `request_id` via `ApiAwareErrorHandler` — `request_id`, `http_status`, `exception_class`
 - [ ] `src/Handlers/ApiAwareErrorHandler.php:L16-L26` — critical — map uncaught → 5xx; 4xx Slim HTTP exceptions → error; include `request_id` — `path`, `http_status`, `exception_class`
 - [ ] `src/Handlers/NotFoundErrorHandler.php:L13-L32` — notice — keep 404 notice; **redact** `query` (`key`, `code`, tokens) — `method`, `path`, `ip`, `user_agent` (no raw query)
@@ -126,17 +126,17 @@ Wire correlation/redaction here; instrument the two spike routes so a `request_i
 - [ ] `src/Utility/PvhGate.php:L79-L82` — error — 401 `unauthorized` — `error_code=unauthorized`, `http_status=401`
 - [ ] `src/Utility/PvhGate.php:L84-L87` — error — factory 409 used by middleware stale path — `error_code=stale_token`, `outcome=StaleToken`
 - [ ] `src/Utility/PvhGate.php:L89-L92` — error — shared JSON error helper — `error_code`, `http_status`
-- [ ] `src/Controllers/Resource/LowLatencyController.php:L91-L92` — error — validate 401 missing Bearer (today debug via reject) — `reason=missing_bearer`
-- [ ] `src/Controllers/Resource/LowLatencyController.php:L95-L96` — error — validate 401 bad signature — `reason=invalid_signature`
-- [ ] `src/Controllers/Resource/LowLatencyController.php:L99-L101` — error — validate 401 unparseable payload — `reason=invalid_payload`
-- [ ] `src/Controllers/Resource/LowLatencyController.php:L106-L111` — error — validate 401 missing `sub`/`aud` — `reason=missing_sub_or_aud`, `user_uuid`, `aud`
-- [ ] `src/Controllers/Resource/LowLatencyController.php:L114-L119` — error — validate 401 issuer mismatch — `reason=invalid_issuer`, `user_uuid`, `aud`
-- [ ] `src/Controllers/Resource/LowLatencyController.php:L125-L130` — error — validate 401 missing pvh/policy — `reason=missing_pvh_context`, `user_uuid`, `aud`
-- [ ] `src/Controllers/Resource/LowLatencyController.php:L137-L176` — info — validate 2xx current/miss (today notice; add info summary + keep debug detail) — `user_uuid`, `aud`, `access`, `outcome` (no `pvh` raw if redaction bans it; use `pvh_prefix`)
-- [ ] `src/Controllers/Resource/LowLatencyController.php:L178-L190` — error — validate 409 stale (today notice) — `user_uuid`, `aud`, `outcome=StaleToken` (no presented/current pvh hex)
-- [ ] `src/Controllers/Resource/LowLatencyController.php:L193-L202` — error — validate 401 unknown pvh (today notice) — `user_uuid`, `aud`, `access=Unknown`
-- [ ] `src/Controllers/Resource/LowLatencyController.php:L208-L212` — error — `rejectValidate` currently logs **debug** then returns 401 — `reason`, `user_uuid`, `aud`
-- [ ] `src/Controllers/Server/OAuth/OAuthTokenAction.php:L27-L30` — error — League `OAuthServerException` → 4xx HTTP, **no IDP log** — `oauth_step=token`, `http_status`, `error` (hint only; no `code`/`client_secret`)
+- [x] `src/Controllers/Resource/LowLatencyController.php:L91-L92` — error — validate 401 missing Bearer (today debug via reject) — `reason=missing_bearer` *(L4)*
+- [x] `src/Controllers/Resource/LowLatencyController.php:L95-L96` — error — validate 401 bad signature — `reason=invalid_signature` *(L4)*
+- [x] `src/Controllers/Resource/LowLatencyController.php:L99-L101` — error — validate 401 unparseable payload — `reason=invalid_payload` *(L4)*
+- [x] `src/Controllers/Resource/LowLatencyController.php:L106-L111` — error — validate 401 missing `sub`/`aud` — `reason=missing_sub_or_aud`, `user_uuid`, `aud` *(L4)*
+- [x] `src/Controllers/Resource/LowLatencyController.php:L114-L119` — error — validate 401 issuer mismatch — `reason=invalid_issuer`, `user_uuid`, `aud` *(L4)*
+- [x] `src/Controllers/Resource/LowLatencyController.php:L125-L130` — error — validate 401 missing pvh/policy — `reason=missing_pvh_context`, `user_uuid`, `aud` *(L4)*
+- [x] `src/Controllers/Resource/LowLatencyController.php:L137-L176` — info — validate 2xx current/miss (today notice; add info summary + keep debug detail) — `user_uuid`, `aud`, `access`, `outcome` (no `pvh` raw if redaction bans it; use `pvh_prefix`) *(L4: info on current path)*
+- [x] `src/Controllers/Resource/LowLatencyController.php:L178-L190` — error — validate 409 stale (today notice) — `user_uuid`, `aud`, `outcome=StaleToken` (no presented/current pvh hex) *(L4)*
+- [x] `src/Controllers/Resource/LowLatencyController.php:L193-L202` — error — validate 401 unknown pvh (today notice) — `user_uuid`, `aud`, `access=Unknown` *(L4)*
+- [x] `src/Controllers/Resource/LowLatencyController.php:L208-L212` — error — `rejectValidate` currently logs **debug** then returns 401 — `reason`, `user_uuid`, `aud` *(L4)*
+- [x] `src/Controllers/Server/OAuth/OAuthTokenAction.php:L27-L30` — error — League `OAuthServerException` → 4xx HTTP, **no IDP log** — `oauth_step=token`, `http_status`, `error` (hint only; no `code`/`client_secret`) *(L4)*
 
 **M1 count: 24**
 

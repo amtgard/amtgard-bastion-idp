@@ -138,18 +138,20 @@ final class IntegHttp
     }
 
     /** @param array<string, string> $fields */
+    /** @param array<string, string> $extraHeaders */
     public function postFormWithBasicAuth(
         string $path,
         array $fields,
         string $clientId,
         string $clientSecret,
+        array $extraHeaders = [],
     ): ResponseInterface {
         return $this->client->post(ltrim($path, '/'), [
             'form_params' => $fields,
-            'headers' => [
+            'headers' => array_merge([
                 'Content-Type' => 'application/x-www-form-urlencoded',
                 'Authorization' => 'Basic ' . base64_encode($clientId . ':' . $clientSecret),
-            ],
+            ], $extraHeaders),
         ]);
     }
 

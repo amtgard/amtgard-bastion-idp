@@ -115,6 +115,7 @@ class OAuth2ServerControllerTest extends TestCase
         $tokenAction = OAuthTokenAction::builder()
             ->authorizationServer($this->authorizationServer)
             ->errorRenderer($errorRenderer)
+            ->idpLogging(\Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create())
             ->build();
 
         $approveAction = OAuthApproveAction::builder()
