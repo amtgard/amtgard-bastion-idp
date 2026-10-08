@@ -10,12 +10,6 @@ use Amtgard\IdP\Models\Orn\ClientApplicationClaim;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Optional\Optional;
 
-enum OrnClaimExtensionAction
-{
-    case Noop;
-    case Register;
-}
-
 class OrnClaimRegistry
 {
     public static function registerForClient(Client $client): void

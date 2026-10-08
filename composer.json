@@ -57,7 +57,8 @@
         "ses:live": "phpunit -c phpunit.live.xml --testdox",
         "integ:coverage": "bash scripts/integ-coverage.sh",
         "cs": "phpcs",
-        "stan": "phpstan analyse src tests"
+        "stan": "phpstan analyse src tests",
+        "mutate": "bash scripts/mutation-test.sh"
     },
     "repositories": [
         {

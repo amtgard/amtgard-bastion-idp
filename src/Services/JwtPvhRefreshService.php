@@ -13,13 +13,6 @@ use Amtgard\IdP\Utility\PvhCacheRecord;
 use Optional\Optional;
 use Psr\Log\LoggerInterface;
 
-enum JwtPvhRefreshResult: string
-{
-    case Noop = 'noop';
-    case Rotated = 'rotated';
-    case UserMissing = 'user_missing';
-}
-
 /**
  * Worker body: recompute canonical policy_hash for (user_uuid, aud) and
  * rotate MySQL + Redis pvh only when the hash changed. Does not mint or sign a JWT.
