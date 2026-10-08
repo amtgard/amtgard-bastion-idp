@@ -4,8 +4,10 @@
 |----------|---------|--------|
 | [design-plan.md](./design-plan.md) | Architecture: correlation, levels, SQLite/text, retention, tooling, log-read API + ORN | Ready |
 | [instrumentation-checklist.md](./instrumentation-checklist.md) | **295** sites at `9980cf5`, milestones M1–M10 (design phases 0–3) | Ready |
+| [implementation-plan.md](./implementation-plan.md) | Stacked branches L0–L4+ on `feature/ork-flow-a-mail-via-ork` | Active |
+| [milestones.md](./milestones.md) | Completed logging branches, coverage gates | Active |
 
-Implementation is **not** in scope until both documents are reviewed and a delivery branch is cut.
+Implementation follows [implementation-plan.md](./implementation-plan.md) (stacked on `feature/ork-flow-a-mail-via-ork`).
 
 **Design constraints (2026-09-11):** one `IdpLogging` DI facade (no multi-logger constructors); durable SQLite via async queue/spool + writer process (never block requests); sync stderr JSONL for tail; CLI-issued long-lived JWT with **`IDP/AnalyzeLogs` only** for desktop agents (`IDP_LOG_READ_JWT` in local `.env`).
 
