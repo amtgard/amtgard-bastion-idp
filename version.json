@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-10-08.263",
+  "build_id": "2026-10-08.264",
   "date": "2026-10-08",
-  "revision": 263,
-  "branch": "stack/idp-log-l0-implementation-plan"
+  "revision": 264,
+  "branch": "stack/idp-log-l1-spool-sqlite-writer"
 }
