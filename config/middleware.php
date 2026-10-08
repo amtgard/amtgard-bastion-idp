@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use Amtgard\IdP\Handlers\ApiAwareErrorHandler;
 use Amtgard\IdP\Handlers\NotFoundErrorHandler;
+use Amtgard\IdP\Middleware\CorrelationMiddleware;
 use Amtgard\IdP\Middleware\SessionMiddleware;
 use Amtgard\IdP\Middleware\JsonBodyParserMiddleware;
 use Psr\Log\LoggerInterface;
@@ -29,6 +30,8 @@ return function (App $app) {
     // Add CORS middleware
     // Added last so it runs first (LIFO), handling OPTIONS requests before other middleware/routing
     $app->add(new \Amtgard\IdP\Middleware\CorsMiddleware());
+
+    $app->add(new CorrelationMiddleware());
 
     // Log exceptions to Monolog (logs/app.log); display details only when APP_DEBUG=true
     $displayErrorDetails = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';

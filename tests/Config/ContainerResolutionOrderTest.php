@@ -62,6 +62,7 @@ final class ContainerResolutionOrderTest extends TestCase
     {
         OAuthTestEnvironment::restorePhpUnitOAuthKeys();
         OAuthTestEnvironment::restorePhpUnitOrkIntegrationFlags();
+        OAuthTestEnvironment::restorePhpUnitLogFlags();
         parent::tearDown();
     }
 

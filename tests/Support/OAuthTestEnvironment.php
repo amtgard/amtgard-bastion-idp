@@ -30,4 +30,12 @@ final class OAuthTestEnvironment
         putenv('ORK_JSON_API_BASE_URL');
         putenv('ORK_CLAIM_MAIL_VIA_ORK');
     }
+
+    public static function restorePhpUnitLogFlags(): void
+    {
+        $_ENV['LOG_SPOOL_ENABLED'] = 'false';
+        $_ENV['LOG_STDERR_ENABLED'] = 'false';
+        putenv('LOG_SPOOL_ENABLED=false');
+        putenv('LOG_STDERR_ENABLED=false');
+    }
 }
