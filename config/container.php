@@ -101,7 +101,7 @@ return array_merge(
         },
 
         ManagementMiddleware::class => function (ContainerInterface $container) {
-            return new ManagementMiddleware();
+            return new ManagementMiddleware($container->get(IdpLogging::class));
         },
 
         CurrentUserResolverInterface::class => function (ContainerInterface $container) {

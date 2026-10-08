@@ -37,3 +37,10 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - Integ: extend `LoggingCorrelationIntegTest` for `/resources/validate` 401 and `/oauth/token` 400 with `X-Request-Id`.
 - Gates: `composer test`; `./scripts/integ.sh` (logging integ green; stack may retain unrelated ORK/mailbox integ failures until ORK deploy).
 - Phase 0 exit: reconstruct one request from SQLite by `request_id` (operator: traffic → `bin/idp-logs.php drain-once` → `bundle --request-id=`).
+
+## L5 — M2 authn/authz middleware
+
+- Branch: `stack/idp-log-l5-m2-auth-middleware`
+- Instrumented M2 checklist: management key gate, local admin/session/OAuth middleware, CSRF, JWT elevation, confidential and allow-listed Basic auth (`IdpLogging` channels: `security`, `oauth`, `audit`, `app`).
+- Log-tested branches: `tests/Middleware/M2AuthMiddlewareLoggingTest.php` (dedicated assertions per decision path; behavior tests unchanged).
+- Gates: `composer test` (957 tests, line coverage ≥95%); `composer mutate` (covered MSI 85%); `./scripts/integ.sh` (85/87 pass; `LoggingCorrelationIntegTest` green; 2 pre-existing ORK mailbox failures).

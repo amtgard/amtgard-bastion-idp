@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Middleware;
 
 use Amtgard\IdP\Utility\JsonResponseBody;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\Security\ConfidentialClientAuthMode;
 use Amtgard\IdP\Utility\Security\ConfidentialClientAuthenticator;
 use Amtgard\IdP\Utility\Security\MissingIamServiceNamespace;
@@ -24,6 +25,7 @@ class ConfidentialClientAuthMiddleware implements MiddlewareInterface
 
     public function __construct(
         private ConfidentialClientAuthenticator $authenticator,
+        private IdpLogging $logging,
     ) {}
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -33,6 +35,11 @@ class ConfidentialClientAuthMiddleware implements MiddlewareInterface
         } catch (MissingIamServiceNamespace $missing) {
             return JsonResponseBody::writeError(new SlimResponse(), $missing->getMessage(), 403);
         }
+
+        $this->logging->security()->debug('iam-scoped confidential client accepted', [
+            'client_id' => $client->getIdentifier(),
+            'iam_service' => $client->getIamService(),
+        ]);
 
         return $handler->handle($request->withAttribute(self::REQUEST_ATTRIBUTE, $client));
     }

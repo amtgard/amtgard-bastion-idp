@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Slim\Exception\HttpUnauthorizedException;
 use Slim\Interfaces\RouteParserInterface;
 use Slim\Routing\RouteContext;
@@ -20,7 +20,6 @@ use Slim\Routing\RouteContext;
 class LocalIdpAuthMiddlewareTest extends TestCase
 {
     private $entityManager;
-    private $logger;
     private $authorizedClients;
     private $resourceServer;
     private $request;
@@ -32,7 +31,6 @@ class LocalIdpAuthMiddlewareTest extends TestCase
     protected function setUp(): void
     {
         $this->entityManager = $this->createMock(EntityManager::class);
-        $this->logger = $this->createMock(LoggerInterface::class);
         $this->authorizedClients = AuthorizedClients::builder()
             ->clientIds(['valid-client'])
             ->build();
@@ -44,7 +42,7 @@ class LocalIdpAuthMiddlewareTest extends TestCase
 
         $this->middleware = new LocalIdpAuthMiddleware(
             $this->entityManager,
-            $this->logger,
+            IdpLoggingTestFactory::create(),
             $this->authorizedClients,
             $this->resourceServer
         );
@@ -105,7 +103,10 @@ class LocalIdpAuthMiddlewareTest extends TestCase
 
 
         $validatedRequest = $this->createMock(ServerRequestInterface::class);
-        $validatedRequest->method('getAttribute')->with('oauth_user_id')->willReturn('user-token-123');
+        $validatedRequest->method('getAttribute')->willReturnMap([
+            ['oauth_user_id', null, 'user-token-123'],
+            ['oauth_client_id', null, 'valid-client'],
+        ]);
 
         $this->resourceServer->expects($this->once())
             ->method('validateAuthenticatedRequest')

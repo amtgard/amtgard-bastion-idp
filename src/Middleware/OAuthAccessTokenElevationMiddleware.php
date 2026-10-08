@@ -7,6 +7,7 @@ namespace Amtgard\IdP\Middleware;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\Jwt;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use League\OAuth2\Server\Exception\OAuthServerException;
 use League\OAuth2\Server\ResourceServer;
 use Optional\Optional;
@@ -14,7 +15,6 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpUnauthorizedException;
 
 /**
@@ -25,7 +25,7 @@ use Slim\Exception\HttpUnauthorizedException;
 class OAuthAccessTokenElevationMiddleware implements MiddlewareInterface
 {
     public function __construct(
-        private LoggerInterface $logger,
+        private IdpLogging $logging,
         private AuthorizedClients $authorizedClients,
         private ResourceServer $resourceServer,
     ) {}
@@ -36,6 +36,9 @@ class OAuthAccessTokenElevationMiddleware implements MiddlewareInterface
         if ($bearer !== null && Jwt::validateJwtSignature($bearer) !== null) {
             $payload = Jwt::parseJwt($bearer);
             if (is_array($payload) && Jwt::isAuthorizationPayload($payload)) {
+                $this->logging->security()->error('jwt elevation rejected', [
+                    'failure_reason' => 'authorization_jwt_on_elevation',
+                ]);
                 throw new HttpUnauthorizedException(
                     $request,
                     'Authorization JWTs are used with /resources/userinfo. Present an OAuth access token or session here.'
@@ -48,22 +51,36 @@ class OAuthAccessTokenElevationMiddleware implements MiddlewareInterface
         if (Optional::ofNullable($session['client_id'] ?? null)
             ->map(fn($clientId) => !in_array($clientId, $this->authorizedClients->getClientIds(), true))
             ->orElse(false)) {
+            $this->logging->security()->error('jwt elevation rejected', [
+                'client_id' => $session['client_id'],
+                'failure_reason' => 'client_not_authorized',
+            ]);
             throw new HttpUnauthorizedException($request, 'Not authorized.');
         }
 
         if (isset($session['user_id'])) {
+            $this->logging->security()->debug('jwt elevation session proceed', [
+                'user_uuid' => $session['user_id'],
+            ]);
+
             return $handler->handle($request);
         }
 
         $authHeader = $request->getHeaderLine('Authorization');
         if (!preg_match('/Bearer\s+\S+/i', $authHeader)) {
+            $this->logging->security()->error('jwt elevation rejected', [
+                'failure_reason' => 'missing_access_token',
+            ]);
             throw new HttpUnauthorizedException($request, 'OAuth access token or authenticated session required.');
         }
 
         try {
             $validated = $this->resourceServer->validateAuthenticatedRequest($request);
         } catch (OAuthServerException $e) {
-            $this->logger->info('JWT elevation: invalid OAuth access token', ['msg' => $e->getMessage()]);
+            $this->logging->security()->error('jwt elevation rejected', [
+                'failure_reason' => 'invalid_access_token',
+                'exception_class' => $e::class,
+            ]);
             throw new HttpUnauthorizedException($request, 'Not authorized.');
         }
 

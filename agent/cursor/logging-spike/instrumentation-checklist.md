@@ -144,34 +144,34 @@ Wire correlation/redaction here; instrument the two spike routes so a `request_i
 
 ## M2 — Phase 1 pilot: authn/authz middleware
 
-- [ ] `src/Middleware/ManagementMiddleware.php:L22-L27` — emergency — `MANAGEMENT_KEY` unset → 500 — `reason=management_key_missing` (never log key)
-- [ ] `src/Middleware/ManagementMiddleware.php:L30-L33` — emergency — key too short → 500 — `reason=management_key_too_short`, `key_len`
-- [ ] `src/Middleware/ManagementMiddleware.php:L36-L39` — alert — wrong `?key=` → 403 — `reason=management_key_mismatch`, `path` (no query)
-- [ ] `src/Middleware/ManagementMiddleware.php:L42-L42` — info — management key accepted — `path`, `audit_action=management_access`
-- [ ] `src/Middleware/LocalAdminUserMiddleware.php:L34-L38` — debug — admin policy allow — `user_uuid`, `admin=true`
-- [ ] `src/Middleware/LocalAdminUserMiddleware.php:L34-L39` — error — user present but not admin — `user_uuid`, `failure_reason=not_admin`
-- [ ] `src/Middleware/LocalAdminUserMiddleware.php:L42-L49` — error — no session user → 302 profile — `failure_reason=unauthenticated`, `http_status=302`
-- [ ] `src/Middleware/LocalIdpAuthMiddleware.php:L42-L44` — error — Bearer on session-only path — `failure_reason=bearer_not_allowed`
-- [ ] `src/Middleware/LocalIdpAuthMiddleware.php:L49-L50` — error — session `client_id` not allow-listed — `client_id`, `failure_reason=client_not_authorized`
-- [ ] `src/Middleware/LocalIdpAuthMiddleware.php:L54-L56` — debug — session user proceed — `user_uuid`
-- [ ] `src/Middleware/LocalIdpAuthMiddleware.php:L59-L63` — debug — OAuth resource-server success — `oauth_user_id`, `oauth_client_id`
-- [ ] `src/Middleware/LocalIdpAuthMiddleware.php:L64-L66` — warning — `OAuthServerException` swallowed — `exception_class`, `oauth_hint`
-- [ ] `src/Middleware/LocalIdpAuthMiddleware.php:L77-L79` — notice — redirect to login (neither session nor token) — `path`, `http_status=302`
-- [ ] `src/Middleware/CsrfMiddleware.php:L44-L49` — warning — already logs; keep + add `route` — `path`, `method`, `failure_reason=csrf`
-- [ ] `src/Middleware/OAuthAccessTokenElevationMiddleware.php:L36-L42` — error — authorization JWT presented on `/resources/jwt` — `failure_reason=authorization_jwt_on_elevation`
-- [ ] `src/Middleware/OAuthAccessTokenElevationMiddleware.php:L48-L51` — error — session client not allow-listed — `client_id`, `failure_reason=client_not_authorized`
-- [ ] `src/Middleware/OAuthAccessTokenElevationMiddleware.php:L54-L56` — debug — session elevation proceed — `user_uuid`
-- [ ] `src/Middleware/OAuthAccessTokenElevationMiddleware.php:L58-L60` — error — no Bearer and no session — `failure_reason=missing_access_token`
-- [ ] `src/Middleware/OAuthAccessTokenElevationMiddleware.php:L63-L67` — error — invalid access token (today **info**) — `failure_reason=invalid_access_token`, `exception_class` (no token)
-- [ ] `src/Utility/Security/ConfidentialClientAuthenticator.php:L27-L29` — error — missing Basic (today info) — `failure_reason=missing_basic`
-- [ ] `src/Utility/Security/ConfidentialClientAuthenticator.php:L34-L42` — error — bad secret (today warning) — `client_id`, `failure_reason=invalid_credentials`
-- [ ] `src/Utility/Security/ConfidentialClientAuthenticator.php:L45-L47` — error — `orElseThrow` unknown client after validate — `client_id`, `failure_reason=unknown_client`
-- [ ] `src/Utility/Security/ConfidentialClientAuthenticator.php:L49-L50` — error — public client on confidential route — `client_id`, `failure_reason=not_confidential`
-- [ ] `src/Utility/Security/ConfidentialClientAuthenticator.php:L53-L59` — error — `orElseThrow` missing IAM namespace — `client_id`, `failure_reason=missing_iam_service`
-- [ ] `src/Middleware/ConfidentialClientAuthMiddleware.php:L28-L30` — debug — IAM-scoped client accepted — `client_id`, `iam_service`
-- [ ] `src/Middleware/ConfidentialClientCredentialMiddleware.php:L27-L29` — debug — credentials-only client accepted — `client_id`
+- [x] `src/Middleware/ManagementMiddleware.php:L22-L27` — emergency — `MANAGEMENT_KEY` unset → 500 — `reason=management_key_missing` (never log key) *(L5)*
+- [x] `src/Middleware/ManagementMiddleware.php:L30-L33` — emergency — key too short → 500 — `reason=management_key_too_short`, `key_len` *(L5)*
+- [x] `src/Middleware/ManagementMiddleware.php:L36-L39` — alert — wrong `?key=` → 403 — `reason=management_key_mismatch`, `path` (no query) *(L5)*
+- [x] `src/Middleware/ManagementMiddleware.php:L42-L42` — info — management key accepted — `path`, `audit_action=management_access` *(L5)*
+- [x] `src/Middleware/LocalAdminUserMiddleware.php:L34-L38` — debug — admin policy allow — `user_uuid`, `admin=true` *(L5)*
+- [x] `src/Middleware/LocalAdminUserMiddleware.php:L34-L39` — error — user present but not admin — `user_uuid`, `failure_reason=not_admin` *(L5)*
+- [x] `src/Middleware/LocalAdminUserMiddleware.php:L42-L49` — error — no session user → 302 profile — `failure_reason=unauthenticated`, `http_status=302` *(L5)*
+- [x] `src/Middleware/LocalIdpAuthMiddleware.php:L42-L44` — error — Bearer on session-only path — `failure_reason=bearer_not_allowed` *(L5)*
+- [x] `src/Middleware/LocalIdpAuthMiddleware.php:L49-L50` — error — session `client_id` not allow-listed — `client_id`, `failure_reason=client_not_authorized` *(L5)*
+- [x] `src/Middleware/LocalIdpAuthMiddleware.php:L54-L56` — debug — session user proceed — `user_uuid` *(L5)*
+- [x] `src/Middleware/LocalIdpAuthMiddleware.php:L59-L63` — debug — OAuth resource-server success — `oauth_user_id`, `oauth_client_id` *(L5)*
+- [x] `src/Middleware/LocalIdpAuthMiddleware.php:L64-L66` — warning — `OAuthServerException` swallowed — `exception_class`, `oauth_hint` *(L5)*
+- [x] `src/Middleware/LocalIdpAuthMiddleware.php:L77-L79` — notice — redirect to login (neither session nor token) — `path`, `http_status=302` *(L5)*
+- [x] `src/Middleware/CsrfMiddleware.php:L44-L49` — warning — already logs; keep + add `route` — `path`, `method`, `failure_reason=csrf` *(L5)*
+- [x] `src/Middleware/OAuthAccessTokenElevationMiddleware.php:L36-L42` — error — authorization JWT presented on `/resources/jwt` — `failure_reason=authorization_jwt_on_elevation` *(L5)*
+- [x] `src/Middleware/OAuthAccessTokenElevationMiddleware.php:L48-L51` — error — session client not allow-listed — `client_id`, `failure_reason=client_not_authorized` *(L5)*
+- [x] `src/Middleware/OAuthAccessTokenElevationMiddleware.php:L54-L56` — debug — session elevation proceed — `user_uuid` *(L5)*
+- [x] `src/Middleware/OAuthAccessTokenElevationMiddleware.php:L58-L60` — error — no Bearer and no session — `failure_reason=missing_access_token` *(L5)*
+- [x] `src/Middleware/OAuthAccessTokenElevationMiddleware.php:L63-L67` — error — invalid access token (today **info**) — `failure_reason=invalid_access_token`, `exception_class` (no token) *(L5)*
+- [x] `src/Utility/Security/ConfidentialClientAuthenticator.php:L27-L29` — error — missing Basic (today info) — `failure_reason=missing_basic` *(L5)*
+- [x] `src/Utility/Security/ConfidentialClientAuthenticator.php:L34-L42` — error — bad secret (today warning) — `client_id`, `failure_reason=invalid_credentials` *(L5)*
+- [x] `src/Utility/Security/ConfidentialClientAuthenticator.php:L45-L47` — error — `orElseThrow` unknown client after validate — `client_id`, `failure_reason=unknown_client` *(L5)*
+- [x] `src/Utility/Security/ConfidentialClientAuthenticator.php:L49-L50` — error — public client on confidential route — `client_id`, `failure_reason=not_confidential` *(L5)*
+- [x] `src/Utility/Security/ConfidentialClientAuthenticator.php:L53-L59` — error — `orElseThrow` missing IAM namespace — `client_id`, `failure_reason=missing_iam_service` *(L5)*
+- [x] `src/Middleware/ConfidentialClientAuthMiddleware.php:L28-L30` — debug — IAM-scoped client accepted — `client_id`, `iam_service` *(L5)*
+- [x] `src/Middleware/ConfidentialClientCredentialMiddleware.php:L27-L29` — debug — credentials-only client accepted — `client_id` *(L5)*
 
-Allow-listed Basic already logs missing/deny/accept (`AllowListedConfidentialClientAuthenticator.php:L33-L60`); upgrade missing/deny to **error**/**alert** on 401 when implementing M2 (same lines).
+Allow-listed Basic already logs missing/deny/accept (`AllowListedConfidentialClientAuthenticator.php:L33-L60`); upgrade missing/deny to **error**/**alert** on 401 when implementing M2 (same lines). *(L5: done)*
 
 **M2 count: 26** (plus 3 level upgrades on allow-listed authenticator at L33–L55)
 

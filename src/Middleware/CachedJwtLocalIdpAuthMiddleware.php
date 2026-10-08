@@ -18,25 +18,25 @@ use Optional\Optional;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Slim\Exception\HttpUnauthorizedException;
 
 class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
 {
     public function __construct(
         EntityManager $em,
-        protected LoggerInterface $logger,
+        protected IdpLogging $idpLogging,
         private PvhAuthorizationGate $pvhAuthorizationGate,
         protected AuthorizedClients $authorizedClients,
         protected ResourceServer $resourceServer,
         private OAuthAccessTokenFallback $oauthAccessTokenFallback,
     ) {
-        parent::__construct($em, $logger, $authorizedClients, $resourceServer);
+        parent::__construct($em, $idpLogging, $authorizedClients, $resourceServer);
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $jwt = Optional::ofNullable(Jwt::validateJwtRequest($request, $this->logger))
+        $jwt = Optional::ofNullable(Jwt::validateJwtRequest($request, $this->idpLogging->security()))
             ->orElseThrow(new HttpUnauthorizedException($request, 'Authorization JWT required. Obtain one from GET /resources/jwt first.'));
 
         $payload = Optional::ofNullable(Jwt::parseJwt($jwt))
@@ -58,7 +58,7 @@ class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
         $aud = (string) $clientId;
         $outcome = $this->pvhAuthorizationGate->evaluateAndSeed($userUuid, $aud, $payload);
         $access = $this->pvhAuthorizationGate->lastAccess();
-        $this->logger->debug(
+        $this->idpLogging->security()->debug(
             'cached jwt local idp pvh auth', [
             'user_uuid' => $userUuid,
             'aud' => $aud,

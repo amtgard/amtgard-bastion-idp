@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Slim\Exception\HttpUnauthorizedException;
 
 class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
@@ -28,7 +28,6 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
     private const POLICY = '[]';
 
     private $entityManager;
-    private $logger;
     private $redisCacheRepository;
     private $authorizedClients;
     private $resourceServer;
@@ -43,7 +42,6 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
 
         $this->entityManager = $this->createMock(EntityManager::class);
         \Amtgard\ActiveRecordOrm\EntityManager::configure($this->entityManager, true);
-        $this->logger = $this->createMock(LoggerInterface::class);
         $this->redisCacheRepository = $this->createMock(RedisCacheRepository::class);
         $this->authorizedClients = AuthorizedClients::builder()
             ->clientIds(['client-1'])
@@ -60,7 +58,7 @@ class CachedJwtLocalIdpAuthMiddlewareTest extends TestCase
 
         $this->middleware = new CachedJwtLocalIdpAuthMiddleware(
             $this->entityManager,
-            $this->logger,
+            IdpLoggingTestFactory::create(),
             $pvhAuthorizationGate,
             $this->authorizedClients,
             $this->resourceServer,

@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Slim\Exception\HttpUnauthorizedException;
 
 class ConfidentialClientMiddlewareTest extends TestCase
@@ -22,6 +22,7 @@ class ConfidentialClientMiddlewareTest extends TestCase
     {
         $client = new class extends Client {
             public function getIsConfidential(): bool { return true; }
+            public function getIdentifier(): string { return 'app'; }
         };
 
         $clientRepository = $this->createMock(ClientRepository::class);
@@ -37,8 +38,10 @@ class ConfidentialClientMiddlewareTest extends TestCase
         $response = $this->createMock(ResponseInterface::class);
         $handler->expects($this->once())->method('handle')->willReturn($response);
 
+        $logging = IdpLoggingTestFactory::create();
         $middleware = new ConfidentialClientCredentialMiddleware(
-            new ConfidentialClientAuthenticator($clientRepository, $this->createMock(LoggerInterface::class))
+            new ConfidentialClientAuthenticator($clientRepository, $logging),
+            $logging,
         );
         $result = $middleware->process($request, $handler);
         $this->assertSame($response, $result);
@@ -49,6 +52,7 @@ class ConfidentialClientMiddlewareTest extends TestCase
         $client = new class extends Client {
             public function getIsConfidential(): bool { return true; }
             public function getIamService(): ?string { return 'Skbc'; }
+            public function getIdentifier(): string { return 'app'; }
         };
 
         $clientRepository = $this->createMock(ClientRepository::class);
@@ -64,8 +68,10 @@ class ConfidentialClientMiddlewareTest extends TestCase
         $response = $this->createMock(ResponseInterface::class);
         $handler->expects($this->once())->method('handle')->willReturn($response);
 
+        $logging = IdpLoggingTestFactory::create();
         $middleware = new ConfidentialClientAuthMiddleware(
-            new ConfidentialClientAuthenticator($clientRepository, $this->createMock(LoggerInterface::class))
+            new ConfidentialClientAuthenticator($clientRepository, $logging),
+            $logging,
         );
         $this->assertSame($response, $middleware->process($request, $handler));
     }
@@ -89,8 +95,10 @@ class ConfidentialClientMiddlewareTest extends TestCase
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->expects($this->never())->method('handle');
 
+        $logging = IdpLoggingTestFactory::create();
         $middleware = new ConfidentialClientAuthMiddleware(
-            new ConfidentialClientAuthenticator($clientRepository, $this->createStub(LoggerInterface::class))
+            new ConfidentialClientAuthenticator($clientRepository, $logging),
+            $logging,
         );
         $result = $middleware->process($request, $handler);
 
@@ -113,8 +121,10 @@ class ConfidentialClientMiddlewareTest extends TestCase
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->expects($this->never())->method('handle');
 
+        $logging = IdpLoggingTestFactory::create();
         $middleware = new ConfidentialClientAuthMiddleware(
-            new ConfidentialClientAuthenticator($clientRepository, $this->createStub(LoggerInterface::class))
+            new ConfidentialClientAuthenticator($clientRepository, $logging),
+            $logging,
         );
 
         $this->expectException(HttpUnauthorizedException::class);

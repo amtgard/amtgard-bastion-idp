@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Slim\Exception\HttpUnauthorizedException;
 
 class ConfidentialClientBasicAuthMiddlewareTest extends TestCase
@@ -28,7 +28,7 @@ class ConfidentialClientBasicAuthMiddlewareTest extends TestCase
         $authenticator = new AllowListedConfidentialClientAuthenticator(
             $this->clientRepository,
             new AllowedLinkOrkProfileClientIds(),
-            $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
         );
         $this->middleware = new ConfidentialClientBasicAuthMiddleware($authenticator);
         $this->request = $this->createMock(ServerRequestInterface::class);

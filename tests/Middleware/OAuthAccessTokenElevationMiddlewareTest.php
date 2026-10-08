@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Slim\Exception\HttpUnauthorizedException;
 
 class OAuthAccessTokenElevationMiddlewareTest extends TestCase
@@ -163,7 +163,7 @@ class OAuthAccessTokenElevationMiddlewareTest extends TestCase
     private function makeMiddleware(?ResourceServer $resourceServer = null): OAuthAccessTokenElevationMiddleware
     {
         return new OAuthAccessTokenElevationMiddleware(
-            $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             AuthorizedClients::builder()->clientIds(['valid-client'])->build(),
             $resourceServer ?? $this->createMock(ResourceServer::class),
         );

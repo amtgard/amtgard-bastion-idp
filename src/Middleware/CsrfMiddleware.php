@@ -3,12 +3,12 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Middleware;
 
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\Security\CsrfTokenManager;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
-use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpForbiddenException;
 
 /**
@@ -28,7 +28,7 @@ class CsrfMiddleware implements MiddlewareInterface
     private const UNSAFE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
     public function __construct(
-        private LoggerInterface $logger,
+        private IdpLogging $logging,
     ) {}
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -42,9 +42,12 @@ class CsrfMiddleware implements MiddlewareInterface
             }
 
             if (!CsrfTokenManager::validate($token)) {
-                $this->logger->warning('CSRF token validation failed', [
-                    'path'   => $request->getUri()->getPath(),
+                $path = $request->getUri()->getPath();
+                $this->logging->security()->warning('CSRF token validation failed', [
+                    'path'   => $path,
+                    'route'  => $path,
                     'method' => $request->getMethod(),
+                    'failure_reason' => 'csrf',
                 ]);
                 throw new HttpForbiddenException($request, 'Invalid or missing CSRF token. Please reload the page and try again.');
             }

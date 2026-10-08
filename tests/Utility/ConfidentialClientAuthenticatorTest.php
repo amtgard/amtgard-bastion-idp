@@ -11,7 +11,8 @@ use Amtgard\IdP\Utility\Security\ConfidentialClientAuthenticator;
 use Amtgard\IdP\Utility\Security\MissingIamServiceNamespace;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Slim\Exception\HttpUnauthorizedException;
 
 class ConfidentialClientAuthenticatorTest extends TestCase
@@ -25,7 +26,7 @@ class ConfidentialClientAuthenticatorTest extends TestCase
         $this->clientRepository = $this->createMock(ClientRepository::class);
         $this->authenticator = new ConfidentialClientAuthenticator(
             $this->clientRepository,
-            $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
         );
         $this->request = $this->createMock(ServerRequestInterface::class);
     }
@@ -107,11 +108,15 @@ class ConfidentialClientAuthenticatorTest extends TestCase
         $this->clientRepository->method('validateClient')->willReturn(true);
         $this->clientRepository->method('findClientByIdentifier')->willReturn($client);
 
-        $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->once())
-            ->method('warning')
-            ->with('ConfidentialClientAuth: client has no IAM service namespace', ['client_id' => 'app']);
-        $authenticator = new ConfidentialClientAuthenticator($this->clientRepository, $logger);
+        $idpLogging = $this->createMock(IdpLogging::class);
+        $securityLogger = $this->createMock(\Psr\Log\LoggerInterface::class);
+        $securityLogger->expects($this->once())
+            ->method('error')
+            ->with('confidential client auth rejected', $this->callback(
+                fn (array $ctx) => ($ctx['failure_reason'] ?? '') === 'missing_iam_service' && ($ctx['client_id'] ?? '') === 'app'
+            ));
+        $idpLogging->method('security')->willReturn($securityLogger);
+        $authenticator = new ConfidentialClientAuthenticator($this->clientRepository, $idpLogging);
 
         $this->expectException(MissingIamServiceNamespace::class);
         $authenticator->authenticate($this->request, ConfidentialClientAuthMode::RequireIamService);

@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Slim\Exception\HttpForbiddenException;
 
 class CsrfMiddlewareTest extends TestCase
@@ -30,7 +30,7 @@ class CsrfMiddlewareTest extends TestCase
         $response = $this->createMock(ResponseInterface::class);
         $handler->expects($this->once())->method('handle')->with($request)->willReturn($response);
 
-        $middleware = new CsrfMiddleware($this->createMock(LoggerInterface::class));
+        $middleware = new CsrfMiddleware(IdpLoggingTestFactory::create());
         $this->assertSame($response, $middleware->process($request, $handler));
     }
 
@@ -45,7 +45,7 @@ class CsrfMiddlewareTest extends TestCase
         $response = $this->createMock(ResponseInterface::class);
         $handler->expects($this->once())->method('handle')->willReturn($response);
 
-        $middleware = new CsrfMiddleware($this->createMock(LoggerInterface::class));
+        $middleware = new CsrfMiddleware(IdpLoggingTestFactory::create());
         $this->assertSame($response, $middleware->process($request, $handler));
     }
 
@@ -59,7 +59,7 @@ class CsrfMiddlewareTest extends TestCase
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->expects($this->once())->method('handle')->willReturn($this->createMock(ResponseInterface::class));
 
-        $middleware = new CsrfMiddleware($this->createMock(LoggerInterface::class));
+        $middleware = new CsrfMiddleware(IdpLoggingTestFactory::create());
         $middleware->process($request, $handler);
     }
 
@@ -72,7 +72,7 @@ class CsrfMiddlewareTest extends TestCase
         $request->method('getUri')->willReturn(new \Slim\Psr7\Uri('http', 'localhost', null, '/management/clients'));
         $handler = $this->createMock(RequestHandlerInterface::class);
 
-        $middleware = new CsrfMiddleware($this->createMock(LoggerInterface::class));
+        $middleware = new CsrfMiddleware(IdpLoggingTestFactory::create());
 
         $this->expectException(HttpForbiddenException::class);
         $middleware->process($request, $handler);

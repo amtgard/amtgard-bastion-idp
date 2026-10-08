@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Middleware;
 
 use Amtgard\IdP\Middleware\ManagementMiddleware;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -31,7 +32,7 @@ class ManagementMiddlewareTest extends TestCase
     {
         unset($_ENV['MANAGEMENT_KEY']);
 
-        $middleware = new ManagementMiddleware();
+        $middleware = new ManagementMiddleware(IdpLoggingTestFactory::create());
         $request = $this->createMock(ServerRequestInterface::class);
         $handler = $this->createMock(RequestHandlerInterface::class);
 
@@ -43,7 +44,7 @@ class ManagementMiddlewareTest extends TestCase
     {
         $_ENV['MANAGEMENT_KEY'] = 'short-key';
 
-        $middleware = new ManagementMiddleware();
+        $middleware = new ManagementMiddleware(IdpLoggingTestFactory::create());
         $request = $this->createMock(ServerRequestInterface::class);
         $handler = $this->createMock(RequestHandlerInterface::class);
 
@@ -55,7 +56,7 @@ class ManagementMiddlewareTest extends TestCase
     {
         $_ENV['MANAGEMENT_KEY'] = str_repeat('a', 32);
 
-        $middleware = new ManagementMiddleware();
+        $middleware = new ManagementMiddleware(IdpLoggingTestFactory::create());
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getQueryParams')->willReturn(['key' => 'wrong-key']);
         $handler = $this->createMock(RequestHandlerInterface::class);
@@ -69,7 +70,7 @@ class ManagementMiddlewareTest extends TestCase
         $key = str_repeat('a', 32);
         $_ENV['MANAGEMENT_KEY'] = $key;
 
-        $middleware = new ManagementMiddleware();
+        $middleware = new ManagementMiddleware(IdpLoggingTestFactory::create());
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getQueryParams')->willReturn(['key' => $key]);
 
