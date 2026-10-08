@@ -1150,7 +1150,7 @@ Third-party integrators with an assigned IAM namespace can **grant and revoke pe
 ### Prerequisites
 
 1. **Confidential OAuth client** registered in the IDP (`is_confidential = true`).
-2. **`iam_service` assigned** by an IDP admin via `/management/clients` (see below).
+2. **`iam_service` assigned** by an IDP admin via `/management/clients`, or by a user granted access to that client via `/resources/clients` (see below).
 3. **`iam_service_format`** (optional) defines proviso slots for your namespace (see below).
 4. Each client may only create policy rows scoped to its own `client_id` and `iam_service`. At most **25** policy claims per user per client.
 
@@ -1170,7 +1170,7 @@ Rules enforced by the IDP:
 
 - Must be a **custom** name — not a built-in ORK enum value such as `Documents`, `Idp`, `Application`, or `ORK`.
 - Must be **unique** across all OAuth clients.
-- Assigned only by IdP administrators on the client record; it is not self-service during OAuth registration.
+- Assigned on the client record by an IdP administrator or a user granted access to that client; it is not self-service during OAuth registration.
 
 When your client adds policy claims, the IDP always stores and emits the `service` column as your `iam_service`. Callers supply only `provisos` and `resource` in the Client IAM API.
 
@@ -1218,7 +1218,7 @@ The array order defines how proviso values map to ORN positions. With the defaul
 
 Your app's resource paths (`Officer/Approve`, `Editor/Write`, etc.) are validated loosely (`*/*` wildcard map) — you define the semantics; the IDP stores and replays them in JWT `policy` claims.
 
-IdP administrators set `iam_service` and `iam_service_format` on your OAuth client via **Management → Clients** (`/management/clients`). The format field accepts a JSON array or a comma-separated list of slot names. Leave it blank to keep the default slots. Your integrator backend may also set or update `iam_service_format` via the Client IAM API once `iam_service` is assigned (see below).
+IdP administrators set `iam_service` and `iam_service_format` on your OAuth client via **Management → Clients** (`/management/clients`). Users granted access to a client can edit the same fields via **Clients** on their profile (`/resources/clients`). The format field accepts a JSON array or a comma-separated list of slot names. Leave it blank to keep the default slots. Your integrator backend may also set or update `iam_service_format` via the Client IAM API once `iam_service` is assigned (see below).
 
 ### Service format API (`/resources/client/service-format`)
 

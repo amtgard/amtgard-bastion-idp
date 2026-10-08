@@ -6,10 +6,11 @@ namespace Amtgard\IdP\Tests\Integration;
 
 use Amtgard\IdP\Tests\Integration\Support\IntegHttp;
 
-/** Mode A — admin management UI and operator redirect update; player denied admin routes. */
+/** Mode A — admin management UI and operator client field updates; player denied admin routes. */
 final class ManagementUiTest extends IntegTestCase
 {
     private const MANAGEMENT_CLIENTS_PATH = '/management/clients';
+    private const OPERATOR_CLIENTS_PATH = '/resources/clients';
 
     public function testAdminManagementClientsListRendersManageClientsHeading(): void
     {
@@ -66,7 +67,7 @@ final class ManagementUiTest extends IntegTestCase
         $this->assertSame(200, $selfAccess->getStatusCode(), (string) $selfAccess->getBody());
     }
 
-    public function testOperatorRedirectUpdateReflectsInManagementList(): void
+    public function testOperatorUpdateReflectsRedirectAndIamOnOperatorList(): void
     {
         $http = $this->newLoggedInAdminHttp();
         $context = $this->createUiClientViaAdmin($http);
@@ -77,25 +78,71 @@ final class ManagementUiTest extends IntegTestCase
         ]);
         $this->assertSame(200, $selfAccess->getStatusCode(), (string) $selfAccess->getBody());
 
-        $redirectResponse = $http->postForm('/resources/clients/' . $context['clientDbId'] . '/redirect', [
+        $updateResponse = $http->postForm('/resources/clients/' . $context['clientDbId'] . '/redirect', [
             '_csrf_token' => $context['csrf'],
             'redirect_uri' => IntegFixtures::UI_UPDATED_REDIRECT_URI,
+            'iam_service' => IntegFixtures::UI_OPERATOR_IAM_SERVICE,
+            'iam_service_format' => IntegFixtures::UI_UPDATED_IAM_FORMAT,
         ]);
         $this->assertTrue(
-            $http->isRedirectToPath($redirectResponse, '/resources/clients'),
-            'Expected 302 to operator client list after redirect update; location='
-            . $redirectResponse->getHeaderLine('Location'),
+            $http->isRedirectToPath($updateResponse, self::OPERATOR_CLIENTS_PATH),
+            'Expected 302 to operator client list after update; location='
+            . $updateResponse->getHeaderLine('Location'),
         );
 
-        $afterRedirect = $http->get(self::MANAGEMENT_CLIENTS_PATH);
-        $this->assertSame(200, $afterRedirect->getStatusCode());
-        $this->assertSame(
-            IntegFixtures::UI_UPDATED_REDIRECT_URI,
-            $this->parseClientRedirectUri(
-                (string) $afterRedirect->getBody(),
-                IntegFixtures::UI_CREATED_CLIENT_ID,
-            ),
+        $afterUpdate = $http->get(self::OPERATOR_CLIENTS_PATH);
+        $this->assertSame(200, $afterUpdate->getStatusCode());
+        $client = $this->parseClientRecord(
+            (string) $afterUpdate->getBody(),
+            IntegFixtures::UI_CREATED_CLIENT_ID,
         );
+        $this->assertSame(IntegFixtures::UI_UPDATED_REDIRECT_URI, $client['redirectUri'] ?? null);
+        $this->assertSame(IntegFixtures::UI_OPERATOR_IAM_SERVICE, $client['iamService'] ?? null);
+        $this->assertSame('["Configuration","Game"]', $client['iamServiceFormat'] ?? null);
+    }
+
+    public function testOperatorInvalidIamFormatShowsErrorOnOperatorList(): void
+    {
+        $http = $this->newLoggedInAdminHttp();
+        $context = $this->createUiClientViaAdmin($http);
+
+        $selfAccess = $http->postForm('/management/clients/' . $context['clientDbId'] . '/access', [
+            '_csrf_token' => $context['csrf'],
+            'email' => IntegFixtures::ADMIN_EMAIL,
+        ]);
+        $this->assertSame(200, $selfAccess->getStatusCode(), (string) $selfAccess->getBody());
+
+        $before = $this->parseClientRecord(
+            (string) $http->get(self::OPERATOR_CLIENTS_PATH)->getBody(),
+            IntegFixtures::UI_CREATED_CLIENT_ID,
+        );
+
+        $rejectResponse = $http->postForm('/resources/clients/' . $context['clientDbId'] . '/redirect', [
+            '_csrf_token' => $context['csrf'],
+            'redirect_uri' => IntegFixtures::UI_UPDATED_REDIRECT_URI,
+            'iam_service' => IntegFixtures::UI_OPERATOR_IAM_SERVICE,
+            'iam_service_format' => '["Configuration",""]',
+        ]);
+        $this->assertTrue(
+            $http->isRedirectToPath($rejectResponse, self::OPERATOR_CLIENTS_PATH),
+            'Expected 302 to operator client list; location=' . $rejectResponse->getHeaderLine('Location'),
+        );
+        $this->assertStringContainsString(
+            'error=iam_format',
+            $rejectResponse->getHeaderLine('Location'),
+        );
+
+        $errorPage = $http->get(self::OPERATOR_CLIENTS_PATH . '?error=iam_format');
+        $this->assertSame(200, $errorPage->getStatusCode());
+        $this->assertStringContainsString('IAM format was not saved', (string) $errorPage->getBody());
+
+        $afterReject = $this->parseClientRecord(
+            (string) $http->get(self::OPERATOR_CLIENTS_PATH)->getBody(),
+            IntegFixtures::UI_CREATED_CLIENT_ID,
+        );
+        $this->assertSame($before['redirectUri'] ?? null, $afterReject['redirectUri'] ?? null);
+        $this->assertSame($before['iamService'] ?? null, $afterReject['iamService'] ?? null);
+        $this->assertSame($before['iamServiceFormat'] ?? null, $afterReject['iamServiceFormat'] ?? null);
     }
 
     public function testManagementUserSearchFindsFixturePlayer(): void
@@ -321,21 +368,4 @@ final class ManagementUiTest extends IntegTestCase
         throw new \RuntimeException("Client {$identifier} not found in management HTML");
     }
 
-    private function parseClientRedirectUri(string $html, string $identifier): string
-    {
-        preg_match_all('/data-client="([^"]+)"/', $html, $matches);
-        foreach ($matches[1] as $encoded) {
-            $json = html_entity_decode($encoded, ENT_QUOTES | ENT_HTML5);
-            /** @var array<string, mixed>|null $client */
-            $client = json_decode($json, true);
-            if (!is_array($client)) {
-                continue;
-            }
-            if (($client['identifier'] ?? '') === $identifier) {
-                return (string) ($client['redirectUri'] ?? '');
-            }
-        }
-
-        throw new \RuntimeException("Redirect URI for client {$identifier} not found in management HTML");
-    }
 }

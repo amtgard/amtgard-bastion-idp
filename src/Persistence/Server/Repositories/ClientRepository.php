@@ -49,7 +49,7 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
     }
 
     /**
-     * Clients a user may administer (redirect URI only) via client_access.
+     * Clients a user may administer (redirect URI, IAM service, IAM format) via client_access.
      *
      * @return Client[]
      */

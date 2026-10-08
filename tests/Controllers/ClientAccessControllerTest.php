@@ -21,10 +21,12 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
+use Psr\Log\LoggerInterface;
 use Twig\Environment as TwigEnvironment;
 
 class ClientAccessControllerTest extends TestCase
 {
+    private $logger;
     private $twig;
     private $clientRepository;
     private $clientAccessRepository;
@@ -64,6 +66,7 @@ class ClientAccessControllerTest extends TestCase
             true
         );
 
+        $this->logger = $this->createMock(LoggerInterface::class);
         $this->twig = $this->createMock(TwigEnvironment::class);
         $this->clientRepository = $this->createMock(ClientRepository::class);
         $this->clientAccessRepository = $this->createMock(ClientAccessRepository::class);
@@ -74,6 +77,7 @@ class ClientAccessControllerTest extends TestCase
         $this->response->method('getBody')->willReturn($this->stream);
         $this->response->method('withHeader')->willReturnSelf();
         $this->response->method('withStatus')->willReturnSelf();
+        $this->request->method('getQueryParams')->willReturn([]);
 
         $this->user = new class extends UserEntity {
             public function getId(): int { return 3; }
@@ -81,11 +85,31 @@ class ClientAccessControllerTest extends TestCase
         $this->currentUserResolver->method('resolve')->willReturn($this->user);
 
         $this->controller = new ClientAccessController(
+            $this->logger,
             $this->twig,
             $this->clientRepository,
             $this->clientAccessRepository,
             $this->currentUserResolver
         );
+    }
+
+    public function testListClientsRedirectsWhenUnauthenticated(): void
+    {
+        $this->currentUserResolver = $this->createMock(CurrentUserResolverInterface::class);
+        $this->currentUserResolver->method('resolve')->willReturn(null);
+        $this->controller = new ClientAccessController(
+            $this->logger,
+            $this->twig,
+            $this->clientRepository,
+            $this->clientAccessRepository,
+            $this->currentUserResolver
+        );
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/auth/login')
+            ->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->listClients($this->request, $this->response));
     }
 
     public function testListClientsRendersOnlyGrantedClients(): void
@@ -112,7 +136,8 @@ class ClientAccessControllerTest extends TestCase
             ->with('management/clients.twig', $this->callback(function (array $context): bool {
                 return $context['viewMode'] === 'operator'
                     && count($context['clients']) === 1
-                    && $context['clients'][0]['identifier'] === 'app';
+                    && $context['clients'][0]['identifier'] === 'app'
+                    && $context['error'] === null;
             }))
             ->willReturn('operator clients');
 
@@ -121,7 +146,57 @@ class ClientAccessControllerTest extends TestCase
         $this->assertSame($this->response, $this->controller->listClients($this->request, $this->response));
     }
 
-    public function testUpdateRedirectChangesOnlyRedirectUri(): void
+    public function testListClientsPassesIamFormatErrorFromQuery(): void
+    {
+        $this->request = $this->createMock(ServerRequestInterface::class);
+        $this->request->method('getQueryParams')->willReturn(['error' => 'iam_format']);
+        $this->clientRepository->method('findClientsGrantedToUser')->willReturn([]);
+        $this->twig->expects($this->once())
+            ->method('render')
+            ->with('management/clients.twig', $this->callback(function (array $context): bool {
+                return $context['error'] === 'iam_format';
+            }))
+            ->willReturn('operator clients');
+
+        $this->controller->listClients($this->request, $this->response);
+    }
+
+    public function testListClientsPassesIamNamespaceErrorFromQuery(): void
+    {
+        $this->request = $this->createMock(ServerRequestInterface::class);
+        $this->request->method('getQueryParams')->willReturn(['error' => 'iam_namespace']);
+        $this->clientRepository->method('findClientsGrantedToUser')->willReturn([]);
+        $this->twig->expects($this->once())
+            ->method('render')
+            ->with('management/clients.twig', $this->callback(function (array $context): bool {
+                return $context['error'] === 'iam_namespace';
+            }))
+            ->willReturn('operator clients');
+
+        $this->controller->listClients($this->request, $this->response);
+    }
+
+    public function testUpdateRedirectRedirectsWhenUnauthenticated(): void
+    {
+        $this->currentUserResolver = $this->createMock(CurrentUserResolverInterface::class);
+        $this->currentUserResolver->method('resolve')->willReturn(null);
+        $this->controller = new ClientAccessController(
+            $this->logger,
+            $this->twig,
+            $this->clientRepository,
+            $this->clientAccessRepository,
+            $this->currentUserResolver
+        );
+        $this->clientRepository->expects($this->never())->method('fetch');
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/auth/login')
+            ->willReturnSelf();
+
+        $this->controller->updateRedirect($this->request, $this->response, 9);
+    }
+
+    public function testUpdateRedirectChangesGrantedFieldsOnly(): void
     {
         $client = Client::builder()
             ->identifier('app')
@@ -130,6 +205,8 @@ class ClientAccessControllerTest extends TestCase
             ->redirectUri('http://old')
             ->isConfidential(true)
             ->isDev(false)
+            ->iamService('OldService')
+            ->iamServiceFormat('["Configuration"]')
             ->build();
 
         $this->clientRepository->expects($this->once())->method('fetch')->with(9)->willReturn($client);
@@ -138,6 +215,8 @@ class ClientAccessControllerTest extends TestCase
             'redirect_uri' => 'http://new',
             'name' => 'Hacked',
             'client_secret' => 'stolen',
+            'iam_service' => ' Skbc ',
+            'iam_service_format' => 'Configuration, Kingdom',
         ]);
         $this->response->expects($this->once())
             ->method('withHeader')
@@ -149,6 +228,54 @@ class ClientAccessControllerTest extends TestCase
         $this->assertSame('http://new', $client->getRedirectUri());
         $this->assertSame('App', $client->getName());
         $this->assertSame('secret', $client->getClientSecret());
+        $this->assertSame('Skbc', $client->getIamService());
+        $this->assertSame('["Configuration","Kingdom"]', $client->getIamServiceFormat());
+    }
+
+    public function testUpdateRedirectKeepsExistingRedirectWhenBlank(): void
+    {
+        $client = Client::builder()
+            ->identifier('app')
+            ->redirectUri('http://old')
+            ->iamService(null)
+            ->build();
+
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->clientAccessRepository->method('hasAccess')->willReturn(true);
+        $this->request->method('getParsedBody')->willReturn([
+            'redirect_uri' => '   ',
+            'iam_service' => 'Skbc',
+            'iam_service_format' => '["Configuration","Park"]',
+        ]);
+
+        $this->controller->updateRedirect($this->request, $this->response, 9);
+
+        $this->assertSame('http://old', $client->getRedirectUri());
+        $this->assertSame('Skbc', $client->getIamService());
+        $this->assertSame('["Configuration","Park"]', $client->getIamServiceFormat());
+    }
+
+    public function testUpdateRedirectClearsIamFieldsWhenBlank(): void
+    {
+        $client = Client::builder()
+            ->identifier('app')
+            ->redirectUri('http://old')
+            ->iamService('OldService')
+            ->iamServiceFormat('["Configuration"]')
+            ->build();
+
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->clientAccessRepository->method('hasAccess')->willReturn(true);
+        $this->request->method('getParsedBody')->willReturn([
+            'redirect_uri' => 'http://old',
+            'iam_service' => '',
+            'iam_service_format' => '',
+        ]);
+
+        $this->controller->updateRedirect($this->request, $this->response, 9);
+
+        $this->assertNull($client->getIamService());
+        $this->assertNull($client->getIamServiceFormat());
     }
 
     public function testUpdateRedirectRejectsUsersWithoutAccess(): void
@@ -165,5 +292,156 @@ class ClientAccessControllerTest extends TestCase
         $this->controller->updateRedirect($this->request, $this->response, 9);
 
         $this->assertSame('http://old', $client->getRedirectUri());
+    }
+
+    public function testUpdateRedirectRejectsMissingClient(): void
+    {
+        $this->clientRepository->method('fetch')->willReturn(null);
+        $this->clientAccessRepository->expects($this->never())->method('hasAccess');
+        $this->request->method('getParsedBody')->willReturn(['redirect_uri' => 'http://new']);
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile')
+            ->willReturnSelf();
+
+        $this->controller->updateRedirect($this->request, $this->response, 9);
+    }
+
+    public function testUpdateRedirectRedirectsWhenIamFormatIsInvalid(): void
+    {
+        $client = Client::builder()->identifier('app')->redirectUri('http://old')->build();
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->clientAccessRepository->method('hasAccess')->willReturn(true);
+        $this->request->method('getParsedBody')->willReturn([
+            'redirect_uri' => 'http://new',
+            'iam_service' => 'Skbc',
+            'iam_service_format' => '["Configuration",""]',
+        ]);
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/clients?error=iam_format')
+            ->willReturnSelf();
+
+        $this->controller->updateRedirect($this->request, $this->response, 9);
+
+        $this->assertSame('http://old', $client->getRedirectUri());
+    }
+
+    public function testUpdateRedirectRedirectsWhenIamNamespaceIsInvalid(): void
+    {
+        $client = Client::builder()->identifier('app')->redirectUri('http://old')->build();
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->clientAccessRepository->method('hasAccess')->willReturn(true);
+        $this->request->method('getParsedBody')->willReturn([
+            'redirect_uri' => 'http://new',
+            'iam_service' => 'Kingdom',
+            'iam_service_format' => '["Configuration","Kingdom"]',
+        ]);
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/clients?error=iam_namespace')
+            ->willReturnSelf();
+
+        $this->controller->updateRedirect($this->request, $this->response, 9);
+
+        $this->assertSame('http://old', $client->getRedirectUri());
+    }
+
+    public function testUpdateRedirectLogsWhenAccessDenied(): void
+    {
+        $client = Client::builder()->identifier('app')->redirectUri('http://old')->build();
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->clientAccessRepository->method('hasAccess')->willReturn(false);
+        $this->request->method('getParsedBody')->willReturn(['redirect_uri' => 'http://new']);
+        $this->logger->expects($this->once())
+            ->method('info')
+            ->with('operator client update rejected', [
+                'reason' => 'no_access',
+                'client_id' => 9,
+            ]);
+
+        $this->controller->updateRedirect($this->request, $this->response, 9);
+    }
+
+    public function testUpdateRedirectLogsWhenIamFormatIsRejected(): void
+    {
+        $client = Client::builder()->identifier('app')->redirectUri('http://old')->build();
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->clientAccessRepository->method('hasAccess')->willReturn(true);
+        $this->request->method('getParsedBody')->willReturn([
+            'iam_service' => 'Skbc',
+            'iam_service_format' => '["Configuration",""]',
+        ]);
+        $this->logger->expects($this->once())
+            ->method('info')
+            ->with('Rejected operator client IAM fields', [
+                'error' => 'iam_format',
+                'client_id' => 9,
+            ]);
+
+        $this->controller->updateRedirect($this->request, $this->response, 9);
+    }
+
+    public function testUpdateRedirectLogsWhenIamNamespaceIsRejected(): void
+    {
+        $client = Client::builder()->identifier('app')->redirectUri('http://old')->build();
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->clientAccessRepository->method('hasAccess')->willReturn(true);
+        $this->request->method('getParsedBody')->willReturn([
+            'iam_service' => 'Kingdom',
+        ]);
+        $this->logger->expects($this->once())
+            ->method('info')
+            ->with('Rejected operator client IAM fields', [
+                'error' => 'iam_namespace',
+                'client_id' => 9,
+            ]);
+
+        $this->controller->updateRedirect($this->request, $this->response, 9);
+    }
+
+    public function testUpdateRedirectLogsWhenUpdated(): void
+    {
+        $client = Client::builder()
+            ->identifier('app')
+            ->redirectUri('http://old')
+            ->build();
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->clientAccessRepository->method('hasAccess')->willReturn(true);
+        $this->request->method('getParsedBody')->willReturn([
+            'redirect_uri' => 'http://new',
+            'iam_service' => 'Skbc',
+        ]);
+        $this->logger->expects($this->once())
+            ->method('info')
+            ->with('operator client updated', [
+                'client_id' => 9,
+                'has_iam_service' => true,
+            ]);
+
+        $this->controller->updateRedirect($this->request, $this->response, 9);
+    }
+
+    public function testUpdateRedirectLogsWhenIamServiceCleared(): void
+    {
+        $client = Client::builder()
+            ->identifier('app')
+            ->redirectUri('http://old')
+            ->iamService('OldService')
+            ->build();
+        $this->clientRepository->method('fetch')->willReturn($client);
+        $this->clientAccessRepository->method('hasAccess')->willReturn(true);
+        $this->request->method('getParsedBody')->willReturn([
+            'redirect_uri' => 'http://old',
+            'iam_service' => '',
+        ]);
+        $this->logger->expects($this->once())
+            ->method('info')
+            ->with('operator client updated', [
+                'client_id' => 9,
+                'has_iam_service' => false,
+            ]);
+
+        $this->controller->updateRedirect($this->request, $this->response, 9);
     }
 }

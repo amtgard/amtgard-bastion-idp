@@ -35,6 +35,7 @@ final class IntegFixtures
     public const UI_UPDATED_CLIENT_NAME = 'Integration UI client (updated)';
     public const UI_UPDATED_IAM_SERVICE = 'IntegFromUiUpdated';
     public const UI_UPDATED_IAM_FORMAT = 'Configuration,Game';
+    public const UI_OPERATOR_IAM_SERVICE = 'IntegFromUiOp';
 
     /** Player operator list UI (D6 integ). */
     public const PLAYER_OPERATOR_CLIENT_ID = 'integ_player_operator';

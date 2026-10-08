@@ -60,7 +60,7 @@ ORN rows in the client's `iam_service`. The caller sends `provisos` and `resourc
 
 Full ORN shape: `service` + `provisos` + `resource`, for example `Skbc:0::::Officer/Approve`.
 
-`iam_service` is a unique PascalCase name assigned by an IdP admin (`/management/clients`). It must not be a built-in ORK service such as `Documents`, `Idp`, `Application`, or `ORK`.
+`iam_service` is a unique PascalCase name assigned on the client (`/management/clients`, or `/resources/clients` for granted operators). It must not be a built-in ORK service such as `Documents`, `Idp`, `Application`, or `ORK`.
 
 `provisos` is the colon-separated middle of the ORN. Slot order comes from `iam_service_format`. Empty format uses `["Configuration","Game","Kingdom","Park"]`. `:0::::` sets the first slot to `0` and leaves the rest empty. Resource paths (`Officer/Approve`, `Editor/Write`) are the app's own permission names.
 

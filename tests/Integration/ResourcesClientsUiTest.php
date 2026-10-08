@@ -60,7 +60,50 @@ final class ResourcesClientsUiTest extends IntegTestCase
         $this->assertStringContainsString(IntegFixtures::PLAYER_OPERATOR_CLIENT_ID, $operatorHtml);
         $this->assertStringNotContainsString(IntegFixtures::CONFIDENTIAL_CLIENT_ID, $operatorHtml);
         $this->assertStringContainsString('const viewMode = "operator"', $operatorHtml);
+        $this->assertStringContainsString("const readonlyFieldIds = ['client-name', 'client-id', 'client-secret'];", $operatorHtml);
         $this->assertStringNotContainsString('bg-green-500 hover:bg-green-600', $operatorHtml);
+
+        $operatorCsrf = $player->parseCsrfToken($operatorHtml);
+        $playerUpdate = $player->postForm('/resources/clients/' . $clientDbId . '/redirect', [
+            '_csrf_token' => $operatorCsrf,
+            'redirect_uri' => IntegFixtures::PLAYER_OPERATOR_REDIRECT_URI,
+            'iam_service' => 'IntegPlayerOperatorUpdated',
+            'iam_service_format' => IntegFixtures::UI_UPDATED_IAM_FORMAT,
+        ]);
+        $this->assertTrue(
+            $player->isRedirectToPath($playerUpdate, '/resources/clients'),
+            'Expected redirect to operator list after IAM update; location=' . $playerUpdate->getHeaderLine('Location'),
+        );
+
+        $afterPlayerUpdate = $player->get('/resources/clients');
+        $this->assertSame(200, $afterPlayerUpdate->getStatusCode());
+        $updated = $this->parseClientRecord(
+            (string) $afterPlayerUpdate->getBody(),
+            IntegFixtures::PLAYER_OPERATOR_CLIENT_ID,
+        );
+        $this->assertSame('IntegPlayerOperatorUpdated', $updated['iamService'] ?? null);
+        $this->assertSame('["Configuration","Game"]', $updated['iamServiceFormat'] ?? null);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function parseClientRecord(string $html, string $identifier): array
+    {
+        preg_match_all('/data-client="([^"]+)"/', $html, $matches);
+        foreach ($matches[1] as $encoded) {
+            $json = html_entity_decode($encoded, ENT_QUOTES | ENT_HTML5);
+            /** @var array<string, mixed>|null $client */
+            $client = json_decode($json, true);
+            if (!is_array($client)) {
+                continue;
+            }
+            if (($client['identifier'] ?? '') === $identifier) {
+                return $client;
+            }
+        }
+
+        throw new \RuntimeException("Client {$identifier} not found in clients HTML");
     }
 
     private function login(IntegHttp $http, string $email): void
