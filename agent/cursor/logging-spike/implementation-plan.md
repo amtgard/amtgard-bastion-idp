@@ -26,7 +26,8 @@
 | L6 | `stack/idp-log-l6-m3-jwt-pvh` | M3 JWT, PVH gate, Optional throws |
 | L7 | `stack/idp-log-l7-m4-workers-pvh-queue` | M4 workers + PVH queue (`request_id` on enqueue) |
 | L8 | `stack/idp-log-l8-m5-oauth-server` | M5 OAuth authorization server actions |
-| L9+ | `stack/idp-log-l9-…` | M6–M10 per checklist; Phase 1 log-read API on L10 |
+| L9 | `stack/idp-log-l9-m6-client-identity` | M6 client identity (login / social / connect) |
+| L10+ | `stack/idp-log-l10-…` | M7–M10 per checklist; Phase 1 log-read API on L10 |
 
 Do not push unless the user asks.
 
