@@ -12,6 +12,7 @@ use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Tests\Support\ScriptAlertResponseAssert;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use PHPUnit\Framework\TestCase;
@@ -164,6 +165,7 @@ class AuthControllerTest extends TestCase
             $this->userRepository,
             $this->userLoginRepository,
             $this->logger,
+            IdpLoggingTestFactory::create(),
             $this->googleProvider,
             $this->facebookProvider,
             $this->discordProvider,

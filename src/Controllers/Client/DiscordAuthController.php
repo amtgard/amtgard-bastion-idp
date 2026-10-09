@@ -10,6 +10,7 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\Security\OAuth2StateManager;
 use Amtgard\IdP\Utility\Security\OAuthSocialCallbackHandler;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\Security\OAuthSocialRedirectSessionStore;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -27,10 +28,11 @@ class DiscordAuthController extends BaseAuthController
         UserRepository $users,
         UserLoginRepository $userLoginRepository,
         LoggerInterface $logger,
+        IdpLogging $idpLogging,
         AmtgardIdpJwt $amtgardIdpJwt,
         Discord $discordProvider
     ) {
-        parent::__construct($logger, $amtgardIdpJwt);
+        parent::__construct($logger, $idpLogging, $amtgardIdpJwt);
         $this->users = $users;
         $this->logins = $userLoginRepository;
         $this->discordProvider = $discordProvider;
@@ -54,6 +56,8 @@ class DiscordAuthController extends BaseAuthController
 
         OAuthSocialRedirectSessionStore::storeFromQueryParams($request->getQueryParams());
 
+        $this->idpLogging->oauth()->info('oauth social redirect', ['provider' => 'Discord']);
+
         return $response
             ->withHeader('Location', $authUrl)
             ->withStatus(302);
@@ -73,6 +77,7 @@ class DiscordAuthController extends BaseAuthController
         return OAuthSocialCallbackHandler::builder()
             ->providerName('Discord')
             ->logger($this->logger)
+            ->idpLogging($this->idpLogging)
             ->fetchToken(function (array $params) {
                 return $this->discordProvider->getAccessToken('authorization_code', [
                     'code' => $params['code'],
@@ -84,6 +89,10 @@ class DiscordAuthController extends BaseAuthController
             ->resolveUser(function (array $userData, AuthorizationFinalizeRedirect &$redirectPolicy) {
                 $email = $userData['email'] ?? null;
                 if (!$email) {
+                    $this->idpLogging->oauth()->error('oauth social callback rejected', [
+                        'provider' => 'Discord',
+                        'failure_reason' => 'email_denied',
+                    ]);
                     throw new \Exception('Email permission denied or not provided by Discord.');
                 }
 
@@ -93,6 +102,10 @@ class DiscordAuthController extends BaseAuthController
                         return Optional::ofNullable($this->users->getUserByEmail($email))
                             ->orElseGet(function () use ($userData, &$redirectPolicy) {
                                 $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
+                                $this->idpLogging->oauth()->info('oauth social user provisioned', [
+                                    'provider' => 'Discord',
+                                    'provision' => 'new_user',
+                                ]);
 
                                 return $this->users->createUserFromDiscordData($userData);
                             });
@@ -106,6 +119,11 @@ class DiscordAuthController extends BaseAuthController
                         return $this->logins->updateLoginTokens($login, fn ($t) => $t->getRefreshToken(), $token);
                     })
                     ->orElseGet(function () use ($user, $userData, $token) {
+                        $this->idpLogging->oauth()->info('oauth social login provisioned', [
+                            'provider' => 'Discord',
+                            'provision' => 'new_login',
+                        ]);
+
                         return $this->logins->createLoginFromDiscordData($user, $userData, $token);
                     });
             })

@@ -68,3 +68,10 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - Log-tested: `M5OAuthServerLoggingTest`, existing OAuth controller tests updated for oauth channel assertions.
 - Gates: `composer test` (989 tests); `composer mutate` (covered MSI 87%); `./scripts/integ.sh` (85/87; `LoggingCorrelationIntegTest` green; 2 ORK mailbox failures).
 - Commit: `c01aec3`
+
+## L9 — M6 client identity (login / social / connect)
+
+- Branch: `stack/idp-log-l9-m6-client-identity`
+- M6 checklist: `AuthController`, `RegistrationService`, `BaseAuthController`, OAuth callback validator/handler, Google/Discord/Facebook/Apple auth, `ConnectController`, `OrkLinkTokenService` via `IdpLogging` (`security()` / `oauth()`); emails as `email_sha256`.
+- Log-tested: `M6ClientIdentityLoggingTest` (local login, registration service, OAuth validator/handler, Google redirect, connect missing token).
+- Gates: `composer test` (995 tests); `composer mutate` (covered MSI 89%); `./scripts/integ.sh` (85/87; logging integ green).

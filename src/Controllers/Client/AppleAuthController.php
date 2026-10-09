@@ -10,6 +10,7 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\Security\OAuth2StateManager;
 use Amtgard\IdP\Utility\Security\OAuthSocialCallbackHandler;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\Security\OAuthSocialRedirectSessionStore;
 use League\OAuth2\Client\Provider\Apple;
 use Optional\Optional;
@@ -27,10 +28,11 @@ class AppleAuthController extends BaseAuthController
         UserRepository $users,
         UserLoginRepository $userLoginRepository,
         LoggerInterface $logger,
+        IdpLogging $idpLogging,
         AmtgardIdpJwt $amtgardIdpJwt,
         Apple $appleProvider
     ) {
-        parent::__construct($logger, $amtgardIdpJwt);
+        parent::__construct($logger, $idpLogging, $amtgardIdpJwt);
         $this->users = $users;
         $this->logins = $userLoginRepository;
         $this->appleProvider = $appleProvider;
@@ -48,6 +50,8 @@ class AppleAuthController extends BaseAuthController
         OAuth2StateManager::store($this->appleProvider->getState());
 
         OAuthSocialRedirectSessionStore::storeFromQueryParams($request->getQueryParams());
+
+        $this->idpLogging->oauth()->info('oauth social redirect', ['provider' => 'Apple']);
 
         return $response
             ->withHeader('Location', $authUrl)
@@ -67,6 +71,7 @@ class AppleAuthController extends BaseAuthController
         return OAuthSocialCallbackHandler::builder()
             ->providerName('Apple')
             ->logger($this->logger)
+            ->idpLogging($this->idpLogging)
             ->fetchToken(function (array $params) use (&$existingLogin, &$providerId, &$appleUser) {
                 $this->syncSuperglobalsForAppleProvider($params);
 
@@ -93,6 +98,10 @@ class AppleAuthController extends BaseAuthController
                         $email = $appleUser->getEmail();
 
                         if ($email === null || $email === '') {
+                            $this->idpLogging->oauth()->error('oauth social callback rejected', [
+                                'provider' => 'Apple',
+                                'failure_reason' => 'email_missing',
+                            ]);
                             throw new \Exception(
                                 'Apple did not provide an email address. If you have signed in before, use the same Apple ID. Otherwise, revoke Amtgard access in Apple ID settings and try again.'
                             );
@@ -101,6 +110,10 @@ class AppleAuthController extends BaseAuthController
                         return Optional::ofNullable($this->users->getUserByEmail($email))
                             ->orElseGet(function () use ($email, &$appleUser, &$redirectPolicy) {
                                 $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
+                                $this->idpLogging->oauth()->info('oauth social user provisioned', [
+                                    'provider' => 'Apple',
+                                    'provision' => 'new_user',
+                                ]);
 
                                 return $this->users->createUserFromAppleData([
                                     'email' => $email,
@@ -119,6 +132,10 @@ class AppleAuthController extends BaseAuthController
                     })
                     ->orElseGet(function () use ($user, $userData, $providerId, $token) {
                         $userData['sub'] = $providerId;
+                        $this->idpLogging->oauth()->info('oauth social login provisioned', [
+                            'provider' => 'Apple',
+                            'provision' => 'new_login',
+                        ]);
 
                         return $this->logins->createLoginFromAppleData($user, $userData, $token);
                     });

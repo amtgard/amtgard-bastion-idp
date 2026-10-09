@@ -20,6 +20,7 @@ use Amtgard\IdP\Services\Mailbox\MailboxChallengePurpose;
 use Amtgard\IdP\Services\MailboxChallengeService;
 use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Services\RegistrationService;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -66,6 +67,7 @@ class ConnectControllerTest extends TestCase
             $this->registrationService,
             $this->challenges,
             $this->logger,
+            IdpLoggingTestFactory::create(),
         );
 
         $this->stream = $this->createMock(StreamInterface::class);
@@ -298,6 +300,7 @@ class ConnectControllerTest extends TestCase
                 $this->registrationService,
                 $this->challenges,
                 $this->createMock(LoggerInterface::class),
+                IdpLoggingTestFactory::create(),
             );
             $this->orkProfiles->expects($this->never())->method('linkExistingUserToMundane');
             $this->twig->method('render')->willReturn('html');
@@ -404,6 +407,7 @@ class ConnectControllerTest extends TestCase
             $this->registrationService,
             $this->challenges,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
         );
         $controller->submitConnectCode($this->requestWithBody([
             'link_token' => 'jwt-token',
@@ -426,6 +430,7 @@ class ConnectControllerTest extends TestCase
             $this->registrationService,
             $this->challenges,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
         );
         $controller->submitConnectCode($this->requestWithBody([
             'link_token' => 'jwt-token',
@@ -445,6 +450,7 @@ class ConnectControllerTest extends TestCase
             $this->registrationService,
             $this->challenges,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
         );
         $controller->submitConnectCode($this->requestWithBody([
             'link_token' => 'jwt-token',
@@ -637,7 +643,6 @@ class ConnectControllerTest extends TestCase
     {
         $this->prepareLegacyLogin(false);
         $this->tokenService->method('consumeJti')->willThrowException(new \RuntimeException('db'));
-        $this->logger->expects($this->once())->method('error');
         $this->twig->expects($this->once())
             ->method('render')
             ->with('connect.twig', $this->callback(fn (array $ctx) => str_contains((string) $ctx['error'], 'still valid')))
@@ -674,8 +679,7 @@ class ConnectControllerTest extends TestCase
     {
         $this->prepareLegacyLogin();
         $this->orkProfiles->method('linkExistingUserToMundane')->willThrowException(new \RuntimeException('disk full'));
-        $this->logger->expects($this->once())->method('error');
-        $this->twig->method('render')->willReturn('html');
+        $this->twig->expects($this->once())->method('render')->willReturn('html');
 
         $this->controller->submitConnectLogin($this->legacyLoginRequest(), $this->response);
     }

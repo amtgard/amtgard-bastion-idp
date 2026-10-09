@@ -272,56 +272,56 @@ Carry `request_id` on `PvhQueueMessage` when enqueued from HTTP (design § Worke
 
 ## M6 — Phase 2 rollout: client identity (login / social / connect)
 
-- [ ] `src/Controllers/Client/AuthController.php:L94-L109` — error — email/password fail (`orElse(null)` + verify) — `failure_reason=invalid_credentials`, `email_sha256`
-- [ ] `src/Controllers/Client/AuthController.php:L136-L141` — error — register required fields — `rule=required_fields`
-- [ ] `src/Controllers/Client/AuthController.php:L144-L148` — error — invalid email format — `rule=email_format`
-- [ ] `src/Controllers/Client/AuthController.php:L152-L156` — error — password mismatch — `rule=password_mismatch`
-- [ ] `src/Controllers/Client/AuthController.php:L160-L165` — error — email already registered — `rule=email_exists`, `email_sha256`
-- [ ] `src/Controllers/Client/AuthController.php:L189-L197` — error — validation short-circuit — `rule`
-- [ ] `src/Controllers/Client/AuthController.php:L199-L203` — info — local user created — `user_uuid`, `email_sha256`
-- [ ] `src/Controllers/Client/AuthController.php:L215-L218` — info — logout cache invalidate — `user_uuid`
-- [ ] `src/Controllers/Client/AuthController.php:L227-L228` — info — RP-initiated logout redirect — `host` only
-- [ ] `src/Controllers/Client/AuthController.php:L247-L269` — warning — rejected `post_logout_redirect_uri` — `reason=untrusted_logout_uri`
-- [ ] `src/Services/RegistrationService.php:L29-L30` — error — required fields — `rule=required_fields`
-- [ ] `src/Services/RegistrationService.php:L32-L33` — error — email format — `rule=email_format`
-- [ ] `src/Services/RegistrationService.php:L35-L36` — error — email exists — `rule=email_exists`, `email_sha256`
-- [ ] `src/Services/RegistrationService.php:L38-L40` — info — register success — `user_uuid`
-- [ ] `src/Controllers/Client/BaseAuthController.php:L36-L70` — info — already logs auth/JWT/redirect; add `client_id`, `login_id` — `user_uuid`, `redirect_policy` (no jwt)
-- [ ] `src/Utility/Security/OAuthCallbackValidator.php:L13-L16` — error — provider `error` query — `provider`, `oauth_error` (no `error_description` if PII)
-- [ ] `src/Utility/Security/OAuthCallbackValidator.php:L18-L19` — error — state mismatch — `provider`, `failure_reason=invalid_state`
-- [ ] `src/Utility/Security/OAuthSocialCallbackHandler.php:L51-L56` — error — validator fail, **no log** — `provider`, `failure_reason=callback_validation`
-- [ ] `src/Utility/Security/OAuthSocialCallbackHandler.php:L59-L74` — info/debug — exists — `provider`, `provider_user_id`, `email_sha256`
-- [ ] `src/Utility/Security/OAuthSocialCallbackHandler.php:L75-L86` — error — exists — `provider`, `exception_class`
-- [ ] `src/Controllers/Client/GoogleAuthController.php:L47-L61` — info — redirect to Google — `provider=Google`
-- [ ] `src/Controllers/Client/GoogleAuthController.php:L87-L92` — info — `orElseGet` create user — `provider=Google`, `provision=new_user`, `email_sha256`
-- [ ] `src/Controllers/Client/GoogleAuthController.php:L101-L103` — info — `orElseGet` create login — `provider=Google`, `provision=new_login`
-- [ ] `src/Controllers/Client/DiscordAuthController.php:L47-L59` — info — redirect to Discord — `provider=Discord`
-- [ ] `src/Controllers/Client/DiscordAuthController.php:L85-L88` — error — email permission denied throw — `provider=Discord`, `failure_reason=email_denied`
-- [ ] `src/Controllers/Client/DiscordAuthController.php:L90-L95` — info — create user `orElseGet` — `provider=Discord`, `provision=new_user`
-- [ ] `src/Controllers/Client/DiscordAuthController.php:L104-L106` — info — create login `orElseGet` — `provider=Discord`, `provision=new_login`
-- [ ] `src/Controllers/Client/FacebookAuthController.php:L47-L56` — info — redirect to Facebook — `provider=Facebook`
-- [ ] `src/Controllers/Client/FacebookAuthController.php:L85-L90` — info — create user `orElseGet` — `provider=Facebook`, `provision=new_user`
-- [ ] `src/Controllers/Client/FacebookAuthController.php:L99-L101` — info — create login `orElseGet` — `provider=Facebook`, `provision=new_login`
-- [ ] `src/Controllers/Client/AppleAuthController.php:L42-L54` — info — redirect to Apple — `provider=Apple`
-- [ ] `src/Controllers/Client/AppleAuthController.php:L95-L98` — error — Apple email missing throw — `provider=Apple`, `failure_reason=email_missing`
-- [ ] `src/Controllers/Client/AppleAuthController.php:L101-L110` — info — create user `orElseGet` — `provider=Apple`, `provision=new_user`
-- [ ] `src/Controllers/Client/AppleAuthController.php:L120-L124` — info — create login `orElseGet` — `provider=Apple`, `provision=new_login`
-- [ ] `src/Controllers/Client/ConnectController.php:L46-L48` — error — GET missing `link_token` → 400 — `reason=missing_link_token`
-- [ ] `src/Controllers/Client/ConnectController.php:L52-L54` — error — peek fail → 400 — `reason=invalid_or_expired_token`
-- [ ] `src/Controllers/Client/ConnectController.php:L81-L83` — error — login peek fail — `reason=invalid_or_expired_token`
-- [ ] `src/Controllers/Client/ConnectController.php:L90-L94` — error — connect login bad password — `email_sha256`, `failure_reason=invalid_credentials`
-- [ ] `src/Controllers/Client/ConnectController.php:L103-L109` — error — consumeJti throw (exists) — `mundane_id`, `email_sha256` (drop raw email)
-- [ ] `src/Controllers/Client/ConnectController.php:L111-L112` — error — jti replay — `reason=jti_replay`
-- [ ] `src/Controllers/Client/ConnectController.php:L117-L136` — error/warning — link conflict/fail (exists) — `idp_user_id`, `mundane_id`
-- [ ] `src/Controllers/Client/ConnectController.php:L162-L164` — error — register peek fail — `reason=invalid_or_expired_token`
-- [ ] `src/Controllers/Client/ConnectController.php:L167-L168` — error — password mismatch — `rule=password_mismatch`
-- [ ] `src/Controllers/Client/ConnectController.php:L183-L184` — error — `RegistrationService` fail — `rule`
-- [ ] `src/Controllers/Client/ConnectController.php:L203-L204` — error — register jti replay — `reason=jti_replay`
-- [ ] `src/Controllers/Client/ConnectController.php:L263-L267` — warning — completion JWT skipped (secret short) — `reason=missing_shared_secret`, `ork_host`
-- [ ] `src/Controllers/Client/ConnectController.php:L297-L307` — emergency — `ORK_BASE_URL` invalid throw — `reason=ork_base_url`
-- [ ] `src/Controllers/Client/ConnectController.php:L311-L319` — error — HTML 400 `renderError` — `http_status=400`
-- [ ] `src/Services/OrkLinkTokenService.php:L36-L37` — emergency — shared secret unset/short — `reason=ork_link_secret`
-- [ ] `src/Services/OrkLinkTokenService.php:L54-L80` — warning/error — peek failures (exist; align 4xx-causing to error) — `reason` enum (no jwt, no email)
+- [x] `src/Controllers/Client/AuthController.php:L94-L109` — error — email/password fail (`orElse(null)` + verify) — `failure_reason=invalid_credentials`, `email_sha256`
+- [x] `src/Controllers/Client/AuthController.php:L136-L141` — error — register required fields — `rule=required_fields`
+- [x] `src/Controllers/Client/AuthController.php:L144-L148` — error — invalid email format — `rule=email_format`
+- [x] `src/Controllers/Client/AuthController.php:L152-L156` — error — password mismatch — `rule=password_mismatch`
+- [x] `src/Controllers/Client/AuthController.php:L160-L165` — error — email already registered — `rule=email_exists`, `email_sha256`
+- [x] `src/Controllers/Client/AuthController.php:L189-L197` — error — validation short-circuit — `rule`
+- [x] `src/Controllers/Client/AuthController.php:L199-L203` — info — local user created — `user_uuid`, `email_sha256`
+- [x] `src/Controllers/Client/AuthController.php:L215-L218` — info — logout cache invalidate — `user_uuid`
+- [x] `src/Controllers/Client/AuthController.php:L227-L228` — info — RP-initiated logout redirect — `host` only
+- [x] `src/Controllers/Client/AuthController.php:L247-L269` — warning — rejected `post_logout_redirect_uri` — `reason=untrusted_logout_uri`
+- [x] `src/Services/RegistrationService.php:L29-L30` — error — required fields — `rule=required_fields`
+- [x] `src/Services/RegistrationService.php:L32-L33` — error — email format — `rule=email_format`
+- [x] `src/Services/RegistrationService.php:L35-L36` — error — email exists — `rule=email_exists`, `email_sha256`
+- [x] `src/Services/RegistrationService.php:L38-L40` — info — register success — `user_uuid`
+- [x] `src/Controllers/Client/BaseAuthController.php:L36-L70` — info — already logs auth/JWT/redirect; add `client_id`, `login_id` — `user_uuid`, `redirect_policy` (no jwt)
+- [x] `src/Utility/Security/OAuthCallbackValidator.php:L13-L16` — error — provider `error` query — `provider`, `oauth_error` (no `error_description` if PII)
+- [x] `src/Utility/Security/OAuthCallbackValidator.php:L18-L19` — error — state mismatch — `provider`, `failure_reason=invalid_state`
+- [x] `src/Utility/Security/OAuthSocialCallbackHandler.php:L51-L56` — error — validator fail, **no log** — `provider`, `failure_reason=callback_validation`
+- [x] `src/Utility/Security/OAuthSocialCallbackHandler.php:L59-L74` — info/debug — exists — `provider`, `provider_user_id`, `email_sha256`
+- [x] `src/Utility/Security/OAuthSocialCallbackHandler.php:L75-L86` — error — exists — `provider`, `exception_class`
+- [x] `src/Controllers/Client/GoogleAuthController.php:L47-L61` — info — redirect to Google — `provider=Google`
+- [x] `src/Controllers/Client/GoogleAuthController.php:L87-L92` — info — `orElseGet` create user — `provider=Google`, `provision=new_user`, `email_sha256`
+- [x] `src/Controllers/Client/GoogleAuthController.php:L101-L103` — info — `orElseGet` create login — `provider=Google`, `provision=new_login`
+- [x] `src/Controllers/Client/DiscordAuthController.php:L47-L59` — info — redirect to Discord — `provider=Discord`
+- [x] `src/Controllers/Client/DiscordAuthController.php:L85-L88` — error — email permission denied throw — `provider=Discord`, `failure_reason=email_denied`
+- [x] `src/Controllers/Client/DiscordAuthController.php:L90-L95` — info — create user `orElseGet` — `provider=Discord`, `provision=new_user`
+- [x] `src/Controllers/Client/DiscordAuthController.php:L104-L106` — info — create login `orElseGet` — `provider=Discord`, `provision=new_login`
+- [x] `src/Controllers/Client/FacebookAuthController.php:L47-L56` — info — redirect to Facebook — `provider=Facebook`
+- [x] `src/Controllers/Client/FacebookAuthController.php:L85-L90` — info — create user `orElseGet` — `provider=Facebook`, `provision=new_user`
+- [x] `src/Controllers/Client/FacebookAuthController.php:L99-L101` — info — create login `orElseGet` — `provider=Facebook`, `provision=new_login`
+- [x] `src/Controllers/Client/AppleAuthController.php:L42-L54` — info — redirect to Apple — `provider=Apple`
+- [x] `src/Controllers/Client/AppleAuthController.php:L95-L98` — error — Apple email missing throw — `provider=Apple`, `failure_reason=email_missing`
+- [x] `src/Controllers/Client/AppleAuthController.php:L101-L110` — info — create user `orElseGet` — `provider=Apple`, `provision=new_user`
+- [x] `src/Controllers/Client/AppleAuthController.php:L120-L124` — info — create login `orElseGet` — `provider=Apple`, `provision=new_login`
+- [x] `src/Controllers/Client/ConnectController.php:L46-L48` — error — GET missing `link_token` → 400 — `reason=missing_link_token`
+- [x] `src/Controllers/Client/ConnectController.php:L52-L54` — error — peek fail → 400 — `reason=invalid_or_expired_token`
+- [x] `src/Controllers/Client/ConnectController.php:L81-L83` — error — login peek fail — `reason=invalid_or_expired_token`
+- [x] `src/Controllers/Client/ConnectController.php:L90-L94` — error — connect login bad password — `email_sha256`, `failure_reason=invalid_credentials`
+- [x] `src/Controllers/Client/ConnectController.php:L103-L109` — error — consumeJti throw (exists) — `mundane_id`, `email_sha256` (drop raw email)
+- [x] `src/Controllers/Client/ConnectController.php:L111-L112` — error — jti replay — `reason=jti_replay`
+- [x] `src/Controllers/Client/ConnectController.php:L117-L136` — error/warning — link conflict/fail (exists) — `idp_user_id`, `mundane_id`
+- [x] `src/Controllers/Client/ConnectController.php:L162-L164` — error — register peek fail — `reason=invalid_or_expired_token`
+- [x] `src/Controllers/Client/ConnectController.php:L167-L168` — error — password mismatch — `rule=password_mismatch`
+- [x] `src/Controllers/Client/ConnectController.php:L183-L184` — error — `RegistrationService` fail — `rule`
+- [x] `src/Controllers/Client/ConnectController.php:L203-L204` — error — register jti replay — `reason=jti_replay`
+- [x] `src/Controllers/Client/ConnectController.php:L263-L267` — warning — completion JWT skipped (secret short) — `reason=missing_shared_secret`, `ork_host`
+- [x] `src/Controllers/Client/ConnectController.php:L297-L307` — emergency — `ORK_BASE_URL` invalid throw — `reason=ork_base_url`
+- [x] `src/Controllers/Client/ConnectController.php:L311-L319` — error — HTML 400 `renderError` — `http_status=400`
+- [x] `src/Services/OrkLinkTokenService.php:L36-L37` — emergency — shared secret unset/short — `reason=ork_link_secret`
+- [x] `src/Services/OrkLinkTokenService.php:L54-L80` — warning/error — peek failures (exist; align 4xx-causing to error) — `reason` enum (no jwt, no email)
 
 **M6 count: 50**
 

@@ -9,6 +9,7 @@ use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\Security\OAuth2StateManager;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\Security\OAuthSocialCallbackHandler;
 use League\OAuth2\Client\Provider\Facebook;
 use Optional\Optional;
@@ -26,10 +27,11 @@ class FacebookAuthController extends BaseAuthController
         UserRepository $users,
         UserLoginRepository $userLoginRepository,
         LoggerInterface $logger,
+        IdpLogging $idpLogging,
         AmtgardIdpJwt $amtgardIdpJwt,
         Facebook $facebookProvider
     ) {
-        parent::__construct($logger, $amtgardIdpJwt);
+        parent::__construct($logger, $idpLogging, $amtgardIdpJwt);
         $this->users = $users;
         $this->logins = $userLoginRepository;
         $this->facebookProvider = $facebookProvider;
@@ -51,6 +53,8 @@ class FacebookAuthController extends BaseAuthController
 
         OAuth2StateManager::store($this->facebookProvider->getState());
 
+        $this->idpLogging->oauth()->info('oauth social redirect', ['provider' => 'Facebook']);
+
         return $response
             ->withHeader('Location', $authUrl)
             ->withStatus(302);
@@ -70,6 +74,7 @@ class FacebookAuthController extends BaseAuthController
         return OAuthSocialCallbackHandler::builder()
             ->providerName('Facebook')
             ->logger($this->logger)
+            ->idpLogging($this->idpLogging)
             ->errorRedirectPath('/auth/login')
             ->fetchToken(function (array $params) {
                 $token = $this->facebookProvider->getAccessToken('authorization_code', [
@@ -88,6 +93,10 @@ class FacebookAuthController extends BaseAuthController
                         return Optional::ofNullable($this->users->getUserByEmail($userData['email']))
                             ->orElseGet(function () use ($userData, &$redirectPolicy) {
                                 $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
+                                $this->idpLogging->oauth()->info('oauth social user provisioned', [
+                                    'provider' => 'Facebook',
+                                    'provision' => 'new_user',
+                                ]);
 
                                 return $this->users->createUserFromFacebookData($userData);
                             });
@@ -101,6 +110,11 @@ class FacebookAuthController extends BaseAuthController
                         return $this->logins->updateLoginTokens($login, fn ($t) => $t->getToken(), $token);
                     })
                     ->orElseGet(function () use ($user, $userData, $token) {
+                        $this->idpLogging->oauth()->info('oauth social login provisioned', [
+                            'provider' => 'Facebook',
+                            'provision' => 'new_login',
+                        ]);
+
                         return $this->logins->createLoginFromFacebookData($user, $userData, $token);
                     });
             })

@@ -9,6 +9,7 @@ use Amtgard\IdP\Utility\Security\ScriptAlertResponse;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\Google;
 use Optional\Optional;
@@ -33,6 +34,7 @@ class AuthController extends BaseAuthController
         UserRepository $users,
         UserLoginRepository $logins,
         LoggerInterface $logger,
+        IdpLogging $idpLogging,
         Google          $googleProvider,
         Facebook        $facebookProvider,
         Discord         $discordProvider,
@@ -41,7 +43,7 @@ class AuthController extends BaseAuthController
         RedisCacheRepository $redisCacheRepository,
     )
     {
-        parent::__construct($logger, $amtgardIdpJwt);
+        parent::__construct($logger, $idpLogging, $amtgardIdpJwt);
         $this->users = $users;
         $this->logins = $logins;
         $this->googleProvider = $googleProvider;
@@ -102,7 +104,10 @@ class AuthController extends BaseAuthController
 
         // Check if user exists and password is correct
         if (!$isPasswordCorrect) {
-            // Invalid credentials, redirect back to login form
+            $this->idpLogging->security()->error('local login rejected', [
+                'failure_reason' => 'invalid_credentials',
+                'email_sha256' => $this->emailSha256($email),
+            ]);
             $response->getBody()->write(
                 ScriptAlertResponse::alertAndRedirect('Invalid email or password', '/auth/login')
             );
@@ -136,6 +141,8 @@ class AuthController extends BaseAuthController
     private function validateRequiredFields(string $firstName, string $lastName, string $email, string $password, string $redirectUrl): ?string
     {
         if (empty($firstName) || empty($lastName) || empty($email) || empty($password)) {
+            $this->idpLogging->security()->error('local registration rejected', ['rule' => 'required_fields']);
+
             return ScriptAlertResponse::alertAndRedirect('All fields are required', $redirectUrl);
         }
         return null;
@@ -144,6 +151,8 @@ class AuthController extends BaseAuthController
     private function validateEmailFormat(string $email, string $redirectUrl): ?string
     {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->idpLogging->security()->error('local registration rejected', ['rule' => 'email_format']);
+
             return ScriptAlertResponse::alertAndRedirect('Invalid email format', $redirectUrl);
         }
         return null;
@@ -152,6 +161,8 @@ class AuthController extends BaseAuthController
     private function validatePasswordsMatch(string $password, string $confirmPassword, string $redirectUrl): ?string
     {
         if ($password !== $confirmPassword) {
+            $this->idpLogging->security()->error('local registration rejected', ['rule' => 'password_mismatch']);
+
             return ScriptAlertResponse::alertAndRedirect('Passwords do not match', $redirectUrl);
         }
         return null;
@@ -160,6 +171,11 @@ class AuthController extends BaseAuthController
     private function validateEmailIsUnique(string $email, string $redirectUrl): ?string
     {
         if ($this->users->userExists($email)) {
+            $this->idpLogging->security()->error('local registration rejected', [
+                'rule' => 'email_exists',
+                'email_sha256' => $this->emailSha256($email),
+            ]);
+
             return ScriptAlertResponse::alertAndRedirect('Email already registered', $redirectUrl);
         }
         return null;
@@ -193,12 +209,16 @@ class AuthController extends BaseAuthController
 
         if ($validationResult !== null) {
             $response->getBody()->write($validationResult);
+
             return $response;
         }
 
-        // Create new user
         $user = $this->users->createLocalUser($email, $firstName, $lastName);
         $login = $this->logins->createLocalLogin($user, $password);
+        $this->idpLogging->security()->info('local user registered', [
+            'user_uuid' => $user->getUserId(),
+            'email_sha256' => $this->emailSha256($email),
+        ]);
 
         return $this->finalizeAuthorization($login, $request, $response, AuthorizationFinalizeRedirect::NewUserProfile);
     }
@@ -215,7 +235,10 @@ class AuthController extends BaseAuthController
         Optional::ofNullable($_SESSION['user_id'] ?? null)
             ->map(fn (mixed $id): string => (string) $id)
             ->filter(fn (string $id): bool => $id !== '')
-            ->ifPresent(fn (string $userId) => $this->redisCacheRepository->invalidateUser($userId));
+            ->ifPresent(function (string $userId): void {
+                $this->idpLogging->security()->info('logout cache invalidate', ['user_uuid' => $userId]);
+                $this->redisCacheRepository->invalidateUser($userId);
+            });
 
         // Clear session
         session_unset();
@@ -225,7 +248,17 @@ class AuthController extends BaseAuthController
         $params  = $request->getQueryParams();
         $postUri = isset($params['post_logout_redirect_uri']) ? trim((string)$params['post_logout_redirect_uri']) : '';
         if ($postUri !== '' && $this->isAllowedPostLogoutUri($postUri)) {
+            $host = parse_url($postUri, PHP_URL_HOST);
+            $this->idpLogging->security()->info('rp-initiated logout redirect', [
+                'host' => is_string($host) ? $host : null,
+            ]);
+
             return $response->withHeader('Location', $postUri)->withStatus(302);
+        }
+        if ($postUri !== '') {
+            $this->idpLogging->security()->warning('post_logout_redirect_uri rejected', [
+                'reason' => 'untrusted_logout_uri',
+            ]);
         }
 
         // Default: home page.
@@ -267,5 +300,10 @@ class AuthController extends BaseAuthController
         $basePort = $baseParts['port'] ?? (($baseParts['scheme'] ?? '') === 'https' ? 443 : 80);
         $uriPort  = $uriParts['port']  ?? (($uriParts['scheme']  ?? '') === 'https' ? 443 : 80);
         return $basePort === $uriPort;
+    }
+
+    private function emailSha256(string $email): string
+    {
+        return hash('sha256', $email);
     }
 }
