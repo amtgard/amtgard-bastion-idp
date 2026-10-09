@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Utility\Redis;
 
 use Amtgard\SetQueue\DataStructure\Impl\Redis\RedisDataStructureConfig;
+use Psr\Log\LoggerInterface;
 use Redis;
 use RedisException;
 
@@ -58,18 +59,18 @@ class PubSubRedisConfig
         return trim((string) ($_ENV['REDIS_PVH_QUEUE_NAME'] ?? 'amtgard-idp-pvh'));
     }
 
-    public static function dataStructureConfig(): RedisDataStructureConfig
+    public static function dataStructureConfig(?LoggerInterface $logger = null): RedisDataStructureConfig
     {
         $config = new RedisDataStructureConfig();
         $config->setConfig([
-            'host' => self::resolvedHost(),
+            'host' => self::resolvedHost($logger),
             'port' => self::port(),
         ]);
 
         return $config;
     }
 
-    public static function connect(Redis $redis): Redis
+    public static function connect(Redis $redis, ?LoggerInterface $logger = null): Redis
     {
         $lastError = null;
 
@@ -77,6 +78,7 @@ class PubSubRedisConfig
             try {
                 if (@$redis->pconnect($host, self::port(), 1.0)) {
                     self::selectDatabase($redis);
+
                     return $redis;
                 }
             } catch (\Throwable $e) {
@@ -84,6 +86,13 @@ class PubSubRedisConfig
             }
 
             $redis = new Redis();
+        }
+
+        if ($logger !== null) {
+            $logger->critical('redis pubsub connection failed', [
+                'hosts' => self::hostCandidates(),
+                'exception_class' => $lastError !== null ? $lastError::class : null,
+            ]);
         }
 
         throw new RedisException(
@@ -101,7 +110,7 @@ class PubSubRedisConfig
      * When the configured production hostname does not resolve locally, use the fallback
      * without requiring a live Redis probe (unit tests and dev Docker).
      */
-    private static function resolvedHost(): string
+    private static function resolvedHost(?LoggerInterface $logger = null): string
     {
         $candidates = self::hostCandidates();
 
@@ -109,7 +118,7 @@ class PubSubRedisConfig
             return $candidates[0];
         }
 
-        if (self::isReachable($candidates[0])) {
+        if (self::isReachable($candidates[0], $logger)) {
             return $candidates[0];
         }
 
@@ -134,13 +143,20 @@ class PubSubRedisConfig
         return gethostbyname($host) !== $host;
     }
 
-    private static function isReachable(string $host): bool
+    private static function isReachable(string $host, ?LoggerInterface $logger = null): bool
     {
         $redis = new Redis();
 
         try {
             return @$redis->connect($host, self::port(), 1.0);
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            if ($logger !== null) {
+                $logger->warning('redis pubsub host unreachable; using fallback', [
+                    'host' => $host,
+                    'fallback' => true,
+                ]);
+            }
+
             return false;
         } finally {
             if ($redis->isConnected()) {

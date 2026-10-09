@@ -9,9 +9,9 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\UserJwtGeneration;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Optional\Optional;
-use Psr\Log\LoggerInterface;
 
 /**
  * Worker body: recompute canonical policy_hash for (user_uuid, aud) and
@@ -24,13 +24,13 @@ final class JwtPvhRefreshService
         private AuthorizationJwtAssembler $assembler,
         private UserJwtGenerationRepository $generationRepository,
         private RedisCacheRepository $redisCache,
-        private LoggerInterface $logger,
+        private IdpLogging $idpLogging,
     ) {
     }
 
     public function refresh(string $userUuid, string $aud): JwtPvhRefreshResult
     {
-        $this->logger->debug('jwt pvh refresh entry', [
+        $this->idpLogging->pvh()->debug('jwt pvh refresh entry', [
             'user_uuid' => $userUuid,
             'aud' => $aud,
         ]);
@@ -47,11 +47,10 @@ final class JwtPvhRefreshService
                             $snapshot['policy_hash']
                         )
                     )
-                    ->map(function (UserJwtGeneration $row) use ($userUuid, $aud): JwtPvhRefreshResult {
-                        $this->logger->notice('jwt pvh refresh noop', [
+                    ->map(function () use ($userUuid, $aud): JwtPvhRefreshResult {
+                        $this->idpLogging->pvh()->info('jwt pvh refresh noop', [
                             'user_uuid' => $userUuid,
                             'aud' => $aud,
-                            'pvh' => $row->getPvh(),
                         ]);
 
                         return JwtPvhRefreshResult::Noop;
@@ -75,17 +74,15 @@ final class JwtPvhRefreshService
                     PvhCacheRecord::fromGeneration($row, (string) ($user->email ?? ''))
                 );
 
-                $this->logger->notice('jwt pvh refresh rotated', [
+                $this->idpLogging->pvh()->info('jwt pvh refresh rotated', [
                     'user_uuid' => $userUuid,
                     'aud' => $aud,
-                    'pvh' => $row->getPvh(),
-                    'prev_pvh' => $row->getPrevPvh(),
                 ]);
 
                 return JwtPvhRefreshResult::Rotated;
             })
             ->orElseGet(function () use ($userUuid, $aud): JwtPvhRefreshResult {
-                $this->logger->warning('jwt pvh refresh skipped: user not found', [
+                $this->idpLogging->pvh()->warning('jwt pvh refresh skipped: user not found', [
                     'user_uuid' => $userUuid,
                     'aud' => $aud,
                 ]);

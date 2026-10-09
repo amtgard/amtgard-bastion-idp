@@ -50,4 +50,12 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - Branch: `stack/idp-log-l6-m3-jwt-pvh`
 - M3 checklist: cached/restricted JWT middleware, `OAuthAccessTokenFallback`, `Jwt` debug reasons, `PvhAuthorizationGate` / `PvhGate`, correlation identity on proceed (`RequestLogContext` + `CorrelationProcessor`).
 - Log-tested: `M3JwtPvhLoggingTest`, `JwtLoggingTest`, `PvhAuthorizationGateLoggingTest`, `CorrelationProcessorTest`.
-- Gates: `composer test`; `composer mutate`; `./scripts/integ.sh` (logging integ green).
+- Gates: `composer test` (972 tests); `composer mutate` (covered MSI 86%); `./scripts/integ.sh` (85/87; logging integ green).
+- Commit: `2ade89b`
+
+## L7 — M4 workers + PVH queue
+
+- Branch: `stack/idp-log-l7-m4-workers-pvh-queue`
+- M4 checklist: `JwtPvhQueueProcessor` + worker bootstrap (`job_id`, `correlation_root=worker`), `PvhQueueMessage` optional `request_id`, `RedisCacheRepository` / `JwtPvhRefreshService` / `PubSubRedisConfig` via `IdpLogging`.
+- Log-tested: `M4WorkersPvhQueueLoggingTest`, `RedisCacheRepositoryLoggingTest`, `JwtPvhRefreshServiceLoggingTest`, `PubSubRedisConfigTest::testConnectLogsCriticalWhenAllHostsFail`.
+- Gates: `composer test` (984 tests); `composer mutate` (covered MSI 87%); `composer integ` (85/87; `LoggingCorrelationIntegTest` green; 2 ORK mailbox failures).

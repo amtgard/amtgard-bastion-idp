@@ -20,6 +20,7 @@ use Amtgard\IdP\Services\JwtPvhRefreshResult;
 use Amtgard\IdP\Services\JwtPvhRefreshService;
 use Amtgard\IdP\Utility\Pvh;
 use Amtgard\IdP\Utility\PvhCacheRecord;
+use Amtgard\IdP\Tests\Support\CapturedIdpLogging;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -122,7 +123,7 @@ class JwtPvhRefreshServiceTest extends TestCase
             $this->assembler(),
             $generationRepository,
             $redis,
-            $this->createMock(LoggerInterface::class),
+            CapturedIdpLogging::create()->idpLogging,
         );
 
         $this->assertSame(
@@ -171,7 +172,7 @@ class JwtPvhRefreshServiceTest extends TestCase
             $this->assembler(),
             $generationRepository,
             $redis,
-            $this->createMock(LoggerInterface::class),
+            CapturedIdpLogging::create()->idpLogging,
         );
     }
 

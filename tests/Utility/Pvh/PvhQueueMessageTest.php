@@ -11,13 +11,14 @@ final class PvhQueueMessageTest extends TestCase
 {
     public function testEncodeAndFromJsonRoundTrip(): void
     {
-        $json = PvhQueueMessage::encode('uuid-1', 'client-a');
+        $json = PvhQueueMessage::encode('uuid-1', 'client-a', 'req-abc');
         $parsed = PvhQueueMessage::fromJson($json);
 
         $this->assertTrue($parsed->isPresent());
         $message = $parsed->get();
         $this->assertSame('uuid-1', $message->getUserUuid());
         $this->assertSame('client-a', $message->getAud());
+        $this->assertSame('req-abc', $message->getRequestId());
         $this->assertSame('uuid-1:client-a', $message->publishKey());
     }
 

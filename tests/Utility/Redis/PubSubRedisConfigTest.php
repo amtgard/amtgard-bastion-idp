@@ -182,4 +182,41 @@ class PubSubRedisConfigTest extends TestCase
         $this->expectException(\RedisException::class);
         PubSubRedisConfig::connect($redis);
     }
+
+    public function testConnectLogsCriticalWhenAllHostsFail(): void
+    {
+        $_ENV['REDIS_PUBSUB_HOST'] = 'unreachable-redis-host.invalid';
+
+        $handler = new \Monolog\Handler\TestHandler();
+        $logger = new \Monolog\Logger('app');
+        $logger->pushHandler($handler);
+
+        $redis = new class extends \Redis {
+            public function pconnect(
+                $host,
+                $port = 6379,
+                $timeout = 0,
+                $persistent_id = null,
+                $retry_interval = 0,
+                $read_timeout = 0,
+                $context = null
+            ): bool {
+                return false;
+            }
+        };
+
+        try {
+            PubSubRedisConfig::connect($redis, $logger);
+        } catch (\RedisException) {
+        }
+
+        $matched = false;
+        foreach ($handler->getRecords() as $record) {
+            if ($record->message === 'redis pubsub connection failed' && isset($record->context['hosts'])) {
+                $matched = true;
+                break;
+            }
+        }
+        $this->assertTrue($matched);
+    }
 }

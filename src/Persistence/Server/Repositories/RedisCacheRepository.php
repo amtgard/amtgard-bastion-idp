@@ -4,47 +4,58 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Persistence\Server\Repositories;
 
+use Amtgard\IdP\Utility\Log\IdpLogging;
+use Amtgard\IdP\Utility\Log\RequestLogContext;
 use Amtgard\IdP\Utility\Pvh\PvhQueueMessage;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\IdP\Utility\PvhQueueHandle;
 use Amtgard\SetQueue\PubSubQueue;
-use Psr\Log\LoggerInterface;
 use Redis;
 
 class RedisCacheRepository
 {
     private const PVH_KEY_PREFIX = 'pvh:';
 
-    private LoggerInterface $logger;
-    private Redis $redis;
-    private PubSubQueue $pubSubQueue;
-    private PvhQueueHandle $pvhQueueHandle;
-
     public function __construct(
-        LoggerInterface $logger,
-        Redis $redis,
-        PubSubQueue $pubSubQueue,
-        PvhQueueHandle $pvhQueueHandle,
+        private IdpLogging $idpLogging,
+        private Redis $redis,
+        private PubSubQueue $pubSubQueue,
+        private PvhQueueHandle $pvhQueueHandle,
     ) {
-        $this->logger = $logger;
-        $this->redis = $redis;
-        $this->pubSubQueue = $pubSubQueue;
-        $this->pvhQueueHandle = $pvhQueueHandle;
     }
 
     public function getPvhRecord(string $userUuid, string $aud): ?PvhCacheRecord
     {
         $cached = $this->redis->get(self::pvhKey($userUuid, $aud));
         if (!$cached) {
+            $this->idpLogging->pvh()->debug('pvh redis cache miss', [
+                'user_uuid' => $userUuid,
+                'aud' => $aud,
+                'cache' => 'miss',
+            ]);
+
             return null;
         }
 
-        return PvhCacheRecord::fromJson((string) $cached);
+        $record = PvhCacheRecord::fromJson((string) $cached);
+        if ($record === null) {
+            $this->idpLogging->pvh()->debug('pvh redis cache miss', [
+                'user_uuid' => $userUuid,
+                'aud' => $aud,
+                'cache' => 'miss',
+            ]);
+        }
+
+        return $record;
     }
 
     public function setPvhRecord(PvhCacheRecord $record): void
     {
         $this->redis->set(self::pvhKey($record->getUserUuid(), $record->getAud()), $record->toJson());
+        $this->idpLogging->pvh()->debug('pvh redis cache write', [
+            'user_uuid' => $record->getUserUuid(),
+            'aud' => $record->getAud(),
+        ]);
     }
 
     /**
@@ -67,30 +78,43 @@ class RedisCacheRepository
      */
     public function invalidateUser(string $userId): void
     {
-        $this->redis->del($userId);
+        $keysDeleted = (int) $this->redis->del($userId);
 
         $iterator = null;
         $pattern = self::PVH_KEY_PREFIX . $userId . ':*';
         while (false !== ($keys = $this->redis->scan($iterator, $pattern))) {
             if ($keys !== []) {
-                $this->redis->del($keys);
+                $keysDeleted += (int) $this->redis->del($keys);
             }
         }
+
+        $this->idpLogging->pvh()->info('pvh cache invalidated on logout', [
+            'user_uuid' => $userId,
+            'keys_deleted' => $keysDeleted,
+        ]);
     }
 
     public function queueUserValidation(string $userUuid, string $aud): void
     {
         $queue = $this->pvhQueueHandle->getHandle();
+        $requestId = RequestLogContext::id();
+        $logger = $this->idpLogging->pvh();
+        $payload = PvhQueueMessage::encode($userUuid, $aud, $requestId, $logger);
         $this->pubSubQueue->publish(
             $queue,
             PvhQueueMessage::builder()->userUuid($userUuid)->aud($aud)->build()->publishKey(),
-            PvhQueueMessage::encode($userUuid, $aud)
+            $payload
         );
-        $this->logger->notice('jwt pvh enqueue', [
+
+        $context = [
             'user_uuid' => $userUuid,
             'aud' => $aud,
             'queue' => $queue,
-        ]);
+        ];
+        if ($requestId !== null && $requestId !== '') {
+            $context['request_id'] = $requestId;
+        }
+        $logger->notice('jwt pvh enqueue', $context);
     }
 
     public static function pvhKey(string $userUuid, string $aud): string

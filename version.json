@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-10-08.271",
+  "build_id": "2026-10-08.272",
   "date": "2026-10-08",
-  "revision": 271,
-  "branch": "stack/idp-log-l6-m3-jwt-pvh"
+  "revision": 272,
+  "branch": "stack/idp-log-l7-m4-workers-pvh-queue"
 }

@@ -219,23 +219,23 @@ Design: log **before** `orElseThrow` / HttpUnauthorized; 401/403 → `security` 
 
 Carry `request_id` on `PvhQueueMessage` when enqueued from HTTP (design § Worker / queue jobs).
 
-- [ ] `bin/jwt-pvh-worker.php:L43-L45` — notice — already; add `job_id`, `correlation_root=worker` — `queue`, `job_id`
-- [ ] `bin/jwt-pvh-worker.php:L52-L58` — error — malformed drop (exists); add `parse_reason` — `key`, `queue`
-- [ ] `bin/jwt-pvh-worker.php:L62-L71` — notice — dequeue (exists); add `request_id` from message — `key`, `user_uuid`, `aud`, `request_id`
-- [ ] `bin/jwt-pvh-worker.php:L72-L77` — critical — job fail + republish (exists error); add `exception_class` — `key`, `user_uuid`, `aud`
-- [ ] `src/Utility/Pvh/PvhQueueMessage.php:L35-L45` — error — schema miss → blank Optional — `reason=invalid_queue_payload`
-- [ ] `src/Utility/Pvh/PvhQueueMessage.php:L53-L54` — error — silent `catch (\Throwable)` — `exception_class`
-- [ ] `src/Utility/Pvh/PvhQueueMessage.php:L20-L25` — debug — encode/publish — `user_uuid`, `aud` (add `request_id` when field exists)
-- [ ] `src/Persistence/Server/Repositories/RedisCacheRepository.php:L35-L42` — debug — PVH cache miss / corrupt JSON (`fromJson` null) — `user_uuid`, `aud`, `cache=miss`
-- [ ] `src/Persistence/Server/Repositories/RedisCacheRepository.php:L45-L47` — debug — PVH cache write — `user_uuid`, `aud`
-- [ ] `src/Persistence/Server/Repositories/RedisCacheRepository.php:L68-L78` — info — logout invalidate SCAN — `user_uuid`, `keys_deleted`
-- [ ] `src/Persistence/Server/Repositories/RedisCacheRepository.php:L81-L93` — notice — enqueue (exists); add originating `request_id` — `user_uuid`, `aud`, `queue`, `request_id`
-- [ ] `src/Services/JwtPvhRefreshService.php:L40-L43` — debug — exists — `user_uuid`, `aud`
-- [ ] `src/Services/JwtPvhRefreshService.php:L57-L64` — info — noop (today notice) — `user_uuid`, `aud`
-- [ ] `src/Services/JwtPvhRefreshService.php:L85-L90` — info — rotated (today notice) — `user_uuid`, `aud` (no raw pvh)
-- [ ] `src/Services/JwtPvhRefreshService.php:L94-L100` — warning — user missing `orElseGet` (exists) — `user_uuid`, `aud`
-- [ ] `src/Utility/Redis/PubSubRedisConfig.php:L76-L96` — critical — all hosts fail — `hosts`, `exception_class`
-- [ ] `src/Utility/Redis/PubSubRedisConfig.php:L137-L144` — warning — reachability probe silent catch — `host`, `fallback=true`
+- [x] `bin/jwt-pvh-worker.php:L43-L45` — notice — already; add `job_id`, `correlation_root=worker` — `queue`, `job_id` *(L7)*
+- [x] `bin/jwt-pvh-worker.php:L52-L58` — error — malformed drop (exists); add `parse_reason` — `key`, `queue` *(L7)*
+- [x] `bin/jwt-pvh-worker.php:L62-L71` — notice — dequeue (exists); add `request_id` from message — `key`, `user_uuid`, `aud`, `request_id` *(L7)*
+- [x] `bin/jwt-pvh-worker.php:L72-L77` — critical — job fail + republish (exists error); add `exception_class` — `key`, `user_uuid`, `aud` *(L7)*
+- [x] `src/Utility/Pvh/PvhQueueMessage.php:L35-L45` — error — schema miss → blank Optional — `reason=invalid_queue_payload` *(L7)*
+- [x] `src/Utility/Pvh/PvhQueueMessage.php:L53-L54` — error — silent `catch (\Throwable)` — `exception_class` *(L7)*
+- [x] `src/Utility/Pvh/PvhQueueMessage.php:L20-L25` — debug — encode/publish — `user_uuid`, `aud` (add `request_id` when field exists) *(L7)*
+- [x] `src/Persistence/Server/Repositories/RedisCacheRepository.php:L35-L42` — debug — PVH cache miss / corrupt JSON (`fromJson` null) — `user_uuid`, `aud`, `cache=miss` *(L7)*
+- [x] `src/Persistence/Server/Repositories/RedisCacheRepository.php:L45-L47` — debug — PVH cache write — `user_uuid`, `aud` *(L7)*
+- [x] `src/Persistence/Server/Repositories/RedisCacheRepository.php:L68-L78` — info — logout invalidate SCAN — `user_uuid`, `keys_deleted` *(L7)*
+- [x] `src/Persistence/Server/Repositories/RedisCacheRepository.php:L81-L93` — notice — enqueue (exists); add originating `request_id` — `user_uuid`, `aud`, `queue`, `request_id` *(L7)*
+- [x] `src/Services/JwtPvhRefreshService.php:L40-L43` — debug — exists — `user_uuid`, `aud` *(L7)*
+- [x] `src/Services/JwtPvhRefreshService.php:L57-L64` — info — noop (today notice) — `user_uuid`, `aud` *(L7)*
+- [x] `src/Services/JwtPvhRefreshService.php:L85-L90` — info — rotated (today notice) — `user_uuid`, `aud` (no raw pvh) *(L7)*
+- [x] `src/Services/JwtPvhRefreshService.php:L94-L100` — warning — user missing `orElseGet` (exists) — `user_uuid`, `aud` *(L7)*
+- [x] `src/Utility/Redis/PubSubRedisConfig.php:L76-L96` — critical — all hosts fail — `hosts`, `exception_class` *(L7)*
+- [x] `src/Utility/Redis/PubSubRedisConfig.php:L137-L144` — warning — reachability probe silent catch — `host`, `fallback=true` *(L7)*
 
 **M4 count: 17**
 
