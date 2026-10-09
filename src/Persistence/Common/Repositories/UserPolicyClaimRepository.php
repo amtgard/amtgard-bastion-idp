@@ -10,7 +10,7 @@ use Amtgard\ActiveRecordOrm\Factory\TableFactory;
 use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IAM\Allowance\Policy;
-use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 
 class UserPolicyClaimRepository
 {
@@ -19,17 +19,17 @@ class UserPolicyClaimRepository
     private EntityMapper $userClaims;
     private UserPolicyClaimReader $reader;
     private UserPolicyClaimWriter $writer;
-    private LoggerInterface $logger;
     private ClaimOrnValidator $ornValidator;
+    private IdpLogging $idpLogging;
 
     public function __construct(
         Database $database,
         UncachedDataAccessPolicy $tablePolicy,
-        LoggerInterface $logger,
+        IdpLogging $idpLogging,
         ?ClaimOrnValidator $ornValidator = null,
     ) {
-        $this->logger = $logger;
-        $this->ornValidator = $ornValidator ?? new ClaimOrnValidator();
+        $this->idpLogging = $idpLogging;
+        $this->ornValidator = $ornValidator ?? new ClaimOrnValidator($idpLogging);
         $this->useClaimsMapper(
             EntityMapper::builder()
                 ->table(TableFactory::build($database, $tablePolicy, 'user_policy_claims'))
@@ -43,8 +43,8 @@ class UserPolicyClaimRepository
     public function useClaimsMapper(EntityMapper $userClaims): void
     {
         $this->userClaims = $userClaims;
-        $this->writer = new UserPolicyClaimWriter($userClaims, $this->ornValidator);
-        $this->reader = new UserPolicyClaimReader($userClaims, $this->logger);
+        $this->writer = new UserPolicyClaimWriter($userClaims, $this->ornValidator, $this->idpLogging);
+        $this->reader = new UserPolicyClaimReader($userClaims, $this->idpLogging);
     }
 
     /**

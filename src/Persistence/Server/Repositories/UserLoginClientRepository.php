@@ -9,11 +9,14 @@ use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\UserLoginClient;
 use Amtgard\IdP\Utility\ClientMetadataValidator;
+use Amtgard\IdP\Utility\Log\UsesIdpLogging;
 use Optional\Optional;
 
 #[RepositoryOf('user_login_client', UserLoginClient::class)]
 class UserLoginClientRepository extends Repository implements EntityRepositoryInterface
 {
+    use UsesIdpLogging;
+
     public static function getTableName(): string
     {
         return 'user_login_client';
@@ -24,21 +27,23 @@ class UserLoginClientRepository extends Repository implements EntityRepositoryIn
         return UserLoginClient::class;
     }
 
-    /**
-     * Shapes the stored blob for the JWT claim: json rows become objects, base64 rows stay opaque strings
-     * because integrators requested on-wire encoding without IDP re-serialization.
-     */
     public function getMetadataForJwt(int $loginDbId, int $clientDbId): mixed
     {
-        return Optional::ofNullable($this->findRow($loginDbId, $clientDbId))
-            ->map(function (UserLoginClient $row): mixed {
-                if ($row->getEncoding() === ClientMetadataValidator::ENCODING_BASE64) {
-                    return $row->getMetadata();
-                }
+        $row = $this->findRow($loginDbId, $clientDbId);
+        if ($row === null) {
+            $this->logApp()->debug('login client jwt metadata miss', [
+                'login_id' => $loginDbId,
+                'client_id' => $clientDbId,
+            ]);
 
-                return json_decode($row->getMetadata(), true, flags: JSON_THROW_ON_ERROR);
-            })
-            ->orElse(null);
+            return null;
+        }
+
+        if ($row->getEncoding() === ClientMetadataValidator::ENCODING_BASE64) {
+            return $row->getMetadata();
+        }
+
+        return json_decode($row->getMetadata(), true, flags: JSON_THROW_ON_ERROR);
     }
 
     /**
@@ -46,7 +51,7 @@ class UserLoginClientRepository extends Repository implements EntityRepositoryIn
      */
     public function getMetadata(int $loginDbId, int $clientDbId): ?array
     {
-        return Optional::ofNullable($this->findRow($loginDbId, $clientDbId))
+        $result = Optional::ofNullable($this->findRow($loginDbId, $clientDbId))
             ->map(function (UserLoginClient $row): array {
                 $metadata = $row->getEncoding() === ClientMetadataValidator::ENCODING_BASE64
                     ? $row->getMetadata()
@@ -58,6 +63,15 @@ class UserLoginClientRepository extends Repository implements EntityRepositoryIn
                 ];
             })
             ->orElse(null);
+
+        if ($result === null) {
+            $this->logApp()->debug('login client metadata miss', [
+                'login_id' => $loginDbId,
+                'client_id' => $clientDbId,
+            ]);
+        }
+
+        return $result;
     }
 
     public function upsertMetadata(

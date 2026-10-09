@@ -84,3 +84,10 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - Log-tested: `M7ResourceApisLoggingTest` (JWT 401, linkOrkProfile 400, invalid policy claim, `is_authorized` debug).
 - Gates: `composer test` (999 tests); `composer mutate` (covered MSI 89%); `./scripts/integ.sh` (85/87; `LoggingCorrelationIntegTest` green; 2 ORK mailbox failures).
 - Commit: `79cc1e1`
+
+## L11 — M8 repositories, validators, silent fallbacks
+
+- Branch: `stack/idp-log-l11-m8-repositories`
+- M8 checklist (51 items): policy repositories, OAuth persistence repos, `AuthorizationJwtAssembler` / `AmtgardIdpJwt` fallbacks, IAM format + client metadata validators, `Pvh` / `PvhCacheRecord`, `OAuthKeyMaterial` via `IdpLogging` and `IdpLoggingRuntime` + `UsesIdpLogging` for AARO repositories.
+- Log-tested: `M8RepositoriesLoggingTest` (empty policy fallback, ORN parse failure, idempotent claim add, unknown scope, authorize noop, IAM format default, PVH hex/cache corrupt, login ownership miss).
+- Gates: `composer test` (1008 tests); `composer mutate` (covered MSI 88%); `./scripts/integ.sh` (85/87 pass; `LoggingCorrelationIntegTest` green; 2 pre-existing ORK mailbox failures).

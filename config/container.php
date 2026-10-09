@@ -13,6 +13,7 @@ use Amtgard\IdP\Utility\Security\CurrentUserResolver;
 use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\Log\IdpLogging;
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
 use Amtgard\IdP\Utility\Log\LogChannelFactory;
 use Amtgard\IdP\Utility\Log\Sqlite\LogPathResolver;
 use Monolog\Level;
@@ -93,7 +94,10 @@ return array_merge(
         },
 
         IdpLogging::class => function (ContainerInterface $container) {
-            return new IdpLogging($container->get(LogChannelFactory::class));
+            $logging = new IdpLogging($container->get(LogChannelFactory::class));
+            IdpLoggingRuntime::bind($logging);
+
+            return $logging;
         },
 
         LoggerInterface::class => function (ContainerInterface $container) {

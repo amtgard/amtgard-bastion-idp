@@ -64,7 +64,7 @@ class UtilityClassesTest extends TestCase
             ->with($this->isInstanceOf(\Amtgard\IdP\Models\Orn\IdpRequirement::class))
             ->willReturn(true);
 
-        $authority = new UserAuthority($userPolicy, $this->createMock(LoggerInterface::class));
+        $authority = new UserAuthority($userPolicy, \Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create());
         $this->assertTrue($authority->isAdmin($user));
     }
 

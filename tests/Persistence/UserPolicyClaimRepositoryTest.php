@@ -11,8 +11,8 @@ use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
 use Amtgard\IdP\Utility\ClientApplicationFormatRegistry;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerInterface;
 
 class UserPolicyClaimRepositoryCursorMapper extends EntityMapper
 {
@@ -60,7 +60,7 @@ class UserPolicyClaimRepositoryTest extends TestCase
         $this->repository = new UserPolicyClaimRepository(
             $this->createMock(Database::class),
             $this->createMock(UncachedDataAccessPolicy::class),
-            $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
         );
 
         $this->repository->useClaimsMapper($this->mapper);
@@ -178,21 +178,12 @@ class UserPolicyClaimRepositoryTest extends TestCase
 
     public function testGetUserPolicySkipsMalformedClaimsAndKeepsValidOnes(): void
     {
-        $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->once())
-            ->method('error')
-            ->with(
-                'Skipping malformed user policy claim',
-                $this->callback(function (array $context): bool {
-                    return ($context['user_id'] ?? null) === 10
-                        && ($context['orn'] ?? null) === 'Idp0::::IDP/EditClient';
-                })
-            );
+        $capture = \Amtgard\IdP\Tests\Support\CapturedIdpLogging::create();
 
         $repository = new UserPolicyClaimRepository(
             $this->createMock(Database::class),
             $this->createMock(UncachedDataAccessPolicy::class),
-            $logger,
+            $capture->idpLogging,
         );
 
         $mapper = new UserPolicyClaimRepositoryCursorMapper([
@@ -208,6 +199,15 @@ class UserPolicyClaimRepositoryTest extends TestCase
         $claims = json_decode($encodedPolicy, true, flags: JSON_THROW_ON_ERROR);
 
         $this->assertSame(['Idp:0::::IDP/EditIdentity'], $claims);
+
+        $records = $capture->handler('app')->getRecords();
+        $malformed = array_values(array_filter(
+            $records,
+            static fn ($record) => str_contains((string) $record->message, 'user policy claim skipped malformed')
+        ));
+        $this->assertCount(1, $malformed);
+        $this->assertSame(10, $malformed[0]->context['user_id'] ?? null);
+        $this->assertSame('Idp0::::IDP/EditClient', $malformed[0]->context['orn'] ?? null);
     }
 
     private function replaceMapper(EntityMapper $mapper): void

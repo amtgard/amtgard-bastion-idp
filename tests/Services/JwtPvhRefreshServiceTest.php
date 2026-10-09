@@ -202,7 +202,7 @@ class JwtPvhRefreshServiceTest extends TestCase
             $clientRepository,
             $metadataRepository,
             $userLoginRepository,
-            $this->createMock(LoggerInterface::class),
+            CapturedIdpLogging::create()->idpLogging,
             $this->createMock(UserJwtGenerationRepository::class),
         );
     }

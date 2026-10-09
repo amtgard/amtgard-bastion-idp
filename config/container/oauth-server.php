@@ -67,6 +67,7 @@ return [
         return AmtgardIdpJwt::builder()
             ->assembler($container->get(AuthorizationJwtAssembler::class))
             ->redisCacheRepository($container->get(RedisCacheRepository::class))
+            ->idpLogging($container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class))
             ->build();
     },
 

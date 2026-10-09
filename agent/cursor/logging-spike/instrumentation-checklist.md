@@ -374,57 +374,57 @@ Carry `request_id` on `PvhQueueMessage` when enqueued from HTTP (design § Worke
 
 ## M8 — Phase 2 rollout: repositories, validators, silent fallbacks
 
-- [ ] `src/Persistence/Common/Repositories/UserPolicy.php:L23-L30` — error — empty policy fallback (exists); add `user_id` — `user_id`, `fallback=empty_policy`
-- [ ] `src/Persistence/Common/Repositories/UserPolicy.php:L36-L43` — error — encode fallback (exists) — `user_id`
-- [ ] `src/Persistence/Common/Repositories/UserPolicyClaimReader.php:L69-L75` — error — empty policy (exists) — `user_id`
-- [ ] `src/Persistence/Common/Repositories/UserPolicyClaimReader.php:L144-L151` — error — skip malformed claim (exists) — `user_id`, `orn`
-- [ ] `src/Persistence/Common/Repositories/UserPolicyClaimWriter.php:L31-L32` — debug — idempotent add no-op — `user_id`, `service`
-- [ ] `src/Persistence/Common/Repositories/UserPolicyClaimWriter.php:L65-L66` — error — `orElseThrow` missing `client_id` — `service`, `rule=client_required`
-- [ ] `src/Persistence/Common/Repositories/UserPolicyClaimWriter.php:L113-L119` — error — claim cap — `user_id`, `client_id`, `claim_count`
-- [ ] `src/Persistence/Common/Repositories/ClaimOrnValidator.php:L16-L21` — debug — required/length — `field`, `rule`
-- [ ] `src/Persistence/Common/Repositories/ClaimOrnValidator.php:L28-L31` — error — parse catch rethrow — `field=orn`, `exception_class`
-- [ ] `src/Persistence/Client/Repositories/UserOrkProfileRepository.php:L26-L29` — debug — date parse fail → null — `field=ork_date`
-- [ ] `src/Persistence/Client/Repositories/UserOrkProfileRepository.php:L53-L63` — debug — park/kingdom `orElse(null)` — `user_id`
-- [ ] `src/Persistence/Client/Repositories/UserOrkProfileRepository.php:L93-L94` — debug — idempotent same mundane — `user_id`, `mundane_id`
-- [ ] `src/Persistence/Client/Repositories/UserOrkProfileRepository.php:L96-L98` — error — conflict throw — `user_id`, `existing_mundane_id`, `requested_mundane_id`
-- [ ] `src/Persistence/Client/Repositories/UserOrkProfileRepository.php:L124-L144` — error — PDO 23000 → conflict/idempotent — `user_id`, `mundane_id`, `sqlstate`
-- [ ] `src/Persistence/Server/Repositories/ClientRepository.php:L76-L77` — debug — unknown OAuth client — `client_id`
-- [ ] `src/Persistence/Server/Repositories/ClientRepository.php:L91-L91` — debug — `orElse(null)` client entity — `client_id`
-- [ ] `src/Persistence/Server/Repositories/ClientRepository.php:L100-L106` — warning — `validateClient` `orElse(false)` — `client_id`, `grant_type` (no secret)
-- [ ] `src/Persistence/Client/Repositories/UserLoginRepository.php:L36-L36` — debug — no local login — `user_id`
-- [ ] `src/Persistence/Client/Repositories/UserLoginRepository.php:L46-L48` — debug — `loginBelongsToUser` `orElse(false)` — `login_id`, `user_id`
-- [ ] `src/Persistence/Client/Repositories/UserLoginRepository.php:L62-L63` — debug — no default login id — `user_id`
-- [ ] `src/Persistence/Server/Repositories/UserLoginClientRepository.php:L33-L41` — debug — JWT metadata `orElse(null)` — `login_id`, `client_id`
-- [ ] `src/Persistence/Server/Repositories/UserLoginClientRepository.php:L49-L51` — debug — getMetadata miss — `login_id`, `client_id`
-- [ ] `src/Persistence/Server/Repositories/UserClientAuthorizationRepository.php:L36-L37` — debug — authorize idempotent — `user_identifier`, `client_id`
-- [ ] `src/Persistence/Server/Repositories/UserClientAuthorizationRepository.php:L40-L46` — info — new client authorization — `user_identifier`, `client_id`
-- [ ] `src/Persistence/Server/Repositories/UserClientAuthorizationRepository.php:L49-L55` — info — revoke — `user_identifier`, `client_id`
-- [ ] `src/Persistence/Server/Repositories/AccessTokenRepository.php:L58-L68` — info — persist access token — `client_id`, `user_identifier`, `exp` (no token id if treated as secret; use `token_id_prefix`)
-- [ ] `src/Persistence/Server/Repositories/AccessTokenRepository.php:L71-L76` — info — revoke — `token_id_prefix`
-- [ ] `src/Persistence/Server/Repositories/RefreshTokenRepository.php:L51-L66` — info — persist refresh — `token_id_prefix`
-- [ ] `src/Persistence/Server/Repositories/RefreshTokenRepository.php:L68-L80` — info — revoke refresh — `token_id_prefix`
-- [ ] `src/Persistence/Server/Repositories/AuthCodeRepository.php:L50-L65` — info — persist auth code — `client_id` (no `code`)
-- [ ] `src/Persistence/Server/Repositories/AuthCodeRepository.php:L67-L80` — info — revoke auth code — `code_id_prefix`
-- [ ] `src/Persistence/Server/Repositories/ScopeRepository.php:L30-L40` — debug — unknown scope `orElse(null)` — `scope`
-- [ ] `src/Models/AuthorizationJwtAssembler.php:L118-L120` — debug — skip pvh (empty aud) — `reason=missing_aud`
-- [ ] `src/Models/AuthorizationJwtAssembler.php:L152-L155` — debug — audience `orElseGet` session — `aud`
-- [ ] `src/Models/AuthorizationJwtAssembler.php:L160-L166` — debug — unknown audience client — `aud`
-- [ ] `src/Models/AuthorizationJwtAssembler.php:L168-L175` — error — ORN register fallback (exists) — `client_id`
-- [ ] `src/Models/AuthorizationJwtAssembler.php:L183-L185` — debug — login id fallback chain — `user_id`, `login_id`
-- [ ] `src/Models/AuthorizationJwtAssembler.php:L230-L237` — debug — metadata `orElse(null)` — `client_id`, `login_id`
-- [ ] `src/Models/AmtgardIdpJwt.php:L30-L51` — info — mint + Redis seed — `user_uuid`, `aud` (no jwt)
-- [ ] `src/Utility/UserAuthority.php:L25-L35` — error — non-admin fallback (exists); add `user_uuid` — `user_uuid`, `fallback=non_admin`
-- [ ] `src/Utility/IamServiceFormatParser.php:L17-L18` — debug — empty → default format — `reason=default_format`
-- [ ] `src/Utility/IamServiceFormatParser.php:L22-L29` — error — invalid format throw — `rule=iam_service_format`
-- [ ] `src/Utility/IamServiceFormatValidator.php:L11-L12` — debug — empty format — `reason=empty_format`
-- [ ] `src/Utility/ClientMetadata/ClientMetadataEncodingRegistry.php:L34-L35` — debug — bad encoding — `rule=encoding`
-- [ ] `src/Utility/ClientMetadata/JsonObjectMetadataEncodingStrategy.php:L18-L19` — debug — not object — `rule=json_object`
-- [ ] `src/Utility/ClientMetadata/Base64MetadataEncodingStrategy.php:L18-L32` — debug — base64/json throws — `rule`
-- [ ] `src/Utility/ClientMetadata/MetadataSizeGuard.php:L13-L16` — debug — size — `payload_len`, `max_bytes`
-- [ ] `src/Utility/Pvh.php:L54-L57` — debug — invalid policy hash hex — `rule=policy_hash_hex`
-- [ ] `src/Utility/Pvh.php:L107-L124` — debug — encode/assert throws — `rule`
-- [ ] `src/Utility/PvhCacheRecord.php:L67-L90` — warning — JSON/schema miss → null (treat as cache miss) — `reason=corrupt_pvh_record`
-- [ ] `src/Utility/OAuthKeyMaterial.php:L15-L32` — emergency — missing/unreadable key file — `env_key` (no path contents, no PEM)
+- [x] `src/Persistence/Common/Repositories/UserPolicy.php:L23-L30` — error — empty policy fallback (exists); add `user_id` — `user_id`, `fallback=empty_policy`
+- [x] `src/Persistence/Common/Repositories/UserPolicy.php:L36-L43` — error — encode fallback (exists) — `user_id`
+- [x] `src/Persistence/Common/Repositories/UserPolicyClaimReader.php:L69-L75` — error — empty policy (exists) — `user_id`
+- [x] `src/Persistence/Common/Repositories/UserPolicyClaimReader.php:L144-L151` — error — skip malformed claim (exists) — `user_id`, `orn`
+- [x] `src/Persistence/Common/Repositories/UserPolicyClaimWriter.php:L31-L32` — debug — idempotent add no-op — `user_id`, `service`
+- [x] `src/Persistence/Common/Repositories/UserPolicyClaimWriter.php:L65-L66` — error — `orElseThrow` missing `client_id` — `service`, `rule=client_required`
+- [x] `src/Persistence/Common/Repositories/UserPolicyClaimWriter.php:L113-L119` — error — claim cap — `user_id`, `client_id`, `claim_count`
+- [x] `src/Persistence/Common/Repositories/ClaimOrnValidator.php:L16-L21` — debug — required/length — `field`, `rule`
+- [x] `src/Persistence/Common/Repositories/ClaimOrnValidator.php:L28-L31` — error — parse catch rethrow — `field=orn`, `exception_class`
+- [x] `src/Persistence/Client/Repositories/UserOrkProfileRepository.php:L26-L29` — debug — date parse fail → null — `field=ork_date`
+- [x] `src/Persistence/Client/Repositories/UserOrkProfileRepository.php:L53-L63` — debug — park/kingdom `orElse(null)` — `user_id`
+- [x] `src/Persistence/Client/Repositories/UserOrkProfileRepository.php:L93-L94` — debug — idempotent same mundane — `user_id`, `mundane_id`
+- [x] `src/Persistence/Client/Repositories/UserOrkProfileRepository.php:L96-L98` — error — conflict throw — `user_id`, `existing_mundane_id`, `requested_mundane_id`
+- [x] `src/Persistence/Client/Repositories/UserOrkProfileRepository.php:L124-L144` — error — PDO 23000 → conflict/idempotent — `user_id`, `mundane_id`, `sqlstate`
+- [x] `src/Persistence/Server/Repositories/ClientRepository.php:L76-L77` — debug — unknown OAuth client — `client_id`
+- [x] `src/Persistence/Server/Repositories/ClientRepository.php:L91-L91` — debug — `orElse(null)` client entity — `client_id`
+- [x] `src/Persistence/Server/Repositories/ClientRepository.php:L100-L106` — warning — `validateClient` `orElse(false)` — `client_id`, `grant_type` (no secret)
+- [x] `src/Persistence/Client/Repositories/UserLoginRepository.php:L36-L36` — debug — no local login — `user_id`
+- [x] `src/Persistence/Client/Repositories/UserLoginRepository.php:L46-L48` — debug — `loginBelongsToUser` `orElse(false)` — `login_id`, `user_id`
+- [x] `src/Persistence/Client/Repositories/UserLoginRepository.php:L62-L63` — debug — no default login id — `user_id`
+- [x] `src/Persistence/Server/Repositories/UserLoginClientRepository.php:L33-L41` — debug — JWT metadata `orElse(null)` — `login_id`, `client_id`
+- [x] `src/Persistence/Server/Repositories/UserLoginClientRepository.php:L49-L51` — debug — getMetadata miss — `login_id`, `client_id`
+- [x] `src/Persistence/Server/Repositories/UserClientAuthorizationRepository.php:L36-L37` — debug — authorize idempotent — `user_identifier`, `client_id`
+- [x] `src/Persistence/Server/Repositories/UserClientAuthorizationRepository.php:L40-L46` — info — new client authorization — `user_identifier`, `client_id`
+- [x] `src/Persistence/Server/Repositories/UserClientAuthorizationRepository.php:L49-L55` — info — revoke — `user_identifier`, `client_id`
+- [x] `src/Persistence/Server/Repositories/AccessTokenRepository.php:L58-L68` — info — persist access token — `client_id`, `user_identifier`, `exp` (no token id if treated as secret; use `token_id_prefix`)
+- [x] `src/Persistence/Server/Repositories/AccessTokenRepository.php:L71-L76` — info — revoke — `token_id_prefix`
+- [x] `src/Persistence/Server/Repositories/RefreshTokenRepository.php:L51-L66` — info — persist refresh — `token_id_prefix`
+- [x] `src/Persistence/Server/Repositories/RefreshTokenRepository.php:L68-L80` — info — revoke refresh — `token_id_prefix`
+- [x] `src/Persistence/Server/Repositories/AuthCodeRepository.php:L50-L65` — info — persist auth code — `client_id` (no `code`)
+- [x] `src/Persistence/Server/Repositories/AuthCodeRepository.php:L67-L80` — info — revoke auth code — `code_id_prefix`
+- [x] `src/Persistence/Server/Repositories/ScopeRepository.php:L30-L40` — debug — unknown scope `orElse(null)` — `scope`
+- [x] `src/Models/AuthorizationJwtAssembler.php:L118-L120` — debug — skip pvh (empty aud) — `reason=missing_aud`
+- [x] `src/Models/AuthorizationJwtAssembler.php:L152-L155` — debug — audience `orElseGet` session — `aud`
+- [x] `src/Models/AuthorizationJwtAssembler.php:L160-L166` — debug — unknown audience client — `aud`
+- [x] `src/Models/AuthorizationJwtAssembler.php:L168-L175` — error — ORN register fallback (exists) — `client_id`
+- [x] `src/Models/AuthorizationJwtAssembler.php:L183-L185` — debug — login id fallback chain — `user_id`, `login_id`
+- [x] `src/Models/AuthorizationJwtAssembler.php:L230-L237` — debug — metadata `orElse(null)` — `client_id`, `login_id`
+- [x] `src/Models/AmtgardIdpJwt.php:L30-L51` — info — mint + Redis seed — `user_uuid`, `aud` (no jwt)
+- [x] `src/Utility/UserAuthority.php:L25-L35` — error — non-admin fallback (exists); add `user_uuid` — `user_uuid`, `fallback=non_admin`
+- [x] `src/Utility/IamServiceFormatParser.php:L17-L18` — debug — empty → default format — `reason=default_format`
+- [x] `src/Utility/IamServiceFormatParser.php:L22-L29` — error — invalid format throw — `rule=iam_service_format`
+- [x] `src/Utility/IamServiceFormatValidator.php:L11-L12` — debug — empty format — `reason=empty_format`
+- [x] `src/Utility/ClientMetadata/ClientMetadataEncodingRegistry.php:L34-L35` — debug — bad encoding — `rule=encoding`
+- [x] `src/Utility/ClientMetadata/JsonObjectMetadataEncodingStrategy.php:L18-L19` — debug — not object — `rule=json_object`
+- [x] `src/Utility/ClientMetadata/Base64MetadataEncodingStrategy.php:L18-L32` — debug — base64/json throws — `rule`
+- [x] `src/Utility/ClientMetadata/MetadataSizeGuard.php:L13-L16` — debug — size — `payload_len`, `max_bytes`
+- [x] `src/Utility/Pvh.php:L54-L57` — debug — invalid policy hash hex — `rule=policy_hash_hex`
+- [x] `src/Utility/Pvh.php:L107-L124` — debug — encode/assert throws — `rule`
+- [x] `src/Utility/PvhCacheRecord.php:L67-L90` — warning — JSON/schema miss → null (treat as cache miss) — `reason=corrupt_pvh_record`
+- [x] `src/Utility/OAuthKeyMaterial.php:L15-L32` — emergency — missing/unreadable key file — `env_key` (no path contents, no PEM)
 
 **M8 count: 51**
 

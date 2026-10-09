@@ -11,15 +11,15 @@ use Amtgard\IAM\Allowance\Policy;
 use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IAM\ClaimFactory;
 use Amtgard\IdP\Utility\BuiltInOrkPolicyServices;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
-use Psr\Log\LoggerInterface;
 use Throwable;
 
 final class UserPolicyClaimReader
 {
     public function __construct(
         private EntityMapper $userClaims,
-        private LoggerInterface $logger,
+        private IdpLogging $idpLogging,
     ) {
     }
 
@@ -67,8 +67,9 @@ final class UserPolicyClaimReader
 
             return new Policy($policyClaims);
         } catch (Throwable $e) {
-            $this->logger->error('Failed to load user policy claims; using empty policy', [
+            $this->idpLogging->app()->error('user policy claims empty fallback', [
                 'user_id' => $userDbId,
+                'fallback' => 'empty_policy',
                 'detail' => $e->getMessage(),
             ]);
 
@@ -142,7 +143,7 @@ final class UserPolicyClaimReader
 
             return ClaimFactory::createOrn($orn);
         } catch (Throwable $e) {
-            $this->logger->error('Skipping malformed user policy claim', [
+            $this->idpLogging->app()->error('user policy claim skipped malformed', [
                 'user_id' => $userDbId,
                 'orn' => $orn,
                 'detail' => $e->getMessage(),
