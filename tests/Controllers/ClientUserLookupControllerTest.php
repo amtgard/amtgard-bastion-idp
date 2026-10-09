@@ -17,6 +17,7 @@ use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -171,10 +172,13 @@ final class ClientUserLookupControllerTest extends TestCase
 
     private function controller(UserRepository $users, LoggerInterface $logger): ClientUserLookupController
     {
+        $idpLogging = IdpLoggingTestFactory::create();
+
         return new ClientUserLookupController(
             $logger,
             new ClientIamRequestInterpreter(
                 new ClientResourcesRequestResolver($users, $this->createStub(UserLoginRepository::class)),
+                $idpLogging,
             ),
         );
     }

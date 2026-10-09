@@ -22,6 +22,7 @@ use Amtgard\IdP\Services\Ork\OrkClaimSendNonceService;
 use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Services\OrkService;
 use Amtgard\IdP\Services\ResourcesUserinfoService;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 use Amtgard\IdP\Utility\UserAuthority;
@@ -58,10 +59,12 @@ class ResourcesController
     private OrkLinkTokenService $orkLinkTokenService;
     private IdpEmailMigrationService $emailMigration;
     private OrkClaimSendNonceService $orkClaimSendNonces;
+    private IdpLogging $idpLogging;
 
 
     public function __construct(
         LoggerInterface $logger,
+        IdpLogging $idpLogging,
         TwigEnvironment $twig,
         ClientRepositoryInterface $clientRepository,
         PubSubQueue $redisPubSubQueue,
@@ -83,6 +86,7 @@ class ResourcesController
         OrkClaimSendNonceService $orkClaimSendNonces,
     ) {
         $this->logger = $logger;
+        $this->idpLogging = $idpLogging;
         $this->twig = $twig;
         $this->clientRepository = $clientRepository;
         $this->database = $database;
@@ -133,10 +137,19 @@ class ResourcesController
     {
         $user = $this->currentUserResolver->resolve();
         if (!$user) {
+            $this->idpLogging->app()->error('resources request unauthorized', [
+                'route' => 'resources.jwt',
+            ]);
+
             return $response->withStatus(401);
         }
 
         $tokens = $this->amtgardIdpJwt->buildAuthorizationTokens($user);
+
+        $this->idpLogging->app()->info('resources jwt reminted', [
+            'user_uuid' => $user->getUserId(),
+            'aud' => $this->audienceFromMintedJwt($tokens['jwt']),
+        ]);
 
         $response->getBody()->write(json_encode($tokens));
         return $response->withHeader('Content-Type', 'application/json');
@@ -197,10 +210,20 @@ class ResourcesController
     {
         $user = $this->currentUserResolver->resolve();
         if (!$user) {
+            $this->idpLogging->app()->error('resources request unauthorized', [
+                'route' => 'resources.userinfo',
+            ]);
+
             return $response->withStatus(401);
         }
 
-        $response->getBody()->write(json_encode($this->userinfoService->buildPayload($user)));
+        $payload = $this->userinfoService->buildPayload($user);
+        $this->idpLogging->app()->info('resources userinfo served', [
+            'user_uuid' => $user->getUserId(),
+            'has_ork_profile' => array_key_exists('ork_profile', $payload),
+        ]);
+
+        $response->getBody()->write(json_encode($payload));
         return $response->withHeader('Content-Type', 'application/json');
     }
 
@@ -235,6 +258,10 @@ class ResourcesController
     {
         $user = $this->currentUserResolver->resolve();
         if (!$user) {
+            $this->idpLogging->app()->error('resources request unauthorized', [
+                'route' => 'resources.authorizations',
+            ]);
+
             return $response->withStatus(401);
         }
 
@@ -332,6 +359,10 @@ class ResourcesController
 
         $user = $this->currentUserResolver->resolve();
         if (!$user) {
+            $this->idpLogging->app()->notice('link ork redirect unauthenticated', [
+                'route' => 'linkOrk',
+            ]);
+
             return $response->withHeader('Location', '/auth/login')->withStatus(302);
         }
 
@@ -345,7 +376,12 @@ class ResourcesController
 
         $authData = $this->orkService->authorize($username, $password);
         if (!$authData) {
-            $this->logger->warning('LinkORK: Authorization failed', ['username' => $username]);
+            $context = ['route' => 'linkOrk'];
+            if (str_contains($username, '@')) {
+                $context['email_sha256'] = hash('sha256', strtolower($username));
+            }
+            $this->idpLogging->app()->error('link ork authorization failed', $context);
+
             return $response->withHeader('Location', '/resources/profile?error=ork_auth_failed')->withStatus(302);
         }
 
@@ -355,6 +391,11 @@ class ResourcesController
         $playerData = $this->orkService->getPlayer($token, $mundaneId);
 
         if (!$playerData) {
+            $this->idpLogging->app()->error('link ork player fetch failed', [
+                'mundane_id' => $mundaneId,
+                'user_uuid' => $user->getUserId(),
+            ]);
+
             return $response->withHeader('Location', '/resources/profile?error=ork_player_failed')->withStatus(302);
         }
 
@@ -922,11 +963,20 @@ class ResourcesController
     {
         $user = $this->currentUserResolver->resolve();
         if (!$user) {
+            $this->idpLogging->app()->notice('refresh ork redirect unauthenticated', [
+                'route' => 'refreshOrk',
+            ]);
+
             return $response->withHeader('Location', '/auth/login')->withStatus(302);
         }
 
         $existing = $this->orkProfileRepository->findByUserId($user->getId());
         if (!$existing) {
+            $this->idpLogging->app()->error('refresh ork rejected', [
+                'user_uuid' => $user->getUserId(),
+                'reason' => 'no_profile',
+            ]);
+
             return $response->withHeader('Location', '/resources/profile?error=no_profile')->withStatus(302);
         }
 
@@ -1034,6 +1084,9 @@ class ResourcesController
         $completeBody = Optional::ofNullable($idpUserId)
             ->filter(fn () => Optional::ofNullable($mundaneId)->isPresent());
         if (!$completeBody->isPresent()) {
+            $this->idpLogging->app()->error('link ork profile rejected', [
+                'reason' => 'invalid_body',
+            ]);
             $response->getBody()->write(json_encode(['error' => 'idp_user_id (string) and mundane_id (positive int) are required']));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
@@ -1052,7 +1105,9 @@ class ResourcesController
 
         $userOpt = Optional::ofNullable($this->userRepository->findUserByUserId($idpUserId));
         if (!$userOpt->isPresent()) {
-            $this->logger->info('linkOrkProfile unknown idp_user_id', ['idp_user_id' => $idpUserId]);
+            $this->idpLogging->app()->error('link ork profile unknown user', [
+                'idp_user_id' => $idpUserId,
+            ]);
             $response->getBody()->write(json_encode(['error' => 'unknown idp_user_id']));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
         }
@@ -1062,10 +1117,9 @@ class ResourcesController
             $this->orkProfileRepository->linkExistingUserToMundane($user->getId(), $mundaneId, 'mirror');
         } catch (\RuntimeException $e) {
             if (str_contains($e->getMessage(), 'conflict')) {
-                $this->logger->warning('linkOrkProfile conflict', [
+                $this->idpLogging->app()->error('link ork profile conflict', [
                     'idp_user_id' => $idpUserId,
-                    'requested_mundane_id' => $mundaneId,
-                    'msg' => $e->getMessage(),
+                    'mundane_id' => $mundaneId,
                 ]);
                 $message = str_contains($e->getMessage(), 'different IDP user')
                     ? 'That ORK profile is already linked to a different Amtgard account.'
@@ -1073,6 +1127,9 @@ class ResourcesController
                 $response->getBody()->write(json_encode(['error' => $message]));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(409);
             }
+            $this->idpLogging->app()->critical('link ork profile unexpected failure', [
+                'exception_class' => $e::class,
+            ]);
             throw $e;
         }
 
@@ -1147,6 +1204,10 @@ class ResourcesController
         /** @var UserEntity $user */
         $user = $this->currentUserResolver->resolve();
         if (!$user) {
+            $this->idpLogging->app()->notice('revoke authorization redirect unauthenticated', [
+                'route' => 'revokeAuthorization',
+            ]);
+
             return $response->withHeader('Location', '/auth/login')->withStatus(302);
         }
 
@@ -1154,11 +1215,20 @@ class ResourcesController
         $clientId = $this->resolveRevokeClientDbId($params['client_id'] ?? null);
 
         if ($clientId <= 0) {
+            $this->idpLogging->app()->error('revoke authorization rejected', [
+                'reason' => 'invalid_client',
+            ]);
+
             return $response->withHeader('Location', '/resources/profile?error=invalid_client')->withStatus(302);
         }
 
         // We use the email/username as the identifier for authorization
         $this->userClientAuthorizationRepository->revokeAuthorization($user->getUserId(), $clientId);
+
+        $this->idpLogging->app()->info('authorization revoked', [
+            'user_uuid' => $user->getUserId(),
+            'client_db_id' => $clientId,
+        ]);
 
         // Also revoke access tokens for this client/user combo if needed, 
         // but for now removing the authorization record prevents future token issuance.
@@ -1186,6 +1256,23 @@ class ResourcesController
         }
 
         return (int) $client->getClientEntity()->getId();
+    }
+
+    private function audienceFromMintedJwt(string $jwt): mixed
+    {
+        $parts = explode('.', $jwt);
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $payloadJson = base64_decode(strtr($parts[1], '-_', '+/'), true);
+        if ($payloadJson === false) {
+            return null;
+        }
+
+        $payload = json_decode($payloadJson, true);
+
+        return is_array($payload) ? ($payload['aud'] ?? null) : null;
     }
 
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Controllers;
 
 use Amtgard\IdP\Controllers\Api\ApiController;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -34,7 +35,7 @@ class ApiControllerTest extends TestCase
             ->method('write')
             ->with(json_encode(['is_authorized' => false]));
 
-        $controller = new ApiController();
+        $controller = new ApiController(IdpLoggingTestFactory::create());
         $result = $controller->isAuthorized($request, $response);
 
         $this->assertSame($response, $result);

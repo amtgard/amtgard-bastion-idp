@@ -164,6 +164,7 @@ class ResourcesControllerTest extends TestCase
 
         $this->controller = new ResourcesController(
             $this->logger,
+            \Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create(),
             $this->twig,
             $this->clientRepository,
             $this->redisPubSubQueue,
@@ -1135,6 +1136,7 @@ class ResourcesControllerTest extends TestCase
         $this->mailboxChallenges->expects($this->once())->method('consume');
         $this->controller = new ResourcesController(
             $this->logger,
+            \Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create(),
             $this->twig,
             $this->clientRepository,
             $this->redisPubSubQueue,
@@ -1171,6 +1173,7 @@ class ResourcesControllerTest extends TestCase
         $this->mailboxChallenges->method('findById')->willReturn($row);
         $this->controller = new ResourcesController(
             $this->logger,
+            \Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create(),
             $this->twig,
             $this->clientRepository,
             $this->redisPubSubQueue,

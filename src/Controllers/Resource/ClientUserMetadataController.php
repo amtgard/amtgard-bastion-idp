@@ -6,6 +6,7 @@ namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\IdP\Services\ClientIamMetadataService;
 use Amtgard\IdP\Utility\JsonResponseBody;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use OpenApi\Attributes as OA;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -19,6 +20,7 @@ final class ClientUserMetadataController
     public function __construct(
         private ClientIamRequestInterpreter $requests,
         private ClientIamMetadataService $iamMetadataService,
+        private IdpLogging $idpLogging,
     ) {}
 
     #[OA\Put(
@@ -63,6 +65,12 @@ final class ClientUserMetadataController
                 isset($body['encoding']) ? (string) $body['encoding'] : null,
             );
         } catch (\InvalidArgumentException|\JsonException $e) {
+            $this->idpLogging->audit()->error('client iam metadata rejected', [
+                'client_id' => $client->getIdentifier(),
+                'login_id' => $context['loginId'],
+                'error_code' => 'invalid_metadata',
+            ]);
+
             return JsonResponseBody::writeError($response, $e->getMessage(), 400);
         }
 
@@ -100,7 +108,15 @@ final class ClientUserMetadataController
 
         return Optional::ofNullable($stored)
             ->map(fn (array $metadataRow) => JsonResponseBody::write($response, $metadataRow, 200))
-            ->orElseGet(fn () => JsonResponseBody::writeError($response, 'metadata not found', 404));
+            ->orElseGet(function () use ($client, $context, $response): Response {
+                $this->idpLogging->audit()->error('client iam metadata not found', [
+                    'client_id' => $client->getIdentifier(),
+                    'login_id' => $context['loginId'],
+                    'idp_user_id' => $context['user']->getUserId(),
+                ]);
+
+                return JsonResponseBody::writeError($response, 'metadata not found', 404);
+            });
     }
 
     #[OA\Delete(

@@ -107,6 +107,7 @@ return array_merge(
         CurrentUserResolverInterface::class => function (ContainerInterface $container) {
             return CurrentUserResolver::builder()
                 ->userRepository($container->get(UserRepository::class))
+                ->idpLogging($container->get(IdpLogging::class))
                 ->build();
         },
 

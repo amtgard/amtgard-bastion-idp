@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Controllers;
 
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use OpenApi\Generator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -10,11 +11,10 @@ use Twig\Environment as TwigEnvironment;
 
 class SwaggerController
 {
-    private TwigEnvironment $twig;
-
-    public function __construct(TwigEnvironment $twig)
-    {
-        $this->twig = $twig;
+    public function __construct(
+        private TwigEnvironment $twig,
+        private IdpLogging $idpLogging,
+    ) {
     }
 
     public function documentation(Request $request, Response $response): Response
@@ -44,6 +44,9 @@ class SwaggerController
     {
         $filePath = dirname(__DIR__, 2) . '/templates/api.md';
         if (!file_exists($filePath)) {
+            $this->idpLogging->app()->notice('docsify content missing', [
+                'path' => $filePath,
+            ]);
             $response->getBody()->write("Documentation not found.");
             return $response->withStatus(404)->withHeader('Content-Type', 'text/plain');
         }

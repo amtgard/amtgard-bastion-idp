@@ -9,6 +9,7 @@ use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use Amtgard\IdP\Utility\JsonResponseBody;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -25,6 +26,7 @@ final class ClientIamRequestInterpreter
 
     public function __construct(
         private ClientResourcesRequestResolver $users,
+        private IdpLogging $idpLogging,
     ) {}
 
     public function client(Request $request): Client
@@ -46,11 +48,23 @@ final class ClientIamRequestInterpreter
         // lookup is reserved for a well-formed public id so a miss stays 404.
         $publicId = is_string($idpUserId) ? trim($idpUserId) : '';
         if ($publicId === '') {
+            $this->idpLogging->audit()->error('client iam request rejected', [
+                'idp_user_id' => $publicId,
+                'http_status' => 400,
+            ]);
+
             return JsonResponseBody::writeError($response, self::ERROR_IDP_USER_ID_REQUIRED, 400);
         }
 
         return $this->users->findUserByPublicId($publicId)
-            ->orElseGet(fn () => JsonResponseBody::writeError($response, self::ERROR_UNKNOWN_IDP_USER_ID, 404));
+            ->orElseGet(function () use ($response, $publicId): Response {
+                $this->idpLogging->audit()->error('client iam request rejected', [
+                    'idp_user_id' => $publicId,
+                    'http_status' => 404,
+                ]);
+
+                return JsonResponseBody::writeError($response, self::ERROR_UNKNOWN_IDP_USER_ID, 404);
+            });
     }
 
     /**
@@ -89,11 +103,23 @@ final class ClientIamRequestInterpreter
     private function requireLoginForUser(mixed $loginId, UserEntity $user, Response $response): array|Response
     {
         if (!is_numeric($loginId) || (int) $loginId <= 0) {
+            $this->idpLogging->audit()->error('client iam request rejected', [
+                'login_id' => $loginId,
+                'http_status' => 400,
+            ]);
+
             return JsonResponseBody::writeError($response, self::ERROR_LOGIN_ID_REQUIRED, 400);
         }
 
         return $this->users->findLoginIdForUser((int) $loginId, $user->getId())
             ->map(fn (int $resolvedLoginId) => ['user' => $user, 'loginId' => $resolvedLoginId])
-            ->orElseGet(fn () => JsonResponseBody::writeError($response, self::ERROR_UNKNOWN_LOGIN_ID, 404));
+            ->orElseGet(function () use ($response, $loginId): Response {
+                $this->idpLogging->audit()->error('client iam request rejected', [
+                    'login_id' => $loginId,
+                    'http_status' => 404,
+                ]);
+
+                return JsonResponseBody::writeError($response, self::ERROR_UNKNOWN_LOGIN_ID, 404);
+            });
     }
 }

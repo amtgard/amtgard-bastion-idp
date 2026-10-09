@@ -14,6 +14,7 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Services\ClientIamMetadataService;
 use Amtgard\IdP\Services\ClientIamPolicyService;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
 use DI\Bridge\Slim\Bridge;
 use DI\Container;
@@ -39,12 +40,14 @@ final class ClientIamRouteInvocationTest extends TestCase
         $policy->expects($this->once())->method('listClaims')->with($this->isInstanceOf(Client::class), $user)->willReturn([]);
 
         $container = $this->container($this->createStub(Client::class));
+        $idpLogging = IdpLoggingTestFactory::create();
         $container->set(ClientPolicyClaimsController::class, new ClientPolicyClaimsController(
             new NullLogger(),
+            $idpLogging,
             new ClientIamRequestInterpreter(new ClientResourcesRequestResolver(
                 $users,
                 $this->createStub(UserLoginRepository::class),
-            )),
+            ), $idpLogging),
             $policy,
         ));
 
@@ -66,12 +69,14 @@ final class ClientIamRouteInvocationTest extends TestCase
         $users->method('findUserByUserId')->willReturn($user);
 
         $container = $this->container($this->createStub(Client::class));
+        $idpLogging = IdpLoggingTestFactory::create();
         $container->set(ClientUserMetadataController::class, new ClientUserMetadataController(
             new ClientIamRequestInterpreter(new ClientResourcesRequestResolver(
                 $users,
                 $this->createStub(UserLoginRepository::class),
-            )),
+            ), $idpLogging),
             $this->createStub(ClientIamMetadataService::class),
+            $idpLogging,
         ));
 
         $response = $this->app($container)->handle(

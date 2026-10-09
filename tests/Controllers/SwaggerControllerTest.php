@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Controllers;
 
 use Amtgard\IdP\Controllers\SwaggerController;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -29,7 +30,7 @@ class SwaggerControllerTest extends TestCase
         $this->response->method('withHeader')->willReturnSelf();
         $this->response->method('withStatus')->willReturnSelf();
 
-        $this->controller = new SwaggerController($this->twig);
+        $this->controller = new SwaggerController($this->twig, IdpLoggingTestFactory::create());
     }
 
     public function testDocumentation(): void

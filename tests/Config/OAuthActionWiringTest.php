@@ -78,6 +78,7 @@ class OAuthActionWiringTest extends TestCase
         $repository = $this->createStub(UserOrkProfileRepository::class);
         $container = $this->containerReturning([
             UserOrkProfileRepository::class => $repository,
+            \Amtgard\IdP\Utility\Log\IdpLogging::class => \Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create(),
         ]);
 
         $definitions = require __DIR__ . '/../../config/container.php';

@@ -329,44 +329,44 @@ Carry `request_id` on `PvhQueueMessage` when enqueued from HTTP (design § Worke
 
 ## M7 — Phase 2 rollout: resource APIs, jsonError, 4xx/409
 
-- [ ] `src/Utility/Security/CurrentUserResolver.php:L23-L24` — debug — no session `user_id` — `reason=no_session_user`
-- [ ] `src/Utility/Security/CurrentUserResolver.php:L30-L32` — warning — session id not found in DB — `session_user_id`, `reason=user_missing`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L111-L113` — error — `GET /resources/jwt` 401 — `route=resources.jwt`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L116-L119` — info — JWT remint 200 — `user_uuid`, `aud` (no jwt)
-- [ ] `src/Controllers/Resource/ResourcesController.php:L175-L177` — error — `GET /resources/userinfo` 401 — `route=resources.userinfo`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L180-L181` — info — userinfo 200 — `user_uuid`, `has_ork_profile`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L214-L215` — error — authorizations 401 — `route=resources.authorizations`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L275-L277` — notice — link ORK unauthenticated 302 — `route=linkOrk`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L281-L283` — error — ORK auth fail (exists warning) — `username` → `email_sha256` or drop
-- [ ] `src/Controllers/Resource/ResourcesController.php:L291-L292` — error — player fetch fail, **no log** — `mundane_id`, `user_uuid`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L312-L313` — notice — refresh ORK unauthenticated 302
-- [ ] `src/Controllers/Resource/ResourcesController.php:L317-L318` — error — no ORK profile — `user_uuid`, `reason=no_profile`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L416-L418` — error — linkOrkProfile 400, **no log** — `reason=invalid_body`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L421-L425` — error — 404 unknown user (today info) — `idp_user_id`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L431-L439` — error — 409 conflict (exists warning) — `idp_user_id`, `mundane_id`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L441-L441` — critical — unexpected RuntimeException rethrow — `exception_class`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L452-L453` — notice — revoke unauthenticated 302
-- [ ] `src/Controllers/Resource/ResourcesController.php:L459-L460` — error — invalid `client_id` — `reason=invalid_client`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L464-L470` — info — authorization revoked — `user_uuid`, `client_db_id`
-- [ ] `src/Services/ResourcesUserinfoService.php:L22-L34` — debug — payload built — `user_uuid`, `has_ork_profile`
-- [ ] `src/Controllers/Resource/ClientResourcesController.php:L73-L74` — error — add claim 400 `jsonError`, **no log** — `client_id`, `error_code=invalid_claim`
-- [ ] `src/Controllers/Resource/ClientResourcesController.php:L77-L80` — info — exists — `client_id`, `idp_user_id`
-- [ ] `src/Controllers/Resource/ClientResourcesController.php:L124-L125` — error — delete claim 400 — `client_id`, `error_code=invalid_claim`
-- [ ] `src/Controllers/Resource/ClientResourcesController.php:L201-L202` — error — metadata upsert 400 — `client_id`, `login_id`, `error_code=invalid_metadata`
-- [ ] `src/Controllers/Resource/ClientResourcesController.php:L237-L239` — error — metadata 404 `orElseGet` — `client_id`, `login_id`, `idp_user_id`
-- [ ] `src/Controllers/Resource/ClientResourcesController.php:L321-L322` — error — service format 409 — `client_id`, `error_code=format_exists`
-- [ ] `src/Controllers/Resource/ClientResourcesController.php:L371-L376` — error — `orElseGet` user 400/404 — `idp_user_id`, `http_status`
-- [ ] `src/Controllers/Resource/ClientResourcesController.php:L417-L422` — error — `orElseGet` login 400/404 — `login_id`, `http_status`
-- [ ] `src/Controllers/Resource/ClientResourcesController.php:L436-L438` — error — `jsonError` helper (if not logged at caller) — `http_status`, `error`
-- [ ] `src/Controllers/Resource/ClientResourcesController.php:L448-L449` — error — service format 400 — `client_id`
-- [ ] `src/Controllers/Resource/ClientResourcesController.php:L460-L469` — debug — validation throw before 400 — `field=service_format`, `rule`
-- [ ] `src/Services/ClientIamPolicyService.php:L21-L35` — info — add claim — `client_id`, `user_uuid`, `resource` (no full ORN if long)
-- [ ] `src/Services/ClientIamPolicyService.php:L38-L50` — info — delete claim — `client_id`, `user_uuid`
-- [ ] `src/Services/ClientIamMetadataService.php:L23-L37` — info — metadata upsert — `client_id`, `login_id`, `encoding`, `payload_len`
-- [ ] `src/Services/ClientIamMetadataService.php:L43-L47` — debug — metadata miss — `client_id`, `login_id`
-- [ ] `src/Services/ClientIamMetadataService.php:L57-L59` — info — metadata delete — `client_id`, `login_id`
-- [ ] `src/Controllers/Api/ApiController.php:L16-L28` — debug — `isAuthorized` result — `is_authorized` (no policy JSON / requirement string if sensitive)
-- [ ] `src/Controllers/SwaggerController.php:L45-L47` — notice — docs 404 — `path`
+- [x] `src/Utility/Security/CurrentUserResolver.php:L23-L24` — debug — no session `user_id` — `reason=no_session_user`
+- [x] `src/Utility/Security/CurrentUserResolver.php:L30-L32` — warning — session id not found in DB — `session_user_id`, `reason=user_missing`
+- [x] `src/Controllers/Resource/ResourcesController.php:L111-L113` — error — `GET /resources/jwt` 401 — `route=resources.jwt`
+- [x] `src/Controllers/Resource/ResourcesController.php:L116-L119` — info — JWT remint 200 — `user_uuid`, `aud` (no jwt)
+- [x] `src/Controllers/Resource/ResourcesController.php:L175-L177` — error — `GET /resources/userinfo` 401 — `route=resources.userinfo`
+- [x] `src/Controllers/Resource/ResourcesController.php:L180-L181` — info — userinfo 200 — `user_uuid`, `has_ork_profile`
+- [x] `src/Controllers/Resource/ResourcesController.php:L214-L215` — error — authorizations 401 — `route=resources.authorizations`
+- [x] `src/Controllers/Resource/ResourcesController.php:L275-L277` — notice — link ORK unauthenticated 302 — `route=linkOrk`
+- [x] `src/Controllers/Resource/ResourcesController.php:L281-L283` — error — ORK auth fail (exists warning) — `username` → `email_sha256` or drop
+- [x] `src/Controllers/Resource/ResourcesController.php:L291-L292` — error — player fetch fail, **no log** — `mundane_id`, `user_uuid`
+- [x] `src/Controllers/Resource/ResourcesController.php:L312-L313` — notice — refresh ORK unauthenticated 302
+- [x] `src/Controllers/Resource/ResourcesController.php:L317-L318` — error — no ORK profile — `user_uuid`, `reason=no_profile`
+- [x] `src/Controllers/Resource/ResourcesController.php:L416-L418` — error — linkOrkProfile 400, **no log** — `reason=invalid_body`
+- [x] `src/Controllers/Resource/ResourcesController.php:L421-L425` — error — 404 unknown user (today info) — `idp_user_id`
+- [x] `src/Controllers/Resource/ResourcesController.php:L431-L439` — error — 409 conflict (exists warning) — `idp_user_id`, `mundane_id`
+- [x] `src/Controllers/Resource/ResourcesController.php:L441-L441` — critical — unexpected RuntimeException rethrow — `exception_class`
+- [x] `src/Controllers/Resource/ResourcesController.php:L452-L453` — notice — revoke unauthenticated 302
+- [x] `src/Controllers/Resource/ResourcesController.php:L459-L460` — error — invalid `client_id` — `reason=invalid_client`
+- [x] `src/Controllers/Resource/ResourcesController.php:L464-L470` — info — authorization revoked — `user_uuid`, `client_db_id`
+- [x] `src/Services/ResourcesUserinfoService.php:L22-L34` — debug — payload built — `user_uuid`, `has_ork_profile`
+- [x] `src/Controllers/Resource/ClientResourcesController.php:L73-L74` — error — add claim 400 `jsonError`, **no log** — `client_id`, `error_code=invalid_claim`
+- [x] `src/Controllers/Resource/ClientResourcesController.php:L77-L80` — info — exists — `client_id`, `idp_user_id`
+- [x] `src/Controllers/Resource/ClientResourcesController.php:L124-L125` — error — delete claim 400 — `client_id`, `error_code=invalid_claim`
+- [x] `src/Controllers/Resource/ClientResourcesController.php:L201-L202` — error — metadata upsert 400 — `client_id`, `login_id`, `error_code=invalid_metadata`
+- [x] `src/Controllers/Resource/ClientResourcesController.php:L237-L239` — error — metadata 404 `orElseGet` — `client_id`, `login_id`, `idp_user_id`
+- [x] `src/Controllers/Resource/ClientResourcesController.php:L321-L322` — error — service format 409 — `client_id`, `error_code=format_exists`
+- [x] `src/Controllers/Resource/ClientResourcesController.php:L371-L376` — error — `orElseGet` user 400/404 — `idp_user_id`, `http_status`
+- [x] `src/Controllers/Resource/ClientResourcesController.php:L417-L422` — error — `orElseGet` login 400/404 — `login_id`, `http_status`
+- [x] `src/Controllers/Resource/ClientResourcesController.php:L436-L438` — error — `jsonError` helper (if not logged at caller) — `http_status`, `error`
+- [x] `src/Controllers/Resource/ClientResourcesController.php:L448-L449` — error — service format 400 — `client_id`
+- [x] `src/Controllers/Resource/ClientResourcesController.php:L460-L469` — debug — validation throw before 400 — `field=service_format`, `rule`
+- [x] `src/Services/ClientIamPolicyService.php:L21-L35` — info — add claim — `client_id`, `user_uuid`, `resource` (no full ORN if long)
+- [x] `src/Services/ClientIamPolicyService.php:L38-L50` — info — delete claim — `client_id`, `user_uuid`
+- [x] `src/Services/ClientIamMetadataService.php:L23-L37` — info — metadata upsert — `client_id`, `login_id`, `encoding`, `payload_len`
+- [x] `src/Services/ClientIamMetadataService.php:L43-L47` — debug — metadata miss — `client_id`, `login_id`
+- [x] `src/Services/ClientIamMetadataService.php:L57-L59` — info — metadata delete — `client_id`, `login_id`
+- [x] `src/Controllers/Api/ApiController.php:L16-L28` — debug — `isAuthorized` result — `is_authorized` (no policy JSON / requirement string if sensitive)
+- [x] `src/Controllers/SwaggerController.php:L45-L47` — notice — docs 404 — `path`
 
 **M7 count: 38**
 

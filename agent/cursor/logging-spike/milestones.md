@@ -75,3 +75,11 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - M6 checklist: `AuthController`, `RegistrationService`, `BaseAuthController`, OAuth callback validator/handler, Google/Discord/Facebook/Apple auth, `ConnectController`, `OrkLinkTokenService` via `IdpLogging` (`security()` / `oauth()`); emails as `email_sha256`.
 - Log-tested: `M6ClientIdentityLoggingTest` (local login, registration service, OAuth validator/handler, Google redirect, connect missing token).
 - Gates: `composer test` (995 tests); `composer mutate` (covered MSI 89%); `./scripts/integ.sh` (85/87; logging integ green).
+- Commit: `0d182b7`
+
+## L10 — M7 resource APIs, jsonError, 4xx/409
+
+- Branch: `stack/idp-log-l10-m7-resource-apis`
+- M7 checklist: `CurrentUserResolver`, `ResourcesController` resource/ORK/profile paths, split client IAM controllers (`ClientPolicyClaimsController`, `ClientUserMetadataController`, `ClientServiceFormatController`, `ClientIamRequestInterpreter`), `ClientIamPolicyService` / `ClientIamMetadataService`, `ResourcesUserinfoService`, `ApiController`, `SwaggerController` via `IdpLogging` (`app()` / `audit()` / `security()`).
+- Log-tested: `M7ResourceApisLoggingTest` (JWT 401, linkOrkProfile 400, invalid policy claim, `is_authorized` debug).
+- Gates: `composer test` (999 tests); `composer mutate` (covered MSI 89%); `./scripts/integ.sh` (85/87; `LoggingCorrelationIntegTest` green; 2 ORK mailbox failures).
