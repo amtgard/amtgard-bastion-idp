@@ -83,3 +83,4 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - M7 checklist: `CurrentUserResolver`, `ResourcesController` resource/ORK/profile paths, split client IAM controllers (`ClientPolicyClaimsController`, `ClientUserMetadataController`, `ClientServiceFormatController`, `ClientIamRequestInterpreter`), `ClientIamPolicyService` / `ClientIamMetadataService`, `ResourcesUserinfoService`, `ApiController`, `SwaggerController` via `IdpLogging` (`app()` / `audit()` / `security()`).
 - Log-tested: `M7ResourceApisLoggingTest` (JWT 401, linkOrkProfile 400, invalid policy claim, `is_authorized` debug).
 - Gates: `composer test` (999 tests); `composer mutate` (covered MSI 89%); `./scripts/integ.sh` (85/87; `LoggingCorrelationIntegTest` green; 2 ORK mailbox failures).
+- Commit: `79cc1e1`
