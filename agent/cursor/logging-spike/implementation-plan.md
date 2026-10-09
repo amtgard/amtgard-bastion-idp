@@ -32,6 +32,8 @@
 | L12 | `stack/idp-log-l12-m9-hardening` | M9 management, ORK, session infra |
 | L13 | `stack/idp-log-l13-m10-log-read-api` | M10 log-read API / ORNs (new files) |
 
+**Stack tip (2026-10-08):** `stack/idp-log-l13-m10-log-read-api` @ `a1ac506` — M2–M10 checklist complete; optional M1 platform rows still open in checklist (handlers / shared JSON helpers).
+
 Do not push unless the user asks.
 
 ---

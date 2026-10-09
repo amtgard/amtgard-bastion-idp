@@ -108,4 +108,12 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - Log-tested: `LogReaderAuthorizationMiddlewareTest`, `LogsQueryServiceTest`, `M10LogReadApiLoggingTest`, `IdpLogsCliTest`, `LogRetentionPurgerTest`, `LogRootBootGuardTest`.
 - Integ: no new Mode B log-read HTTP test (requires operator JWT + drained SQLite on stack); deny/query/404/429 paths covered in unit tests. `./scripts/integ.sh` 85/87 (2 pre-existing ORK mailbox failures); `LoggingCorrelationIntegTest` green.
 - Gates: `composer test` (1026 tests); `composer mutate` (covered MSI 92%); `./scripts/integ.sh` (85/87).
-- Commit: `2e2f8f1`
+- Commit: `a1ac506`
+
+## Stack tip (orchestrator complete through M10)
+
+- **Branch:** `stack/idp-log-l13-m10-log-read-api` @ **`a1ac506`**
+- **Serial milestones:** L0–L3b (platform + CLI + logging integ), L4 (M1 slice), L5–L13 (M2–M10).
+- **Remaining checklist (optional follow-up):** open M1 platform rows in `instrumentation-checklist.md` (error handlers, `JsonResponseBody`, `PvhGate` writers, etc.) — largely implemented elsewhere but not marked.
+- **Integ:** `./scripts/integ.sh` stable at **85/87** (2 ORK mailbox tests on this stack); logging correlation integ green.
+- **Not pushed** unless operator requests.

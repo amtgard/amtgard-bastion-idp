@@ -4,8 +4,8 @@
 |----------|---------|--------|
 | [design-plan.md](./design-plan.md) | Architecture: correlation, levels, SQLite/text, retention, tooling, log-read API + ORN | Ready |
 | [instrumentation-checklist.md](./instrumentation-checklist.md) | **295** sites at `9980cf5`, milestones M1–M10 (design phases 0–3) | Ready |
-| [implementation-plan.md](./implementation-plan.md) | Stacked branches L0–L4+ on `feature/ork-flow-a-mail-via-ork` | Active |
-| [milestones.md](./milestones.md) | Completed logging branches, coverage gates | Active |
+| [implementation-plan.md](./implementation-plan.md) | Stacked branches L0–L13 on `feature/ork-flow-a-mail-via-ork` | Implemented (tip `stack/idp-log-l13-m10-log-read-api`) |
+| [milestones.md](./milestones.md) | Completed logging branches, coverage gates | L0–L13 recorded |
 
 Implementation follows [implementation-plan.md](./implementation-plan.md) (stacked on `feature/ork-flow-a-mail-via-ork`).
 
