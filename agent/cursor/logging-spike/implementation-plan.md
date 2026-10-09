@@ -29,7 +29,8 @@
 | L9 | `stack/idp-log-l9-m6-client-identity` | M6 client identity (login / social / connect) |
 | L10 | `stack/idp-log-l10-m7-resource-apis` | M7 resource APIs, jsonError, 4xx/409 |
 | L11 | `stack/idp-log-l11-m8-repositories` | M8 repositories, validators, silent fallbacks |
-| L12+ | `stack/idp-log-l12-…` | M9–M10 per checklist; log-read API on final milestone |
+| L12 | `stack/idp-log-l12-m9-hardening` | M9 management, ORK, session infra |
+| L13 | `stack/idp-log-l13-m10-log-read-api` | M10 log-read API / ORNs (new files) |
 
 Do not push unless the user asks.
 

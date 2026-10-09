@@ -91,3 +91,4 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - M8 checklist (51 items): policy repositories, OAuth persistence repos, `AuthorizationJwtAssembler` / `AmtgardIdpJwt` fallbacks, IAM format + client metadata validators, `Pvh` / `PvhCacheRecord`, `OAuthKeyMaterial` via `IdpLogging` and `IdpLoggingRuntime` + `UsesIdpLogging` for AARO repositories.
 - Log-tested: `M8RepositoriesLoggingTest` (empty policy fallback, ORN parse failure, idempotent claim add, unknown scope, authorize noop, IAM format default, PVH hex/cache corrupt, login ownership miss).
 - Gates: `composer test` (1008 tests); `composer mutate` (covered MSI 88%); `./scripts/integ.sh` (85/87 pass; `LoggingCorrelationIntegTest` green; 2 pre-existing ORK mailbox failures).
+- Commit: `9e5d37c`
