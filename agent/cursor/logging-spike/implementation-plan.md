@@ -27,7 +27,9 @@
 | L7 | `stack/idp-log-l7-m4-workers-pvh-queue` | M4 workers + PVH queue (`request_id` on enqueue) |
 | L8 | `stack/idp-log-l8-m5-oauth-server` | M5 OAuth authorization server actions |
 | L9 | `stack/idp-log-l9-m6-client-identity` | M6 client identity (login / social / connect) |
-| L10+ | `stack/idp-log-l10-…` | M7–M10 per checklist; Phase 1 log-read API on L10 |
+| L10 | `stack/idp-log-l10-m7-resource-apis` | M7 resource APIs, jsonError, 4xx/409 |
+| L11 | `stack/idp-log-l11-m8-repositories` | M8 repositories, validators, silent fallbacks |
+| L12+ | `stack/idp-log-l12-…` | M9–M10 per checklist; log-read API on final milestone |
 
 Do not push unless the user asks.
 
