@@ -92,3 +92,10 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - Log-tested: `M8RepositoriesLoggingTest` (empty policy fallback, ORN parse failure, idempotent claim add, unknown scope, authorize noop, IAM format default, PVH hex/cache corrupt, login ownership miss).
 - Gates: `composer test` (1008 tests); `composer mutate` (covered MSI 88%); `./scripts/integ.sh` (85/87 pass; `LoggingCorrelationIntegTest` green; 2 pre-existing ORK mailbox failures).
 - Commit: `9e5d37c`
+
+## L12 — M9 management, ORK, session infra
+
+- Branch: `stack/idp-log-l12-m9-hardening`
+- M9 checklist (28 items): `ManagementController`, `ClientIamAdminInput`, `OrkHttpClient` / `OrkService`, `SessionStorage`, `HomeController`, `VersionController`, `IamServiceValidator`, `ResourcesController` RefreshORK, `ConnectController` session regenerate, OAuth token purge repos, `JsonResponseBody`, `JsonBodyParserMiddleware`, `PubSubRedisConfig`, `PvhGate` via `IdpLogging` (`audit()` / `app()` / `oauth()` / `pvh()` / `security()`).
+- Log-tested: `M9HardeningLoggingTest`, `JsonBodyParserMiddlewareTest` (parsed path), updated `OrkServiceTest` / `ManagementControllerTest`.
+- Gates: `composer test` (1015 tests); `composer mutate` (covered MSI 90%); `./scripts/integ.sh` (85/87 pass; `LoggingCorrelationIntegTest` green; 2 pre-existing ORK mailbox failures).

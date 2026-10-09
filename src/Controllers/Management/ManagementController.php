@@ -15,19 +15,19 @@ use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Utility\Client\ClientIamAdminInput;
 use Amtgard\IdP\Utility\JsonResponseBody;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Psr\Log\LoggerInterface;
 use Twig\Environment as TwigEnvironment;
 
 class ManagementController
 {
     private TwigEnvironment $twig;
-    protected LoggerInterface $logger;
+    private IdpLogging $idpLogging;
     private AccessTokenRepositoryInterface $accessTokens;
     private RefreshTokenRepositoryInterface $refreshTokens;
     private AuthCodeRepositoryInterface $authCodes;
@@ -37,7 +37,7 @@ class ManagementController
     private UserRepository $userRepository;
 
     public function __construct(
-        LoggerInterface $logger,
+        IdpLogging $idpLogging,
         TwigEnvironment $twig,
         AccessTokenRepositoryInterface $accessTokenRepository,
         RefreshTokenRepositoryInterface $refreshTokenRepository,
@@ -47,7 +47,7 @@ class ManagementController
         ClientAccessRepository $clientAccessRepository,
         UserRepository $userRepository,
     ) {
-        $this->logger = $logger;
+        $this->idpLogging = $idpLogging;
         $this->twig = $twig;
         $this->accessTokens = $accessTokenRepository;
         $this->refreshTokens = $refreshTokenRepository;
@@ -60,7 +60,7 @@ class ManagementController
 
     public function cleanTokens(Request $request, Response $response): Response
     {
-        $this->logger->info('Starting token cleanup');
+        $this->idpLogging->audit()->info('management token cleanup started');
 
         try {
             $this->accessTokens->deleteExpiredTokens();
@@ -73,10 +73,16 @@ class ManagementController
             // older than the token's max lifetime, replay is impossible anyway.
             $this->orkLinkTokenService->cleanExpiredJti();
 
+            $this->idpLogging->audit()->info('management token cleanup finished', [
+                'tokens_cleaned' => true,
+            ]);
+
             $response->getBody()->write('Tokens cleaned successfully');
             return $response->withStatus(200);
         } catch (\Exception $e) {
-            $this->logger->error('Token cleanup failed: ' . $e->getMessage());
+            $this->idpLogging->audit()->critical('management token cleanup failed', [
+                'exception_class' => $e::class,
+            ]);
             $response->getBody()->write('Token cleanup failed');
             return $response->withStatus(500);
         }
@@ -126,6 +132,12 @@ class ManagementController
 
         EntityManager::getManager()->persist($client);
 
+        $this->idpLogging->audit()->info('management oauth client created', [
+            'client_id' => (string) ($data['client_id'] ?? ''),
+            'is_confidential' => isset($data['is_confidential']),
+            'iam_service' => $iamInput->iamService,
+        ]);
+
         return $response
             ->withHeader('Location', '/management/clients')
             ->withStatus(302);
@@ -141,7 +153,11 @@ class ManagementController
 
         $client = $this->clientRepository->fetch($id);
 
-        if ($client) {
+        if (!$client) {
+            $this->idpLogging->audit()->warning('management oauth client update missing', [
+                'id' => $id,
+            ]);
+        } else {
             $client->setIdentifier($data['client_id']);
             $client->setClientSecret($data['client_secret']);
             $client->setName($data['name']);
@@ -152,6 +168,10 @@ class ManagementController
             $client->setIamServiceFormat($iamInput->iamServiceFormat);
 
             EntityManager::getManager()->persist($client);
+
+            $this->idpLogging->audit()->info('management oauth client updated', [
+                'client_id' => (string) ($data['client_id'] ?? ''),
+            ]);
         }
 
         return $response
@@ -254,7 +274,7 @@ class ManagementController
             return ClientIamAdminInput::fromFormData($data);
         } catch (\InvalidArgumentException $invalid) {
             $code = str_contains($invalid->getMessage(), 'iam_service_format') ? 'iam_format' : 'iam_namespace';
-            $this->logger->info('Rejected client IAM fields', [
+            $this->idpLogging->audit()->info('management client iam fields rejected', [
                 'error' => $code,
             ]);
 

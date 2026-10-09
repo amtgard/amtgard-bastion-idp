@@ -102,6 +102,10 @@ class AccessTokenRepository extends Repository implements AccessTokenRepositoryI
     {
         $this->query("DELETE FROM access_tokens WHERE expiry_date_time < NOW()");
         $this->execute();
+
+        $this->logOauth()->info('oauth expired access tokens purged', [
+            'job' => 'clean_tokens',
+        ]);
     }
 
 }

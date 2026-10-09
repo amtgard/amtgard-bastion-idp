@@ -432,34 +432,34 @@ Carry `request_id` on `PvhQueueMessage` when enqueued from HTTP (design § Worke
 
 ## M9 — Phase 3 hardening: management, ORK, session infra
 
-- [ ] `src/Controllers/Management/ManagementController.php:L50-L66` — info — cleanup success (start exists) — `tokens_cleaned=true`
-- [ ] `src/Controllers/Management/ManagementController.php:L67-L70` — critical — cleanup 500 (exists) — `exception_class`
-- [ ] `src/Controllers/Management/ManagementController.php:L102-L124` — info — create OAuth client — `client_id`, `is_confidential`, `iam_service` (no `client_secret`)
-- [ ] `src/Controllers/Management/ManagementController.php:L127-L145` — warning — update missing client id — `id`
-- [ ] `src/Controllers/Management/ManagementController.php:L132-L149` — info — update client — `client_id`
-- [ ] `src/Utility/Client/ClientIamAdminInput.php:L23-L32` — debug — admin IAM field normalize — `has_iam_service`, `has_format`
-- [ ] `src/Services/OrkService.php:L27-L28` — emergency — missing ORK UA/referer — `reason=ork_api_config`
-- [ ] `src/Services/OrkService.php:L65-L69` — error — authorize fail/exception (exists) — drop `username`; use `email_sha256` if needed
-- [ ] `src/Services/OrkService.php:L99-L107` — error — GetPlayer fail (exists)
-- [ ] `src/Services/OrkService.php:L154-L164` — error — GetPark fail (exists)
-- [ ] `src/Services/OrkService.php:L201-L201` — warning — park lookup empty (exists)
-- [ ] `src/Utility/Security/SessionStorage.php:L42-L43` — warning — Redis configured but unreachable → files — `session_handler=files`, `reason=redis_unreachable`
-- [ ] `src/Utility/Security/SessionStorage.php:L107-L108` — warning — Redis probe silent catch — `host` (no password)
-- [ ] `src/Controllers/HomeController.php:L26-L36` — debug — home render — `logged_in`
-- [ ] `src/Controllers/VersionController.php:L12-L17` — debug — version hit — `route=version`
-- [ ] `src/Utility/IamServiceValidator.php:L22-L22` — debug — custom prefix validate (throws from OrnClassMap) — `iam_service`
-- [ ] `src/Controllers/Resource/ResourcesController.php:L324-L346` — info — RefreshORK (exists)
-- [ ] `src/Controllers/Client/ConnectController.php:L143-L144` — warning — session regenerate fail (exists)
-- [ ] `src/Controllers/Client/ConnectController.php:L244-L245` — warning — session regenerate fail (exists)
-- [ ] `src/Services/OrkLinkTokenService.php:L99-L102` — warning — jti replay (exists)
-- [ ] `src/Services/OrkLinkTokenService.php:L117-L118` — warning — jti cleanup fail (exists)
-- [ ] `src/Persistence/Server/Repositories/AccessTokenRepository.php:L86-L89` — info — expired access purge — `job=clean_tokens`
-- [ ] `src/Persistence/Server/Repositories/RefreshTokenRepository.php:L83-L89` — info — expired/orphan refresh purge
-- [ ] `src/Persistence/Server/Repositories/AuthCodeRepository.php:L82-L88` — info — expired code purge
-- [ ] `src/Utility/JsonResponseBody.php:L14-L22` — info — optional 2xx JSON write if middleware does not summarize — `http_status`
-- [ ] `src/Middleware/JsonBodyParserMiddleware.php:L22-L23` — debug — JSON parsed OK — `path`
-- [ ] `src/Utility/Redis/PubSubRedisConfig.php:L112-L117` — notice — hostname fallback to 127.0.0.1 — `primary_host`, `fallback_host`
-- [ ] `src/Utility/PvhGate.php:L16-L26` — debug — miss seed record built — `user_uuid`, `aud` (no email; hash if needed)
+- [x] `src/Controllers/Management/ManagementController.php:L50-L66` — info — cleanup success (start exists) — `tokens_cleaned=true`
+- [x] `src/Controllers/Management/ManagementController.php:L67-L70` — critical — cleanup 500 (exists) — `exception_class`
+- [x] `src/Controllers/Management/ManagementController.php:L102-L124` — info — create OAuth client — `client_id`, `is_confidential`, `iam_service` (no `client_secret`)
+- [x] `src/Controllers/Management/ManagementController.php:L127-L145` — warning — update missing client id — `id`
+- [x] `src/Controllers/Management/ManagementController.php:L132-L149` — info — update client — `client_id`
+- [x] `src/Utility/Client/ClientIamAdminInput.php:L23-L32` — debug — admin IAM field normalize — `has_iam_service`, `has_format`
+- [x] `src/Services/OrkService.php:L27-L28` — emergency — missing ORK UA/referer — `reason=ork_api_config`
+- [x] `src/Services/OrkService.php:L65-L69` — error — authorize fail/exception (exists) — drop `username`; use `email_sha256` if needed
+- [x] `src/Services/OrkService.php:L99-L107` — error — GetPlayer fail (exists)
+- [x] `src/Services/OrkService.php:L154-L164` — error — GetPark fail (exists)
+- [x] `src/Services/OrkService.php:L201-L201` — warning — park lookup empty (exists)
+- [x] `src/Utility/Security/SessionStorage.php:L42-L43` — warning — Redis configured but unreachable → files — `session_handler=files`, `reason=redis_unreachable`
+- [x] `src/Utility/Security/SessionStorage.php:L107-L108` — warning — Redis probe silent catch — `host` (no password)
+- [x] `src/Controllers/HomeController.php:L26-L36` — debug — home render — `logged_in`
+- [x] `src/Controllers/VersionController.php:L12-L17` — debug — version hit — `route=version`
+- [x] `src/Utility/IamServiceValidator.php:L22-L22` — debug — custom prefix validate (throws from OrnClassMap) — `iam_service`
+- [x] `src/Controllers/Resource/ResourcesController.php:L324-L346` — info — RefreshORK (exists)
+- [x] `src/Controllers/Client/ConnectController.php:L143-L144` — warning — session regenerate fail (exists)
+- [x] `src/Controllers/Client/ConnectController.php:L244-L245` — warning — session regenerate fail (exists)
+- [x] `src/Services/OrkLinkTokenService.php:L99-L102` — warning — jti replay (exists)
+- [x] `src/Services/OrkLinkTokenService.php:L117-L118` — warning — jti cleanup fail (exists)
+- [x] `src/Persistence/Server/Repositories/AccessTokenRepository.php:L86-L89` — info — expired access purge — `job=clean_tokens`
+- [x] `src/Persistence/Server/Repositories/RefreshTokenRepository.php:L83-L89` — info — expired/orphan refresh purge
+- [x] `src/Persistence/Server/Repositories/AuthCodeRepository.php:L82-L88` — info — expired code purge
+- [x] `src/Utility/JsonResponseBody.php:L14-L22` — info — optional 2xx JSON write if middleware does not summarize — `http_status`
+- [x] `src/Middleware/JsonBodyParserMiddleware.php:L22-L23` — debug — JSON parsed OK — `path`
+- [x] `src/Utility/Redis/PubSubRedisConfig.php:L112-L117` — notice — hostname fallback to 127.0.0.1 — `primary_host`, `fallback_host`
+- [x] `src/Utility/PvhGate.php:L16-L26` — debug — miss seed record built — `user_uuid`, `aud` (no email; hash if needed)
 
 **M9 count: 28**
 

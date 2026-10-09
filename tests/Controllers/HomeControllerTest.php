@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Controllers;
 
 use Amtgard\IdP\Controllers\HomeController;
+use Amtgard\IdP\Tests\Support\CapturedIdpLogging;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -31,7 +32,8 @@ class HomeControllerTest extends TestCase
             ->method('write')
             ->with('home template');
 
-        $controller = new HomeController($twig);
+        $capture = CapturedIdpLogging::create();
+        $controller = new HomeController($twig, $capture->idpLogging);
         $result = $controller->index($request, $response);
 
         $this->assertSame($response, $result);

@@ -94,11 +94,19 @@ class RefreshTokenRepository extends Repository implements RefreshTokenRepositor
     {
         $this->query("DELETE FROM refresh_tokens WHERE expiry_date_time < NOW()");
         $this->execute();
+
+        $this->logOauth()->info('oauth expired refresh tokens purged', [
+            'job' => 'clean_tokens',
+        ]);
     }
 
     public function deleteOrphanedRefreshTokens()
     {
         $this->query("DELETE refresh_tokens FROM refresh_tokens LEFT JOIN access_tokens ON refresh_tokens.access_token_id = access_tokens.id WHERE access_tokens.id IS NULL");
         $this->execute();
+
+        $this->logOauth()->info('oauth orphaned refresh tokens purged', [
+            'job' => 'clean_tokens',
+        ]);
     }
 }

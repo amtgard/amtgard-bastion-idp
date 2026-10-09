@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Utility;
 
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
 use Psr\Http\Message\ResponseInterface;
 
 final class JsonResponseBody
@@ -18,6 +19,13 @@ final class JsonResponseBody
 
         if ($status !== null) {
             $response = $response->withStatus($status);
+        }
+
+        $httpStatus = $status ?? $response->getStatusCode();
+        if ($httpStatus >= 200 && $httpStatus < 300) {
+            IdpLoggingRuntime::app()->info('json response written', [
+                'http_status' => $httpStatus,
+            ]);
         }
 
         return $response;

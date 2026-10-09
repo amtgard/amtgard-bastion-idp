@@ -110,5 +110,9 @@ class AuthCodeRepository extends Repository implements AuthCodeRepositoryInterfa
     {
         $this->query("DELETE FROM auth_codes WHERE expiry_date_time < NOW()");
         $this->execute();
+
+        $this->logOauth()->info('oauth expired auth codes purged', [
+            'job' => 'clean_tokens',
+        ]);
     }
 }

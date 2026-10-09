@@ -983,17 +983,18 @@ class ResourcesController
         $token = $existing->getOrkToken();
         $mundaneId = $existing->getMundaneId();
 
-        $this->logger->info('RefreshORK: starting refresh', [
-            'userId' => $user->getId(),
-            'mundaneId' => $mundaneId,
-            'storedParkId' => $existing->getParkId(),
-            'storedParkName' => $existing->getParkName(),
+        $this->idpLogging->app()->info('refresh ork starting', [
+            'user_uuid' => $user->getUserId(),
+            'mundane_id' => $mundaneId,
         ]);
 
         $playerData = $this->orkService->getPlayer($token, $mundaneId);
 
         if (!$playerData) {
-            $this->logger->warning('RefreshORK: Player fetch failed', ['userId' => $user->getId()]);
+            $this->idpLogging->app()->error('refresh ork player fetch failed', [
+                'user_uuid' => $user->getUserId(),
+                'mundane_id' => $mundaneId,
+            ]);
             return $response->withHeader('Location', '/resources/profile?error=ork_refresh_failed')->withStatus(302);
         }
 
@@ -1001,10 +1002,10 @@ class ResourcesController
 
         $this->orkProfileRepository->saveOrUpdateProfile($playerData, $parkData, $token, $user->getId());
 
-        $this->logger->info('RefreshORK: profile saved', [
-            'userId' => $user->getId(),
-            'mundaneId' => $mundaneId,
-            'parkDataResolved' => $parkData !== null,
+        $this->idpLogging->app()->info('refresh ork profile saved', [
+            'user_uuid' => $user->getUserId(),
+            'mundane_id' => $mundaneId,
+            'park_data_resolved' => $parkData !== null,
         ]);
 
         return $response->withHeader('Location', '/resources/profile?success=refreshed')->withStatus(302);

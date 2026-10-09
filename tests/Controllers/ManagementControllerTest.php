@@ -20,6 +20,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -48,7 +49,8 @@ class TestTableSchema extends TableSchema
 
 class ManagementControllerTest extends TestCase
 {
-    private $logger;
+    private $auditLogger;
+    private $idpLogging;
     private $twig;
     private $entityManager;
     private $accessTokens;
@@ -79,7 +81,9 @@ class ManagementControllerTest extends TestCase
             ->build();
         EntityManager::configure($em, true);
 
-        $this->logger = $this->createMock(LoggerInterface::class);
+        $this->auditLogger = $this->createMock(LoggerInterface::class);
+        $this->idpLogging = $this->createMock(IdpLogging::class);
+        $this->idpLogging->method('audit')->willReturn($this->auditLogger);
         $this->twig = $this->createMock(TwigEnvironment::class);
         $this->entityManager = $em;
         $this->accessTokens = $this->createMock(\Amtgard\IdP\Persistence\Server\Repositories\AccessTokenRepository::class);
@@ -99,7 +103,7 @@ class ManagementControllerTest extends TestCase
         $this->response->method('withStatus')->willReturnSelf();
 
         $this->controller = new ManagementController(
-            $this->logger,
+            $this->idpLogging,
             $this->twig,
             $this->accessTokens,
             $this->refreshTokens,
@@ -138,9 +142,13 @@ class ManagementControllerTest extends TestCase
             ->method('deleteExpiredTokens')
             ->willThrowException(new \Exception('Database error'));
 
-        $this->logger->expects($this->once())
-            ->method('error')
-            ->with($this->stringContains('Token cleanup failed'));
+        $this->auditLogger->expects($this->once())
+            ->method('critical')
+            ->with('management token cleanup failed', $this->callback(function (array $context): bool {
+                $this->assertSame(\Exception::class, $context['exception_class']);
+
+                return true;
+            }));
 
         $this->stream->expects($this->once())
             ->method('write')
@@ -391,9 +399,9 @@ class ManagementControllerTest extends TestCase
             'iam_service' => 'Skbc',
             'iam_service_format' => '["Configuration",""]',
         ]);
-        $this->logger->expects($this->once())
+        $this->auditLogger->expects($this->once())
             ->method('info')
-            ->with('Rejected client IAM fields', ['error' => 'iam_format']);
+            ->with('management client iam fields rejected', ['error' => 'iam_format']);
 
         $this->controller->updateClient($this->request, $this->response, 5);
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Utility\Http;
 
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
 
@@ -18,6 +19,9 @@ final class OrkHttpClient
         $referer = $_ENV['ORK_API_REFERER'] ?? null;
 
         if (empty($userAgent) || empty($referer)) {
+            IdpLoggingRuntime::app()->emergency('ork api client misconfigured', [
+                'reason' => 'ork_api_config',
+            ]);
             throw new \RuntimeException('Missing required ORK API configuration: ORK_API_USER_AGENT and ORK_API_REFERER must be set.');
         }
 

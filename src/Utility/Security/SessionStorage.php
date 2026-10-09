@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Utility\Security;
 
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
 use Optional\Optional;
 use Redis;
 
@@ -40,6 +41,10 @@ class SessionStorage
         self::configure();
 
         if (self::usesRedisHandler() && !self::redisBackendReachable()) {
+            IdpLoggingRuntime::app()->warning('session handler fallback to files', [
+                'session_handler' => 'files',
+                'reason' => 'redis_unreachable',
+            ]);
             self::useFileHandler();
         }
 
@@ -105,6 +110,10 @@ class SessionStorage
 
             return true;
         } catch (\Throwable) {
+            IdpLoggingRuntime::app()->warning('session redis probe failed', [
+                'host' => $host,
+            ]);
+
             return false;
         }
     }

@@ -20,6 +20,7 @@ use Amtgard\IdP\Services\Mailbox\MailboxChallengePurpose;
 use Amtgard\IdP\Services\MailboxChallengeService;
 use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Services\RegistrationService;
+use Amtgard\IdP\Tests\Support\CapturedIdpLogging;
 use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -632,11 +633,24 @@ class ConnectControllerTest extends TestCase
     {
         $_ENV['TEST_REGENERATE_FAIL'] = '1';
         $this->prepareLegacyLogin();
-        $this->logger->expects($this->once())->method('warning')->with('session_regenerate_id failed during connect handoff', ['user_id' => 'uuid-user']);
+        $capture = CapturedIdpLogging::create();
+        $controller = new ConnectController(
+            $this->twig,
+            $this->users,
+            $this->logins,
+            $this->orkProfiles,
+            $this->tokenService,
+            $this->registrationService,
+            $this->challenges,
+            $this->logger,
+            $capture->idpLogging,
+        );
         $this->tokenService->method('hasSharedSecret')->willReturn(false);
         $this->tokenService->method('orkBaseUrl')->willReturn('https://ork.example.com');
 
-        $this->controller->submitConnectLogin($this->legacyLoginRequest(), $this->response);
+        $controller->submitConnectLogin($this->legacyLoginRequest(), $this->response);
+
+        $this->assertTrue($capture->handler('security')->hasWarningThatContains('connect session regenerate failed'));
     }
 
     public function testSubmitConnectLoginConsumeJtiFailure(): void
@@ -765,16 +779,28 @@ class ConnectControllerTest extends TestCase
         $this->orkProfiles->method('findByMundaneId')->willReturn(null);
         $this->tokenService->method('consumeJti')->willReturn(true);
         $this->challenges->expects($this->once())->method('consume');
-        $this->logger->expects($this->once())->method('warning');
+        $capture = CapturedIdpLogging::create();
+        $controller = new ConnectController(
+            $this->twig,
+            $this->users,
+            $this->logins,
+            $this->orkProfiles,
+            $this->tokenService,
+            $this->registrationService,
+            $this->challenges,
+            $this->logger,
+            $capture->idpLogging,
+        );
         $this->tokenService->method('hasSharedSecret')->willReturn(false);
         $this->tokenService->method('orkBaseUrl')->willReturn('https://ork.example.com');
 
-        $this->controller->submitConnectCode($this->requestWithBody([
+        $controller->submitConnectCode($this->requestWithBody([
             'link_token' => 'jwt-token',
             'challenge_id' => 'chal-1',
             'code' => '123456',
         ]), $this->response);
         $this->assertSame('uuid-user', $_SESSION['user_id']);
+        $this->assertTrue($capture->handler('security')->hasWarningThatContains('connect session regenerate failed'));
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Amtgard\IdP\Utility\Client;
 
 use Amtgard\IdP\Utility\IamServiceFormatValidator;
 use Amtgard\IdP\Utility\IamServiceValidator;
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
 
 /**
  * Normalizes IAM admin form fields once so create/update stay aligned.
@@ -22,6 +23,11 @@ final class ClientIamAdminInput
      */
     public static function fromFormData(array $formData): self
     {
+        IdpLoggingRuntime::app()->debug('client iam admin fields normalize', [
+            'has_iam_service' => isset($formData['iam_service']) && trim((string) $formData['iam_service']) !== '',
+            'has_format' => isset($formData['iam_service_format']) && trim((string) $formData['iam_service_format']) !== '',
+        ]);
+
         return new self(
             IamServiceValidator::validate(
                 isset($formData['iam_service']) ? trim((string) $formData['iam_service']) : null

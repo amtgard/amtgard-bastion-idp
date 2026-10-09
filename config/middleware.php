@@ -19,7 +19,7 @@ return function (App $app) {
     $app->addBodyParsingMiddleware();
 
     // Add the JSON body parser middleware
-    $app->add(new JsonBodyParserMiddleware());
+    $app->add(new JsonBodyParserMiddleware($app->getContainer()->get(IdpLogging::class)));
 
 
 

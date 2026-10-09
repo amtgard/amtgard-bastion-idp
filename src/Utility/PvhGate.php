@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Utility;
 
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Slim\Psr7\Factory\ResponseFactory;
@@ -22,6 +23,11 @@ final class PvhGate
         ?string $fatPolicyHash
     ): PvhCacheRecord {
         $seedPvh = $presentedPvh ?? Pvh::encode((int) floor(microtime(true) * 1000), $fatPolicyHash);
+
+        IdpLoggingRuntime::pvh()->debug('pvh gate miss seed record built', [
+            'user_uuid' => $userUuid,
+            'aud' => $aud,
+        ]);
 
         return new PvhCacheRecord($userUuid, $aud, $email, $seedPvh, null);
     }

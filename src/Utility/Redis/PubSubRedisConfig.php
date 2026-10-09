@@ -123,6 +123,13 @@ class PubSubRedisConfig
         }
 
         if (!self::hostResolves($candidates[0])) {
+            if ($logger !== null) {
+                $logger->notice('redis pubsub hostname fallback', [
+                    'primary_host' => $candidates[0],
+                    'fallback_host' => $candidates[1],
+                ]);
+            }
+
             return $candidates[1];
         }
 

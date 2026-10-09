@@ -5,22 +5,22 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Services;
 
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use Optional\Optional;
-use Psr\Log\LoggerInterface;
 
 final class OrkService
 {
     private const BASE_URL = 'https://ork.amtgard.com/orkservice/Json/index.php';
 
     private ClientInterface $httpClient;
-    private LoggerInterface $logger;
+    private IdpLogging $idpLogging;
 
-    public function __construct(ClientInterface $httpClient, LoggerInterface $logger)
+    public function __construct(ClientInterface $httpClient, IdpLogging $idpLogging)
     {
         $this->httpClient = $httpClient;
-        $this->logger = $logger;
+        $this->idpLogging = $idpLogging;
     }
 
     public function authorize(string $username, string $password): ?array
@@ -34,11 +34,10 @@ final class OrkService
                         'Password' => $password
                     ]
                 ],
-                'on_stats' => function (\GuzzleHttp\TransferStats $stats) use ($username) {
-                    // Log the actual URL being called (redacting password manually if we were logging full query, but Guzzle query array handles encoding)
-                    // Since we can't easily redact the query params from the stats URL if it's already built, we will just log that we made the call.
-                    // Actually, let's log the URL path and the call param.
-                    $this->logger->info('ORK Authorization Request', ['url' => (string) $stats->getEffectiveUri()]);
+                'on_stats' => function (\GuzzleHttp\TransferStats $stats): void {
+                    $this->idpLogging->app()->debug('ork authorization request', [
+                        'call' => 'Authorization/Authorize',
+                    ]);
                 }
             ]);
 
@@ -48,11 +47,17 @@ final class OrkService
                 return $data;
             }
 
-            $this->logger->warning('ORK Authorization failed', ['response' => $data, 'username' => $username]);
+            $context = ['reason' => 'ork_authorization_failed'];
+            if (str_contains($username, '@')) {
+                $context['email_sha256'] = hash('sha256', strtolower($username));
+            }
+            $this->idpLogging->app()->error('ork authorization failed', $context);
             return null;
 
         } catch (GuzzleException $e) {
-            $this->logger->error('ORK Authorization exception', ['exception' => $e->getMessage()]);
+            $this->idpLogging->app()->error('ork authorization exception', [
+                'exception_class' => $e::class,
+            ]);
             return null;
         }
     }
@@ -73,24 +78,20 @@ final class OrkService
             $data = json_decode($response->getBody()->getContents(), true);
 
             if (isset($data['Status']['Status']) && $data['Status']['Status'] === 0 && isset($data['Player'])) {
-                $this->logger->info('ORK GetPlayer success', [
-                    'mundaneId' => $mundaneId,
-                    'parkIdKeyPresent' => array_key_exists('ParkId', $data['Player']),
-                    'parkIdRaw' => $data['Player']['ParkId'] ?? null,
-                    'parkRelatedFields' => $this->extractParkRelatedFields($data['Player']),
-                ]);
                 return $data['Player'];
             }
 
-            $this->logger->warning('ORK GetPlayer failed', [
-                'response' => $data,
-                'mundaneId' => $mundaneId,
-                'httpStatus' => $response->getStatusCode(),
+            $this->idpLogging->app()->error('ork get player failed', [
+                'mundane_id' => $mundaneId,
+                'http_status' => $response->getStatusCode(),
             ]);
             return null;
 
         } catch (GuzzleException $e) {
-            $this->logger->error('ORK GetPlayer exception', ['exception' => $e->getMessage()]);
+            $this->idpLogging->app()->error('ork get player exception', [
+                'mundane_id' => $mundaneId,
+                'exception_class' => $e::class,
+            ]);
             return null;
         }
     }
@@ -141,7 +142,9 @@ final class OrkService
 
             return $matches;
         } catch (GuzzleException $e) {
-            $this->logger->error('ORK username search exception', ['exception' => $e->getMessage()]);
+            $this->idpLogging->app()->error('ork username search exception', [
+                'exception_class' => $e::class,
+            ]);
 
             return [];
         }
@@ -170,32 +173,18 @@ final class OrkService
             ]);
             $data = json_decode($response->getBody()->getContents(), true);
             if (isset($data['Status']['Status']) && $data['Status']['Status'] === 0 && isset($data['Player']) && is_array($data['Player'])) {
-                $player = $data['Player'];
-                $emailRaw = trim((string) ($player['Email'] ?? ''));
-                $this->logger->info('ORK GetPlayer by mundane id success', [
-                    'mundaneId' => $mundaneId,
-                    'emailKeyPresent' => array_key_exists('Email', $player),
-                    'emailRawLength' => strlen($emailRaw),
-                    'emailRawHasAt' => str_contains($emailRaw, '@'),
-                    'suspended' => $player['Suspended'] ?? null,
-                    'penaltyBox' => $player['PenaltyBox'] ?? null,
-                    'username' => $player['UserName'] ?? $player['username'] ?? null,
-                    'persona' => $player['Persona'] ?? null,
-                ]);
-
-                return $player;
+                return $data['Player'];
             }
 
-            $this->logger->warning('ORK GetPlayer by mundane id failed', [
-                'mundaneId' => $mundaneId,
-                'status' => $data['Status'] ?? null,
+            $this->idpLogging->app()->error('ork get player by mundane id failed', [
+                'mundane_id' => $mundaneId,
             ]);
 
             return null;
         } catch (GuzzleException $e) {
-            $this->logger->error('ORK GetPlayer by mundane id exception', [
-                'mundaneId' => $mundaneId,
-                'exception' => $e->getMessage(),
+            $this->idpLogging->app()->error('ork get player by mundane id exception', [
+                'mundane_id' => $mundaneId,
+                'exception_class' => $e::class,
             ]);
 
             return null;
@@ -220,11 +209,9 @@ final class OrkService
                         'ParkId' => $parkId,
                     ],
                 ],
-                'on_stats' => function (\GuzzleHttp\TransferStats $stats) use ($parkId, $request) {
-                    $this->logger->info('ORK GetParkShortInfo Request', [
-                        'url' => (string) $stats->getEffectiveUri(),
-                        'parkId' => $parkId,
-                        'request' => $request,
+                'on_stats' => function (\GuzzleHttp\TransferStats $stats) use ($parkId): void {
+                    $this->idpLogging->app()->debug('ork get park request', [
+                        'park_id' => $parkId,
                     ]);
                 },
             ]);
@@ -235,29 +222,19 @@ final class OrkService
 
             // Based on user sample: Status->Status === 0 means success
             if (isset($data['Status']['Status']) && $data['Status']['Status'] === 0) {
-                $this->logger->info('ORK GetParkShortInfo success', [
-                    'parkId' => $parkId,
-                    'httpStatus' => $httpStatus,
-                    'parkName' => $data['ParkInfo']['ParkName'] ?? null,
-                    'kingdomName' => $data['KingdomInfo']['KingdomName'] ?? null,
-                ]);
                 return $data;
             }
 
-            $this->logger->warning('ORK GetParkShortInfo failed', [
-                'parkId' => $parkId,
-                'httpStatus' => $httpStatus,
-                'request' => $request,
-                'response' => $data,
-                'rawBody' => $rawBody,
+            $this->idpLogging->app()->error('ork get park failed', [
+                'park_id' => $parkId,
+                'http_status' => $httpStatus,
             ]);
             return null;
 
         } catch (GuzzleException $e) {
-            $this->logger->error('ORK GetParkShortInfo exception', [
-                'parkId' => $parkId,
-                'request' => $request,
-                'exception' => $e->getMessage(),
+            $this->idpLogging->app()->error('ork get park exception', [
+                'park_id' => $parkId,
+                'exception_class' => $e::class,
             ]);
             return null;
         }
@@ -274,13 +251,11 @@ final class OrkService
             ->map(fn ($v) => (int) $v)
             ->filter(fn (int $id) => $id > 0);
 
-        $this->logger->info("{$flow}: resolving park data from player", [
-            'userId' => $userId,
-            'mundaneId' => $playerData['MundaneId'] ?? null,
-            'parkIdKeyPresent' => array_key_exists('ParkId', $playerData),
-            'parkIdRaw' => $parkIdRaw,
-            'parkIdResolved' => $parkIdOpt->orElse(null),
-            'parkRelatedFields' => $this->extractParkRelatedFields($playerData),
+        $this->idpLogging->app()->debug('ork resolve park from player', [
+            'flow' => $flow,
+            'user_id' => $userId,
+            'mundane_id' => $playerData['MundaneId'] ?? null,
+            'park_id_resolved' => $parkIdOpt->orElse(null),
         ]);
 
         if (!$parkIdOpt->isPresent()) {
@@ -291,10 +266,11 @@ final class OrkService
         $parkData = $this->getParkShortInfo($parkId);
 
         if ($parkData === null) {
-            $this->logger->warning("{$flow}: park lookup returned no data", [
-                'userId' => $userId,
-                'mundaneId' => $playerData['MundaneId'] ?? null,
-                'parkIdResolved' => $parkId,
+            $this->idpLogging->app()->warning('ork park lookup empty', [
+                'flow' => $flow,
+                'user_id' => $userId,
+                'mundane_id' => $playerData['MundaneId'] ?? null,
+                'park_id' => $parkId,
             ]);
         }
 
@@ -359,15 +335,15 @@ final class OrkService
             ]);
             $data = json_decode($response->getBody()->getContents(), true);
             $ok = $this->isOrkJsonSuccess(is_array($data) ? $data : null);
-            $this->logger->info('ORK BeginClaimOrkMail', [
+            $this->idpLogging->app()->info('ork begin claim ork mail', [
                 'ok' => $ok,
-                'status' => is_array($data) ? ($data['Status'] ?? null) : null,
-                'code' => is_array($data) ? ($data['Code'] ?? null) : null,
             ]);
 
             return $ok;
         } catch (GuzzleException $e) {
-            $this->logger->error('ORK BeginClaimOrkMail exception', ['exception' => $e->getMessage()]);
+            $this->idpLogging->app()->error('ork begin claim ork mail exception', [
+                'exception_class' => $e::class,
+            ]);
 
             return false;
         }
@@ -391,9 +367,8 @@ final class OrkService
             ]);
             $data = json_decode($response->getBody()->getContents(), true);
             if (!is_array($data) || !$this->isOrkJsonSuccess($data)) {
-                $this->logger->info('ORK ValidateClaimOrkCode rejected', [
+                $this->idpLogging->app()->info('ork validate claim ork code rejected', [
                     'mundane_id' => $mundaneId,
-                    'status' => is_array($data) ? ($data['Status'] ?? null) : null,
                 ]);
 
                 return null;
@@ -410,9 +385,9 @@ final class OrkService
                 'mundaneId' => $returnedMundane,
             ];
         } catch (GuzzleException $e) {
-            $this->logger->error('ORK ValidateClaimOrkCode exception', [
+            $this->idpLogging->app()->error('ork validate claim ork code exception', [
                 'mundane_id' => $mundaneId,
-                'exception' => $e->getMessage(),
+                'exception_class' => $e::class,
             ]);
 
             return null;

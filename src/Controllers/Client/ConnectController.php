@@ -320,7 +320,9 @@ final class ConnectController
             session_start();
         }
         if (!session_regenerate_id(true)) {
-            $this->logger->warning('session_regenerate_id failed during connect handoff', ['user_id' => $user->getUserId()]);
+            $this->idpLogging->security()->warning('connect session regenerate failed', [
+                'user_uuid' => $user->getUserId(),
+            ]);
         }
         $this->establishBrowserSession($user);
 
@@ -499,8 +501,8 @@ final class ConnectController
                     session_start();
                 }
                 if (!session_regenerate_id(true)) {
-                    $this->logger->warning('session_regenerate_id failed during connect handoff', [
-                        'challenge_id' => $challengeId,
+                    $this->idpLogging->security()->warning('connect session regenerate failed', [
+                        'user_uuid' => $user->getUserId(),
                     ]);
                 }
                 $this->establishBrowserSession($user);
