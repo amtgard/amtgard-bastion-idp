@@ -59,3 +59,4 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - M4 checklist: `JwtPvhQueueProcessor` + worker bootstrap (`job_id`, `correlation_root=worker`), `PvhQueueMessage` optional `request_id`, `RedisCacheRepository` / `JwtPvhRefreshService` / `PubSubRedisConfig` via `IdpLogging`.
 - Log-tested: `M4WorkersPvhQueueLoggingTest`, `RedisCacheRepositoryLoggingTest`, `JwtPvhRefreshServiceLoggingTest`, `PubSubRedisConfigTest::testConnectLogsCriticalWhenAllHostsFail`.
 - Gates: `composer test` (984 tests); `composer mutate` (covered MSI 87%); `composer integ` (85/87; `LoggingCorrelationIntegTest` green; 2 ORK mailbox failures).
+- Commit: `f77eb79`

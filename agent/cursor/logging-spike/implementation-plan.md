@@ -24,7 +24,9 @@
 | L4 | `stack/idp-log-l4-m1-slice` | M1 checklist slice: `HttpObservabilityMiddleware` + instrument `/resources/validate` and `POST /oauth/token` per [instrumentation-checklist.md](./instrumentation-checklist.md) M1 |
 | L5 | `stack/idp-log-l5-m2-auth-middleware` | M2 auth middleware deny paths |
 | L6 | `stack/idp-log-l6-m3-jwt-pvh` | M3 JWT, PVH gate, Optional throws |
-| L7+ | `stack/idp-log-l7-…` | M4–M10 per checklist; Phase 1 log-read API on L10 |
+| L7 | `stack/idp-log-l7-m4-workers-pvh-queue` | M4 workers + PVH queue (`request_id` on enqueue) |
+| L8 | `stack/idp-log-l8-m5-oauth-server` | M5 OAuth authorization server actions |
+| L9+ | `stack/idp-log-l9-…` | M6–M10 per checklist; Phase 1 log-read API on L10 |
 
 Do not push unless the user asks.
 
