@@ -45,6 +45,9 @@ class OrnDefinitionsTest extends TestCase
 
         $requirement = RequirementFactory::createOrn('Idp:0::::IDP/EditClient');
         $this->assertInstanceOf(IdpRequirement::class, $requirement);
+
+        $analyze = ClaimFactory::createOrn('Idp:0::::IDP/AnalyzeLogs');
+        $this->assertInstanceOf(IdpClaim::class, $analyze);
     }
 
     public function testOrnClaimRegistryRegistersCustomServiceIdentifier(): void

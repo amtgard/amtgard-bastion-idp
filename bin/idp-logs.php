@@ -3,11 +3,9 @@
 
 declare(strict_types=1);
 
-use Amtgard\IdP\Utility\Log\Sqlite\LogPathResolver;
-use Amtgard\IdP\Utility\Log\Sqlite\LogSpoolDrainer;
-use Amtgard\IdP\Utility\Log\Sqlite\MonologJsonLineParser;
-use Amtgard\IdP\Utility\Log\Sqlite\SqliteLogQuery;
-use Amtgard\IdP\Utility\Log\Sqlite\SqliteLogSchema;
+use Amtgard\IdP\Utility\Log\IdpLogsCli;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -16,17 +14,18 @@ if (is_file($root . '/.env')) {
     Dotenv\Dotenv::createImmutable($root)->safeLoad();
 }
 
-$paths = LogPathResolver::fromEnv($root);
-$schema = new SqliteLogSchema();
-
 if (! isset($argv[1])) {
     fwrite(STDERR, "Usage: idp-logs query --request-id=ID | bundle --request-id=ID [--out=path.jsonl] | drain-once\n");
     exit(1);
 }
 
 $command = $argv[1];
+$logger = new Logger('idp-logs-cli');
+$logger->pushHandler(new StreamHandler('php://stderr', \Monolog\Level::Info));
+$cli = IdpLogsCli::fromProjectRoot($root, $logger);
+
 if ($command === 'drain-once') {
-    $count = (new LogSpoolDrainer($paths, $schema, new MonologJsonLineParser()))->drainOnce();
+    $count = $cli->drainOnce();
     fwrite(STDOUT, "drained {$count} line(s)\n");
     exit(0);
 }
@@ -52,22 +51,17 @@ if ($requestId === '') {
     exit(1);
 }
 
-$query = new SqliteLogQuery($paths, $schema);
-$lines = $query->rawLinesForRequestId($requestId);
-if ($command === 'query') {
-    foreach ($lines as $line) {
-        fwrite(STDOUT, $line . "\n");
+try {
+    if ($command === 'query') {
+        foreach ($cli->queryRequestId($requestId) as $line) {
+            fwrite(STDOUT, $line . "\n");
+        }
+        exit(0);
     }
-    exit(0);
-}
 
-$payload = implode("\n", $lines) . ($lines === [] ? '' : "\n");
-if ($outPath === '') {
-    $outPath = $paths->root() . '/exports/request-' . $requestId . '.jsonl';
-}
-$paths->ensureDirectory($outPath);
-if (file_put_contents($outPath, $payload) === false) {
-    fwrite(STDERR, "Unable to write bundle: {$outPath}\n");
+    $bundle = $cli->bundleRequestId($requestId, $outPath !== '' ? $outPath : null);
+    fwrite(STDOUT, 'wrote ' . $bundle['row_count'] . ' line(s) to ' . $bundle['path'] . "\n");
+} catch (\Throwable $e) {
+    fwrite(STDERR, $e->getMessage() . "\n");
     exit(1);
 }
-fwrite(STDOUT, 'wrote ' . count($lines) . " line(s) to {$outPath}\n");

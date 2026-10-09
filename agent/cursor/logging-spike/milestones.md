@@ -99,3 +99,13 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - M9 checklist (28 items): `ManagementController`, `ClientIamAdminInput`, `OrkHttpClient` / `OrkService`, `SessionStorage`, `HomeController`, `VersionController`, `IamServiceValidator`, `ResourcesController` RefreshORK, `ConnectController` session regenerate, OAuth token purge repos, `JsonResponseBody`, `JsonBodyParserMiddleware`, `PubSubRedisConfig`, `PvhGate` via `IdpLogging` (`audit()` / `app()` / `oauth()` / `pvh()` / `security()`).
 - Log-tested: `M9HardeningLoggingTest`, `JsonBodyParserMiddlewareTest` (parsed path), updated `OrkServiceTest` / `ManagementControllerTest`.
 - Gates: `composer test` (1015 tests); `composer mutate` (covered MSI 90%); `./scripts/integ.sh` (85/87 pass; `LoggingCorrelationIntegTest` green; 2 pre-existing ORK mailbox failures).
+- Commit: `3327aa8`
+
+## L13 — M10 log-read API and IAM
+
+- Branch: `stack/idp-log-l13-m10-log-read-api`
+- M10 checklist (10 items): `LogReaderAuthorizationMiddleware`, `LogsQueryService`, `LogsController` (trace/errors/stats/analyze), `IdpFormat` log-reader ORNs, `LogRootBootGuard` + container boot, `bin/logs-purge.php`, `IdpLogsCli` / `bin/idp-logs.php` CLI info logging; routes under `/resources/logs/*` with JWT auth + ORN gate (`AnalyzeLogs` satisfies all read routes).
+- Log-tested: `LogReaderAuthorizationMiddlewareTest`, `LogsQueryServiceTest`, `M10LogReadApiLoggingTest`, `IdpLogsCliTest`, `LogRetentionPurgerTest`, `LogRootBootGuardTest`.
+- Integ: no new Mode B log-read HTTP test (requires operator JWT + drained SQLite on stack); deny/query/404/429 paths covered in unit tests. `./scripts/integ.sh` 85/87 (2 pre-existing ORK mailbox failures); `LoggingCorrelationIntegTest` green.
+- Gates: `composer test` (1026 tests); `composer mutate` (covered MSI 92%); `./scripts/integ.sh` (85/87).
+- Commit: `2e2f8f1`

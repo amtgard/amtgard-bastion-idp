@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-10-08.282",
+  "build_id": "2026-10-08.283",
   "date": "2026-10-08",
-  "revision": 282,
-  "branch": "stack/idp-log-l12-m9-hardening"
+  "revision": 283,
+  "branch": "stack/idp-log-l13-m10-log-read-api"
 }

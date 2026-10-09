@@ -469,16 +469,16 @@ Carry `request_id` on `PvhQueueMessage` when enqueued from HTTP (design § Worke
 
 No current lines. Add logs at implementation on deny and query bounds (design § Log-read API and IAM).
 
-- [ ] `src/Middleware/LogReaderAuthorizationMiddleware.php` (new) — error — missing `IDP/ReadTraceLogs` / `ReadErrorLogs` / `AnalyzeLogs` — `user_uuid`, `client_id`, `orn`, `route`
-- [ ] `src/Services/LogsQueryService.php` (new) — info — query executed — `stream`, `row_count`, `limit`, `request_id_filter`
-- [ ] `src/Services/LogsQueryService.php` (new) — error — over-limit / invalid cursor — `reason`, `limit`
-- [ ] `src/Controllers/Resource/LogsController.php` (new) — info — `GET /resources/logs/trace/{request_id}` — `request_id`, `row_count`
-- [ ] `src/Controllers/Resource/LogsController.php` (new) — error — 404 unknown `request_id` — `request_id`
-- [ ] `src/Controllers/Resource/LogsController.php` (new) — error — 429 rate limit — `user_uuid`, `route`
-- [ ] `bin/idp-logs` (new) — info — CLI query — `command`, `row_count` (no `--redact-off`)
-- [ ] `bin/logs-purge.php` (new) — notice — purge run — `stream`, `files_deleted`, `cutoff`
-- [ ] `src/Models/Orn/IdpFormat.php` (new resources) — notice — register `IDP/ReadTraceLogs` etc. — `resource`
-- [ ] `config/container.php` (extend L72-L86) — emergency — SQLite/log dir unwritable at boot — `log_root`
+- [x] `src/Middleware/LogReaderAuthorizationMiddleware.php` (new) — error — missing `IDP/ReadTraceLogs` / `ReadErrorLogs` / `AnalyzeLogs` — `user_uuid`, `client_id`, `orn`, `route`
+- [x] `src/Services/LogsQueryService.php` (new) — info — query executed — `stream`, `row_count`, `limit`, `request_id_filter`
+- [x] `src/Services/LogsQueryService.php` (new) — error — over-limit / invalid cursor — `reason`, `limit`
+- [x] `src/Controllers/Resource/LogsController.php` (new) — info — `GET /resources/logs/trace/{request_id}` — `request_id`, `row_count`
+- [x] `src/Controllers/Resource/LogsController.php` (new) — error — 404 unknown `request_id` — `request_id`
+- [x] `src/Controllers/Resource/LogsController.php` (new) — error — 429 rate limit — `user_uuid`, `route`
+- [x] `bin/idp-logs` (new) — info — CLI query — `command`, `row_count` (no `--redact-off`)
+- [x] `bin/logs-purge.php` (new) — notice — purge run — `stream`, `files_deleted`, `cutoff`
+- [x] `src/Models/Orn/IdpFormat.php` (new resources) — notice — register `IDP/ReadTraceLogs` etc. — `resource`
+- [x] `config/container.php` (extend L72-L86) — emergency — SQLite/log dir unwritable at boot — `log_root`
 
 **M10 count: 10**
 

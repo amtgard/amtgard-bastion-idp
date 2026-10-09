@@ -12,10 +12,14 @@ use Amtgard\IdP\Utility\Security\CsrfTokenManager;
 use Amtgard\IdP\Utility\Security\CurrentUserResolver;
 use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Models\Orn\IdpFormat;
 use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
 use Amtgard\IdP\Utility\Log\LogChannelFactory;
+use Amtgard\IdP\Utility\Log\LogRootBootGuard;
 use Amtgard\IdP\Utility\Log\Sqlite\LogPathResolver;
+use Amtgard\IdP\Utility\Log\Sqlite\SqliteLogQuery;
+use Amtgard\IdP\Utility\Log\Sqlite\SqliteLogSchema;
 use Monolog\Level;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -96,8 +100,17 @@ return array_merge(
         IdpLogging::class => function (ContainerInterface $container) {
             $logging = new IdpLogging($container->get(LogChannelFactory::class));
             IdpLoggingRuntime::bind($logging);
+            LogRootBootGuard::verify($container->get(LogPathResolver::class), $logging);
+            IdpFormat::announceLogReaderResources($logging);
 
             return $logging;
+        },
+
+        SqliteLogQuery::class => function (ContainerInterface $container) {
+            return new SqliteLogQuery(
+                $container->get(LogPathResolver::class),
+                new SqliteLogSchema(),
+            );
         },
 
         LoggerInterface::class => function (ContainerInterface $container) {
