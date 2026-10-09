@@ -34,7 +34,7 @@ final class OAuthTokenActionLoggingTest extends TestCase
         $server->method('respondToAccessTokenRequest')->willThrowException($exception);
 
         $errorRenderer = OAuthFlowErrorRenderer::builder()
-            ->logger($this->createStub(LoggerInterface::class))
+            ->idpLogging($idpLogging)
             ->view($this->createStub(TwigEnvironment::class))
             ->build();
 

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Controllers\Server\OAuth;
 
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Getter;
 use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Log\LoggerInterface;
 use Twig\Environment as TwigEnvironment;
 
 final class OAuthFlowErrorRenderer
@@ -15,7 +15,7 @@ final class OAuthFlowErrorRenderer
     use Builder;
     use Getter;
 
-    protected LoggerInterface $logger;
+    protected IdpLogging $idpLogging;
 
     protected TwigEnvironment $view;
 
@@ -28,11 +28,24 @@ final class OAuthFlowErrorRenderer
         int $status = 500,
         ?\Throwable $exception = null
     ): Response {
+        $oauthStep = $this->oauthStepKey($step);
         if ($exception !== null) {
-            $this->logger->error('OAuth flow internal error', [
-                'step' => $step,
-                'message' => $exception->getMessage(),
-                'trace' => $exception->getTraceAsString(),
+            $this->idpLogging->oauth()->critical('oauth flow internal error', [
+                'oauth_step' => $oauthStep,
+                'http_status' => $status,
+                'exception_class' => $exception::class,
+            ]);
+        } elseif ($status >= 500) {
+            $this->idpLogging->oauth()->critical('oauth flow server error', [
+                'oauth_step' => $oauthStep,
+                'http_status' => $status,
+                'is_protocol_error' => $isProtocolError,
+            ]);
+        } else {
+            $this->idpLogging->oauth()->error('oauth flow protocol error', [
+                'oauth_step' => $oauthStep,
+                'http_status' => $status,
+                'is_protocol_error' => $isProtocolError,
             ]);
         }
 
@@ -51,10 +64,9 @@ final class OAuthFlowErrorRenderer
 
     public function renderOAuthTokenError(Response $response, string $step, \Throwable $exception): Response
     {
-        $this->logger->error('OAuth token internal error', [
-            'step' => $step,
-            'message' => $exception->getMessage(),
-            'trace' => $exception->getTraceAsString(),
+        $this->idpLogging->oauth()->critical('oauth token internal error', [
+            'oauth_step' => $this->oauthStepKey($step),
+            'exception_class' => $exception::class,
         ]);
 
         $response->getBody()->write(json_encode([
@@ -67,5 +79,20 @@ final class OAuthFlowErrorRenderer
         return $response
             ->withStatus(500)
             ->withHeader('Content-Type', 'application/json');
+    }
+
+    private function oauthStepKey(string $step): string
+    {
+        if (str_contains($step, '/oauth/token')) {
+            return 'token';
+        }
+        if (str_contains($step, '/oauth/approve')) {
+            return 'approve';
+        }
+        if (str_contains($step, '/oauth/authorize')) {
+            return 'authorize';
+        }
+
+        return $step;
     }
 }

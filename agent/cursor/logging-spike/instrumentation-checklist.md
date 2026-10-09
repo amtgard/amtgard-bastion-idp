@@ -243,28 +243,28 @@ Carry `request_id` on `PvhQueueMessage` when enqueued from HTTP (design § Worke
 
 ## M5 — Phase 2 rollout: OAuth authorization server
 
-- [ ] `src/Controllers/Server/OAuth2ServerController.php:L24-L26` — debug — token dispatch — `oauth_step=token`
-- [ ] `src/Controllers/Server/OAuth2ServerController.php:L28-L30` — debug — approve dispatch — `method`
-- [ ] `src/Controllers/Server/OAuth2ServerController.php:L34-L38` — notice — clear session user id — `oauth_step=clear_authn`
-- [ ] `src/Controllers/Server/OAuth2ServerController.php:L41-L45` — notice — clear authorization state — `oauth_step=clear_authz`
-- [ ] `src/Controllers/Server/OAuth2ServerController.php:L58-L60` — notice — `authorizePost` empty 200 — `oauth_step=authorize_post_noop`
-- [ ] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L52-L57` — debug — validate/store vs load auth request — `client_id`, `has_stored_request`
-- [ ] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L63-L66` — warning — session user id not found — `session_user_id`
-- [ ] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L80-L98` — error — League exception (exists); add `http_status`, `client_id` — `oauth_step`, `http_status` (no `code`)
-- [ ] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L99-L108` — critical — Throwable → 500 (renderer logs) — `oauth_step`, `exception_class`
-- [ ] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L139-L145` — info — redirect to login — `http_status=301`, `client_id`
-- [ ] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L148-L165` — debug — approval check / missing client entity — `client_id`, `approved`
-- [ ] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L168-L188` — info — send to `/oauth/approve` — `client_id`, `scope_count`
-- [ ] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L191-L201` — info — authorization completed — `client_id`, `user_uuid`
-- [ ] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L208-L211` — warning — PVH seed skipped (exists) — `reason=user_unresolved`
-- [ ] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L43-L51` — error — League exception, no local log — `oauth_step=approve`, `http_status`
-- [ ] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L52-L61` — critical — Throwable (renderer) — `oauth_step=approve`, `exception_class`
-- [ ] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L71-L89` — info — user allowed + persist authz — `client_id`, `user_uuid`, `action=allow`
-- [ ] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L82-L84` — warning — allow but missing client/session — `client_id`, `has_session`
-- [ ] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L92-L96` — notice — user denied — `action=deny`
-- [ ] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L99-L114` — error — `getClientEntity` null → fatal on `getName()` — `client_id`
-- [ ] `src/Controllers/Server/OAuth/OAuthFlowErrorRenderer.php:L31-L37` — error — protocol/internal (exists); 4xx protocol should stay error, 5xx critical — `oauth_step`, `http_status`, `is_protocol_error`
-- [ ] `src/Controllers/Server/OAuth/OAuthFlowErrorRenderer.php:L52-L69` — critical — token 500 (exists) — `oauth_step` (no stack in prod)
+- [x] `src/Controllers/Server/OAuth2ServerController.php:L24-L26` — debug — token dispatch — `oauth_step=token` *(L8)*
+- [x] `src/Controllers/Server/OAuth2ServerController.php:L28-L30` — debug — approve dispatch — `method` *(L8)*
+- [x] `src/Controllers/Server/OAuth2ServerController.php:L34-L38` — notice — clear session user id — `oauth_step=clear_authn` *(L8)*
+- [x] `src/Controllers/Server/OAuth2ServerController.php:L41-L45` — notice — clear authorization state — `oauth_step=clear_authz` *(L8)*
+- [x] `src/Controllers/Server/OAuth2ServerController.php:L58-L60` — notice — `authorizePost` empty 200 — `oauth_step=authorize_post_noop` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L52-L57` — debug — validate/store vs load auth request — `client_id`, `has_stored_request` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L63-L66` — warning — session user id not found — `session_user_id` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L80-L98` — error — League exception (exists); add `http_status`, `client_id` — `oauth_step`, `http_status` (no `code`) *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L99-L108` — critical — Throwable → 500 (renderer logs) — `oauth_step`, `exception_class` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L139-L145` — info — redirect to login — `http_status=301`, `client_id` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L148-L165` — debug — approval check / missing client entity — `client_id`, `approved` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L168-L188` — info — send to `/oauth/approve` — `client_id`, `scope_count` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L191-L201` — info — authorization completed — `client_id`, `user_uuid` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthAuthorizeAction.php:L208-L211` — warning — PVH seed skipped (exists) — `reason=user_unresolved` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L43-L51` — error — League exception, no local log — `oauth_step=approve`, `http_status` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L52-L61` — critical — Throwable (renderer) — `oauth_step=approve`, `exception_class` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L71-L89` — info — user allowed + persist authz — `client_id`, `user_uuid`, `action=allow` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L82-L84` — warning — allow but missing client/session — `client_id`, `has_session` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L92-L96` — notice — user denied — `action=deny` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthApproveAction.php:L99-L114` — error — `getClientEntity` null → fatal on `getName()` — `client_id` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthFlowErrorRenderer.php:L31-L37` — error — protocol/internal (exists); 4xx protocol should stay error, 5xx critical — `oauth_step`, `http_status`, `is_protocol_error` *(L8)*
+- [x] `src/Controllers/Server/OAuth/OAuthFlowErrorRenderer.php:L52-L69` — critical — token 500 (exists) — `oauth_step` (no stack in prod) *(L8)*
 
 **M5 count: 22**
 

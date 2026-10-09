@@ -159,7 +159,7 @@ final class OidcTokenExchangeHarness
         \Psr\Http\Message\ServerRequestInterface $tokenRequest
     ): array {
         $errorRenderer = OAuthFlowErrorRenderer::builder()
-            ->logger(new NullLogger())
+            ->idpLogging(\Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create())
             ->view(new TwigEnvironment(new ArrayLoader([])))
             ->build();
 

@@ -60,3 +60,10 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - Log-tested: `M4WorkersPvhQueueLoggingTest`, `RedisCacheRepositoryLoggingTest`, `JwtPvhRefreshServiceLoggingTest`, `PubSubRedisConfigTest::testConnectLogsCriticalWhenAllHostsFail`.
 - Gates: `composer test` (984 tests); `composer mutate` (covered MSI 87%); `composer integ` (85/87; `LoggingCorrelationIntegTest` green; 2 ORK mailbox failures).
 - Commit: `f77eb79`
+
+## L8 — M5 OAuth authorization server
+
+- Branch: `stack/idp-log-l8-m5-oauth-server`
+- M5 checklist: `OAuth2ServerController`, `OAuthAuthorizeAction`, `OAuthApproveAction`, `OAuthFlowErrorRenderer` via `IdpLogging->oauth()` (token path unchanged from L4 except shared error renderer).
+- Log-tested: `M5OAuthServerLoggingTest`, existing OAuth controller tests updated for oauth channel assertions.
+- Gates: `composer test` (989 tests); `composer mutate` (covered MSI 87%); `./scripts/integ.sh` (85/87; `LoggingCorrelationIntegTest` green; 2 ORK mailbox failures).

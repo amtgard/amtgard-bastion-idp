@@ -30,7 +30,6 @@ use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 use League\OAuth2\Server\ResourceServer;
 use OpenIDConnectServer\Repositories\IdentityProviderInterface;
 use Psr\Container\ContainerInterface;
-use Psr\Log\LoggerInterface;
 use Twig\Environment as TwigEnvironment;
 
 return [
@@ -89,7 +88,7 @@ return [
 
     OAuthFlowErrorRenderer::class => function (ContainerInterface $container) {
         return OAuthFlowErrorRenderer::builder()
-            ->logger($container->get(LoggerInterface::class))
+            ->idpLogging($container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class))
             ->view($container->get(TwigEnvironment::class))
             ->build();
     },
@@ -109,6 +108,7 @@ return [
             ->authRequestStore($container->get(OAuthSessionAuthRequestStore::class))
             ->errorRenderer($container->get(OAuthFlowErrorRenderer::class))
             ->view($container->get(TwigEnvironment::class))
+            ->idpLogging($container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class))
             ->build();
     },
 
@@ -120,7 +120,7 @@ return [
             ->userClientAuthorizationRepository($container->get(UserClientAuthorizationRepository::class))
             ->authRequestStore($container->get(OAuthSessionAuthRequestStore::class))
             ->errorRenderer($container->get(OAuthFlowErrorRenderer::class))
-            ->logger($container->get(LoggerInterface::class))
+            ->idpLogging($container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class))
             ->amtgardIdpJwt($container->get(AmtgardIdpJwt::class))
             ->redisCacheRepository($container->get(RedisCacheRepository::class))
             ->build();

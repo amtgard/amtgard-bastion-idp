@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Controllers\Server\OAuth;
 
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\Security\RedirectValidator;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Getter;
@@ -32,6 +33,8 @@ final class OAuthApproveAction
 
     protected TwigEnvironment $view;
 
+    protected IdpLogging $idpLogging;
+
     public function handle(Request $request, Response $response): Response
     {
         try {
@@ -41,6 +44,11 @@ final class OAuthApproveAction
 
             return $this->renderApprovalForm($request, $response);
         } catch (OAuthServerException $exception) {
+            $this->idpLogging->oauth()->error('oauth approve rejected', [
+                'oauth_step' => 'approve',
+                'http_status' => $exception->getHttpStatusCode(),
+            ]);
+
             return $this->errorRenderer->renderOAuthFlowError(
                 $response,
                 self::STEP_APPROVAL,
@@ -72,6 +80,8 @@ final class OAuthApproveAction
             $this->authRequestStore->markApproved();
 
             $authRequest = $this->authRequestStore->load();
+            $clientId = null;
+            $userUuid = null;
             if ($authRequest !== null) {
                 $clientId = $authRequest->getClient()->getIdentifier();
 
@@ -81,6 +91,17 @@ final class OAuthApproveAction
                 $sessionUserId = $this->authRequestStore->sessionUserId();
                 if ($sessionUserId !== null && $clientEntity) {
                     $this->userClientAuthorizationRepository->authorize($sessionUserId, $clientEntity->getId());
+                    $userUuid = (string) $sessionUserId;
+                    $this->idpLogging->oauth()->info('oauth approve allowed', [
+                        'client_id' => $clientId,
+                        'user_uuid' => $userUuid,
+                        'action' => 'allow',
+                    ]);
+                } else {
+                    $this->idpLogging->oauth()->warning('oauth approve allow incomplete', [
+                        'client_id' => $clientId,
+                        'has_session' => $sessionUserId !== null,
+                    ]);
                 }
             }
 
@@ -90,6 +111,9 @@ final class OAuthApproveAction
         }
 
         $this->authRequestStore->clearAuthorizationState();
+        $this->idpLogging->oauth()->notice('oauth approve denied', [
+            'action' => 'deny',
+        ]);
 
         return $response
             ->withStatus(302)
@@ -103,6 +127,13 @@ final class OAuthApproveAction
         $scopes = !empty($scopeString) ? explode(',', $scopeString) : [];
         $clientId = $queryParams['client_id'] ?? 'Unknown Application';
         $client = $this->clientRepository->getClientEntity($clientId);
+        if ($client === null) {
+            $this->idpLogging->oauth()->error('oauth approve unknown client', [
+                'client_id' => $clientId,
+            ]);
+
+            throw OAuthServerException::invalidClient($request);
+        }
         $callback = RedirectValidator::sanitize($queryParams['callback'] ?? '/', '/');
 
         $response->getBody()->write(
