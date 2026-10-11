@@ -110,9 +110,16 @@ Stack base: `feature/ork-flow-a-mail-via-ork`. See [implementation-plan.md](./im
 - Gates: `composer test` (1026 tests); `composer mutate` (covered MSI 92%); `./scripts/integ.sh` (85/87).
 - Commit: `a1ac506`
 
+## AARO 1.7 upgrade
+
+- Branch: `aaro-1.7-upgrade` (stacked on `stack/idp-log-l13-m10-log-read-api`)
+- Dependency: `amtgard/active-record-orm` `^1.6` → `^1.7` (v1.7.0 performance release); Composer also refreshed compatible `monolog`, `vlucas/phpdotenv`, and Symfony polyfill patch releases.
+- Application code: unchanged (vendor-only).
+- Gates: `composer test` (1026 tests); `composer mutate` (covered MSI 92%).
+
 ## Stack tip (orchestrator complete through M10)
 
-- **Branch:** `stack/idp-log-l13-m10-log-read-api` @ **`a1ac506`**
+- **Branch:** `stack/idp-log-l13-m10-log-read-api` @ **`a1ac506`** (AARO upgrade stacks on M10 tip via `aaro-1.7-upgrade`)
 - **Serial milestones:** L0–L3b (platform + CLI + logging integ), L4 (M1 slice), L5–L13 (M2–M10).
 - **Remaining checklist (optional follow-up):** open M1 platform rows in `instrumentation-checklist.md` (error handlers, `JsonResponseBody`, `PvhGate` writers, etc.) — largely implemented elsewhere but not marked.
 - **Integ:** `./scripts/integ.sh` stable at **85/87** (2 ORK mailbox tests on this stack); logging correlation integ green.
