@@ -137,6 +137,10 @@ final class OrkService
                     'persona' => trim((string) ($row['Persona'] ?? '')),
                     'parkName' => trim((string) ($row['ParkName'] ?? '')),
                     'kingdomName' => trim((string) ($row['KingdomName'] ?? '')),
+                    // Whether the ORK record has a mailbox at all -- not the address.
+                    // Without it the profile offers "Email Code" for records that can
+                    // never receive one, and the claim flow reports success regardless.
+                    'hasEmail' => (bool) (int) ($row['HasEmail'] ?? 0),
                 ];
             }
 
