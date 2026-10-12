@@ -26,8 +26,14 @@ final class OrkService
     public function authorize(string $username, string $password): ?array
     {
         try {
-            $response = $this->httpClient->get($this->jsonApiBaseUrl(), [
-                'query' => [
+            // POST, not GET: a password in the query string is written verbatim
+            // into the ORK's nginx access log, Cloudflare's edge logs and any
+            // proxy in between. The ORK's JSON gateway reads $_REQUEST, so it
+            // accepts the identical parameters in a form body with no change
+            // needed on its side. Only this call carries a secret; the search
+            // calls below stay on GET.
+            $response = $this->httpClient->post($this->jsonApiBaseUrl(), [
+                'form_params' => [
                     'call' => 'Authorization/Authorize',
                     'request' => [
                         'UserName' => $username,
