@@ -125,12 +125,13 @@ class ModelsTest extends TestCase
             $clientRepository,
             $metadataRepository,
             $userLoginRepository,
-            $this->createMock(LoggerInterface::class),
+            \Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create(),
             $generationRepository,
         );
         $idpJwt = AmtgardIdpJwt::builder()
             ->assembler($assembler)
             ->redisCacheRepository($redis)
+            ->idpLogging(\Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create())
             ->build();
         $tokens = $idpJwt->buildAuthorizationTokens($user);
         $jwtString = $tokens['jwt'];

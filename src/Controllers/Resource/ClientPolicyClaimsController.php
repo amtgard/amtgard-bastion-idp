@@ -6,6 +6,7 @@ namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\IdP\Services\ClientIamPolicyService;
 use Amtgard\IdP\Utility\JsonResponseBody;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -18,6 +19,7 @@ final class ClientPolicyClaimsController
 {
     public function __construct(
         private LoggerInterface $logger,
+        private IdpLogging $idpLogging,
         private ClientIamRequestInterpreter $requests,
         private ClientIamPolicyService $iamPolicyService,
     ) {}
@@ -62,13 +64,13 @@ final class ClientPolicyClaimsController
                 $this->trimmedClaimPart($body['resource'] ?? null),
             );
         } catch (\InvalidArgumentException $e) {
+            $this->idpLogging->audit()->error('client iam policy claim rejected', [
+                'client_id' => $client->getIdentifier(),
+                'error_code' => 'invalid_claim',
+            ]);
+
             return JsonResponseBody::writeError($response, $e->getMessage(), 400);
         }
-
-        $this->logger->info('client iam policy claim added', [
-            'client_id' => $client->getIdentifier(),
-            'idp_user_id' => $user->getUserId(),
-        ]);
 
         return $response->withStatus(204);
     }
@@ -113,13 +115,13 @@ final class ClientPolicyClaimsController
                 $this->trimmedClaimPart($body['resource'] ?? null),
             );
         } catch (\InvalidArgumentException $e) {
+            $this->idpLogging->audit()->error('client iam policy claim rejected', [
+                'client_id' => $client->getIdentifier(),
+                'error_code' => 'invalid_claim',
+            ]);
+
             return JsonResponseBody::writeError($response, $e->getMessage(), 400);
         }
-
-        $this->logger->info('client iam policy claim deleted', [
-            'client_id' => $client->getIdentifier(),
-            'idp_user_id' => $user->getUserId(),
-        ]);
 
         return $response->withStatus(204);
     }

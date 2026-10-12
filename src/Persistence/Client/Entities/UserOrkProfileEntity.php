@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Persistence\Client\Entities;
 
+use Amtgard\IdP\Services\Ork\OrkPublicAssetUrl;
 use Amtgard\ActiveRecordOrm\Attribute\EntityOf;
 use Amtgard\ActiveRecordOrm\Attribute\Field;
 use Amtgard\ActiveRecordOrm\Attribute\PrimaryKey;
@@ -222,7 +223,7 @@ class UserOrkProfileEntity extends RepositoryEntity
 
     public function getHeraldry(): ?string
     {
-        return $this->heraldry;
+        return OrkPublicAssetUrl::forBrowser($this->heraldry);
     }
 
     public function setHeraldry(?string $heraldry): void
@@ -232,7 +233,7 @@ class UserOrkProfileEntity extends RepositoryEntity
 
     public function getImage(): ?string
     {
-        return $this->image;
+        return OrkPublicAssetUrl::forBrowser($this->image);
     }
 
     public function setImage(?string $image): void

@@ -9,6 +9,7 @@ use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Services\RegistrationService;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use PHPUnit\Framework\TestCase;
 
 class RegistrationServiceTest extends TestCase
@@ -21,7 +22,7 @@ class RegistrationServiceTest extends TestCase
     {
         $this->users = $this->createMock(UserRepository::class);
         $this->logins = $this->createMock(UserLoginRepository::class);
-        $this->service = new RegistrationService($this->users, $this->logins);
+        $this->service = new RegistrationService($this->users, $this->logins, IdpLoggingTestFactory::create());
     }
 
     public function testRegisterRejectsMissingFields(): void

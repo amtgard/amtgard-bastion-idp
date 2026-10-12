@@ -21,7 +21,9 @@ use Amtgard\IdP\Services\ClientIamMetadataService;
 use Amtgard\IdP\Services\ClientIamPolicyService;
 use Amtgard\IdP\Services\ClientIamServiceFormatService;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Amtgard\IdP\Utility\Client\ClientResourcesRequestResolver;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -66,6 +68,11 @@ class ClientResourcesControllerTest extends TestCase
             public function getId(): int
             {
                 return 5;
+            }
+
+            public function getIdentifier(): string
+            {
+                return 'app-client';
             }
         };
 
@@ -605,15 +612,26 @@ class ClientResourcesControllerTest extends TestCase
             ->build();
     }
 
+    private function testIdpLogging(): IdpLogging
+    {
+        static $logging = null;
+
+        return $logging ??= IdpLoggingTestFactory::create();
+    }
+
     private function policyController(
         ClientResourcesRequestResolver $resolver,
         ?UserPolicyClaimRepository $policyRepository = null,
     ): ClientPolicyClaimsController {
+        $idpLogging = $this->testIdpLogging();
+
         return new ClientPolicyClaimsController(
             $this->createMock(LoggerInterface::class),
-            new ClientIamRequestInterpreter($resolver),
+            $idpLogging,
+            new ClientIamRequestInterpreter($resolver, $idpLogging),
             ClientIamPolicyService::builder()
                 ->policyClaimRepository($policyRepository ?? $this->createMock(UserPolicyClaimRepository::class))
+                ->idpLogging($idpLogging)
                 ->build(),
         );
     }
@@ -622,20 +640,29 @@ class ClientResourcesControllerTest extends TestCase
         ClientResourcesRequestResolver $resolver,
         UserLoginClientRepository $metadataRepository,
     ): ClientUserMetadataController {
+        $idpLogging = $this->testIdpLogging();
+
         return new ClientUserMetadataController(
-            new ClientIamRequestInterpreter($resolver),
-            ClientIamMetadataService::builder()->metadataRepository($metadataRepository)->build(),
+            new ClientIamRequestInterpreter($resolver, $idpLogging),
+            ClientIamMetadataService::builder()
+                ->metadataRepository($metadataRepository)
+                ->idpLogging($idpLogging)
+                ->build(),
+            $idpLogging,
         );
     }
 
     private function serviceFormatController(): ClientServiceFormatController
     {
+        $idpLogging = $this->testIdpLogging();
+
         return new ClientServiceFormatController(
             new ClientIamRequestInterpreter(new ClientResourcesRequestResolver(
                 $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserRepository::class),
                 $this->createMock(\Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository::class),
-            )),
+            ), $idpLogging),
             new ClientIamServiceFormatService(),
+            $idpLogging,
         );
     }
 

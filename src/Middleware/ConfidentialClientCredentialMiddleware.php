@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Middleware;
 
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\Security\ConfidentialClientAuthMode;
 use Amtgard\IdP\Utility\Security\ConfidentialClientAuthenticator;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -20,11 +21,16 @@ class ConfidentialClientCredentialMiddleware implements MiddlewareInterface
 
     public function __construct(
         private ConfidentialClientAuthenticator $authenticator,
+        private IdpLogging $logging,
     ) {}
 
     public function process(Request $request, RequestHandler $handler): Response
     {
         $client = $this->authenticator->authenticate($request, ConfidentialClientAuthMode::CredentialsOnly);
+
+        $this->logging->security()->debug('credentials-only confidential client accepted', [
+            'client_id' => $client->getIdentifier(),
+        ]);
 
         return $handler->handle($request->withAttribute(self::REQUEST_ATTRIBUTE, $client));
     }

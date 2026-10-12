@@ -7,6 +7,7 @@ namespace Amtgard\IdP\Services;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\OrnClaimRegistry;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Getter;
@@ -17,6 +18,8 @@ final class ClientIamPolicyService
     use Getter;
 
     protected UserPolicyClaimRepository $policyClaimRepository;
+
+    protected IdpLogging $idpLogging;
 
     public function addClaim(
         Client $client,
@@ -33,6 +36,12 @@ final class ClientIamPolicyService
             $user->getId(),
             $client->getId()
         );
+
+        $this->idpLogging->audit()->info('client iam policy claim added', [
+            'client_id' => $client->getIdentifier(),
+            'user_uuid' => $user->getUserId(),
+            'resource' => strlen($resource) > 64 ? substr($resource, 0, 64) . '…' : $resource,
+        ]);
     }
 
     public function deleteClaim(
@@ -47,6 +56,11 @@ final class ClientIamPolicyService
             $provisos,
             $resource
         );
+
+        $this->idpLogging->audit()->info('client iam policy claim deleted', [
+            'client_id' => $client->getIdentifier(),
+            'user_uuid' => $user->getUserId(),
+        ]);
     }
 
     /**

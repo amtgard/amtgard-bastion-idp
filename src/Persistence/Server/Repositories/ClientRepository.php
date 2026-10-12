@@ -13,6 +13,7 @@ use Amtgard\ActiveRecordOrm\Query\OrderBy;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\ClientAccess;
+use Amtgard\IdP\Utility\Log\UsesIdpLogging;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
 use Optional\Optional;
@@ -20,6 +21,8 @@ use Optional\Optional;
 #[RepositoryOf('clients', Client::class)]
 class ClientRepository extends Repository implements EntityRepositoryInterface, ClientRepositoryInterface
 {
+    use UsesIdpLogging;
+
     static function getTableName()
     {
         return 'clients';
@@ -45,11 +48,15 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
     {
         /** @var Client|null $client */
         $client = $this->fetchBy('identifier', $clientIdentifier);
+        if ($client === null) {
+            $this->logOauth()->debug('oauth unknown client', ['client_id' => $clientIdentifier]);
+        }
+
         return $client;
     }
 
     /**
-     * Clients a user may administer (redirect URI only) via client_access.
+     * Clients a user may administer (redirect URI, IAM service, IAM format) via client_access.
      *
      * @return Client[]
      */
@@ -114,6 +121,11 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
     {
         /** @var Client|null $client */
         $client = $this->fetchBy('identifier', $clientIdentifier);
+        if ($client === null) {
+            $this->logOauth()->debug('oauth client entity miss', ['client_id' => (string) $clientIdentifier]);
+
+            return null;
+        }
 
         return Optional::ofNullable($client)
             ->map(function (Client $client): OAuthClient {
@@ -135,17 +147,26 @@ class ClientRepository extends Repository implements EntityRepositoryInterface, 
 
     public function validateClient($clientIdentifier, $clientSecret, $grantType): bool
     {
-        /** @var OAuthClient $client */
+        /** @var OAuthClient|null $client */
         $client = $this->getClientEntity($clientIdentifier);
         $self = $this;
 
-        return Optional::ofNullable($client)
+        $valid = Optional::ofNullable($client)
             ->map(function ($client) use ($clientSecret, $grantType, $self) {
                 $secretValid = hash_equals((string) $client->getClientEntity()->getClientSecret(), (string) $clientSecret);
 
                 return $secretValid && $self->validateGrant($client, $grantType);
             })
             ->orElse(false);
+
+        if (!$valid) {
+            $this->logOauth()->warning('oauth client validation failed', [
+                'client_id' => (string) $clientIdentifier,
+                'grant_type' => (string) $grantType,
+            ]);
+        }
+
+        return $valid;
     }
 
     private function validateGrant(OAuthClient $client, string $grantType): bool

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Utility\ClientMetadata;
 
 use Amtgard\IdP\Utility\ClientMetadataValidator;
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
 
 final class Base64MetadataEncodingStrategy implements ClientMetadataEncodingStrategy
 {
@@ -16,6 +17,9 @@ final class Base64MetadataEncodingStrategy implements ClientMetadataEncodingStra
     public function prepare(mixed $metadata): array
     {
         if (!is_string($metadata) || trim($metadata) === '') {
+            IdpLoggingRuntime::app()->debug('client metadata base64 rejected', [
+                'rule' => 'base64_string',
+            ]);
             throw new \InvalidArgumentException('metadata must be a non-empty base64 string when encoding is base64.');
         }
 
@@ -24,11 +28,17 @@ final class Base64MetadataEncodingStrategy implements ClientMetadataEncodingStra
 
         $decoded = base64_decode($payload, true);
         if ($decoded === false) {
+            IdpLoggingRuntime::app()->debug('client metadata base64 rejected', [
+                'rule' => 'base64_decode',
+            ]);
             throw new \InvalidArgumentException('metadata must be valid base64 when encoding is base64.');
         }
 
         $json = json_decode($decoded, true);
         if (!is_array($json) || array_is_list($json)) {
+            IdpLoggingRuntime::app()->debug('client metadata base64 rejected', [
+                'rule' => 'json_object',
+            ]);
             throw new \InvalidArgumentException('base64 metadata must decode to a JSON object.');
         }
 

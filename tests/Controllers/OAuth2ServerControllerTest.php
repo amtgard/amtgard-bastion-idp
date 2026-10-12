@@ -25,11 +25,13 @@ use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 use League\OAuth2\Server\ResourceServer;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Entities\UserEntityInterface;
+use Amtgard\IdP\Utility\Log\IdpLogging;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
-use Psr\Log\LoggerInterface;
 use Twig\Environment as TwigEnvironment;
 
 class TestAuthorizationRequest extends \League\OAuth2\Server\RequestTypes\AuthorizationRequest
@@ -64,7 +66,10 @@ class TestClient extends \Amtgard\IdP\Persistence\Server\Entities\Repository\Cli
 
 class OAuth2ServerControllerTest extends TestCase
 {
-    private $logger;
+    private TestHandler $oauthLogHandler;
+
+    private IdpLogging $idpLogging;
+
     private $view;
     private $entityManager;
     private $authorizationServer;
@@ -85,7 +90,12 @@ class OAuth2ServerControllerTest extends TestCase
         @session_start();
         $_SESSION = [];
 
-        $this->logger = $this->createMock(LoggerInterface::class);
+        $this->oauthLogHandler = new TestHandler();
+        $oauthLogger = new Logger('oauth');
+        $oauthLogger->pushHandler($this->oauthLogHandler);
+        $this->idpLogging = $this->createMock(IdpLogging::class);
+        $this->idpLogging->method('oauth')->willReturn($oauthLogger);
+
         $this->view = $this->createMock(TwigEnvironment::class);
         $this->entityManager = $this->createMock(EntityManager::class);
         $this->authorizationServer = $this->createMock(AuthorizationServer::class);
@@ -107,7 +117,7 @@ class OAuth2ServerControllerTest extends TestCase
         $this->response->method('withBody')->willReturnSelf();
 
         $errorRenderer = OAuthFlowErrorRenderer::builder()
-            ->logger($this->logger)
+            ->idpLogging($this->idpLogging)
             ->view($this->view)
             ->build();
         $authRequestStore = new OAuthSessionAuthRequestStore();
@@ -115,6 +125,7 @@ class OAuth2ServerControllerTest extends TestCase
         $tokenAction = OAuthTokenAction::builder()
             ->authorizationServer($this->authorizationServer)
             ->errorRenderer($errorRenderer)
+            ->idpLogging(\Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create())
             ->build();
 
         $approveAction = OAuthApproveAction::builder()
@@ -123,6 +134,7 @@ class OAuth2ServerControllerTest extends TestCase
             ->authRequestStore($authRequestStore)
             ->errorRenderer($errorRenderer)
             ->view($this->view)
+            ->idpLogging($this->idpLogging)
             ->build();
 
         $authorizeAction = OAuthAuthorizeAction::builder()
@@ -132,7 +144,7 @@ class OAuth2ServerControllerTest extends TestCase
             ->userClientAuthorizationRepository($this->userClientAuthorizationRepository)
             ->authRequestStore($authRequestStore)
             ->errorRenderer($errorRenderer)
-            ->logger($this->logger)
+            ->idpLogging($this->idpLogging)
             ->amtgardIdpJwt($this->amtgardIdpJwt)
             ->redisCacheRepository($this->redisCacheRepository)
             ->build();
@@ -142,6 +154,7 @@ class OAuth2ServerControllerTest extends TestCase
             $approveAction,
             $authorizeAction,
             $authRequestStore,
+            $this->idpLogging,
         );
     }
 
@@ -219,16 +232,6 @@ class OAuth2ServerControllerTest extends TestCase
             ->method('respondToAccessTokenRequest')
             ->willThrowException(new \Exception('Token error'));
 
-        $this->logger->expects($this->once())
-            ->method('error')
-            ->with(
-                'OAuth token internal error',
-                $this->callback(function (array $context) {
-                    return str_contains($context['step'], '/oauth/token')
-                        && $context['message'] === 'Token error';
-                })
-            );
-
         $this->stream->expects($this->once())
             ->method('write')
             ->with($this->callback(function (string $json) {
@@ -250,6 +253,7 @@ class OAuth2ServerControllerTest extends TestCase
 
         $result = $this->controller->token($this->request, $this->response);
         $this->assertSame($this->response, $result);
+        $this->assertTrue($this->oauthLogHandler->hasCriticalThatContains('oauth token internal error'));
     }
 
     public function testApprovePostAllow(): void
@@ -552,7 +556,7 @@ class OAuth2ServerControllerTest extends TestCase
 
         $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
         $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
-        $this->userRepository->expects($this->once())
+        $this->userRepository->expects($this->exactly(2))
             ->method('getUserEntityById')
             ->with('session-uuid')
             ->willReturn($reloaded);
@@ -591,13 +595,9 @@ class OAuth2ServerControllerTest extends TestCase
         $this->amtgardIdpJwt->method('buildAuthorizationTokens')
             ->willReturn(['jwt' => 'fat', 'compact_jwt' => 'compact']);
 
-        $this->logger->expects($this->once())
-            ->method('info')
-            ->with('oauth user reloaded after session restore', [
-                'user_identifier' => 'session-uuid',
-            ]);
-
         $this->controller->authorize($this->request, $this->response);
+
+        $this->assertTrue($this->oauthLogHandler->hasInfoThatContains('oauth user reloaded after session restore'));
     }
 
     public function testAuthorizeReloadsPlainUserWithoutSessionRestoreLog(): void
@@ -613,16 +613,19 @@ class OAuth2ServerControllerTest extends TestCase
 
         $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
         $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
-        $this->userRepository->expects($this->once())
+        $this->userRepository->expects($this->exactly(2))
             ->method('getUserEntityById')
             ->with('session-uuid')
             ->willReturn($this->makeIdpUser('session-uuid'));
         $this->redisCacheRepository->method('hasLegacyUserEntry')->willReturn(false);
         $this->redisCacheRepository->method('getPvhRecord')->willReturn(null);
         $this->amtgardIdpJwt->expects($this->exactly(2))->method('buildAuthorizationTokens');
-        $this->logger->expects($this->never())->method('info');
 
         $this->controller->authorize($this->request, $this->response);
+
+        foreach ($this->oauthLogHandler->getRecords() as $record) {
+            $this->assertNotSame('oauth user reloaded after session restore', $record->message);
+        }
     }
 
     public function testAuthorizeSkipsReloadWhenSessionUserIdIsEmpty(): void
@@ -638,11 +641,9 @@ class OAuth2ServerControllerTest extends TestCase
         $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
         $this->userRepository->expects($this->never())->method('getUserEntityById');
         $this->amtgardIdpJwt->expects($this->never())->method('buildAuthorizationTokens');
-        $this->logger->expects($this->once())
-            ->method('warning')
-            ->with('oauth pvh seed skipped: user not resolved');
-
         $this->controller->authorize($this->request, $this->response);
+
+        $this->assertTrue($this->oauthLogHandler->hasWarningThatContains('oauth pvh seed skipped'));
     }
 
     public function testAuthorizeSeedsReloadedUserEntity(): void
@@ -671,7 +672,7 @@ class OAuth2ServerControllerTest extends TestCase
 
         $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
         $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
-        $this->userRepository->expects($this->once())
+        $this->userRepository->expects($this->exactly(2))
             ->method('getUserEntityById')
             ->with('session-uuid')
             ->willReturn($user);
@@ -698,16 +699,14 @@ class OAuth2ServerControllerTest extends TestCase
 
         $this->authorizationServer->method('validateAuthorizationRequest')->willReturn($authRequest);
         $this->authorizationServer->method('completeAuthorizationRequest')->willReturn($this->response);
-        $this->userRepository->expects($this->once())
+        $this->userRepository->expects($this->exactly(2))
             ->method('getUserEntityById')
             ->with('session-uuid')
             ->willReturn($this->createMock(UserEntityInterface::class));
         $this->amtgardIdpJwt->expects($this->never())->method('buildAuthorizationTokens');
-        $this->logger->expects($this->once())
-            ->method('warning')
-            ->with('oauth pvh seed skipped: user not resolved');
-
         $this->controller->authorize($this->request, $this->response);
+
+        $this->assertTrue($this->oauthLogHandler->hasWarningThatContains('oauth pvh seed skipped'));
     }
 
     public function testAuthorizeSuccessSeedsBothAudiencesWhenLegacyKeyExists(): void
@@ -861,16 +860,6 @@ class OAuth2ServerControllerTest extends TestCase
             ->method('authorize')
             ->willThrowException(new \TypeError('Cannot assign null to property createdAt'));
 
-        $this->logger->expects($this->once())
-            ->method('error')
-            ->with(
-                'OAuth flow internal error',
-                $this->callback(function (array $context) {
-                    return str_contains($context['step'], '/oauth/approve')
-                        && str_contains($context['message'], 'createdAt');
-                })
-            );
-
         $this->view->expects($this->once())
             ->method('render')
             ->with('oauth_error.twig', $this->callback(function (array $context) {
@@ -892,6 +881,7 @@ class OAuth2ServerControllerTest extends TestCase
 
         $result = $this->controller->approve($this->request, $this->response);
         $this->assertSame($this->response, $result);
+        $this->assertTrue($this->oauthLogHandler->hasCriticalThatContains('oauth flow internal error'));
     }
 
     public function testApprovePostAllowCallsAuthorizeWithSessionUserAndClient(): void

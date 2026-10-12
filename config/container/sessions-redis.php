@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\PubSubQueueHandle;
 use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
 use Amtgard\IdP\Utility\PvhQueueHandle;
@@ -19,11 +20,24 @@ use Redis;
 
 return [
     RedisDataStructureConfig::class => function (ContainerInterface $container) {
-        return PubSubRedisConfig::dataStructureConfig();
+        $idpLogging = $container->get(IdpLogging::class);
+
+        return PubSubRedisConfig::dataStructureConfig($idpLogging->app());
     },
 
     Redis::class => function (ContainerInterface $container) {
-        return PubSubRedisConfig::connect(new Redis());
+        $idpLogging = $container->get(IdpLogging::class);
+
+        return PubSubRedisConfig::connect(new Redis(), $idpLogging->app());
+    },
+
+    RedisCacheRepository::class => function (ContainerInterface $container) {
+        return new RedisCacheRepository(
+            $container->get(IdpLogging::class),
+            $container->get(Redis::class),
+            $container->get(PubSubQueue::class),
+            $container->get(PvhQueueHandle::class),
+        );
     },
 
     PubSubQueueHandle::class => function (ContainerInterface $container) {
@@ -71,9 +85,12 @@ return [
     },
 
     PvhAuthorizationGate::class => function (ContainerInterface $container) {
+        $idpLogging = $container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class);
+
         return PvhAuthorizationGate::builder()
             ->redisCacheRepository($container->get(RedisCacheRepository::class))
-            ->logger($container->get(LoggerInterface::class))
+            ->logger($idpLogging->pvh())
+            ->idpLogging($idpLogging)
             ->build();
     },
 ];

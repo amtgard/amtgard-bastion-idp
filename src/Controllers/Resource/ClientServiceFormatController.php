@@ -7,6 +7,7 @@ namespace Amtgard\IdP\Controllers\Resource;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Services\ClientIamServiceFormatService;
 use Amtgard\IdP\Utility\JsonResponseBody;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -19,6 +20,7 @@ final class ClientServiceFormatController
     public function __construct(
         private ClientIamRequestInterpreter $requests,
         private ClientIamServiceFormatService $formats,
+        private IdpLogging $idpLogging,
     ) {}
 
     #[OA\Get(
@@ -69,6 +71,11 @@ final class ClientServiceFormatController
         $client = $this->requests->client($request);
 
         if ($this->formats->hasConfiguredFormat($client)) {
+            $this->idpLogging->audit()->error('client iam service format rejected', [
+                'client_id' => $client->getIdentifier(),
+                'error_code' => 'format_exists',
+            ]);
+
             return JsonResponseBody::writeError($response, 'service format already configured; use PUT to replace', 409);
         }
 
@@ -110,6 +117,14 @@ final class ClientServiceFormatController
         try {
             $this->formats->save($client, (array) $request->getParsedBody());
         } catch (\InvalidArgumentException|\JsonException $e) {
+            $this->idpLogging->audit()->debug('client iam service format validation failed', [
+                'field' => 'service_format',
+                'rule' => $e->getMessage(),
+            ]);
+            $this->idpLogging->audit()->error('client iam service format rejected', [
+                'client_id' => $client->getIdentifier(),
+            ]);
+
             return JsonResponseBody::writeError($response, $e->getMessage(), 400);
         }
 

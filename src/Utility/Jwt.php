@@ -25,27 +25,47 @@ final class Jwt
         return null;
     }
 
-    public static function validateJwt(string $challengeJwt, string $userJwt): bool
+    public static function validateJwt(
+        string $challengeJwt,
+        string $userJwt,
+        ?LoggerInterface $logger = null,
+    ): bool
     {
-        $challenge = self::parseJwt($challengeJwt);
-        $userData = self::parseJwt($userJwt);
+        $challenge = self::parseJwt($challengeJwt, $logger);
+        $userData = self::parseJwt($userJwt, $logger);
 
         if (empty($challenge) || empty($userData)) {
+            $logger?->debug('jwt validate compare rejected', [
+                'reason' => 'empty_payload',
+            ]);
+
             return false;
         }
 
         // 1. `aud` must match if present in either
         if (($challenge['aud'] ?? null) !== ($userData['aud'] ?? null)) {
+            $logger?->debug('jwt validate compare rejected', [
+                'reason' => 'aud_mismatch',
+            ]);
+
             return false;
         }
 
         // 2. `iss` must match if present in either
         if (($challenge['iss'] ?? null) !== ($userData['iss'] ?? null)) {
+            $logger?->debug('jwt validate compare rejected', [
+                'reason' => 'iss_mismatch',
+            ]);
+
             return false;
         }
 
         // 3. `exp` in the challenge JWT must be a future timestamp
         if (!isset($challenge['exp']) || !is_numeric($challenge['exp']) || $challenge['exp'] <= time()) {
+            $logger?->debug('jwt validate compare rejected', [
+                'reason' => 'exp_invalid',
+            ]);
+
             return false;
         }
 
@@ -55,7 +75,10 @@ final class Jwt
 
         if ($challengePolicyJson !== $userDataPolicyJson) {
             if ($challengePolicyJson === null || $userDataPolicyJson === null) {
-                // One is null, the other is not, so they don't match.
+                $logger?->debug('jwt validate compare rejected', [
+                    'reason' => 'policy_mismatch',
+                ]);
+
                 return false;
             }
 
@@ -63,6 +86,10 @@ final class Jwt
             $userDataPolicy = PolicyFactory::fromOrn(json_decode($userDataPolicyJson, true));
 
             if (!$userDataPolicy->is($challengePolicy)) {
+                $logger?->debug('jwt validate compare rejected', [
+                    'reason' => 'policy_mismatch',
+                ]);
+
                 return false;
             }
         }
@@ -72,16 +99,19 @@ final class Jwt
 
     public static function validateJwtSignature(string $putativeJwt, ?LoggerInterface $logger = null): ?string {
         $failureReason = null;
+        $exceptionClass = null;
         try {
             $publicKey = OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY');
             FirebaseJwt::decode($putativeJwt, new Key($publicKey, 'RS256'));
         } catch (\Throwable $e) {
             $failureReason = $e->getMessage();
+            $exceptionClass = $e::class;
         }
 
         if ($failureReason !== null) {
             $logger?->debug('jwt signature validation failed', [
                 'reason' => $failureReason,
+                'exception_class' => $exceptionClass,
             ]);
 
             return null;
@@ -94,7 +124,16 @@ final class Jwt
         ServerRequestInterface $request,
         ?LoggerInterface $logger = null,
     ): ?string {
-        return Optional::ofNullable(self::getBearerJwt($request))
+        $bearer = self::getBearerJwt($request);
+        if ($bearer === null) {
+            $logger?->debug('jwt request validation skipped', [
+                'reason' => 'missing_bearer',
+            ]);
+
+            return null;
+        }
+
+        return Optional::ofNullable($bearer)
             ->map(fn (string $putativeJwt) => self::validateJwtSignature($putativeJwt, $logger))
             ->orElse(null);
     }
@@ -103,7 +142,7 @@ final class Jwt
      * Payload extraction without signature verification (used for challenge compare and post-verify reads).
      * Verified Bearer tokens should use validateJwtSignature before trusting claims.
      */
-    public static function parseJwt(string $jwt): ?array {
+    public static function parseJwt(string $jwt, ?LoggerInterface $logger = null): ?array {
         // Remove Bearer prefix if present for parsing
         if (preg_match('/Bearer\s+(.*)$/i', $jwt, $matches)) {
             $jwt = $matches[1];
@@ -114,6 +153,11 @@ final class Jwt
         if (count($tokenParts) === 3) {
             return json_decode(base64_decode(str_replace(['-', '_'], ['+', '/'], $tokenParts[1])), true);
         }
+
+        $logger?->debug('jwt parse rejected', [
+            'reason' => 'malformed_compact',
+        ]);
+
         return null;
     }
 

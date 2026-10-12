@@ -6,6 +6,7 @@ namespace Amtgard\IdP\Persistence\Common\Repositories;
 
 use Amtgard\ActiveRecordOrm\Entity\EntityMapper;
 use Amtgard\IAM\Catalog\ServiceCatalog;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Optional\Optional;
 
 final class UserPolicyClaimWriter
@@ -13,6 +14,7 @@ final class UserPolicyClaimWriter
     public function __construct(
         private EntityMapper $userClaims,
         private ClaimOrnValidator $ornValidator,
+        private IdpLogging $idpLogging,
     ) {
     }
 
@@ -29,6 +31,11 @@ final class UserPolicyClaimWriter
         $this->ornValidator->assertClaimParses($service, $provisos, $resource);
 
         if ($this->claimExists($userDbId, $service, $provisos, $resource)) {
+            $this->idpLogging->audit()->debug('policy claim add idempotent noop', [
+                'user_id' => $userDbId,
+                'service' => $service,
+            ]);
+
             return;
         }
 
@@ -56,6 +63,13 @@ final class UserPolicyClaimWriter
     {
         if ($service === ServiceCatalog::Idp->value) {
             return;
+        }
+
+        if ($clientDbId === null) {
+            $this->idpLogging->app()->error('policy claim rejected missing client', [
+                'service' => $service,
+                'rule' => 'client_required',
+            ]);
         }
 
         Optional::ofNullable($clientDbId)
@@ -104,6 +118,11 @@ final class UserPolicyClaimWriter
         $count = $this->userClaims->count();
 
         if ($count >= UserPolicyClaimRepository::MAX_CLAIMS_PER_CLIENT) {
+            $this->idpLogging->app()->error('policy claim cap exceeded', [
+                'user_id' => $userDbId,
+                'client_id' => $clientDbId,
+                'claim_count' => $count,
+            ]);
             throw new \InvalidArgumentException(
                 sprintf('At most %d policy claims are allowed per user for this client.', UserPolicyClaimRepository::MAX_CLAIMS_PER_CLIENT)
             );

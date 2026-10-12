@@ -14,6 +14,7 @@ use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Tests\Support\ScriptAlertResponseAssert;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Amtgard\IdP\Utility\Security\OAuth2StateManager;
 use League\OAuth2\Client\Provider\Apple;
 use League\OAuth2\Client\Provider\Facebook;
@@ -80,6 +81,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -104,6 +106,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -150,6 +153,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -194,6 +198,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -213,6 +218,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -231,6 +237,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -275,6 +282,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -323,6 +331,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -343,6 +352,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -372,6 +382,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -424,6 +435,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -469,6 +481,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -512,6 +525,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -553,6 +567,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -574,6 +589,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -596,6 +612,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -646,6 +663,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -717,6 +735,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -776,6 +795,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );
@@ -793,6 +813,7 @@ class SocialAuthControllersTest extends TestCase
             $this->users,
             $this->logins,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
             $this->amtgardIdpJwt,
             $provider,
         );

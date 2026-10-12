@@ -159,13 +159,14 @@ final class OidcTokenExchangeHarness
         \Psr\Http\Message\ServerRequestInterface $tokenRequest
     ): array {
         $errorRenderer = OAuthFlowErrorRenderer::builder()
-            ->logger(new NullLogger())
+            ->idpLogging(\Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create())
             ->view(new TwigEnvironment(new ArrayLoader([])))
             ->build();
 
         $action = OAuthTokenAction::builder()
             ->authorizationServer($server)
             ->errorRenderer($errorRenderer)
+            ->idpLogging(\Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create())
             ->build();
 
         $response = $action->handle($tokenRequest, (new ResponseFactory())->createResponse());

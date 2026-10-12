@@ -7,6 +7,7 @@ namespace Amtgard\IdP\Services;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserOrkProfileRepository;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Getter;
 use Optional\Optional;
@@ -18,6 +19,8 @@ final class ResourcesUserinfoService
 
     protected UserOrkProfileRepository $orkProfileRepository;
 
+    protected ?IdpLogging $idpLogging = null;
+
     /**
      * @return array<string, mixed>
      */
@@ -28,10 +31,16 @@ final class ResourcesUserinfoService
             'email' => $user->getEmail(),
         ];
 
-        Optional::ofNullable($this->orkProfileRepository->findByUserId($user->getId()))
-            ->ifPresent(function (UserOrkProfileEntity $orkProfile) use (&$userData): void {
-                $userData['ork_profile'] = $orkProfile->toUserinfoProfileArray();
+        $orkProfile = $this->orkProfileRepository->findByUserId($user->getId());
+        Optional::ofNullable($orkProfile)
+            ->ifPresent(function (UserOrkProfileEntity $profile) use (&$userData): void {
+                $userData['ork_profile'] = $profile->toUserinfoProfileArray();
             });
+
+        $this->idpLogging?->app()->debug('resources userinfo payload built', [
+            'user_uuid' => $user->getUserId(),
+            'has_ork_profile' => $orkProfile !== null,
+        ]);
 
         return $userData;
     }

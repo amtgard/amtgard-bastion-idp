@@ -39,7 +39,7 @@ class OAuthActionWiringTest extends TestCase
             UserClientAuthorizationRepository::class => $this->createStub(UserClientAuthorizationRepository::class),
             OAuthSessionAuthRequestStore::class => new OAuthSessionAuthRequestStore(),
             OAuthFlowErrorRenderer::class => $errorRenderer,
-            LoggerInterface::class => $this->createStub(LoggerInterface::class),
+            \Amtgard\IdP\Utility\Log\IdpLogging::class => \Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create(),
             AmtgardIdpJwt::class => $this->createStub(AmtgardIdpJwt::class),
             RedisCacheRepository::class => $this->createStub(RedisCacheRepository::class),
         ]);
@@ -61,6 +61,7 @@ class OAuthActionWiringTest extends TestCase
             OAuthSessionAuthRequestStore::class => new OAuthSessionAuthRequestStore(),
             OAuthFlowErrorRenderer::class => $errorRenderer,
             TwigEnvironment::class => $this->createStub(TwigEnvironment::class),
+            \Amtgard\IdP\Utility\Log\IdpLogging::class => \Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create(),
         ]);
 
         $definitions = require __DIR__ . '/../../config/container.php';
@@ -77,6 +78,7 @@ class OAuthActionWiringTest extends TestCase
         $repository = $this->createStub(UserOrkProfileRepository::class);
         $container = $this->containerReturning([
             UserOrkProfileRepository::class => $repository,
+            \Amtgard\IdP\Utility\Log\IdpLogging::class => \Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create(),
         ]);
 
         $definitions = require __DIR__ . '/../../config/container.php';
@@ -89,7 +91,7 @@ class OAuthActionWiringTest extends TestCase
     private function errorRenderer(): OAuthFlowErrorRenderer
     {
         return OAuthFlowErrorRenderer::builder()
-            ->logger($this->createStub(LoggerInterface::class))
+            ->idpLogging(\Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create())
             ->view($this->createStub(TwigEnvironment::class))
             ->build();
     }

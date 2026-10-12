@@ -61,6 +61,8 @@ final class ContainerResolutionOrderTest extends TestCase
     protected function tearDown(): void
     {
         OAuthTestEnvironment::restorePhpUnitOAuthKeys();
+        OAuthTestEnvironment::restorePhpUnitOrkIntegrationFlags();
+        OAuthTestEnvironment::restorePhpUnitLogFlags();
         parent::tearDown();
     }
 

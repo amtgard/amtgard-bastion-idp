@@ -20,6 +20,8 @@ use Amtgard\IdP\Services\Mailbox\MailboxChallengePurpose;
 use Amtgard\IdP\Services\MailboxChallengeService;
 use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Services\RegistrationService;
+use Amtgard\IdP\Tests\Support\CapturedIdpLogging;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -66,6 +68,7 @@ class ConnectControllerTest extends TestCase
             $this->registrationService,
             $this->challenges,
             $this->logger,
+            IdpLoggingTestFactory::create(),
         );
 
         $this->stream = $this->createMock(StreamInterface::class);
@@ -298,6 +301,7 @@ class ConnectControllerTest extends TestCase
                 $this->registrationService,
                 $this->challenges,
                 $this->createMock(LoggerInterface::class),
+                IdpLoggingTestFactory::create(),
             );
             $this->orkProfiles->expects($this->never())->method('linkExistingUserToMundane');
             $this->twig->method('render')->willReturn('html');
@@ -404,6 +408,7 @@ class ConnectControllerTest extends TestCase
             $this->registrationService,
             $this->challenges,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
         );
         $controller->submitConnectCode($this->requestWithBody([
             'link_token' => 'jwt-token',
@@ -426,6 +431,7 @@ class ConnectControllerTest extends TestCase
             $this->registrationService,
             $this->challenges,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
         );
         $controller->submitConnectCode($this->requestWithBody([
             'link_token' => 'jwt-token',
@@ -445,6 +451,7 @@ class ConnectControllerTest extends TestCase
             $this->registrationService,
             $this->challenges,
             $this->createMock(LoggerInterface::class),
+            IdpLoggingTestFactory::create(),
         );
         $controller->submitConnectCode($this->requestWithBody([
             'link_token' => 'jwt-token',
@@ -626,18 +633,30 @@ class ConnectControllerTest extends TestCase
     {
         $_ENV['TEST_REGENERATE_FAIL'] = '1';
         $this->prepareLegacyLogin();
-        $this->logger->expects($this->once())->method('warning')->with('session_regenerate_id failed during connect handoff', ['user_id' => 'uuid-user']);
+        $capture = CapturedIdpLogging::create();
+        $controller = new ConnectController(
+            $this->twig,
+            $this->users,
+            $this->logins,
+            $this->orkProfiles,
+            $this->tokenService,
+            $this->registrationService,
+            $this->challenges,
+            $this->logger,
+            $capture->idpLogging,
+        );
         $this->tokenService->method('hasSharedSecret')->willReturn(false);
         $this->tokenService->method('orkBaseUrl')->willReturn('https://ork.example.com');
 
-        $this->controller->submitConnectLogin($this->legacyLoginRequest(), $this->response);
+        $controller->submitConnectLogin($this->legacyLoginRequest(), $this->response);
+
+        $this->assertTrue($capture->handler('security')->hasWarningThatContains('connect session regenerate failed'));
     }
 
     public function testSubmitConnectLoginConsumeJtiFailure(): void
     {
         $this->prepareLegacyLogin(false);
         $this->tokenService->method('consumeJti')->willThrowException(new \RuntimeException('db'));
-        $this->logger->expects($this->once())->method('error');
         $this->twig->expects($this->once())
             ->method('render')
             ->with('connect.twig', $this->callback(fn (array $ctx) => str_contains((string) $ctx['error'], 'still valid')))
@@ -674,8 +693,7 @@ class ConnectControllerTest extends TestCase
     {
         $this->prepareLegacyLogin();
         $this->orkProfiles->method('linkExistingUserToMundane')->willThrowException(new \RuntimeException('disk full'));
-        $this->logger->expects($this->once())->method('error');
-        $this->twig->method('render')->willReturn('html');
+        $this->twig->expects($this->once())->method('render')->willReturn('html');
 
         $this->controller->submitConnectLogin($this->legacyLoginRequest(), $this->response);
     }
@@ -761,16 +779,28 @@ class ConnectControllerTest extends TestCase
         $this->orkProfiles->method('findByMundaneId')->willReturn(null);
         $this->tokenService->method('consumeJti')->willReturn(true);
         $this->challenges->expects($this->once())->method('consume');
-        $this->logger->expects($this->once())->method('warning');
+        $capture = CapturedIdpLogging::create();
+        $controller = new ConnectController(
+            $this->twig,
+            $this->users,
+            $this->logins,
+            $this->orkProfiles,
+            $this->tokenService,
+            $this->registrationService,
+            $this->challenges,
+            $this->logger,
+            $capture->idpLogging,
+        );
         $this->tokenService->method('hasSharedSecret')->willReturn(false);
         $this->tokenService->method('orkBaseUrl')->willReturn('https://ork.example.com');
 
-        $this->controller->submitConnectCode($this->requestWithBody([
+        $controller->submitConnectCode($this->requestWithBody([
             'link_token' => 'jwt-token',
             'challenge_id' => 'chal-1',
             'code' => '123456',
         ]), $this->response);
         $this->assertSame('uuid-user', $_SESSION['user_id']);
+        $this->assertTrue($capture->handler('security')->hasWarningThatContains('connect session regenerate failed'));
     }
 
     /**

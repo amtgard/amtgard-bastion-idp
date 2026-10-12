@@ -6,8 +6,8 @@ namespace Amtgard\IdP\Utility\Security;
 
 use Amtgard\IdP\Models\AllowedLinkOrkProfileClientIds;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpUnauthorizedException;
 
 /**
@@ -21,7 +21,7 @@ final class AllowListedConfidentialClientAuthenticator
     public function __construct(
         private ClientRepository $clientRepository,
         private AllowedLinkOrkProfileClientIds $allowedClientIds,
-        private LoggerInterface $logger,
+        private IdpLogging $logging,
     ) {}
 
     public function authenticate(Request $request): void
@@ -31,15 +31,18 @@ final class AllowListedConfidentialClientAuthenticator
         );
 
         if (!$credentials->isPresent()) {
-            $this->logger->info('ConfidentialClientBasic: missing or non-Basic Authorization header');
+            $this->logging->security()->error('allow-listed confidential client auth rejected', [
+                'failure_reason' => 'missing_basic',
+            ]);
             throw new HttpUnauthorizedException($request, 'Confidential client credentials required.');
         }
 
         $basic = $credentials->get();
 
         if (!$this->allowedClientIds->contains($basic->clientId)) {
-            $this->logger->warning('ConfidentialClientBasic: client_id not in allow-list', [
+            $this->logging->security()->alert('allow-listed confidential client auth rejected', [
                 'client_id' => $basic->clientId,
+                'failure_reason' => 'client_not_in_allow_list',
             ]);
             throw new HttpUnauthorizedException($request, 'Client not authorized for this endpoint.');
         }
@@ -49,13 +52,14 @@ final class AllowListedConfidentialClientAuthenticator
             $basic->clientSecret,
             'confidential_basic'
         )) {
-            $this->logger->warning('ConfidentialClientBasic: bad credentials for allow-listed client', [
+            $this->logging->security()->alert('allow-listed confidential client auth rejected', [
                 'client_id' => $basic->clientId,
+                'failure_reason' => 'invalid_credentials',
             ]);
             throw new HttpUnauthorizedException($request, 'Invalid client credentials.');
         }
 
-        $this->logger->debug('ConfidentialClientBasic: credentials accepted', [
+        $this->logging->security()->debug('allow-listed confidential client credentials accepted', [
             'client_id' => $basic->clientId,
         ]);
     }

@@ -12,6 +12,7 @@ use Amtgard\IdP\Controllers\Server\OAuth\OAuthSessionAuthRequestStore;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAuthCode;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AuthCode;
+use Amtgard\IdP\Utility\Log\UsesIdpLogging;
 use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\Entities\AuthCodeEntityInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
@@ -20,6 +21,7 @@ use Ramsey\Uuid\Uuid;
 #[RepositoryOf('auth_codes', AuthCode::class)]
 class AuthCodeRepository extends Repository implements AuthCodeRepositoryInterface, AuthCodeNonceLookup
 {
+    use UsesIdpLogging;
 
     static function getTableName()
     {
@@ -66,6 +68,11 @@ class AuthCodeRepository extends Repository implements AuthCodeRepositoryInterfa
         $authCode->setNonce($sessionStore->nonce());
         $sessionStore->clearNonce();
         $authCode->persist($authCode->getMapper());
+
+        $this->logOauth()->info('oauth auth code persisted', [
+            'client_id' => $oAuthClient->getIdentifier(),
+            'code_id_prefix' => $this->tokenIdPrefix($oAuthAuthCode->getIdentifier()),
+        ]);
     }
 
     public function findNonceByAuthCodeId(string $authCodeId): ?string
@@ -86,6 +93,10 @@ class AuthCodeRepository extends Repository implements AuthCodeRepositoryInterfa
         $authCode = $this->fetchBy('identifier', $codeId);
         $authCode->setExpiryDateTime(new \DateTimeImmutable('now'));
         $authCode->persist($authCode->getMapper());
+
+        $this->logOauth()->info('oauth auth code revoked', [
+            'code_id_prefix' => $this->tokenIdPrefix((string) $codeId),
+        ]);
     }
 
     public function isAuthCodeRevoked($codeId)
@@ -99,5 +110,9 @@ class AuthCodeRepository extends Repository implements AuthCodeRepositoryInterfa
     {
         $this->query("DELETE FROM auth_codes WHERE expiry_date_time < NOW()");
         $this->execute();
+
+        $this->logOauth()->info('oauth expired auth codes purged', [
+            'job' => 'clean_tokens',
+        ]);
     }
 }

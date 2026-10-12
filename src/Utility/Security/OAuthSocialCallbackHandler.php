@@ -7,6 +7,7 @@ namespace Amtgard\IdP\Utility\Security;
 use Amtgard\IdP\Controllers\Client\AuthorizationFinalizeRedirect;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Getter;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -20,6 +21,8 @@ final class OAuthSocialCallbackHandler
     protected string $providerName;
 
     protected LoggerInterface $logger;
+
+    protected IdpLogging $idpLogging;
 
     protected string $errorRedirectPath = '/auth/login?policy';
 
@@ -48,23 +51,33 @@ final class OAuthSocialCallbackHandler
         Response $response,
         callable $finalizeAuthorization,
     ): Response {
-        $validationResult = OAuthCallbackValidator::validate($callbackParams, $this->providerName);
+        $oauth = $this->idpLogging->oauth();
+        $validationResult = OAuthCallbackValidator::validate(
+            $callbackParams,
+            $this->providerName,
+            $this->errorRedirectPath,
+            $oauth,
+        );
 
         if ($validationResult !== null) {
+            $oauth->error('oauth social callback rejected', [
+                'provider' => $this->providerName,
+                'failure_reason' => 'callback_validation',
+            ]);
             $response->getBody()->write($validationResult);
 
             return $response;
         }
 
         try {
-            $this->logger->info('oauth social sign-in callback started', [
+            $oauth->info('oauth social sign-in callback started', [
                 'provider' => $this->providerName,
             ]);
 
             $token = ($this->fetchToken)($callbackParams);
             $userData = ($this->mapUserData)($token);
 
-            $this->logger->debug('oauth social provider profile resolved', $this->oauthProfileLogContext($userData));
+            $oauth->debug('oauth social provider profile resolved', $this->oauthProfileLogContext($userData));
 
             $redirectPolicy = AuthorizationFinalizeRedirect::ReturningUserWithStoredRedirect;
             $resolveUser = $this->resolveUser;
@@ -73,10 +86,9 @@ final class OAuthSocialCallbackHandler
 
             return $finalizeAuthorization($login, $redirectPolicy);
         } catch (\Exception $e) {
-            $this->logger->error('oauth social authentication error', [
+            $oauth->error('oauth social authentication error', [
                 'provider' => $this->providerName,
-                'exception' => $e::class,
-                'message' => $e->getMessage(),
+                'exception_class' => $e::class,
             ]);
 
             $response->getBody()->write(

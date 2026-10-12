@@ -13,6 +13,7 @@ use Amtgard\IdP\Controllers\Resource\ClientPolicyClaimsController;
 use Amtgard\IdP\Controllers\Resource\ClientServiceFormatController;
 use Amtgard\IdP\Controllers\Resource\ClientUserLookupController;
 use Amtgard\IdP\Controllers\Resource\ClientUserMetadataController;
+use Amtgard\IdP\Controllers\Resource\LogsController;
 use Amtgard\IdP\Controllers\Resource\LowLatencyController;
 use Amtgard\IdP\Controllers\Server\OAuth\DiscoveryController;
 use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
@@ -20,6 +21,7 @@ use Amtgard\IdP\Controllers\Server\OAuth2ServerController;
 use Amtgard\IdP\Controllers\Management\ClientAccessController;
 use Amtgard\IdP\Controllers\Management\ManagementController;
 use Amtgard\IdP\Controllers\Resource\OrkAccountUnlinkController;
+use Amtgard\IdP\Controllers\Resource\OrkIntegrationController;
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
 use Amtgard\IdP\Controllers\SwaggerController;
 use Amtgard\IdP\Controllers\VersionController;
@@ -33,6 +35,7 @@ use Amtgard\IdP\Middleware\OAuthAccessTokenElevationMiddleware;
 use Amtgard\IdP\Middleware\CsrfMiddleware;
 use Amtgard\IdP\Middleware\ManagementMiddleware;
 use Amtgard\IdP\Middleware\CachedJwtLocalIdpAuthMiddleware;
+use Amtgard\IdP\Middleware\LogReaderAuthorizationMiddleware;
 use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
 
@@ -142,6 +145,10 @@ return function (App $app) {
 
         // Server-to-server: ORK calls this to mirror a successful local link write
         // into the IDP. Basic auth against the confidential-client credentials.
+        $group->post('/ork/validate-send-nonce', [OrkIntegrationController::class, 'validateSendNonce'])
+            ->add(ConfidentialClientBasicAuthMiddleware::class)
+            ->setName('resources.ork.validate_send_nonce');
+
         $group->post('/link-ork-profile', [ResourcesController::class, 'linkOrkProfile'])
             ->add(ConfidentialClientBasicAuthMiddleware::class)
             ->setName('resources.link_ork_profile');
@@ -193,6 +200,31 @@ return function (App $app) {
         $group->put('/client/service-format', [ClientServiceFormatController::class, 'replaceServiceFormat'])
             ->add(ConfidentialClientAuthMiddleware::class)
             ->setName('resources.client.service_format.replace');
+
+        $group->get('/logs/trace', [LogsController::class, 'traceSearch'])
+            ->add(LogReaderAuthorizationMiddleware::class)
+            ->add(CachedJwtLocalIdpAuthMiddleware::class)
+            ->setName('resources.logs.trace');
+
+        $group->get('/logs/trace/{request_id}', [LogsController::class, 'traceByRequestId'])
+            ->add(LogReaderAuthorizationMiddleware::class)
+            ->add(CachedJwtLocalIdpAuthMiddleware::class)
+            ->setName('resources.logs.trace.request');
+
+        $group->get('/logs/errors', [LogsController::class, 'errorSearch'])
+            ->add(LogReaderAuthorizationMiddleware::class)
+            ->add(CachedJwtLocalIdpAuthMiddleware::class)
+            ->setName('resources.logs.errors');
+
+        $group->get('/logs/stats', [LogsController::class, 'stats'])
+            ->add(LogReaderAuthorizationMiddleware::class)
+            ->add(CachedJwtLocalIdpAuthMiddleware::class)
+            ->setName('resources.logs.stats');
+
+        $group->post('/logs/analyze', [LogsController::class, 'analyze'])
+            ->add(LogReaderAuthorizationMiddleware::class)
+            ->add(CachedJwtLocalIdpAuthMiddleware::class)
+            ->setName('resources.logs.analyze');
     });
 
     // Authentication routes

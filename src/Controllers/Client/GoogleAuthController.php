@@ -10,6 +10,7 @@ use Amtgard\IdP\Persistence\Client\Repositories\UserLoginRepository;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\Security\OAuth2StateManager;
 use Amtgard\IdP\Utility\Security\OAuthSocialCallbackHandler;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\Security\OAuthSocialRedirectSessionStore;
 use League\OAuth2\Client\Provider\Google;
 use Optional\Optional;
@@ -27,10 +28,11 @@ class GoogleAuthController extends BaseAuthController
         UserRepository $users,
         UserLoginRepository $userLoginRepository,
         LoggerInterface $logger,
+        IdpLogging $idpLogging,
         AmtgardIdpJwt $amtgardIdpJwt,
         Google $googleProvider
     ) {
-        parent::__construct($logger, $amtgardIdpJwt);
+        parent::__construct($logger, $idpLogging, $amtgardIdpJwt);
         $this->users = $users;
         $this->logins = $userLoginRepository;
         $this->googleProvider = $googleProvider;
@@ -56,6 +58,8 @@ class GoogleAuthController extends BaseAuthController
 
         OAuthSocialRedirectSessionStore::storeFromQueryParams($request->getQueryParams());
 
+        $this->idpLogging->oauth()->info('oauth social redirect', ['provider' => 'Google']);
+
         return $response
             ->withHeader('Location', $authUrl)
             ->withStatus(302);
@@ -75,6 +79,7 @@ class GoogleAuthController extends BaseAuthController
         return OAuthSocialCallbackHandler::builder()
             ->providerName('Google')
             ->logger($this->logger)
+            ->idpLogging($this->idpLogging)
             ->fetchToken(function (array $params) {
                 return $this->googleProvider->getAccessToken('authorization_code', [
                     'code' => $params['code'],
@@ -90,6 +95,12 @@ class GoogleAuthController extends BaseAuthController
                         return Optional::ofNullable($this->users->getUserByEmail($userData['email']))
                             ->orElseGet(function () use ($userData, &$redirectPolicy) {
                                 $redirectPolicy = AuthorizationFinalizeRedirect::NewUserProfile;
+                                $email = (string) ($userData['email'] ?? '');
+                                $this->idpLogging->oauth()->info('oauth social user provisioned', [
+                                    'provider' => 'Google',
+                                    'provision' => 'new_user',
+                                    'email_sha256' => $email !== '' ? hash('sha256', $email) : null,
+                                ]);
 
                                 return $this->users->createUserFromGoogleData($userData);
                             });
@@ -103,6 +114,11 @@ class GoogleAuthController extends BaseAuthController
                         return $this->logins->updateLoginTokens($login, fn ($t) => $t->getRefreshToken(), $token);
                     })
                     ->orElseGet(function () use ($user, $userData, $token) {
+                        $this->idpLogging->oauth()->info('oauth social login provisioned', [
+                            'provider' => 'Google',
+                            'provision' => 'new_login',
+                        ]);
+
                         return $this->logins->createLoginFromGoogleData($user, $userData, $token);
                     });
             })

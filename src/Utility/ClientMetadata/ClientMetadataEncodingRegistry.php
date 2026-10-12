@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Utility\ClientMetadata;
 
 use Amtgard\IdP\Utility\ClientMetadataValidator;
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
 
 /**
  * Selects a metadata wire encoding strategy (json object vs base64 blob).
@@ -32,6 +33,9 @@ final class ClientMetadataEncodingRegistry
             : strtolower(trim($encoding));
 
         if (!isset(self::$strategies[$encoding])) {
+            IdpLoggingRuntime::app()->debug('client metadata encoding invalid', [
+                'rule' => 'encoding',
+            ]);
             throw new \InvalidArgumentException('encoding must be json or base64.');
         }
 

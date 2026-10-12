@@ -197,7 +197,7 @@ final class LowLatencyController
         }
 
         if ($outcome === PvhGateOutcome::StaleToken) {
-            $this->logger->notice(
+            $this->logger->error(
                 'jwt validate stale_token', [
                 'user_uuid' => $tokenUserId,
                 'aud' => $aud,
@@ -211,7 +211,7 @@ final class LowLatencyController
             return PvhGate::writeStaleToken($response);
         }
 
-        $this->logger->notice(
+        $this->logger->error(
             'jwt validate unknown pvh', [
             'user_uuid' => $tokenUserId,
             'aud' => $aud,
@@ -242,7 +242,7 @@ final class LowLatencyController
         $aud = $challenge['aud'];
         $resolved = $this->pvhAuthorizationGate->lastResolvedRecord();
         if ($access === PvhAccess::Current && $resolved !== null) {
-            $this->logger->notice(
+            $this->logger->info(
                 'jwt validate current', [
                 'user_uuid' => $tokenUserId,
                 'aud' => $aud,
@@ -261,7 +261,7 @@ final class LowLatencyController
             );
         }
 
-        $this->logger->notice(
+        $this->logger->info(
             'jwt validate cache miss seeded', [
             'user_uuid' => $tokenUserId,
             'aud' => $aud,
@@ -285,7 +285,7 @@ final class LowLatencyController
      */
     private function rejectValidate(Response $response, string $reason, array $context = []): Response
     {
-        $this->logger->debug('jwt validate rejected', array_merge(['reason' => $reason], $context));
+        $this->logger->error('jwt validate rejected', array_merge(['reason' => $reason], $context));
 
         return PvhGate::writeUnauthorized($response);
     }

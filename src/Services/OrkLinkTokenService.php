@@ -9,8 +9,8 @@ use Firebase\JWT\ExpiredException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Firebase\JWT\SignatureInvalidException;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Optional\Optional;
-use Psr\Log\LoggerInterface;
 
 /**
  * Verifies short-lived HS256 JWTs minted by ORK3 for the /auth/connect handoff.
@@ -21,7 +21,7 @@ class OrkLinkTokenService
 {
     public function __construct(
         private Database $database,
-        private LoggerInterface $logger,
+        private IdpLogging $idpLogging,
     ) {
     }
 
@@ -37,6 +37,7 @@ class OrkLinkTokenService
     {
         $secret = $_ENV['IDP_ORK_SHARED_SECRET'] ?? $_ENV['ORK_LINK_TOKEN_SECRET'] ?? '';
         if (strlen($secret) < 32) {
+            $this->idpLogging->security()->emergency('ork link token secret invalid', ['reason' => 'ork_link_secret']);
             throw new \RuntimeException('IDP_ORK_SHARED_SECRET (or legacy ORK_LINK_TOKEN_SECRET) is unset or shorter than 32 chars');
         }
 
@@ -57,7 +58,7 @@ class OrkLinkTokenService
                 $validSub = isset($decoded->sub) && ctype_digit((string) $decoded->sub) && (int) $decoded->sub > 0;
                 $validHints = !empty($decoded->jti) && !empty($decoded->challenge_id) && $idpEmail !== '';
                 if (!$validSub || !$validHints) {
-                    $this->logger->warning('OrkLinkToken missing required claim');
+                    $this->idpLogging->security()->error('ork link token peek rejected', ['reason' => 'missing_claim']);
 
                     return null;
                 }
@@ -84,7 +85,7 @@ class OrkLinkTokenService
                 $email = (string) ($decoded->email ?? '');
                 $validSub = isset($decoded->sub) && ctype_digit((string) $decoded->sub) && (int) $decoded->sub > 0;
                 if (!$validSub || $email === '' || empty($decoded->jti)) {
-                    $this->logger->warning('OrkLinkToken missing required claim');
+                    $this->idpLogging->security()->error('ork link token peek rejected', ['reason' => 'missing_claim']);
 
                     return null;
                 }
@@ -175,14 +176,17 @@ class OrkLinkTokenService
     {
         $raw = rtrim((string) ($_ENV['ORK_BASE_URL'] ?? ''), '/');
         if ($raw === '') {
+            $this->idpLogging->security()->emergency('ork base url invalid', ['reason' => 'ork_base_url']);
             throw new \RuntimeException('ORK_BASE_URL is not set');
         }
         $parts = parse_url($raw);
         if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+            $this->idpLogging->security()->emergency('ork base url invalid', ['reason' => 'ork_base_url']);
             throw new \RuntimeException('ORK_BASE_URL is not a valid absolute URL: ' . $raw);
         }
         $scheme = strtolower((string) $parts['scheme']);
         if ($scheme !== 'http' && $scheme !== 'https') {
+            $this->idpLogging->security()->emergency('ork base url invalid', ['reason' => 'ork_base_url']);
             throw new \RuntimeException('ORK_BASE_URL scheme must be http or https: ' . $raw);
         }
 
@@ -222,7 +226,7 @@ class OrkLinkTokenService
                     && $mundaneId > 0
                     && !empty($decoded->jti);
                 if (!$valid) {
-                    $this->logger->warning('OrkLinkToken missing required claim');
+                    $this->idpLogging->security()->error('ork link token peek rejected', ['reason' => 'missing_claim']);
 
                     return null;
                 }
@@ -269,7 +273,7 @@ class OrkLinkTokenService
             return true;
         } catch (\PDOException $e) {
             if ($e->getCode() === '23000' || str_contains($e->getMessage(), 'Duplicate')) {
-                $this->logger->warning('OrkLinkToken replay', ['jti' => $jti]);
+                $this->idpLogging->security()->warning('ork link token replay', ['reason' => 'jti_replay']);
 
                 return false;
             }
@@ -287,7 +291,7 @@ class OrkLinkTokenService
             $this->database->clear();
             $this->database->execute("DELETE FROM link_token_jti WHERE seen_at < (NOW() - INTERVAL 1 HOUR)");
         } catch (\Throwable $e) {
-            $this->logger->warning('cleanExpiredJti failed', ['msg' => $e->getMessage()]);
+            $this->idpLogging->app()->warning('cleanExpiredJti failed', ['msg' => $e->getMessage()]);
         }
     }
 
@@ -297,15 +301,15 @@ class OrkLinkTokenService
         try {
             $decoded = JWT::decode($jwt, new Key($this->sharedSecret(), 'HS256'));
         } catch (ExpiredException $e) {
-            $this->logger->info('OrkLinkToken expired', ['msg' => $e->getMessage()]);
+            $this->idpLogging->security()->warning('ork link token peek rejected', ['reason' => 'expired']);
 
             return null;
         } catch (SignatureInvalidException $e) {
-            $this->logger->warning('OrkLinkToken bad signature', ['msg' => $e->getMessage()]);
+            $this->idpLogging->security()->error('ork link token peek rejected', ['reason' => 'bad_signature']);
 
             return null;
         } catch (\Throwable $e) {
-            $this->logger->info('OrkLinkToken decode error', ['msg' => $e->getMessage()]);
+            $this->idpLogging->security()->error('ork link token peek rejected', ['reason' => 'decode_error']);
 
             return null;
         }
@@ -315,9 +319,9 @@ class OrkLinkTokenService
             ->filter(fn (object $token) => ($token->aud ?? '') === $aud)
             ->orElseGet(function () use ($decoded, $iss, $aud) {
                 if (($decoded->iss ?? '') !== $iss) {
-                    $this->logger->warning('OrkLinkToken wrong iss', ['iss' => $decoded->iss ?? 'null']);
+                    $this->idpLogging->security()->error('ork link token peek rejected', ['reason' => 'wrong_iss']);
                 } else {
-                    $this->logger->warning('OrkLinkToken wrong aud', ['aud' => $decoded->aud ?? 'null']);
+                    $this->idpLogging->security()->error('ork link token peek rejected', ['reason' => 'wrong_aud']);
                 }
 
                 return null;

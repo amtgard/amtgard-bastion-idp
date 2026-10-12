@@ -3,11 +3,9 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Middleware;
 
-use Amtgard\IdP\Models\Orn\IdpRequirement;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
-use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\UserAuthority;
-use Amtgard\IdP\Utility\UserRole;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -17,13 +15,11 @@ use Slim\Routing\RouteContext;
 
 class LocalAdminUserMiddleware implements MiddlewareInterface
 {
-    private UserRepository $userRepository;
-    private UserAuthority $userAuthority;
-
-    public function __construct(UserRepository $userRepository, UserAuthority $userAuthority)
-    {
-        $this->userRepository = $userRepository;
-        $this->userAuthority = $userAuthority;
+    public function __construct(
+        private UserRepository $userRepository,
+        private UserAuthority $userAuthority,
+        private IdpLogging $logging,
+    ) {
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -35,8 +31,23 @@ class LocalAdminUserMiddleware implements MiddlewareInterface
             $user = $this->userRepository->findUserByUserId($userId);
 
             if ($this->userAuthority->isAdmin($user)) {
+                $this->logging->security()->debug('local admin policy allow', [
+                    'user_uuid' => $userId,
+                    'admin' => true,
+                ]);
+
                 return $handler->handle($request);
             }
+
+            $this->logging->security()->error('local admin access denied', [
+                'user_uuid' => $userId,
+                'failure_reason' => 'not_admin',
+            ]);
+        } else {
+            $this->logging->security()->error('local admin access denied', [
+                'failure_reason' => 'unauthenticated',
+                'http_status' => 302,
+            ]);
         }
 
         $responseFactory = new ResponseFactory();

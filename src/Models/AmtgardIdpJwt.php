@@ -8,6 +8,7 @@ namespace Amtgard\IdP\Models;
 use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\UserJwtGeneration;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\IdP\Utility\OAuthKeyMaterial;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\Traits\Builder\Builder;
@@ -23,6 +24,8 @@ final class AmtgardIdpJwt
     protected AuthorizationJwtAssembler $assembler;
 
     protected RedisCacheRepository $redisCacheRepository;
+
+    protected IdpLogging $idpLogging;
 
     /**
      * Mint fat + compact RS256 tokens from one claim assembly (same `exp` / `pvh`).
@@ -43,6 +46,11 @@ final class AmtgardIdpJwt
             $privateKey,
             'RS256'
         );
+
+        $this->idpLogging->oauth()->info('authorization jwt minted', [
+            'user_uuid' => (string) $user->userId,
+            'aud' => $claims['aud'] ?? null,
+        ]);
 
         Optional::ofNullable($this->assembler->lastGeneration())
             ->ifPresent(function (UserJwtGeneration $generation) use ($user): void {

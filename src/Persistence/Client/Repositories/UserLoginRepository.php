@@ -11,12 +11,15 @@ use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Entities\UserLoginEntity;
+use Amtgard\IdP\Utility\Log\UsesIdpLogging;
 use Optional\Optional;
 use Ramsey\Uuid\Uuid;
 
 #[RepositoryOf("user_logins", UserLoginEntity::class)]
 class UserLoginRepository extends Repository implements EntityRepositoryInterface
 {
+    use UsesIdpLogging;
+
     public function getLoginByProviderId(string $providerId): ?UserLoginEntity
     {
         return $this->fetchBy('providerId', $providerId);
@@ -33,6 +36,8 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
             $login->user = $user;
             return $login;
         }
+        $this->logApp()->debug('user login local miss', ['user_id' => (int) $user->getId()]);
+
         return null;
     }
 
@@ -43,9 +48,18 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
 
     public function loginBelongsToUser(int $loginId, int $userDbId): bool
     {
-        return Optional::ofNullable($this->findLoginById($loginId))
+        $belongs = Optional::ofNullable($this->findLoginById($loginId))
             ->map(fn (UserLoginEntity $login) => (int) $login->userId === $userDbId)
             ->orElse(false);
+
+        if (!$belongs) {
+            $this->logApp()->debug('user login ownership check failed', [
+                'login_id' => $loginId,
+                'user_id' => $userDbId,
+            ]);
+        }
+
+        return $belongs;
     }
 
     public function resolveDefaultLoginIdForUser(int $userDbId): ?int
@@ -61,6 +75,8 @@ class UserLoginRepository extends Repository implements EntityRepositoryInterfac
 
         $logins = $this->getAllLoginsForUser($userDbId);
         if ($logins === []) {
+            $this->logApp()->debug('user default login id miss', ['user_id' => $userDbId]);
+
             return null;
         }
 

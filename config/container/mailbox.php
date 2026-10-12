@@ -5,7 +5,10 @@ declare(strict_types=1);
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Persistence\Client\Repositories\MailboxChallengeRepository;
+use Amtgard\IdP\Persistence\Client\Repositories\OrkClaimPendingRepository;
+use Amtgard\IdP\Persistence\Client\Repositories\OrkClaimSendNonceRepository;
 use Amtgard\IdP\Services\Mail\MailCarrier;
+use Amtgard\IdP\Services\Ork\OrkClaimSendNonceService;
 use Amtgard\IdP\Services\Mail\MailCarrierSettings;
 use Amtgard\IdP\Services\Mail\OutboundMail;
 use Amtgard\IdP\Services\Mail\OutboundMailFactory;
@@ -35,6 +38,27 @@ return [
             $container->get(MailboxChallengeRepository::class),
             $container->get(OutboundMail::class),
             $container->get(LoggerInterface::class),
+        );
+    },
+
+    OrkClaimSendNonceRepository::class => function (Database $database) {
+        $repository = new OrkClaimSendNonceRepository();
+        $repository->useDatabase($database);
+
+        return $repository;
+    },
+
+    OrkClaimPendingRepository::class => function (Database $database) {
+        $repository = new OrkClaimPendingRepository();
+        $repository->useDatabase($database);
+
+        return $repository;
+    },
+
+    OrkClaimSendNonceService::class => function (ContainerInterface $container) {
+        return new OrkClaimSendNonceService(
+            $container->get(OrkClaimSendNonceRepository::class),
+            $container->get(OrkClaimPendingRepository::class),
         );
     },
 ];

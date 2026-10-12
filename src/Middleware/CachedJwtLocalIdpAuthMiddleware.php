@@ -9,44 +9,72 @@ use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\Jwt;
+use Amtgard\IdP\Utility\Log\IdpLogging;
+use Amtgard\IdP\Utility\Log\RequestLogContext;
 use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
 use Amtgard\IdP\Utility\Pvh\PvhGateOutcome;
 use Amtgard\IdP\Utility\PvhGate;
+use Amtgard\IdP\Utility\PvhAccess;
 use Amtgard\IdP\Utility\Security\OAuthAccessTokenFallback;
 use League\OAuth2\Server\ResourceServer;
-use Optional\Optional;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpUnauthorizedException;
 
 class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
 {
     public function __construct(
         EntityManager $em,
-        protected LoggerInterface $logger,
+        protected IdpLogging $idpLogging,
         private PvhAuthorizationGate $pvhAuthorizationGate,
         protected AuthorizedClients $authorizedClients,
         protected ResourceServer $resourceServer,
         private OAuthAccessTokenFallback $oauthAccessTokenFallback,
     ) {
-        parent::__construct($em, $logger, $authorizedClients, $resourceServer);
+        parent::__construct($em, $idpLogging, $authorizedClients, $resourceServer);
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $jwt = Optional::ofNullable(Jwt::validateJwtRequest($request, $this->logger))
-            ->orElseThrow(new HttpUnauthorizedException($request, 'Authorization JWT required. Obtain one from GET /resources/jwt first.'));
+        $security = $this->idpLogging->security();
+        $jwt = Jwt::validateJwtRequest($request, $security);
+        if ($jwt === null) {
+            $security->error('cached jwt local idp auth rejected', [
+                'failure_reason' => 'jwt_required',
+            ]);
+            throw new HttpUnauthorizedException($request, 'Authorization JWT required. Obtain one from GET /resources/jwt first.');
+        }
 
-        $payload = Optional::ofNullable(Jwt::parseJwt($jwt))
-            ->orElseThrow(new HttpUnauthorizedException($request, 'Not authorized.'));
-        $oauthUserId = Optional::ofNullable($payload['sub'] ?? null)
-            ->orElseThrow(new HttpUnauthorizedException($request, 'Not authorized.'));
-        $clientId = Optional::ofNullable($payload['aud'] ?? null)
-            ->orElseThrow(new HttpUnauthorizedException($request, 'Not authorized.'));
+        $payload = Jwt::parseJwt($jwt, $security);
+        if ($payload === null) {
+            $security->error('cached jwt local idp auth rejected', [
+                'failure_reason' => 'unparseable_jwt',
+            ]);
+            throw new HttpUnauthorizedException($request, 'Not authorized.');
+        }
+
+        $oauthUserId = $payload['sub'] ?? null;
+        if ($oauthUserId === null || $oauthUserId === '') {
+            $security->error('cached jwt local idp auth rejected', [
+                'failure_reason' => 'missing_sub',
+            ]);
+            throw new HttpUnauthorizedException($request, 'Not authorized.');
+        }
+
+        $clientId = $payload['aud'] ?? null;
+        if ($clientId === null || $clientId === '') {
+            $security->error('cached jwt local idp auth rejected', [
+                'failure_reason' => 'missing_aud',
+            ]);
+            throw new HttpUnauthorizedException($request, 'Not authorized.');
+        }
 
         if (!Jwt::isAuthorizationPayload($payload)) {
+            $security->debug('cached jwt access token fallback', [
+                'aud' => (string) $clientId,
+            ]);
+
             return $this->oauthAccessTokenFallback->authenticate(
                 $request,
                 $handler,
@@ -58,7 +86,8 @@ class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
         $aud = (string) $clientId;
         $outcome = $this->pvhAuthorizationGate->evaluateAndSeed($userUuid, $aud, $payload);
         $access = $this->pvhAuthorizationGate->lastAccess();
-        $this->logger->debug(
+        RequestLogContext::setIdentity($userUuid, $aud);
+        $security->debug(
             'cached jwt local idp pvh auth', [
             'user_uuid' => $userUuid,
             'aud' => $aud,
@@ -70,9 +99,36 @@ class CachedJwtLocalIdpAuthMiddleware extends LocalIdpAuthMiddleware
 
         return match ($outcome) {
             PvhGateOutcome::Proceed => $this->proceed($userUuid, $aud, $request, $handler),
-            PvhGateOutcome::StaleToken => PvhGate::staleTokenResponse(),
-            PvhGateOutcome::Unauthorized => throw new HttpUnauthorizedException($request, 'Not authorized.'),
+            PvhGateOutcome::StaleToken => $this->rejectStaleToken($userUuid, $aud, $access),
+            PvhGateOutcome::Unauthorized => $this->rejectUnauthorized($request, $userUuid, $aud, $access),
         };
+    }
+
+    private function rejectStaleToken(string $userUuid, string $aud, ?PvhAccess $access): ResponseInterface
+    {
+        $this->idpLogging->security()->error('cached jwt local idp pvh rejected', [
+            'user_uuid' => $userUuid,
+            'aud' => $aud,
+            'access' => $access?->name,
+            'outcome' => PvhGateOutcome::StaleToken->name,
+        ]);
+
+        return PvhGate::staleTokenResponse();
+    }
+
+    private function rejectUnauthorized(
+        ServerRequestInterface $request,
+        string $userUuid,
+        string $aud,
+        ?PvhAccess $access,
+    ): never {
+        $this->idpLogging->security()->error('cached jwt local idp pvh rejected', [
+            'user_uuid' => $userUuid,
+            'aud' => $aud,
+            'access' => $access?->name ?? PvhAccess::Unknown->name,
+            'outcome' => PvhGateOutcome::Unauthorized->name,
+        ]);
+        throw new HttpUnauthorizedException($request, 'Not authorized.');
     }
 
     private function proceed(

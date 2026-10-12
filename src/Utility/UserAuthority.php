@@ -9,14 +9,14 @@ use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IdP\Models\Orn\IdpRequirement;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
-use Psr\Log\LoggerInterface;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Throwable;
 
 final class UserAuthority
 {
     public function __construct(
         private UserPolicy $userPolicy,
-        private LoggerInterface $logger,
+        private IdpLogging $idpLogging,
     ) {
     }
 
@@ -28,7 +28,9 @@ final class UserAuthority
 
             return $policy->isAuthorized($requirement);
         } catch (Throwable $e) {
-            $this->logger->error('Failed to evaluate admin policy; treating user as non-admin', [
+            $this->idpLogging->app()->error('user authority non admin fallback', [
+                'user_uuid' => $user->getUserId(),
+                'fallback' => 'non_admin',
                 'detail' => $e->getMessage(),
             ]);
 

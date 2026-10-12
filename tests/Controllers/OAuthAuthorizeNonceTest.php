@@ -14,8 +14,8 @@ use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 use League\OAuth2\Server\RequestTypes\AuthorizationRequest;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerInterface;
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Twig\Environment as TwigEnvironment;
@@ -35,7 +35,7 @@ class OAuthAuthorizeNonceTest extends TestCase
         $this->store = new OAuthSessionAuthRequestStore();
         $this->authorizationServer = $this->createMock(AuthorizationServer::class);
         $this->view = $this->createMock(TwigEnvironment::class);
-        $logger = $this->createMock(LoggerInterface::class);
+        $idpLogging = IdpLoggingTestFactory::create();
 
         $this->action = OAuthAuthorizeAction::builder()
             ->authorizationServer($this->authorizationServer)
@@ -43,8 +43,8 @@ class OAuthAuthorizeNonceTest extends TestCase
             ->userRepository($this->createStub(UserRepositoryInterface::class))
             ->userClientAuthorizationRepository($this->createStub(UserClientAuthorizationRepository::class))
             ->authRequestStore($this->store)
-            ->errorRenderer(OAuthFlowErrorRenderer::builder()->logger($logger)->view($this->view)->build())
-            ->logger($logger)
+            ->errorRenderer(OAuthFlowErrorRenderer::builder()->idpLogging($idpLogging)->view($this->view)->build())
+            ->idpLogging($idpLogging)
             ->amtgardIdpJwt($this->createStub(AmtgardIdpJwt::class))
             ->redisCacheRepository($this->createStub(RedisCacheRepository::class))
             ->build();

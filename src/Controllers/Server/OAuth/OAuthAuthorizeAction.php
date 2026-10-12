@@ -10,6 +10,7 @@ use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Utility\Constants;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Amtgard\Traits\Builder\Builder;
 use Amtgard\Traits\Builder\Getter;
 use League\OAuth2\Server\AuthorizationServer;
@@ -21,7 +22,6 @@ use League\OAuth2\Server\RequestTypes\AuthorizationRequest;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Psr\Log\LoggerInterface;
 
 final class OAuthAuthorizeAction
 {
@@ -42,7 +42,7 @@ final class OAuthAuthorizeAction
 
     protected OAuthFlowErrorRenderer $errorRenderer;
 
-    protected LoggerInterface $logger;
+    protected IdpLogging $idpLogging;
 
     protected AmtgardIdpJwt $amtgardIdpJwt;
 
@@ -51,7 +51,8 @@ final class OAuthAuthorizeAction
     public function handle(Request $request, Response $response): Response
     {
         try {
-            if (!$this->authRequestStore->hasAuthRequest()) {
+            $hasStoredRequest = $this->authRequestStore->hasAuthRequest();
+            if (!$hasStoredRequest) {
                 $authRequest = $this->authorizationServer->validateAuthorizationRequest($request);
                 $this->captureNonce($request);
                 $this->capturePrompt($request);
@@ -60,11 +61,20 @@ final class OAuthAuthorizeAction
                 $authRequest = $this->authRequestStore->load();
             }
 
+            $clientId = $authRequest->getClient()->getIdentifier();
+            $this->idpLogging->oauth()->debug('oauth authorize auth request loaded', [
+                'client_id' => $clientId,
+                'has_stored_request' => $hasStoredRequest,
+            ]);
+
             if (!$this->userIsAuthenticated($authRequest)) {
                 $sessionUserId = $this->authRequestStore->sessionUserId();
                 if ($sessionUserId !== null) {
                     $user = $this->userRepository->getUserEntityById($sessionUserId);
                     if ($user === null) {
+                        $this->idpLogging->oauth()->warning('oauth authorize session user missing', [
+                            'session_user_id' => $sessionUserId,
+                        ]);
                         $this->authRequestStore->clearSessionUserId();
 
                         return $this->authenticateUser($authRequest, $response);
@@ -82,10 +92,12 @@ final class OAuthAuthorizeAction
 
             return $this->finalizeAuthorization($authRequest, $response);
         } catch (OAuthServerException $exception) {
-            $this->logger->error('OAuth authorization server exception', [
-                'step' => self::STEP_AUTHORIZATION,
-                'message' => $exception->getMessage(),
-                'hint' => $exception->getHint(),
+            $httpStatus = $exception->getHttpStatusCode();
+            $clientId = $this->clientIdFromRequest($request);
+            $this->idpLogging->oauth()->error('oauth authorize rejected', [
+                'oauth_step' => 'authorize',
+                'http_status' => $httpStatus,
+                'client_id' => $clientId,
             ]);
 
             if ($request->getMethod() === 'GET') {
@@ -95,7 +107,7 @@ final class OAuthAuthorizeAction
                     $exception->getMessage(),
                     true,
                     $exception->getHint(),
-                    $exception->getHttpStatusCode()
+                    $httpStatus
                 );
             }
 
@@ -209,6 +221,12 @@ final class OAuthAuthorizeAction
             return $this->redirectWithOidcError($authRequest, $response, 'login_required');
         }
 
+        $clientId = $authRequest->getClient()->getIdentifier();
+        $this->idpLogging->oauth()->info('oauth authorize redirect login', [
+            'http_status' => 301,
+            'client_id' => $clientId,
+        ]);
+
         $redirectUrl = $this->buildPostAuthenticationRedirectUrl();
 
         return $response
@@ -239,21 +257,35 @@ final class OAuthAuthorizeAction
     private function clientAuthorizationIsApproved(?AuthorizationRequest $authRequest = null): bool
     {
         if ($this->authRequestStore->isApproved()) {
+            $this->logApprovalCheck($authRequest, true);
+
             return true;
         }
 
+        $approved = false;
         if ($authRequest && $authRequest->getUser()) {
             /** @var \Amtgard\IdP\Persistence\Server\Entities\Repository\Client $clientEntity */
             $clientEntity = $this->clientRepository->fetchBy('identifier', $authRequest->getClient()->getIdentifier());
             if ($clientEntity) {
-                return $this->userClientAuthorizationRepository->hasAuthorization(
+                $approved = $this->userClientAuthorizationRepository->hasAuthorization(
                     $authRequest->getUser()->getIdentifier(),
                     $clientEntity->getId()
                 );
             }
         }
 
-        return false;
+        $this->logApprovalCheck($authRequest, $approved);
+
+        return $approved;
+    }
+
+    private function logApprovalCheck(?AuthorizationRequest $authRequest, bool $approved): void
+    {
+        $clientId = $authRequest?->getClient()->getIdentifier();
+        $this->idpLogging->oauth()->debug('oauth authorize approval check', [
+            'client_id' => $clientId,
+            'approved' => $approved,
+        ]);
     }
 
     private function requestUserAuthorizationOfClient(AuthorizationRequest $authRequest, Response $response): Response
@@ -268,6 +300,13 @@ final class OAuthAuthorizeAction
         );
 
         $this->authRequestStore->store($authRequest);
+
+        $clientId = $authRequest->getClient()->getIdentifier();
+        $scopeCount = count($authRequest->getScopes());
+        $this->idpLogging->oauth()->info('oauth authorize redirect approve', [
+            'client_id' => $clientId,
+            'scope_count' => $scopeCount,
+        ]);
 
         return $response
             ->withStatus(301)
@@ -291,6 +330,13 @@ final class OAuthAuthorizeAction
 
         $response = $this->authorizationServer->completeAuthorizationRequest($authRequest, $response);
 
+        $clientId = $authRequest->getClient()->getIdentifier();
+        $userUuid = $this->resolveUserUuid($authRequest);
+        $this->idpLogging->oauth()->info('oauth authorize completed', [
+            'client_id' => $clientId,
+            'user_uuid' => $userUuid,
+        ]);
+
         $this->authRequestStore->clearAuthorizationState();
 
         return $response;
@@ -301,7 +347,9 @@ final class OAuthAuthorizeAction
         $user = $this->resolveIdpUser($authRequest);
         $userUuid = $user?->getUserId();
         if ($user === null || !is_string($userUuid) || $userUuid === '') {
-            $this->logger->warning('oauth pvh seed skipped: user not resolved');
+            $this->idpLogging->oauth()->warning('oauth pvh seed skipped', [
+                'reason' => 'user_unresolved',
+            ]);
 
             return;
         }
@@ -320,7 +368,7 @@ final class OAuthAuthorizeAction
                 continue;
             }
             $this->amtgardIdpJwt->buildAuthorizationTokens($user, $aud);
-            $this->logger->notice('oauth pvh seeded', [
+            $this->idpLogging->oauth()->notice('oauth pvh seeded', [
                 'user_uuid' => $userUuid,
                 'aud' => $aud,
                 'legacy' => $legacy,
@@ -349,7 +397,7 @@ final class OAuthAuthorizeAction
         }
 
         if ($oauthUser instanceof OAuthUser) {
-            $this->logger->info('oauth user reloaded after session restore', [
+            $this->idpLogging->oauth()->info('oauth user reloaded after session restore', [
                 'user_identifier' => $identifier,
             ]);
         }
@@ -360,5 +408,21 @@ final class OAuthAuthorizeAction
         }
 
         return $loaded instanceof UserEntity ? $loaded : null;
+    }
+
+    private function resolveUserUuid(AuthorizationRequest $authRequest): ?string
+    {
+        $user = $this->resolveIdpUser($authRequest);
+        $uuid = $user?->getUserId();
+
+        return is_string($uuid) && $uuid !== '' ? $uuid : null;
+    }
+
+    private function clientIdFromRequest(Request $request): ?string
+    {
+        $params = $request->getQueryParams();
+        $clientId = $params['client_id'] ?? null;
+
+        return is_string($clientId) && $clientId !== '' ? $clientId : null;
     }
 }

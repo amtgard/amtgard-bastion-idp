@@ -8,6 +8,7 @@ namespace Amtgard\IdP\Persistence\Server\Repositories;
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthScope;
+use Amtgard\IdP\Utility\Log\UsesIdpLogging;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Scope;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Repositories\ScopeRepositoryInterface;
@@ -16,6 +17,8 @@ use Optional\Optional;
 #[RepositoryOf('scopes', Scope::class)]
 class ScopeRepository extends Repository implements ScopeRepositoryInterface
 {
+    use UsesIdpLogging;
+
     static function getTableName()
     {
         return 'scopes';
@@ -30,12 +33,18 @@ class ScopeRepository extends Repository implements ScopeRepositoryInterface
     {
         /** @var Scope $scope */
         $scope = $this->fetchBy('identifier', $identifier);
-        return Optional::ofNullable($scope)
+        $entity = Optional::ofNullable($scope)
             ->map(fn($scope) => OAuthScope::builder()
                 ->scopeEntity($scope)
                 ->identifier($scope->getIdentifier())
                 ->build())
             ->orElse(null);
+
+        if ($entity === null) {
+            $this->logOauth()->debug('oauth unknown scope', ['scope' => (string) $identifier]);
+        }
+
+        return $entity;
     }
 
     protected static $VALID_SCOPES = [ "openid", "email", "profile" ];

@@ -1,0 +1,18 @@
+# Optional profile: drain log spool into hourly SQLite WAL files under LOG_ROOT.
+# Example: docker compose -f docker/compose.dev.yml -f docker/compose.log-writer.yml --profile log-writer up -d
+services:
+  log-sqlite-writer:
+    profiles: ["log-writer"]
+    image: amtgard-idp-dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    working_dir: /var/www/html
+    volumes:
+      - ..:/var/www/html
+    env_file:
+      - ../.env
+    environment:
+      LOG_SPOOL_ENABLED: "true"
+    command: ["php", "bin/log-sqlite-writer.php"]
+    container_name: amtgard-idp-log-writer

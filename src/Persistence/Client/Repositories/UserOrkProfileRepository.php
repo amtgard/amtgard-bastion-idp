@@ -7,12 +7,16 @@ use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
 use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\ActiveRecordOrm\Interface\EntityRepositoryInterface;
 use Amtgard\IdP\Persistence\Client\Entities\UserOrkProfileEntity;
+use Amtgard\IdP\Services\Ork\OrkPublicAssetUrl;
+use Amtgard\IdP\Utility\Log\UsesIdpLogging;
 use DateTime;
 use Optional\Optional;
 
 #[RepositoryOf("user_ork_profiles", UserOrkProfileEntity::class)]
 class UserOrkProfileRepository extends Repository implements EntityRepositoryInterface
 {
+    use UsesIdpLogging;
+
     public function findByUserId(int $userId): ?UserOrkProfileEntity
     {
         return $this->fetchBy('user_id', $userId);
@@ -31,6 +35,8 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
         try {
             return new DateTime($dateStr);
         } catch (\Exception $e) {
+            $this->logApp()->debug('ork profile date parse failed', ['field' => 'ork_date']);
+
             return null;
         }
     }
@@ -47,6 +53,22 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
                 ->createdAt(new DateTime());
         }
 
+        $parkId = Optional::ofNullable($playerData['ParkId'] ?? null)
+            ->map(fn($v) => (int) $v)
+            ->filter(fn(int $id) => $id > 0)
+            ->orElse(null);
+        if ($parkId === null && ($playerData['ParkId'] ?? null) !== null) {
+            $this->logApp()->debug('ork profile optional field omitted', ['user_id' => $userId, 'field' => 'park_id']);
+        }
+
+        $kingdomId = Optional::ofNullable($playerData['KingdomId'] ?? null)
+            ->map(fn($v) => (int) $v)
+            ->filter(fn(int $id) => $id > 0)
+            ->orElse(null);
+        if ($kingdomId === null && ($playerData['KingdomId'] ?? null) !== null) {
+            $this->logApp()->debug('ork profile optional field omitted', ['user_id' => $userId, 'field' => 'kingdom_id']);
+        }
+
         $orkProfile
             ->orkToken($token)
             ->mundaneId((int) $playerData['MundaneId'])
@@ -54,22 +76,12 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
             ->persona($playerData['Persona'])
             ->suspended((int) $playerData['Suspended'])
             ->email($playerData['Email'])
-            ->parkId(
-                Optional::ofNullable($playerData['ParkId'] ?? null)
-                    ->map(fn($v) => (int) $v)
-                    ->filter(fn(int $id) => $id > 0)
-                    ->orElse(null)
-            )
+            ->parkId($parkId)
             ->parkName($parkData['ParkInfo']['ParkName'] ?? null)
-            ->kingdomId(
-                Optional::ofNullable($playerData['KingdomId'] ?? null)
-                    ->map(fn($v) => (int) $v)
-                    ->filter(fn(int $id) => $id > 0)
-                    ->orElse(null)
-            )
+            ->kingdomId($kingdomId)
             ->kingdomName($parkData['KingdomInfo']['KingdomName'] ?? null)
-            ->image($playerData['Image'])
-            ->heraldry($playerData['Heraldry'])
+            ->image(OrkPublicAssetUrl::forBrowser(isset($playerData['Image']) ? (string) $playerData['Image'] : null))
+            ->heraldry(OrkPublicAssetUrl::forBrowser(isset($playerData['Heraldry']) ? (string) $playerData['Heraldry'] : null))
             ->suspendedAt($this->parseOrkDate($playerData['SuspendedAt']))
             ->suspendedUntil($this->parseOrkDate($playerData['SuspendedUntil']))
             ->duesThrough($this->parseOrkDate($playerData['DuesThrough']))
@@ -80,24 +92,24 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
         $this->persistProfile($entity, $userId, (int) $playerData['MundaneId']);
     }
 
-    /**
-     * Idempotently link an existing IDP user to an ORK mundane.
-     *
-     * - If no profile exists, create a minimal placeholder row tagged with $linkedVia.
-     *   The persona/username/ork_token fields are left blank; they get populated on the
-     *   user's next userinfo round-trip via saveOrUpdateProfile().
-     * - If a profile exists pointing at the same mundane, no-op.
-     * - If a profile exists pointing at a different mundane, throw RuntimeException
-     *   with 'conflict' in the message — the caller turns this into a 409 to the client.
-     */
     public function linkExistingUserToMundane(int $userId, int $mundaneId, string $linkedVia): void
     {
         $existingOpt = Optional::ofNullable($this->findByUserId($userId));
         if ($existingOpt->isPresent()) {
             $existing = $existingOpt->get();
             if ($existing->getMundaneId() === $mundaneId) {
+                $this->logApp()->debug('ork profile link idempotent noop', [
+                    'user_id' => $userId,
+                    'mundane_id' => $mundaneId,
+                ]);
+
                 return;
             }
+            $this->logApp()->error('ork profile link conflict', [
+                'user_id' => $userId,
+                'existing_mundane_id' => $existing->getMundaneId(),
+                'requested_mundane_id' => $mundaneId,
+            ]);
             throw new \RuntimeException(
                 "conflict: user_id={$userId} is already linked to mundane_id={$existing->getMundaneId()}, refusing to relink to {$mundaneId}"
             );
@@ -122,21 +134,21 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
         $this->persistProfile($entity, $userId, $mundaneId);
     }
 
-    /**
-     * The unique indexes on user_id and mundane_id reject a second link.
-     * Translate that into the conflict the HTTP callers already turn into a
-     * friendly error, instead of a raw integrity-constraint 500.
-     */
     private function persistProfile(UserOrkProfileEntity $entity, int $userId, int $mundaneId): void
     {
         try {
             $this->persist($entity);
         } catch (\PDOException $e) {
-            $sqlstate = $e->getCode();
+            $sqlstate = (string) $e->getCode();
             $isIntegrity = $sqlstate === '23000' || str_contains($e->getMessage(), 'Duplicate');
             if (!$isIntegrity) {
                 throw $e;
             }
+            $this->logApp()->error('ork profile persist integrity conflict', [
+                'user_id' => $userId,
+                'mundane_id' => $mundaneId,
+                'sqlstate' => $sqlstate,
+            ]);
             $currentOpt = Optional::ofNullable($this->findByUserId($userId));
             if ($currentOpt->isPresent()) {
                 $current = $currentOpt->get();
@@ -153,10 +165,6 @@ class UserOrkProfileRepository extends Repository implements EntityRepositoryInt
         }
     }
 
-    /**
-     * Removes the ORK profile row for this IDP user when one exists.
-     * Returns false when the account has nothing linked.
-     */
     public function unlinkByUserId(int $userId): bool
     {
         if (!Optional::ofNullable($this->findByUserId($userId))->isPresent()) {

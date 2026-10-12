@@ -1053,7 +1053,9 @@ ORK's handoff JWT carries `email` and `sub` (mundane id) and does **not** carry 
 | `GET /auth/connect?link_token=<jwt>` | Login / Register form. Email comes from the JWT. |
 | `POST /auth/connect/login` | Password check against that email, then write the link |
 | `POST /auth/connect/register` | Create the IDP user at the JWT email, then write the link |
-| `POST /resources/profile/link-ork` | Signed-in user submits ORK username and password. The IDP checks them with ORK and stores the profile. |
+| `POST /resources/profile/link-ork` | Signed-in user submits ORK username and password. The IDP checks them with ORK and stores the profile. With an empty password and a `code` field, verifies a mailed claim code instead. |
+| `POST /resources/profile/link-ork-code-mail` | Email Code on the profile: resolves the username, then either ORK mails the code (`ORK_CLAIM_MAIL_VIA_ORK=1`) or the IDP mails locally (legacy). |
+| `POST /resources/ork/validate-send-nonce` | **ORK server only.** ORK calls this while handling `BeginClaimOrkMail` to bind `send_nonce` → `{idp_user_id, mundane_id}`. Same Basic auth allow list as `link-ork-profile`. |
 
 Completion redirect for this path is the existing JWT: `iss=idp`, `aud=ork`, `sub=<idp user uuid>`, `mundane_id`. No `challenge_id`.
 
@@ -1150,7 +1152,7 @@ Third-party integrators with an assigned IAM namespace can **grant and revoke pe
 ### Prerequisites
 
 1. **Confidential OAuth client** registered in the IDP (`is_confidential = true`).
-2. **`iam_service` assigned** by an IDP admin via `/management/clients` (see below).
+2. **`iam_service` assigned** by an IDP admin via `/management/clients`, or by a user granted access to that client via `/resources/clients` (see below).
 3. **`iam_service_format`** (optional) defines proviso slots for your namespace (see below).
 4. Each client may only create policy rows scoped to its own `client_id` and `iam_service`. At most **25** policy claims per user per client.
 
@@ -1170,7 +1172,7 @@ Rules enforced by the IDP:
 
 - Must be a **custom** name — not a built-in ORK enum value such as `Documents`, `Idp`, `Application`, or `ORK`.
 - Must be **unique** across all OAuth clients.
-- Assigned only by IdP administrators on the client record; it is not self-service during OAuth registration.
+- Assigned on the client record by an IdP administrator or a user granted access to that client; it is not self-service during OAuth registration.
 
 When your client adds policy claims, the IDP always stores and emits the `service` column as your `iam_service`. Callers supply only `provisos` and `resource` in the Client IAM API.
 
@@ -1218,7 +1220,7 @@ The array order defines how proviso values map to ORN positions. With the defaul
 
 Your app's resource paths (`Officer/Approve`, `Editor/Write`, etc.) are validated loosely (`*/*` wildcard map) — you define the semantics; the IDP stores and replays them in JWT `policy` claims.
 
-IdP administrators set `iam_service` and `iam_service_format` on your OAuth client via **Management → Clients** (`/management/clients`). The format field accepts a JSON array or a comma-separated list of slot names. Leave it blank to keep the default slots. Your integrator backend may also set or update `iam_service_format` via the Client IAM API once `iam_service` is assigned (see below).
+IdP administrators set `iam_service` and `iam_service_format` on your OAuth client via **Management → Clients** (`/management/clients`). Users granted access to a client can edit the same fields via **Clients** on their profile (`/resources/clients`). The format field accepts a JSON array or a comma-separated list of slot names. Leave it blank to keep the default slots. Your integrator backend may also set or update `iam_service_format` via the Client IAM API once `iam_service` is assigned (see below).
 
 ### Service format API (`/resources/client/service-format`)
 

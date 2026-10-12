@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Utility\ClientMetadata;
 
 use Amtgard\IdP\Utility\ClientMetadataValidator;
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
 
 final class JsonObjectMetadataEncodingStrategy implements ClientMetadataEncodingStrategy
 {
@@ -16,6 +17,9 @@ final class JsonObjectMetadataEncodingStrategy implements ClientMetadataEncoding
     public function prepare(mixed $metadata): array
     {
         if (!is_array($metadata) || array_is_list($metadata)) {
+            IdpLoggingRuntime::app()->debug('client metadata json object rejected', [
+                'rule' => 'json_object',
+            ]);
             throw new \InvalidArgumentException('metadata must be a JSON object.');
         }
 

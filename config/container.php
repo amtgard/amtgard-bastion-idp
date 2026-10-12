@@ -12,10 +12,15 @@ use Amtgard\IdP\Utility\Security\CsrfTokenManager;
 use Amtgard\IdP\Utility\Security\CurrentUserResolver;
 use Amtgard\IdP\Utility\Security\CurrentUserResolverInterface;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
-use Monolog\Handler\ErrorLogHandler;
-use Monolog\Handler\StreamHandler;
-use Monolog\Handler\WhatFailureGroupHandler;
-use Monolog\Logger;
+use Amtgard\IdP\Models\Orn\IdpFormat;
+use Amtgard\IdP\Utility\Log\IdpLogging;
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
+use Amtgard\IdP\Utility\Log\LogChannelFactory;
+use Amtgard\IdP\Utility\Log\LogRootBootGuard;
+use Amtgard\IdP\Utility\Log\Sqlite\LogPathResolver;
+use Amtgard\IdP\Utility\Log\Sqlite\SqliteLogQuery;
+use Amtgard\IdP\Utility\Log\Sqlite\SqliteLogSchema;
+use Monolog\Level;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Twig\Environment as TwigEnvironment;
@@ -60,29 +65,66 @@ return array_merge(
     require $envLoad->emit('auth-providers', $environment),
     require $envLoad->emit('ork', $environment),
     [
-        LoggerInterface::class => function () {
+        LogPathResolver::class => function () {
+            return LogPathResolver::fromEnv(dirname(__DIR__));
+        },
+
+        LogChannelFactory::class => function (ContainerInterface $container) {
             $logDir = __DIR__ . '/../logs';
-            if (!is_dir($logDir)) {
+            if (! is_dir($logDir)) {
                 mkdir($logDir, 0755, true);
             }
 
-            $level = ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? Logger::DEBUG : Logger::NOTICE;
-            $logger = new Logger('app');
-            $logger->pushHandler(new WhatFailureGroupHandler([
-                new StreamHandler($logDir . '/app.log', $level),
-                new ErrorLogHandler(level: $level),
-            ]));
+            $debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
+            $traceLevel = $debug ? Level::Debug : Level::Notice;
+            $configuredLevel = trim((string) ($_ENV['LOG_TRACE_LEVEL'] ?? ''));
+            if ($configuredLevel !== '') {
+                try {
+                    $traceLevel = Level::fromName(strtoupper($configuredLevel));
+                } catch (\UnhandledMatchError) {
+                }
+            }
 
-            return $logger;
+            $spoolEnabled = (($_ENV['LOG_SPOOL_ENABLED'] ?? 'true') === 'true');
+            $stderrEnabled = (($_ENV['LOG_STDERR_ENABLED'] ?? 'true') === 'true');
+
+            return new LogChannelFactory(
+                $container->get(LogPathResolver::class),
+                $traceLevel,
+                $spoolEnabled,
+                $stderrEnabled,
+                $logDir . '/app.log',
+            );
+        },
+
+        IdpLogging::class => function (ContainerInterface $container) {
+            $logging = new IdpLogging($container->get(LogChannelFactory::class));
+            IdpLoggingRuntime::bind($logging);
+            LogRootBootGuard::verify($container->get(LogPathResolver::class), $logging);
+            IdpFormat::announceLogReaderResources($logging);
+
+            return $logging;
+        },
+
+        SqliteLogQuery::class => function (ContainerInterface $container) {
+            return new SqliteLogQuery(
+                $container->get(LogPathResolver::class),
+                new SqliteLogSchema(),
+            );
+        },
+
+        LoggerInterface::class => function (ContainerInterface $container) {
+            return $container->get(IdpLogging::class)->app();
         },
 
         ManagementMiddleware::class => function (ContainerInterface $container) {
-            return new ManagementMiddleware();
+            return new ManagementMiddleware($container->get(IdpLogging::class));
         },
 
         CurrentUserResolverInterface::class => function (ContainerInterface $container) {
             return CurrentUserResolver::builder()
                 ->userRepository($container->get(UserRepository::class))
+                ->idpLogging($container->get(IdpLogging::class))
                 ->build();
         },
 

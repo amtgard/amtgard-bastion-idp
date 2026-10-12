@@ -10,6 +10,7 @@ use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAccessToken;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AccessToken;
+use Amtgard\IdP\Utility\Log\UsesIdpLogging;
 use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
@@ -19,6 +20,7 @@ use Ramsey\Uuid\Uuid;
 #[RepositoryOf('access_tokens', AccessToken::class)]
 class AccessTokenRepository extends Repository implements AccessTokenRepositoryInterface
 {
+    use UsesIdpLogging;
 
     static function getTableName()
     {
@@ -66,6 +68,15 @@ class AccessTokenRepository extends Repository implements AccessTokenRepositoryI
         $accessToken->setExpiryDateTime($oAuthAccessToken->getExpiryDateTime());
         $accessToken->setUserIdentifier($oAuthAccessToken->getUserIdentifier());
         $accessToken->persist($accessToken->getMapper());
+
+        $clientId = $oAuthAccessToken->getClient()->getIdentifier();
+        $exp = $oAuthAccessToken->getExpiryDateTime()->getTimestamp();
+        $this->logOauth()->info('oauth access token persisted', [
+            'client_id' => $clientId,
+            'user_identifier' => (string) ($oAuthAccessToken->getUserIdentifier() ?? ''),
+            'exp' => $exp,
+            'token_id_prefix' => $this->tokenIdPrefix($oAuthAccessToken->getIdentifier()),
+        ]);
     }
 
     public function revokeAccessToken($tokenId)
@@ -74,6 +85,10 @@ class AccessTokenRepository extends Repository implements AccessTokenRepositoryI
         $accessToken = $this->fetchBy('identifier', $tokenId);
         $accessToken->setExpiryDateTime(new \DateTimeImmutable('now'));
         $accessToken->persist($accessToken->getMapper());
+
+        $this->logOauth()->info('oauth access token revoked', [
+            'token_id_prefix' => $this->tokenIdPrefix((string) $tokenId),
+        ]);
     }
 
     public function isAccessTokenRevoked($tokenId)
@@ -87,6 +102,10 @@ class AccessTokenRepository extends Repository implements AccessTokenRepositoryI
     {
         $this->query("DELETE FROM access_tokens WHERE expiry_date_time < NOW()");
         $this->execute();
+
+        $this->logOauth()->info('oauth expired access tokens purged', [
+            'job' => 'clean_tokens',
+        ]);
     }
 
 }

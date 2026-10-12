@@ -14,6 +14,7 @@ use Amtgard\IdP\Services\MailboxChallengeService;
 use Amtgard\IdP\Services\OrkLinkTokenService;
 use Amtgard\IdP\Services\RegistrationService;
 use Amtgard\IdP\Utility\Constants;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use OpenApi\Attributes as OA;
 use Optional\Optional;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -40,6 +41,7 @@ final class ConnectController
         private RegistrationService $registrationService,
         private MailboxChallengeService $challenges,
         private LoggerInterface $logger,
+        private IdpLogging $idpLogging,
     ) {
     }
 
@@ -62,6 +64,8 @@ final class ConnectController
         $params = $request->getQueryParams();
         $linkToken = (string) ($params['link_token'] ?? '');
         if ($linkToken === '') {
+            $this->idpLogging->security()->error('connect handoff rejected', ['reason' => 'missing_link_token']);
+
             return $this->renderError($response, 'This link is invalid. Return to ORK and start over.');
         }
 
@@ -130,7 +134,11 @@ final class ConnectController
 
                 return $response;
             })
-            ->orElseGet(fn () => $this->renderError($response, 'This link is invalid or expired. Return to ORK and start over.'));
+            ->orElseGet(function () use ($response) {
+                $this->idpLogging->security()->error('connect handoff rejected', ['reason' => 'invalid_or_expired_token']);
+
+                return $this->renderError($response, 'This link is invalid or expired. Return to ORK and start over.');
+            });
     }
 
     #[OA\Post(
@@ -175,12 +183,21 @@ final class ConnectController
                     ->filter(fn ($hash) => is_string($hash) && $hash !== '' && password_verify($password, $hash))
                     ->isPresent();
                 if (!$passwordMatches || $user === null) {
+                    $this->idpLogging->security()->error('connect login rejected', [
+                        'email_sha256' => hash('sha256', $authoritativeEmail),
+                        'failure_reason' => 'invalid_credentials',
+                    ]);
+
                     return $this->renderLegacyForm($response, $linkToken, $authoritativeEmail, 'login', 'Email or password incorrect.');
                 }
 
                 return $this->finishLegacyLink($response, $user, $claims);
             })
-            ->orElseGet(fn () => $this->renderError($response, 'This link is invalid or expired. Return to ORK to get a fresh one.'));
+            ->orElseGet(function () use ($response) {
+                $this->idpLogging->security()->error('connect login rejected', ['reason' => 'invalid_or_expired_token']);
+
+                return $this->renderError($response, 'This link is invalid or expired. Return to ORK to get a fresh one.');
+            });
     }
 
     #[OA\Post(
@@ -222,6 +239,8 @@ final class ConnectController
         return Optional::ofNullable($this->tokenService->peekLegacyClaims($linkToken))
             ->map(function (array $claims) use ($response, $linkToken, $password, $confirm, $body) {
                 if ($password !== $confirm) {
+                    $this->idpLogging->security()->error('connect register rejected', ['rule' => 'password_mismatch']);
+
                     return $this->renderLegacyForm($response, $linkToken, $claims['email'], 'register', 'Passwords do not match.');
                 }
 
@@ -232,12 +251,20 @@ final class ConnectController
                     $password,
                 );
                 if (!$result['ok']) {
+                    $this->idpLogging->security()->error('connect register rejected', [
+                        'rule' => $this->registrationRuleFromError($result['error']),
+                    ]);
+
                     return $this->renderLegacyForm($response, $linkToken, $claims['email'], 'register', $result['error']);
                 }
 
                 return $this->finishLegacyLink($response, $result['user'], $claims);
             })
-            ->orElseGet(fn () => $this->renderError($response, 'This link is invalid or expired. Return to ORK to get a fresh one.'));
+            ->orElseGet(function () use ($response) {
+                $this->idpLogging->security()->error('connect register rejected', ['reason' => 'invalid_or_expired_token']);
+
+                return $this->renderError($response, 'This link is invalid or expired. Return to ORK to get a fresh one.');
+            });
     }
 
     /**
@@ -248,14 +275,18 @@ final class ConnectController
         try {
             $consumed = $this->tokenService->consumeJti($claims['jti']);
         } catch (\Throwable $e) {
-            $this->logger->error('ConnectController login: consumeJti failed', [
+            $email = (string) ($claims['email'] ?? '');
+            $this->idpLogging->security()->error('connect link consume jti failed', [
                 'mundane_id' => $claims['mundane_id'],
-                'msg' => $e->getMessage(),
+                'email_sha256' => $email !== '' ? hash('sha256', $email) : null,
+                'exception_class' => $e::class,
             ]);
 
             return $this->renderError($response, 'Something went wrong on our end. Your link is still valid — please try again.');
         }
         if (!$consumed) {
+            $this->idpLogging->security()->error('connect link rejected', ['reason' => 'jti_replay']);
+
             return $this->renderError($response, 'This link has already been used. Return to ORK to get a fresh one.');
         }
 
@@ -263,22 +294,23 @@ final class ConnectController
             $this->orkProfileRepository->linkExistingUserToMundane($user->getId(), $claims['mundane_id'], 'ork_handoff');
         } catch (\RuntimeException $e) {
             if (str_contains($e->getMessage(), 'conflict')) {
-                $this->logger->warning('ConnectController login link conflict', ['msg' => $e->getMessage()]);
+                $this->idpLogging->security()->warning('connect link conflict', [
+                    'idp_user_id' => $user->getUserId(),
+                    'mundane_id' => $claims['mundane_id'],
+                ]);
 
                 return $this->renderError($response, 'That ORK profile is already linked to a different Amtgard account.');
             }
-            $this->logger->error('ConnectController login: link write failed after jti consumed', [
+            $this->idpLogging->security()->error('connect link write failed', [
                 'idp_user_id' => $user->getUserId(),
                 'mundane_id' => $claims['mundane_id'],
-                'msg' => $e->getMessage(),
             ]);
 
             return $this->renderError($response, 'Something went wrong on our end. Please try again or return to ORK to get a fresh link.');
         } catch (\Throwable $e) {
-            $this->logger->error('ConnectController login: link write failed after jti consumed', [
+            $this->idpLogging->security()->error('connect link write failed', [
                 'idp_user_id' => $user->getUserId(),
                 'mundane_id' => $claims['mundane_id'],
-                'msg' => $e->getMessage(),
             ]);
 
             return $this->renderError($response, 'Something went wrong on our end. Please try again or return to ORK to get a fresh link.');
@@ -288,11 +320,18 @@ final class ConnectController
             session_start();
         }
         if (!session_regenerate_id(true)) {
-            $this->logger->warning('session_regenerate_id failed during connect handoff', ['user_id' => $user->getUserId()]);
+            $this->idpLogging->security()->warning('connect session regenerate failed', [
+                'user_uuid' => $user->getUserId(),
+            ]);
         }
         $this->establishBrowserSession($user);
 
         if (!$this->tokenService->hasSharedSecret()) {
+            $this->idpLogging->security()->warning('connect completion jwt skipped', [
+                'reason' => 'missing_shared_secret',
+                'ork_host' => $this->orkHostFromEnv(),
+            ]);
+
             return $response->withHeader('Location', $this->tokenService->orkBaseUrl() . '/')->withStatus(302);
         }
 
@@ -353,7 +392,11 @@ final class ConnectController
                     ->map(fn (UserEntity $existing) => $this->finishLink($response, $existing, $claims, $challengeId, false))
                     ->orElseGet(fn () => $this->finishRegistration($response, $destination, $claims, $challengeId, $linkToken, $body));
             })
-            ->orElseGet(fn () => $this->renderError($response, 'This link is invalid or expired. Return to ORK to get a fresh one.'));
+            ->orElseGet(function () use ($response) {
+                $this->idpLogging->security()->error('connect code rejected', ['reason' => 'invalid_or_expired_token']);
+
+                return $this->renderError($response, 'This link is invalid or expired. Return to ORK to get a fresh one.');
+            });
     }
 
     /**
@@ -374,6 +417,8 @@ final class ConnectController
             return $this->renderForm($response, $linkToken, $challengeId, true, null);
         }
         if ($password !== $confirm) {
+            $this->idpLogging->security()->error('connect register rejected', ['rule' => 'password_mismatch']);
+
             return $this->renderForm($response, $linkToken, $challengeId, true, 'Passwords do not match.');
         }
 
@@ -411,15 +456,16 @@ final class ConnectController
                 try {
                     $consumedJti = $this->tokenService->consumeJti($claims['jti']);
                 } catch (\Throwable $e) {
-                    $this->logger->error('ConnectController: consumeJti failed', [
-                        'challenge_id' => $challengeId,
+                    $this->idpLogging->security()->error('connect link consume jti failed', [
                         'mundane_id' => $claims['mundane_id'],
-                        'msg' => $e->getMessage(),
+                        'exception_class' => $e::class,
                     ]);
 
                     return $this->renderError($response, 'Something went wrong on our end. Your link is still valid — please try again.');
                 }
                 if (!$consumedJti) {
+                    $this->idpLogging->security()->error('connect link rejected', ['reason' => 'jti_replay']);
+
                     return $this->renderError($response, 'This link has already been used. Return to ORK to get a fresh one.');
                 }
 
@@ -428,25 +474,24 @@ final class ConnectController
                 try {
                     $this->orkProfileRepository->linkExistingUserToMundane($user->getId(), $claims['mundane_id'], 'ork_handoff');
                 } catch (\RuntimeException $e) {
-                    $this->logger->error('ConnectController: link write failed', [
-                        'challenge_id' => $challengeId,
-                        'idp_user_id' => $user->getUserId(),
-                        'mundane_id' => $claims['mundane_id'],
-                        'created_user' => $createdUser,
-                        'msg' => $e->getMessage(),
-                    ]);
                     if (str_contains($e->getMessage(), 'conflict')) {
+                        $this->idpLogging->security()->warning('connect link conflict', [
+                            'idp_user_id' => $user->getUserId(),
+                            'mundane_id' => $claims['mundane_id'],
+                        ]);
+
                         return $this->renderError($response, 'That ORK profile is already linked to a different Amtgard account.');
                     }
+                    $this->idpLogging->security()->error('connect link write failed', [
+                        'idp_user_id' => $user->getUserId(),
+                        'mundane_id' => $claims['mundane_id'],
+                    ]);
 
                     return $this->renderError($response, 'Something went wrong on our end. Please try again or return to ORK to get a fresh link.');
                 } catch (\Throwable $e) {
-                    $this->logger->error('ConnectController: link write failed', [
-                        'challenge_id' => $challengeId,
+                    $this->idpLogging->security()->error('connect link write failed', [
                         'idp_user_id' => $user->getUserId(),
                         'mundane_id' => $claims['mundane_id'],
-                        'created_user' => $createdUser,
-                        'msg' => $e->getMessage(),
                     ]);
 
                     return $this->renderError($response, 'Something went wrong on our end. Please try again or return to ORK to get a fresh link.');
@@ -456,8 +501,8 @@ final class ConnectController
                     session_start();
                 }
                 if (!session_regenerate_id(true)) {
-                    $this->logger->warning('session_regenerate_id failed during connect handoff', [
-                        'challenge_id' => $challengeId,
+                    $this->idpLogging->security()->warning('connect session regenerate failed', [
+                        'user_uuid' => $user->getUserId(),
                     ]);
                 }
                 $this->establishBrowserSession($user);
@@ -480,6 +525,11 @@ final class ConnectController
     private function redirectBackToOrk(Response $response, string $idpUserId, int $mundaneId, string $challengeId): Response
     {
         if (!$this->tokenService->hasSharedSecret()) {
+            $this->idpLogging->security()->warning('connect completion jwt skipped', [
+                'reason' => 'missing_shared_secret',
+                'ork_host' => $this->orkHostFromEnv(),
+            ]);
+
             return $response->withHeader('Location', $this->tokenService->orkBaseUrl() . '/')->withStatus(302);
         }
 
@@ -499,6 +549,7 @@ final class ConnectController
 
     private function renderError(Response $response, string $message): Response
     {
+        $this->idpLogging->security()->error('connect handoff error page', ['http_status' => 400]);
         $response->getBody()->write($this->twig->render('connect.twig', [
             'handoff' => 'legacy',
             'link_token' => '',
@@ -548,5 +599,26 @@ final class ConnectController
         ]));
 
         return $response;
+    }
+
+    private function registrationRuleFromError(string $error): string
+    {
+        return match ($error) {
+            'All fields are required' => 'required_fields',
+            'Invalid email format' => 'email_format',
+            'Email already registered' => 'email_exists',
+            default => 'registration_failed',
+        };
+    }
+
+    private function orkHostFromEnv(): ?string
+    {
+        $raw = (string) ($_ENV['ORK_BASE_URL'] ?? '');
+        if ($raw === '') {
+            return null;
+        }
+        $host = parse_url($raw, PHP_URL_HOST);
+
+        return is_string($host) ? $host : null;
     }
 }

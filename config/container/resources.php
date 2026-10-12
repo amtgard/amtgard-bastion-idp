@@ -8,24 +8,28 @@ use Amtgard\IdP\Persistence\Common\Repositories\UserPolicyClaimRepository;
 use Amtgard\IdP\Services\ClientIamMetadataService;
 use Amtgard\IdP\Services\ClientIamPolicyService;
 use Amtgard\IdP\Services\ResourcesUserinfoService;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Psr\Container\ContainerInterface;
 
 return [
     ResourcesUserinfoService::class => function (ContainerInterface $container) {
         return ResourcesUserinfoService::builder()
             ->orkProfileRepository($container->get(UserOrkProfileRepository::class))
+            ->idpLogging($container->get(IdpLogging::class))
             ->build();
     },
 
-    ClientIamPolicyService::class => function (UserPolicyClaimRepository $policyClaimRepository) {
+    ClientIamPolicyService::class => function (ContainerInterface $container) {
         return ClientIamPolicyService::builder()
-            ->policyClaimRepository($policyClaimRepository)
+            ->policyClaimRepository($container->get(UserPolicyClaimRepository::class))
+            ->idpLogging($container->get(IdpLogging::class))
             ->build();
     },
 
-    ClientIamMetadataService::class => function (UserLoginClientRepository $metadataRepository) {
+    ClientIamMetadataService::class => function (ContainerInterface $container) {
         return ClientIamMetadataService::builder()
-            ->metadataRepository($metadataRepository)
+            ->metadataRepository($container->get(UserLoginClientRepository::class))
+            ->idpLogging($container->get(IdpLogging::class))
             ->build();
     },
 ];

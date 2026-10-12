@@ -22,3 +22,5 @@ services:
       IDP_ORK_SHARED_SECRET: integ-ork-shared-secret-thirty-two-chars
       ORK_BASE_URL: https://ork.amtgard.com
       MAILBOX_CODE_PEPPER: integ-mailbox-pepper-not-for-production-use
+      LOG_SPOOL_ENABLED: "true"
+      LOG_ROOT: /var/www/idp.amtgard.com/logs/bundles-integ

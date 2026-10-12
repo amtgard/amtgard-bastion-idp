@@ -30,7 +30,6 @@ use League\OAuth2\Server\Repositories\UserRepositoryInterface;
 use League\OAuth2\Server\ResourceServer;
 use OpenIDConnectServer\Repositories\IdentityProviderInterface;
 use Psr\Container\ContainerInterface;
-use Psr\Log\LoggerInterface;
 use Twig\Environment as TwigEnvironment;
 
 return [
@@ -68,6 +67,7 @@ return [
         return AmtgardIdpJwt::builder()
             ->assembler($container->get(AuthorizationJwtAssembler::class))
             ->redisCacheRepository($container->get(RedisCacheRepository::class))
+            ->idpLogging($container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class))
             ->build();
     },
 
@@ -89,7 +89,7 @@ return [
 
     OAuthFlowErrorRenderer::class => function (ContainerInterface $container) {
         return OAuthFlowErrorRenderer::builder()
-            ->logger($container->get(LoggerInterface::class))
+            ->idpLogging($container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class))
             ->view($container->get(TwigEnvironment::class))
             ->build();
     },
@@ -98,6 +98,7 @@ return [
         return OAuthTokenAction::builder()
             ->authorizationServer($container->get(AuthorizationServer::class))
             ->errorRenderer($container->get(OAuthFlowErrorRenderer::class))
+            ->idpLogging($container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class))
             ->build();
     },
 
@@ -108,6 +109,7 @@ return [
             ->authRequestStore($container->get(OAuthSessionAuthRequestStore::class))
             ->errorRenderer($container->get(OAuthFlowErrorRenderer::class))
             ->view($container->get(TwigEnvironment::class))
+            ->idpLogging($container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class))
             ->build();
     },
 
@@ -119,7 +121,7 @@ return [
             ->userClientAuthorizationRepository($container->get(UserClientAuthorizationRepository::class))
             ->authRequestStore($container->get(OAuthSessionAuthRequestStore::class))
             ->errorRenderer($container->get(OAuthFlowErrorRenderer::class))
-            ->logger($container->get(LoggerInterface::class))
+            ->idpLogging($container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class))
             ->amtgardIdpJwt($container->get(AmtgardIdpJwt::class))
             ->redisCacheRepository($container->get(RedisCacheRepository::class))
             ->build();

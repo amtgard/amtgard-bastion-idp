@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Utility;
 
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
+
 final class Pvh
 {
     public const PVH_HEX_LENGTH = 44;
@@ -54,6 +56,9 @@ final class Pvh
     {
         $bytes = hex2bin($hex);
         if ($bytes === false) {
+            IdpLoggingRuntime::pvh()->debug('pvh policy hash hex invalid', [
+                'rule' => 'policy_hash_hex',
+            ]);
             throw new \InvalidArgumentException('policy hash hex is invalid.');
         }
 
@@ -107,6 +112,9 @@ final class Pvh
     private static function assertPolicyHash(string $policyHash): void
     {
         if (strlen($policyHash) !== self::POLICY_HASH_BYTE_LENGTH) {
+            IdpLoggingRuntime::pvh()->debug('pvh assert failed', [
+                'rule' => 'policy_hash_length',
+            ]);
             throw new \InvalidArgumentException('policyHash must be 32 raw bytes.');
         }
     }
@@ -114,6 +122,9 @@ final class Pvh
     private static function assertNowMs(int $nowMs): void
     {
         if ($nowMs < 0 || $nowMs > self::MAX_NOW_MS) {
+            IdpLoggingRuntime::pvh()->debug('pvh assert failed', [
+                'rule' => 'now_ms_range',
+            ]);
             throw new \InvalidArgumentException('nowMs must be in 0..2^48-1.');
         }
     }
@@ -121,6 +132,9 @@ final class Pvh
     private static function assertPvhHex(string $pvh): void
     {
         if (strlen($pvh) !== self::PVH_HEX_LENGTH || hex2bin($pvh) === false) {
+            IdpLoggingRuntime::pvh()->debug('pvh assert failed', [
+                'rule' => 'pvh_hex',
+            ]);
             throw new \InvalidArgumentException('pvh must be 44-char hex.');
         }
     }

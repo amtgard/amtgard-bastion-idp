@@ -7,13 +7,13 @@ use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\PvhCacheRecord;
 use Amtgard\IdP\Utility\PvhQueueHandle;
 use Amtgard\SetQueue\PubSubQueue;
+use Amtgard\IdP\Tests\Support\CapturedIdpLogging;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerInterface;
 use Redis;
 
 class RedisCacheRepositoryTest extends TestCase
 {
-    private LoggerInterface $logger;
+    private CapturedIdpLogging $capture;
     private Redis $redis;
     private PubSubQueue $pubSubQueue;
     private PvhQueueHandle $pvhQueueHandle;
@@ -21,7 +21,7 @@ class RedisCacheRepositoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->logger = $this->createStub(LoggerInterface::class);
+        $this->capture = CapturedIdpLogging::create();
         $this->redis = $this->createMock(Redis::class);
         $this->pubSubQueue = $this->createStub(PubSubQueue::class);
         $this->pvhQueueHandle = PvhQueueHandle::builder()->handle('amtgard-idp-pvh')->build();
@@ -31,7 +31,7 @@ class RedisCacheRepositoryTest extends TestCase
     private function makeRepository(Redis $redis, PubSubQueue $pubSubQueue): RedisCacheRepository
     {
         return new RedisCacheRepository(
-            $this->logger,
+            $this->capture->idpLogging,
             $redis,
             $pubSubQueue,
             $this->pvhQueueHandle

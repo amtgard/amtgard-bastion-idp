@@ -190,7 +190,7 @@
             </button>
         </div>
         <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 md:px-5 py-4 space-y-4">
-            <p class="text-xs text-gray-500">These people see this client under Clients on their profile and may edit its redirect URI only.</p>
+            <p class="text-xs text-gray-500">These people see this client under Clients on their profile and may edit its redirect URI, IAM service, and IAM format.</p>
             <p id="client-access-empty" class="hidden text-sm text-gray-500 italic">No users assigned yet.</p>
             <div id="client-access-chips" class="flex flex-wrap gap-2 min-h-[1.5rem]"></div>
             <div id="client-access-search-wrap" class="relative">
@@ -221,7 +221,7 @@
     const newClientSecret = document.getElementById('new-client-secret').value;
     const viewMode = {{ viewMode|default('admin')|json_encode|raw }};
     const csrfToken = {{ csrf_token()|json_encode|raw }};
-    const readonlyFieldIds = ['client-name', 'client-id', 'client-secret', 'client-iam-service', 'client-iam-format'];
+    const readonlyFieldIds = ['client-name', 'client-id', 'client-secret'];
     const checkboxFieldIds = ['client-confidential', 'client-dev'];
     let accessUsers = [];
     let accessClientId = null;

@@ -6,6 +6,7 @@ namespace Amtgard\IdP\Tests\Services;
 
 use Amtgard\ActiveRecordOrm\Repository\Database;
 use Amtgard\IdP\Services\OrkLinkTokenService;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Firebase\JWT\JWT;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -21,7 +22,7 @@ class OrkLinkTokenServiceTest extends TestCase
         $this->secret = str_repeat('x', 32);
         $_ENV['IDP_ORK_SHARED_SECRET'] = $this->secret;
         $this->database = $this->createMock(Database::class);
-        $this->service = new OrkLinkTokenService($this->database, $this->createMock(LoggerInterface::class));
+        $this->service = new OrkLinkTokenService($this->database, IdpLoggingTestFactory::create());
     }
 
     public function testPeekClaimsReturnsClaimsForValidToken(): void
@@ -202,7 +203,7 @@ class OrkLinkTokenServiceTest extends TestCase
     {
         unset($_ENV['IDP_ORK_SHARED_SECRET']);
         $_ENV['ORK_LINK_TOKEN_SECRET'] = str_repeat('z', 32);
-        $service = new OrkLinkTokenService($this->database, $this->createMock(LoggerInterface::class));
+        $service = new OrkLinkTokenService($this->database, IdpLoggingTestFactory::create());
         $jwt = JWT::encode([
             'iss' => 'ork',
             'aud' => 'idp',

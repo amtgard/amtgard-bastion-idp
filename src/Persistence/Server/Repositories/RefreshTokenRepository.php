@@ -10,6 +10,7 @@ use Amtgard\ActiveRecordOrm\Entity\Repository\Repository;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAccessToken;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthRefreshToken;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\RefreshToken;
+use Amtgard\IdP\Utility\Log\UsesIdpLogging;
 use Amtgard\IdP\Utility\Utility;
 use League\OAuth2\Server\Entities\RefreshTokenEntityInterface;
 use League\OAuth2\Server\Repositories\RefreshTokenRepositoryInterface;
@@ -18,6 +19,7 @@ use Ramsey\Uuid\Uuid;
 #[RepositoryOf('refresh_tokens', RefreshToken::class)]
 class RefreshTokenRepository extends Repository implements RefreshTokenRepositoryInterface
 {
+    use UsesIdpLogging;
 
     static function getTableName()
     {
@@ -63,6 +65,10 @@ class RefreshTokenRepository extends Repository implements RefreshTokenRepositor
             $refreshToken->setAccessToken($accessToken);
         }
         $refreshToken->persist($refreshToken->getMapper());
+
+        $this->logOauth()->info('oauth refresh token persisted', [
+            'token_id_prefix' => $this->tokenIdPrefix($oAuthRefreshToken->getIdentifier()),
+        ]);
     }
 
     public function revokeRefreshToken($tokenId)
@@ -71,6 +77,10 @@ class RefreshTokenRepository extends Repository implements RefreshTokenRepositor
         $refreshToken = $this->fetchBy('identifier', $tokenId);
         $refreshToken->setExpiryDateTime(new \DateTimeImmutable('now'));
         $refreshToken->persist($refreshToken->getMapper());
+
+        $this->logOauth()->info('oauth refresh token revoked', [
+            'token_id_prefix' => $this->tokenIdPrefix((string) $tokenId),
+        ]);
     }
 
     public function isRefreshTokenRevoked($tokenId)
@@ -84,11 +94,19 @@ class RefreshTokenRepository extends Repository implements RefreshTokenRepositor
     {
         $this->query("DELETE FROM refresh_tokens WHERE expiry_date_time < NOW()");
         $this->execute();
+
+        $this->logOauth()->info('oauth expired refresh tokens purged', [
+            'job' => 'clean_tokens',
+        ]);
     }
 
     public function deleteOrphanedRefreshTokens()
     {
         $this->query("DELETE refresh_tokens FROM refresh_tokens LEFT JOIN access_tokens ON refresh_tokens.access_token_id = access_tokens.id WHERE access_tokens.id IS NULL");
         $this->execute();
+
+        $this->logOauth()->info('oauth orphaned refresh tokens purged', [
+            'job' => 'clean_tokens',
+        ]);
     }
 }

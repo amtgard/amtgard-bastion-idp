@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Middleware;
 
 use Amtgard\IdP\Middleware\LocalAdminUserMiddleware;
+use Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\UserAuthority;
 use PHPUnit\Framework\TestCase;
@@ -34,7 +35,8 @@ class LocalAdminUserMiddlewareTest extends TestCase
 
         $this->middleware = new LocalAdminUserMiddleware(
             $this->userRepository,
-            $this->userAuthority
+            $this->userAuthority,
+            IdpLoggingTestFactory::create(),
         );
     }
 

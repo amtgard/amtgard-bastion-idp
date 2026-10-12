@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Utility;
 
 use Amtgard\IdP\Persistence\Server\Entities\Repository\UserJwtGeneration;
+use Amtgard\IdP\Utility\Log\IdpLoggingRuntime;
 
 /**
  * Redis JSON value for pvh:{userUuid}:{aud}. Not serialized.
@@ -69,10 +70,18 @@ final class PvhCacheRecord
         try {
             $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
+            IdpLoggingRuntime::pvh()->warning('pvh cache record corrupt', [
+                'reason' => 'corrupt_pvh_record',
+            ]);
+
             return null;
         }
 
         if (!is_array($data)) {
+            IdpLoggingRuntime::pvh()->warning('pvh cache record corrupt', [
+                'reason' => 'corrupt_pvh_record',
+            ]);
+
             return null;
         }
 
@@ -86,12 +95,20 @@ final class PvhCacheRecord
     {
         foreach (['user_uuid', 'aud', 'email', 'pvh'] as $required) {
             if (!isset($data[$required]) || !is_string($data[$required])) {
+                IdpLoggingRuntime::pvh()->warning('pvh cache record corrupt', [
+                    'reason' => 'corrupt_pvh_record',
+                ]);
+
                 return null;
             }
         }
 
         $prevPvh = $data['prev_pvh'] ?? null;
         if ($prevPvh !== null && !is_string($prevPvh)) {
+            IdpLoggingRuntime::pvh()->warning('pvh cache record corrupt', [
+                'reason' => 'corrupt_pvh_record',
+            ]);
+
             return null;
         }
 

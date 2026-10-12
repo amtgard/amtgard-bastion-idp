@@ -6,16 +6,16 @@ namespace Amtgard\IdP\Utility\Security;
 
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Repositories\ClientRepository;
+use Amtgard\IdP\Utility\Log\IdpLogging;
 use Optional\Optional;
 use Psr\Http\Message\ServerRequestInterface as Request;
-use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpUnauthorizedException;
 
 final class ConfidentialClientAuthenticator
 {
     public function __construct(
         private ClientRepository $clientRepository,
-        private LoggerInterface $logger,
+        private IdpLogging $logging,
     ) {}
 
     public function authenticate(Request $request, ConfidentialClientAuthMode $mode): Client
@@ -25,7 +25,9 @@ final class ConfidentialClientAuthenticator
         );
 
         if (!$credentials->isPresent()) {
-            $this->logger->info('ConfidentialClientAuth: missing or non-Basic Authorization header');
+            $this->logging->security()->error('confidential client auth rejected', [
+                'failure_reason' => 'missing_basic',
+            ]);
             throw new HttpUnauthorizedException($request, 'Confidential client credentials required.');
         }
 
@@ -36,17 +38,27 @@ final class ConfidentialClientAuthenticator
             $basic->clientSecret,
             'confidential_basic'
         )) {
-            $this->logger->warning('ConfidentialClientAuth: invalid credentials', [
+            $this->logging->security()->error('confidential client auth rejected', [
                 'client_id' => $basic->clientId,
+                'failure_reason' => 'invalid_credentials',
             ]);
             throw new HttpUnauthorizedException($request, 'Invalid client credentials.');
         }
 
-        $client = Optional::ofNullable(
-            $this->clientRepository->findClientByIdentifier($basic->clientId)
-        )->orElseThrow(new HttpUnauthorizedException($request, 'Unknown client.'));
+        $client = $this->clientRepository->findClientByIdentifier($basic->clientId);
+        if ($client === null) {
+            $this->logging->security()->error('confidential client auth rejected', [
+                'client_id' => $basic->clientId,
+                'failure_reason' => 'unknown_client',
+            ]);
+            throw new HttpUnauthorizedException($request, 'Unknown client.');
+        }
 
         if (!$client->getIsConfidential()) {
+            $this->logging->security()->error('confidential client auth rejected', [
+                'client_id' => $basic->clientId,
+                'failure_reason' => 'not_confidential',
+            ]);
             throw new HttpUnauthorizedException($request, 'Client endpoints require a confidential client.');
         }
 
@@ -56,14 +68,15 @@ final class ConfidentialClientAuthenticator
                 ->filter(fn (string $iamService) => $iamService !== '')
                 ->orElse(null);
             if ($namespace === null) {
-                $this->logger->warning('ConfidentialClientAuth: client has no IAM service namespace', [
+                $this->logging->security()->error('confidential client auth rejected', [
                     'client_id' => $basic->clientId,
+                    'failure_reason' => 'missing_iam_service',
                 ]);
                 throw new MissingIamServiceNamespace();
             }
         }
 
-        $this->logger->debug('ConfidentialClientAuth: credentials accepted', [
+        $this->logging->security()->debug('confidential client credentials accepted', [
             'client_id' => $basic->clientId,
         ]);
 
