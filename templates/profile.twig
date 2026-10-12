@@ -139,7 +139,9 @@
                     {% for client in authorizations %}
                         <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center">
                             <span class="font-bold text-gray-700">{{ client.client_name }}</span>
-                            <form action="/resources/profile/revoke" method="POST" onsubmit="return confirm('Are you sure you want to revoke access for {{ client.client_name }}?');">
+                            <form action="/resources/profile/revoke" method="POST" data-confirm="Revoke access for {{ client.client_name }}?"
+                                  data-confirm-body="That app will no longer be able to read your Amtgard account. You can grant access again by signing in to it."
+                                  data-confirm-label="Revoke access">
                                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="client_id" value="{{ client.client_id }}">
                                 <button type="submit" class="text-xs bg-white border border-red-300 text-red-600 hover:bg-red-50 px-3 py-1 rounded transition-colors">
@@ -166,7 +168,9 @@
                                     <div class="text-sm text-gray-500">Mundane ID: {{ orkProfile.mundaneId }}</div>
                                 </div>
                                 <div class="flex items-center space-x-2">
-                                    <form action="/resources/profile/unlink-ork" method="POST" onsubmit="return confirm('Unlink this ORK player record from your Amtgard account?');">
+                                    <form action="/resources/profile/unlink-ork" method="POST" data-confirm="Unlink this ORK player record?"
+                                          data-confirm-body="Your Amtgard account stays, but it will no longer be connected to this ORK player record. You can link it again at any time."
+                                          data-confirm-label="Unlink">
                                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="text-sm font-semibold text-red-700 hover:text-red-900">Unlink</button>
                                     </form>
@@ -230,6 +234,10 @@
                                     <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="ork-username" name="username" type="text" autocomplete="off">
                                     <ul id="ork-username-results" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-y-auto"></ul>
                                  </div>
+                                 <p id="ork-email-code-hint" class="hidden text-xs text-amber-700 mb-3 max-w-sm">
+                                     This ORK record has no email address on file, so a code cannot be sent to it.
+                                     Ask a park officer to add one, or link with your ORK password instead.
+                                 </p>
                                  <button id="ork-email-code-btn" class="bg-white border border-gray-300 text-gray-800 font-bold py-2 px-4 rounded mb-4 opacity-50 cursor-not-allowed" type="submit" formaction="/resources/profile/link-ork-code-mail" disabled>
                                     Email Code
                                  </button>
@@ -288,6 +296,28 @@
     </div>
 
     <!-- JWT Validation Modal -->
+    {# Confirm dialog for destructive actions. Replaces window.confirm(), which
+       renders as "idp.amtgard.com says ..." browser chrome and, worse, returns
+       false when a user has ticked "prevent additional dialogs" -- the form then
+       silently never submits. Any form with data-confirm opts in. #}
+    <div id="confirm-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-[70] flex items-center justify-center p-4"
+         role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+            <div class="px-5 py-4 border-b">
+                <h3 id="confirm-modal-title" class="text-lg font-bold text-gray-900"></h3>
+            </div>
+            <div class="px-5 py-4">
+                <p id="confirm-modal-body" class="text-sm text-gray-600"></p>
+            </div>
+            <div class="px-5 py-4 bg-gray-50 flex justify-end space-x-2">
+                <button type="button" id="confirm-modal-cancel"
+                        class="px-4 py-2 text-sm rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-100">Cancel</button>
+                <button type="button" id="confirm-modal-ok"
+                        class="px-4 py-2 text-sm rounded bg-red-600 text-white hover:bg-red-700"></button>
+            </div>
+        </div>
+    </div>
+
     <div id="jwt-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
         <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
             <div class="flex justify-between items-center mb-4">
@@ -400,6 +430,8 @@
     const orkUsername = document.getElementById('ork-username');
     const orkUsernameResults = document.getElementById('ork-username-results');
     const orkEmailCodeBtn = document.getElementById('ork-email-code-btn');
+    const orkEmailCodeHint = document.getElementById('ork-email-code-hint');
+    let orkPickedHasEmail = false;
     const orkCodeInput = document.getElementById('ork-code');
     const orkCodeSent = {{ (success == 'ork_code_sent' or orkClaimPending is not null)|json_encode|raw }};
     const orkClaimPendingUsername = {{ (orkClaimPending.username ?? '')|json_encode|raw }};
@@ -430,7 +462,10 @@
 
     function syncOrkLinkForm() {
         const hasUsername = (orkUsername?.value.trim() ?? '') !== '';
-        setOrkActionButtonEnabled(orkEmailCodeBtn, hasUsername && orkUsernamePickedFromList);
+        setOrkActionButtonEnabled(orkEmailCodeBtn, hasUsername && orkUsernamePickedFromList && orkPickedHasEmail);
+        if (orkEmailCodeHint) {
+            orkEmailCodeHint.classList.toggle('hidden', !(hasUsername && orkUsernamePickedFromList && !orkPickedHasEmail));
+        }
     }
 
     function showOrkCodeEntryMode() {
@@ -475,9 +510,18 @@
                 meta.className = 'text-xs text-gray-500';
                 meta.textContent = [match.persona, match.parkName, match.kingdomName].filter(Boolean).join(' · ');
                 item.append(label, meta);
+                if (match.hasEmail !== true) {
+                    const warn = document.createElement('div');
+                    warn.className = 'text-xs text-amber-700 mt-0.5';
+                    warn.textContent = 'No email on file — code cannot be sent';
+                    item.append(warn);
+                }
                 const pickMatch = () => {
                     orkUsername.value = match.username;
                     orkUsernamePickedFromList = true;
+                    // Most ORK records have no email on file; the claim flow reports
+                    // success either way, so Email Code must not be offered for them.
+                    orkPickedHasEmail = match.hasEmail === true;
                     syncOrkLinkForm();
                     hideOrkUsernameResults();
                 };
@@ -501,6 +545,9 @@
         if (orkClaimPendingUsername && orkUsername && !orkUsername.value.trim()) {
             orkUsername.value = orkClaimPendingUsername;
             orkUsernamePickedFromList = true;
+            // Resuming a pending claim: a code was already sent to this record,
+            // so a mailbox exists even though no dropdown match is in scope here.
+            orkPickedHasEmail = true;
             syncOrkLinkForm();
         }
     }
@@ -511,6 +558,51 @@
     });
 
     document.querySelector('a[href="/auth/logout"]')?.addEventListener('click', clearStoredJwt);
+
+    // ---- Confirm dialog -----------------------------------------------------
+    // Intercepts submit on any form carrying data-confirm and runs it through
+    // the styled modal instead of window.confirm().
+    (function () {
+        var modal   = document.getElementById('confirm-modal');
+        var titleEl = document.getElementById('confirm-modal-title');
+        var bodyEl  = document.getElementById('confirm-modal-body');
+        var okBtn   = document.getElementById('confirm-modal-ok');
+        var cancel  = document.getElementById('confirm-modal-cancel');
+        if (!modal) { return; }
+        var pending = null;
+
+        function close() {
+            modal.classList.add('hidden');
+            pending = null;
+        }
+
+        document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+            form.addEventListener('submit', function (e) {
+                if (form.dataset.confirmed === '1') { return; }  // second pass: let it through
+                e.preventDefault();
+                pending = form;
+                titleEl.textContent = form.dataset.confirm || 'Are you sure?';
+                bodyEl.textContent  = form.dataset.confirmBody || '';
+                bodyEl.classList.toggle('hidden', !form.dataset.confirmBody);
+                okBtn.textContent   = form.dataset.confirmLabel || 'Confirm';
+                modal.classList.remove('hidden');
+                okBtn.focus();
+            });
+        });
+
+        okBtn.addEventListener('click', function () {
+            if (!pending) { return; }
+            var form = pending;
+            form.dataset.confirmed = '1';
+            close();
+            form.submit();
+        });
+        cancel.addEventListener('click', close);
+        modal.addEventListener('click', function (e) { if (e.target === modal) { close(); } });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) { close(); }
+        });
+    })();
 
     // Close modal on Escape key
     document.addEventListener('keydown', function(event) {
