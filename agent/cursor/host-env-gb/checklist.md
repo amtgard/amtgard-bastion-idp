@@ -69,10 +69,10 @@
 
 ## M6 — Closeout
 
-- [ ] Full `composer test` + Infection on M3 scope; fix regressions
-- [ ] Checklist footer: tip branch, commits, gate numbers
-- [ ] All boxes above checked or explicitly deferred with reason
-- [ ] One commit on `stack/host-env-gb-m6-closeout` if any doc-only fixes; else amend footer on M5 commit only if nothing to change
+- [x] Full `composer test` + Infection on M3 scope; fix regressions
+- [x] Checklist footer: tip branch, commits, gate numbers
+- [x] All boxes above checked or explicitly deferred with reason
+- [x] One commit on `stack/host-env-gb-m6-closeout` if any doc-only fixes; else amend footer on M5 commit only if nothing to change
 
 ---
 
@@ -80,13 +80,13 @@
 
 | Milestone | Branch | Commit | Status | Notes |
 | --- | --- | --- | --- | --- |
-| M0 | `stack/host-env-gb-m0-docs` | `7cd875758901fb05967e1430bc393ccd7244930f` | ok | IDP-first ORK docs + host-env-gb plan; doc-only gates |
-| M1 | `stack/host-env-gb-m1-catalog` | `f938f627ffc9184e08d56755e7f1a23ff8f66447` | ok | Vault catalog fragment + secrets.example; doc/json gates |
-| M2 | `stack/host-env-gb-m2-greenblue` | `5b49d42ce7758fc0a9b314e7c6010526985010bc` | ok | Green-blue examples + gb hooks; shell/json gates |
-| M3 | `stack/host-env-gb-m3-hostenv-php` | `23b2e49d68515f7d44d36cd65f93eaeee6945442` | ok | HostEnv inject bootstrap + phinx; log-tested skip/apply |
-| M4 | `stack/host-env-gb-m4-compose` | `04fb5d9bcbfdda3a0c82c460f503baabe3578bc5` | ok | HEV `/run/secrets` mounts + optional legacy key binds |
-| M5 | `stack/host-env-gb-m5-install` | `7f68239a48be5dc0e584f7b93375c050f5f53434` | ok | gb dev-up + install wrapper + README prod |
-| M6 | | | pending | |
+| M0 | `stack/host-env-gb-m0-docs` | `e80f1573587ef82efbb757ba3341d63915b9459a` | ok | IDP-first ORK docs + host-env-gb plan; doc-only gates |
+| M1 | `stack/host-env-gb-m1-catalog` | `52dc4d526a5d2ca598e04682f3c4f3edf1b349d1` | ok | Vault catalog fragment + secrets.example; doc/json gates |
+| M2 | `stack/host-env-gb-m2-greenblue` | `ab26cd2d9f4d8a31b2e60a9b1028dd37bc65c248` | ok | Green-blue examples + gb hooks; shell/json gates |
+| M3 | `stack/host-env-gb-m3-hostenv-php` | `caa52840c0d320af713d95f83e7dc396904c0549` | ok | HostEnv inject bootstrap + phinx; log-tested skip/apply |
+| M4 | `stack/host-env-gb-m4-compose` | `e0d16c64d665c38408ba09f9a996fa5d2417edba` | ok | HEV `/run/secrets` mounts + optional legacy key binds |
+| M5 | `stack/host-env-gb-m5-install` | `80e95861183bcad8a67bf7df365ad53708922108` | ok | gb dev-up + install wrapper + README prod |
+| M6 | `stack/host-env-gb-m6-closeout` | branch tip (closeout commit) | ok | Full test + HostEnv Infection re-verify; checklist SHAs + footer |
 
 **M0 gates:** doc-only milestone — `composer test` not required (markdown only).
 
@@ -94,8 +94,12 @@
 
 **M2 gates:** shell/json only — `bash -n` + `shellcheck` on `scripts/gb-*.sh`, `json.tool` on `host-env/catalog.d/40-idp.json`; `composer test` not required (no PHP changes).
 
-**M3 gates:** `composer test` OK (1037 tests); `src/` line coverage **86.58%** (6656/7688); Infection covered MSI **96%** on `src/Utility/Setup/HostEnv/`; log-tested `host_env_inject_skip` (debug) and `host_env_inject_applied` (info). Tip: `stack/host-env-gb-m3-hostenv-php` @ `23b2e49d68515f7d44d36cd65f93eaeee6945442`.
+**M3 gates:** `composer test` OK (1037 tests); `src/` line coverage **86.58%** (6656/7688); Infection covered MSI **96%** on `src/Utility/Setup/HostEnv/`; log-tested `host_env_inject_skip` (debug) and `host_env_inject_applied` (info). Tip: `stack/host-env-gb-m3-hostenv-php` @ `caa52840c0d320af713d95f83e7dc396904c0549`.
 
-**M4 gates:** compose/env/doc only — `composer test` OK (1037 tests); no PHP changes (Infection N/A). Tip: `stack/host-env-gb-m4-compose` @ `04fb5d9bcbfdda3a0c82c460f503baabe3578bc5`.
+**M4 gates:** compose/env/doc only — `composer test` OK (1037 tests); no PHP changes (Infection N/A). Tip: `stack/host-env-gb-m4-compose` @ `e0d16c64d665c38408ba09f9a996fa5d2417edba`.
 
-**M5 gates:** shell/README only — `bash -n` + `shellcheck` on `scripts/dev-up.sh`, `install.sh`; `composer test` OK (1037 tests); no PHP changes (Infection N/A). Tip: `stack/host-env-gb-m5-install` @ `7f68239a48be5dc0e584f7b93375c050f5f53434`.
+**M5 gates:** shell/README only — `bash -n` + `shellcheck` on `scripts/dev-up.sh`, `install.sh`; `composer test` OK (1037 tests); no PHP changes (Infection N/A). Tip: `stack/host-env-gb-m5-install` @ `80e95861183bcad8a67bf7df365ad53708922108`.
+
+**M6 gates:** `composer test` OK (1037 tests, 4222 assertions); Infection on `src/Utility/Setup/HostEnv/` — mutation code coverage **100%**, covered MSI **95%** (≥80%); no regressions. Orchestrator log SHAs aligned to M0–M5 branch tips.
+
+**Stack footer (host-env-gb):** tip branch `stack/host-env-gb-m6-closeout` (single closeout commit on M5 tip; `git rev-parse stack/host-env-gb-m6-closeout` for SHA); base `stack/host-env-gb-m5-install` @ `80e95861183bcad8a67bf7df365ad53708922108`. **Project-wide** `src/` line coverage **86.58%** (6656/7688) — below the 95% milestone target **pre-existing**; not blocking this stack (PHPUnit green; M3 HostEnv mutation gate met). M0–M2/M4–M5: per-milestone gates as above; M6: full suite + HostEnv Infection re-verify.
