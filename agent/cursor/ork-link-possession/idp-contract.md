@@ -1,8 +1,10 @@
 # IDP contract for ORK integration
 
-Agent audience. This is what `feature/ork-mailbox-possession` actually does. It is a migration path: today's ORK keeps working, and possession routes run only when a JWT carries `challenge_id`. Do not delete the current login, register, password link, or blind mirror on the IDP.
+Agent audience. This is what shipped on IDP `main` plus ORK PR #529 (Flow A v2). It is a migration path: legacy routes stay unless explicitly removed in a later change.
 
-[detailed-design.md](./detailed-design.md) and [milestones.md](./milestones.md) describe an earlier cutover. Ignore any instruction there that removes `POST /auth/connect/login`, `POST /auth/connect/register`, `OrkService::authorize`, or a required `challenge_id` on the mirror.
+**Flow B (ORK → IDP, code to IDP email) is out of product scope.** Do not implement ORK handoffs with `challenge_id` for `/auth/connect/code`. Linking is **IDP profile → ORK mailbox code** (Flow A v2) for users who already have an IDP session. Many players have no IDP account; do not steer them through ORK into IDP registration via a second claim flow.
+
+[detailed-design.md](./detailed-design.md) and [milestones.md](./milestones.md) describe an earlier cutover. Ignore any instruction there that removes `POST /auth/connect/login`, `POST /auth/connect/register`, `OrkService::authorize`, or a required `challenge_id` on the mirror. Ignore Flow B / I3 possession-handoff requirements unless a future ADR reopens them.
 
 Swagger lists these routes under the **ORK Integration** tag (`GET /openapi.json`). Human copy is `templates/api.md` Section 7.
 
@@ -10,7 +12,7 @@ Swagger lists these routes under the **ORK Integration** tag (`GET /openapi.json
 
 The signed-in side is already authenticated. A 6-digit code proves the other mailbox. Emails do not have to match. An ORK password is not possession. An existing `(idp_user_id, mundane_id)` pair is sticky. Returning sign-in stays a lookup by `idp_user_id`.
 
-Each system mails and checks its own mailbox. IDP claims ORK: ORK mails the mundane address. ORK claims IDP: the IDP mails the IDP address (or the registration hint; the user is created only after the code).
+Each system mails and checks its own mailbox for **new links**. **Shipped path:** IDP user claims ORK — ORK mails the mundane address (Flow A v2). ~~ORK user claims IDP (Flow B)~~ — **not planned.**
 
 ## Shared JWT
 
@@ -19,13 +21,13 @@ HS256. Secret `IDP_ORK_SHARED_SECRET`, fallback `ORK_LINK_TOKEN_SECRET`, at leas
 | Token | Who mints | `iss` / `aud` | Required claims | TTL |
 |---|---|---|---|---|
 | Current handoff | ORK | `ork` / `idp` | numeric `sub` (mundane id), `email`, `jti`. No `challenge_id`. | ORK's current window |
-| Possession handoff | ORK | `ork` / `idp` | numeric `sub`, `challenge_id`, `jti`, and `idp_email` (alias `email` is accepted as the hint) | ORK's window |
+| ~~Possession handoff (Flow B)~~ | — | — | **Dropped.** Do not mint. | — |
 | Current completion | IDP | `idp` / `ork` | `sub` = IDP user id, `mundane_id`, `jti`. No `challenge_id`. | 300s |
-| Possession completion (Flow B) | IDP | `idp` / `ork` | `sub`, `idp_user_id`, `mundane_id`, `challenge_id`, `purpose=claim_idp`, `jti` | 120s |
+| ~~Possession completion (Flow B)~~ | — | — | **Dropped.** | — |
 | Flow A handoff | IDP | `idp` / `ork` | `sub` = IDP user id, `challenge_id`, `jti` | 900s |
 | Flow A completion | ORK | `ork` / `idp` | `challenge_id`, `idp_user_id`, `mundane_id` > 0, `purpose=claim_ork`, `jti` | ORK's window |
 
-`GET /auth/connect` calls possession parsing first. If that returns claims, it shows the code form. Otherwise it parses the current handoff and shows login/register.
+`GET /auth/connect` may still parse a Flow B handoff in code; **ORK must not use that.** Prefer no new ORK links to `/auth/connect`. Legacy handoffs without `challenge_id` show login/register only where an old integration still requires it.
 
 ## Routes that today's ORK already calls
 
@@ -39,15 +41,29 @@ HS256. Secret `IDP_ORK_SHARED_SECRET`, fallback `ORK_LINK_TOKEN_SECRET`, at leas
 
 Browser posts send `application/x-www-form-urlencoded` and `_csrf_token`. Profile and `GET /auth/connect/complete` need the IDP session cookie.
 
-## Possession routes (opt-in)
+## Possession routes (primary + legacy)
 
-ORK opts in by minting a handoff that includes `challenge_id`. Until `Login/claim_ork` exists, nothing in the profile UI posts to the code-claim route.
+**Primary (Flow A v2, profile UI):** user already has an IDP session. ORK mails the mundane mailbox when `ORK_CLAIM_MAIL_VIA_ORK=1`.
+
+| Method | Path | Behavior |
+|---|---|---|
+| `POST` | `/resources/profile/link-ork-code-mail` | Signed-in. Form `username`. When Flow A v2 is enabled, IDP calls ORK to begin mail (`BeginClaimOrkMail`); otherwise legacy IDP-local mail path. Redirect does not reveal whether the username or mailbox exists. |
+| `POST` | `/resources/ork/validate-send-nonce` | ORK confidential client (Basic auth, allowlisted `client_id`). ORK validates send nonce before mailing. |
+| `POST` | `/resources/profile/link-ork` | Signed-in. Form `username` + `code` (password empty). With Flow A v2: `OrkService::validateClaimOrkCode`. Otherwise local `mailbox_challenges` for `claim_ork`. Username + password still uses `authorize` (compat). |
+
+**Flow A v1 (JWT redirect to ORK `Login/claim_ork`) — optional; profile UI uses v2 above.**
 
 | Method | Path | Behavior |
 |---|---|---|
 | `POST` | `/resources/profile/link-ork-code` | Signed-in. Form `username`. Reserves `claim_ork` and redirects to `{ORK_BASE_URL}/index.php?Route=Login/claim_ork&t=&username=`. No ORK password. |
 | `GET` | `/auth/connect/complete?t=` | Signed-in browser. ORK completion JWT must be `purpose=claim_ork` and the ids must match the challenge row and the session user. |
-| `POST` | `/auth/connect/code` | Form `link_token`, `challenge_id`, `code`. Checks the code the IDP mailed. New addresses also send `firstName`, `lastName`, `password`, `confirmPassword` on that same request. Success redirects to `Login/idp_link_complete` with a possession completion JWT. |
+| `GET` | `/resources/profile/link-ork/magic?t=` | Legacy IDP-mailed magic link for `claim_ork`. |
+
+**Flow B — dropped (code in repo only).**
+
+| Method | Path | Behavior |
+|---|---|---|
+| `POST` | `/auth/connect/code` | **Legacy / unused.** Do not document for ORK integrators. |
 
 When `challenge_id` is present on `POST /resources/link-ork-profile`, it must be a consumed mailbox challenge or the IDP returns `400`. Omitting the field keeps the current mirror.
 
@@ -65,8 +81,8 @@ ORK work, still unchecked:
 
 1. Unique `ork_idp_auth.mundane_id`. Keep the earliest row. `EnsureIdpLink` must not insert a second IDP user for that mundane.
 2. Delete `tryAutoLinkByEmail`. No `ork_idp_auth` row means the claim page, not a write.
-3. Mail a code for both directions. Flow A verifies the IDP handoff, mails the mundane address, then mints the Flow A completion JWT. Flow B mints the possession handoff (`challenge_id` + `idp_email`). Delete the password claim and the 24-hour bearer link.
+3. **Flow A v2 (done in PR #529):** IDP triggers `BeginClaimOrkMail` / user enters code / `ValidateClaimOrkCode`. Optional later: JWT `Login/claim_ork` UI — not required if profile Email Code is the only entry. **Flow B:** not planned. Remove legacy password claim and 24-hour bearer link when ORK is ready.
 4. A linked mundane email changes only after a code to the current address and a second code to the new one. Officer edit and self-edit share that gate. Unlinked mundanes keep today's officer email edit.
 5. Claim UI asks for the code, not the ORK password, and does not require the emails to match.
 
-Do not point production ORK at `Login/claim_ork` until that route exists. Do not stop sending the current handoff (`email` + `sub`, no `challenge_id`) until the possession handoff is live on both sides.
+Do not point production ORK at Flow B `/auth/connect` possession handoffs. IDP-first linking does not require `Login/claim_ork` unless you revive the JWT variant of Flow A.

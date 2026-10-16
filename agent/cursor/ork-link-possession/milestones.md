@@ -8,12 +8,14 @@ Check items in order inside a milestone. IDP and ORK tracks can be built in para
 
 ## Release order
 
-Do not enable the new claim routes in production, and do not delete the old bind, until all of the following are in the same release:
+**2026-10 product decision:** **Flow B (ORK → IDP code claim) is dropped.** Linking is IDP-first (profile Email Code / Flow A v2). ORK OAuth login is for **already linked** players.
 
-- I2, I3, I4 (IDP verifies its own mailbox, Flow B, Flow A)
-- O1, O2, O3, O4 (ORK uniqueness, auto-link gone, code claim, linked email gate)
+Target release for remaining security work (adjust as needed):
 
-I5 (reject a blind mirror) ships in that same release. Leaving the blind mirror up after O2 is fine only on a private integration branch. It is not fine on `main`.
+- IDP: Flow A v2 operational (`ORK_CLAIM_MAIL_VIA_ORK`), email migration (I2), optional mirror hardening (I5)
+- ORK: O1 uniqueness, O3 Flow A v2 deployed (PR #529 + migration), O4 linked-email gate when prioritized
+
+I3 Flow B and ORK possession handoffs to `/auth/connect/code` are **cancelled**, not gate items.
 
 Human merge and deploy is last.
 
@@ -58,7 +60,9 @@ Closes rewriting the IDP mailbox, which is the address Flow B trusts.
 
 ---
 
-## I3 — Flow B (ORK session claims an IDP profile)
+## I3 — Flow B (ORK session claims an IDP profile) — **CANCELLED**
+
+Product: do not pursue. Code may remain on IDP for compatibility; ORK must not use it.
 
 - [x] `OrkLinkTokenService` accepts the Flow B handoff: `sub` is mundane id, `challenge_id` and `idp_email` present, email is not used to look up or create a user
 - [x] `GET /auth/connect` renders a code form. It does not link
@@ -97,9 +101,9 @@ Closes rewriting the IDP mailbox, which is the address Flow B trusts.
 ## I6 — IDP proof
 
 - [x] `composer test` green, including the IDP-owned cases in the design §10
-- [x] Grep: `ConnectController` does not call `password_verify` to decide a link. `linkOrkAccount` does not call `authorize`
-- [x] Log lines for the new paths include `challenge_id` and a hash of the destination, never the code
-- [ ] Manual, with `LogOutboundMail`: Flow B register, Flow B existing user, email migration, replay of the completion URL
+- [x] Possession paths log `challenge_id` and a hash of the destination, never the code
+- [x] Compat audit (optional): document that `linkOrkAccount` + `/auth/connect/login|register` still use password bind — not the 2026-10 planned UX ([README.md](./README.md), [idp-contract.md](./idp-contract.md))
+- [ ] Manual, with `LogOutboundMail`: Flow A v2 email code, email migration, replay of completion URL; Flow B manual only if testing legacy code
 
 **Exit:** IDP track is mergeable together with the ORK track. It is not mergeable alone onto a production ORK that still auto-links.
 
@@ -127,15 +131,18 @@ Closes rewriting the IDP mailbox, which is the address Flow B trusts.
 
 ---
 
-## O3 — Code claim in both directions
+## O3 — Flow A v2 (IDP profile → ORK mailbox code)
 
-- [ ] Replace `ork_idp_claim_token` with `ork_idp_mailbox_challenge` (design §3)
-- [ ] Flow A: verify the IDP JWT, mail the code to the mundane email, accept the code, then mint the completion JWT. Refuse when the mundane is already linked, suspended, or has no email
-- [ ] Flow B: `start_idp_connect` mints the handoff with `challenge_id` and destination hint. `idp_link_complete` writes the row only for the session mundane and only when `mundane_id` is free
-- [ ] Delete password claim (`verifyClaimCredentials` as a linker) and the 24-hour bearer link
-- [ ] Tests: code mailed to the mundane completes Flow A when the IDP email is different; wrong code does not write; bearer URL from the old table is rejected; already-linked mundane sends no mail
+Shipped on ORK in PR #529 narrative; verify on each environment.
 
-**Exit:** Design §10 cases 3, 4, 5, and 8 pass on ORK.
+- [ ] Replace `ork_idp_claim_token` with `ork_idp_mailbox_challenge` where still pending (design §3)
+- [ ] **Flow A v2:** IDP `link-ork-code-mail` → ORK `BeginClaimOrkMail` / validate-send-nonce → user enters code on IDP profile → link. Mail goes to the mundane mailbox. Refuse when already linked, suspended, or no mailbox
+- [ ] Optional **Flow A v1:** JWT `Login/claim_ork` + completion JWT — not required if profile Email Code is the only entry
+- [ ] **Flow B:** **cancelled** — do not implement `start_idp_connect` possession handoffs to IDP `/auth/connect/code`
+- [ ] Delete password claim (`verifyClaimCredentials` as a linker) and the 24-hour bearer link when ORK is ready
+- [ ] Tests: code mailed to the mundane completes when IDP email differs; wrong code does not write; bearer URL from the old table is rejected; already-linked mundane sends no mail
+
+**Exit:** Design §10 Flow A cases pass on ORK. Flow B is not a release gate.
 
 ---
 
@@ -156,7 +163,7 @@ Closes rewriting the IDP mailbox, which is the address Flow B trusts.
 
 - [ ] Claim template describes a code sent to the ORK mailbox. It does not ask for the ORK password and it does not require the emails to match
 - [ ] Grep: `tryAutoLinkByEmail`, `issueClaimMagicLink`, and `consumeMagicLink` are gone
-- [ ] Manual with a two-account fixture: unlinked kingdom officer is not taken by an IDP user registered at the officer's email; linked officer email edit by a park PM fails; Flow A and Flow B succeed with different emails; second IDP user is rejected
+- [ ] Manual with a two-account fixture: unlinked kingdom officer is not taken by an IDP user registered at the officer's email; linked officer email edit by a park PM fails; Flow A v2 succeeds with different emails; second IDP user is rejected
 
 **Exit:** ORK track matches I6. Release together.
 

@@ -1,8 +1,10 @@
 # Dev plan — link by mailbox possession
 
+**Historical.** IDP possession work **shipped on `main`**. Product: **Flow A v2** (profile Email Code); **Flow B dropped**. For agents and integrators use [idp-contract.md](./idp-contract.md) and [flow-a-ork-mail-plan.md](./flow-a-ork-mail-plan.md). This file keeps the original cutover narrative (including Flow B rows) for archaeology only.
+
 **Companion:** [README.md](./README.md) · [milestones.md](./milestones.md)
 
-Implementation is a follow-up branch. Check milestones in the order in [milestones.md](./milestones.md). IDP work in this repo does not close the elevation hole until the ORK milestones in the same release remove auto-link and gate linked email writes.
+IDP code alone does not close the elevation hole until ORK milestones **O1–O5** remove auto-link and gate linked email writes.
 
 ## 1. Proof rule
 
