@@ -8,12 +8,15 @@ services:
       # App code is copied into the image so each slot keeps its own release.
       # Only host secrets/config are shared across blue/green.
       - ./.env:/var/www/idp.amtgard.com/.env:ro
-      - ./dev-keys:/var/www/idp.amtgard.com/dev-keys:ro
-      - ./keys:/var/www/idp.amtgard.com/keys:ro
+      - ${IDP_HEV_HTTP_SECRETS:-./.local/empty-secrets}:/run/secrets:ro
+      # Optional when vault inject_files supply OAuth PEMs (set IDP_LEGACY_* to ./dev-keys or ./keys).
+      - ${IDP_LEGACY_DEV_KEYS:-./.local/empty-secrets}:/var/www/idp.amtgard.com/dev-keys:ro
+      - ${IDP_LEGACY_KEYS:-./.local/empty-secrets}:/var/www/idp.amtgard.com/keys:ro
     env_file:
       - .env
     environment:
       - ENVIRONMENT=PROD
+      - HOST_ENV_SECRETS_DIR=/run/secrets
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

@@ -51,10 +51,10 @@
 
 ## M4 — Compose + env wiring
 
-- [ ] `docker/compose.prod.yml` — mount `${IDP_HEV_HTTP_SECRETS:-./.local/empty-secrets}:/run/secrets:ro`; `HOST_ENV_SECRETS_DIR=/run/secrets`; drop or optionalize `keys/` / `dev-keys/` binds when inject files suffice
-- [ ] `docker/compose.worker.yml` — worker secrets mount + `HOST_ENV_SECRETS_DIR`
-- [ ] `.env.example` — document non-secret vs vault; HEV comments; keep plain dev defaults
-- [ ] One commit on `stack/host-env-gb-m4-compose`; check M4 boxes
+- [x] `docker/compose.prod.yml` — mount `${IDP_HEV_HTTP_SECRETS:-./.local/empty-secrets}:/run/secrets:ro`; `HOST_ENV_SECRETS_DIR=/run/secrets`; drop or optionalize `keys/` / `dev-keys/` binds when inject files suffice
+- [x] `docker/compose.worker.yml` — worker secrets mount + `HOST_ENV_SECRETS_DIR`
+- [x] `.env.example` — document non-secret vs vault; HEV comments; keep plain dev defaults
+- [x] One commit on `stack/host-env-gb-m4-compose`; check M4 boxes
 
 ---
 
@@ -84,7 +84,7 @@
 | M1 | `stack/host-env-gb-m1-catalog` | `f938f627ffc9184e08d56755e7f1a23ff8f66447` | ok | Vault catalog fragment + secrets.example; doc/json gates |
 | M2 | `stack/host-env-gb-m2-greenblue` | `5b49d42ce7758fc0a9b314e7c6010526985010bc` | ok | Green-blue examples + gb hooks; shell/json gates |
 | M3 | `stack/host-env-gb-m3-hostenv-php` | `23b2e49d68515f7d44d36cd65f93eaeee6945442` | ok | HostEnv inject bootstrap + phinx; log-tested skip/apply |
-| M4 | | | pending | |
+| M4 | `stack/host-env-gb-m4-compose` | `04fb5d9bcbfdda3a0c82c460f503baabe3578bc5` | ok | HEV `/run/secrets` mounts + optional legacy key binds |
 | M5 | | | pending | |
 | M6 | | | pending | |
 
@@ -95,3 +95,5 @@
 **M2 gates:** shell/json only — `bash -n` + `shellcheck` on `scripts/gb-*.sh`, `json.tool` on `host-env/catalog.d/40-idp.json`; `composer test` not required (no PHP changes).
 
 **M3 gates:** `composer test` OK (1037 tests); `src/` line coverage **86.58%** (6656/7688); Infection covered MSI **96%** on `src/Utility/Setup/HostEnv/`; log-tested `host_env_inject_skip` (debug) and `host_env_inject_applied` (info). Tip: `stack/host-env-gb-m3-hostenv-php` @ `23b2e49d68515f7d44d36cd65f93eaeee6945442`.
+
+**M4 gates:** compose/env/doc only — `composer test` OK (1037 tests); no PHP changes (Infection N/A). Tip: `stack/host-env-gb-m4-compose` @ `04fb5d9bcbfdda3a0c82c460f503baabe3578bc5`.
