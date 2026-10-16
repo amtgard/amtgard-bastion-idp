@@ -81,11 +81,9 @@ docker exec amtgard-idp bash -lc \
   "cd /var/www/idp.amtgard.com && vendor/robmorgan/phinx/bin/phinx migrate"
 ```
 
-`scripts/dev-up.sh` creates `amtgard-idp-shared` if needed, then `up -d`s:
+Copy `.greenblue.example.dev` to `.greenblue` once per clone (see [host-env/README.md](./host-env/README.md)). `scripts/dev-up.sh` resolves the **generic-green-blue** `gb` binary, optionally syncs the vault catalog fragment, then runs `gb "$PWD" deploy` with `GB_MODE=dev` from `.greenblue` (sessions, web bind-mount slot, jwt-worker, HEV mount map → `.gb/runtime.env`).
 
-1. `amtgard-idp-sessions` — `docker/compose.sessions.yml` (`amtgard-idp-sessions`)
-2. `amtgard-idp` — `compose.prod.yml` + `compose.blue.yml` + `compose.dev.yml` (`amtgard-idp` on 37080, `amtgard-idp-db` on 36306)
-3. `amtgard-idp-worker` — `compose.worker.yml` + `compose.worker.dev.yml` (`amtgard-idp-jwt-worker`)
+Stacks: `amtgard-idp-sessions`, `amtgard-idp` (37080 + `amtgard-idp-db` on 36306), `amtgard-idp-jwt-worker`.
 
 Do not start a second worker with `exec php bin/jwt-pvh-worker.php` in the app container. Do not `docker compose down -v` (that deletes `amtgard-idp_data-db`).
 
@@ -153,52 +151,60 @@ docker exec amtgard-idp bash -lc \
 
 ## Production
 
-Production uses blue-green Docker (blue on port 37080, green on 37081) behind host nginx. Each slot is a separate Compose project and **image**: `install.sh` pulls `origin/main`, builds the inactive slot from that tree, health-checks it, then switches host nginx. The live slot keeps serving its previously built image until cutover.
+Production uses **generic-green-blue-deployment** (`gb`) with `GB_MODE=prod` in a host-local `.greenblue` (copy from `.greenblue.example.prod`; never commit). Blue-green Docker slots (37080 / 37081) sit behind host nginx. Each slot is its own Compose project and **image**: `gb deploy` pulls `main`, optionally syncs/renders **host-env-vault** inject trees (no runtime vault socket), builds the inactive slot, runs `composer install` + Phinx in that container, health-checks, switches nginx, and leaves the previous slot running for rollback.
 
-Host `.env`, `dev-keys/`, and `keys/` are bind-mounted into both containers (shared config and signing keys). Application code and `vendor/` are not. **MySQL is host-owned** (production does not run a MySQL Docker volume). Phinx migrations still run against that live database before nginx switches.
+Non-secret config stays in host `.env`. OAuth and DB credentials come from vault **inject-only** profiles (`idp-http`, `idp-worker`) mounted at `/run/secrets` via `GB_HEV_MOUNT_MAP` → `.gb/runtime.env`. Legacy `keys/` / `dev-keys/` binds are optional fallbacks when inject files are not used. **MySQL is host-owned** (no production MySQL Docker volume).
 
-Two isolated Compose projects stay up across slot switches — they are not blue/green slots:
+Persistent sidecars (not blue/green slots):
 
-- **Sessions Redis** (`amtgard-idp-sessions`): PHP sessions (DB 1) and app queue/cache (DB 0). Started once so deploys do not log users out or drop in-flight queue work.
-- **JWT PVH worker** (`amtgard-idp-worker`, container `amtgard-idp-jwt-worker`): CLI consumer of `REDIS_PVH_QUEUE_NAME` on the same Redis DB 0. Reaches host MySQL via `host.docker.internal`. After Phinx migrate on the inactive slot, `install.sh` tags that slot's image as `amtgard-idp-jwt-worker:latest` and `up -d`s the worker before the health check / nginx switch.
+- **Sessions Redis** (`amtgard-idp-sessions`): sessions (DB 1) and queue/cache (DB 0).
+- **JWT PVH worker** (`amtgard-idp-jwt-worker`): tagged from the inactive slot image before cutover (`scripts/gb-after-slot-up.sh`).
 
-**First deploy after upgrading install.sh — run twice:**
+One-time on the server:
+
+```bash
+sudo git clone … /var/gb/generic-green-blue-deployment   # or your toolkit path
+cd /var/www/idp.amtgard.com
+cp .greenblue.example.prod .greenblue
+# edit GB_HEV_CONFIG / paths if needed
+```
+
+**Routine deploy:**
 
 ```bash
 sudo ./install.sh
+# thin wrapper → gb /var/www/idp.amtgard.com deploy
 ```
 
-Host: `git pull`, `chown`. Inactive slot: image build (code + `composer install`), `phinx migrate`, health check, nginx switch.
-
-**Routine deploys — run once:**
+With vault (recommended):
 
 ```bash
-sudo ./install.sh   # builds inactive slot, migrates, switches host nginx
+sudo GB_HEV_CONFIG=/etc/host-env-vault/config.toml ./install.sh
+# or: gb --hev-config /etc/host-env-vault/config.toml "$PWD" deploy
 ```
 
-**Roll back to a known-good commit** (detached HEAD; next unpinned `install.sh` returns to `origin/main`):
+**Fast rollback** (nginx only — previous slot still running):
+
+```bash
+sudo /var/gb/generic-green-blue-deployment/bin/gb /var/www/idp.amtgard.com revert
+```
+
+**Redeploy a pinned commit** (rebuild inactive slot + jwt-worker; Phinx does **not** down-migrate):
 
 ```bash
 sudo ./install.sh 9f3c1ab
-# or: sudo INSTALL_GIT_REF=9f3c1ab ./install.sh
+# or: sudo GB_INSTALL_GIT_REF=9f3c1ab ./install.sh
 ```
 
-That rebuilds the inactive slot from that tree and recreates the jwt-worker so it matches. Phinx does **not** reverse migrations.
-
-Optional session store maintenance:
+Session / worker maintenance (`INSTALL_*` or `GB_*` env vars):
 
 ```bash
-# Log everyone out (flush sessions, keep container + volume)
 sudo INSTALL_RESET_SESSIONS=1 ./install.sh
-
-# Rebuild session container and wipe all persisted session data
 sudo INSTALL_REBUILD_SESSIONS=1 ./install.sh
-
-# Recreate the jwt-worker container (same image tag, force recreate)
 sudo INSTALL_REBUILD_WORKER=1 ./install.sh
 ```
 
-Host nginx configs: `host/nginx.blue.conf`, `host/nginx.green.conf`. Docker configs: `docker/`.
+Host nginx: `host/nginx.blue.conf`, `host/nginx.green.conf`. Vault catalog fragment: `host-env/`. Docker: `docker/`.
 
 ## Configuration
 Copy the example environment file to get started:

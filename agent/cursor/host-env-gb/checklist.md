@@ -60,10 +60,10 @@
 
 ## M5 — Dev-up + install wrapper + README
 
-- [ ] Replace or extend `scripts/dev-up.sh` to resolve `gb`, HEV config, export mounts via gb dev deploy path (match Denarius: `gb "$PWD" deploy` with `GB_MODE=dev`)
-- [ ] `install.sh` — thin wrapper: args/env → `generic-green-blue-deployment/bin/gb` (sibling or `/var/gb/…`) `--hev-config` when set, `"$ROOT" deploy`
-- [ ] README **Production** section: `.greenblue.example.prod`, `gb deploy` / `revert`, vault inject; no runtime vault
-- [ ] One commit on `stack/host-env-gb-m5-install`; check M5 boxes
+- [x] Replace or extend `scripts/dev-up.sh` to resolve `gb`, HEV config, export mounts via gb dev deploy path (match Denarius: `gb "$PWD" deploy` with `GB_MODE=dev`)
+- [x] `install.sh` — thin wrapper: args/env → `generic-green-blue-deployment/bin/gb` (sibling or `/var/gb/…`) `--hev-config` when set, `"$ROOT" deploy`
+- [x] README **Production** section: `.greenblue.example.prod`, `gb deploy` / `revert`, vault inject; no runtime vault
+- [x] One commit on `stack/host-env-gb-m5-install`; check M5 boxes
 
 ---
 
@@ -85,7 +85,7 @@
 | M2 | `stack/host-env-gb-m2-greenblue` | `5b49d42ce7758fc0a9b314e7c6010526985010bc` | ok | Green-blue examples + gb hooks; shell/json gates |
 | M3 | `stack/host-env-gb-m3-hostenv-php` | `23b2e49d68515f7d44d36cd65f93eaeee6945442` | ok | HostEnv inject bootstrap + phinx; log-tested skip/apply |
 | M4 | `stack/host-env-gb-m4-compose` | `04fb5d9bcbfdda3a0c82c460f503baabe3578bc5` | ok | HEV `/run/secrets` mounts + optional legacy key binds |
-| M5 | | | pending | |
+| M5 | `stack/host-env-gb-m5-install` | `7f68239a48be5dc0e584f7b93375c050f5f53434` | ok | gb dev-up + install wrapper + README prod |
 | M6 | | | pending | |
 
 **M0 gates:** doc-only milestone — `composer test` not required (markdown only).
@@ -97,3 +97,5 @@
 **M3 gates:** `composer test` OK (1037 tests); `src/` line coverage **86.58%** (6656/7688); Infection covered MSI **96%** on `src/Utility/Setup/HostEnv/`; log-tested `host_env_inject_skip` (debug) and `host_env_inject_applied` (info). Tip: `stack/host-env-gb-m3-hostenv-php` @ `23b2e49d68515f7d44d36cd65f93eaeee6945442`.
 
 **M4 gates:** compose/env/doc only — `composer test` OK (1037 tests); no PHP changes (Infection N/A). Tip: `stack/host-env-gb-m4-compose` @ `04fb5d9bcbfdda3a0c82c460f503baabe3578bc5`.
+
+**M5 gates:** shell/README only — `bash -n` + `shellcheck` on `scripts/dev-up.sh`, `install.sh`; `composer test` OK (1037 tests); no PHP changes (Infection N/A). Tip: `stack/host-env-gb-m5-install` @ `7f68239a48be5dc0e584f7b93375c050f5f53434`.
