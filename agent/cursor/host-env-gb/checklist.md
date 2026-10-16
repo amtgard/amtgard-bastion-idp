@@ -19,12 +19,12 @@
 
 ## M1 — Vault catalog fragment (`host-env/`)
 
-- [ ] `host-env/catalog.d/40-idp.json` — profiles `idp-http`, `idp-worker`; inject-only; `inject_files`: `oauth-private.key`, `oauth-public.key` (no runtime, `socket: false`)
-- [ ] `host-env/catalog.d/41-idp-linux-gid.json.example` — optional `gid: 33` for prod hosts
-- [ ] `host-env/secrets.example/idp-http.env` and `idp-worker.env` (paths under `/run/secrets/files/…`)
-- [ ] `host-env/secrets.example/files/` — placeholder or README for oauth keys + **dev-only** `apple.p8`
-- [ ] `host-env/README.md` — copy fragment into vault `catalog.d`, seed local secrets, profile list
-- [ ] One commit on `stack/host-env-gb-m1-catalog`; check M1 boxes
+- [x] `host-env/catalog.d/40-idp.json` — profiles `idp-http`, `idp-worker`; inject-only; `inject_files`: `oauth-private.key`, `oauth-public.key` (no runtime, `socket: false`)
+- [x] `host-env/catalog.d/41-idp-linux-gid.json.example` — optional `gid: 33` for prod hosts
+- [x] `host-env/secrets.example/idp-http.env` and `idp-worker.env` (paths under `/run/secrets/files/…`)
+- [x] `host-env/secrets.example/files/` — placeholder or README for oauth keys + **dev-only** `apple.p8`
+- [x] `host-env/README.md` — copy fragment into vault `catalog.d`, seed local secrets, profile list
+- [x] One commit on `stack/host-env-gb-m1-catalog`; check M1 boxes
 
 ---
 
@@ -81,7 +81,7 @@
 | Milestone | Branch | Commit | Status | Notes |
 | --- | --- | --- | --- | --- |
 | M0 | `stack/host-env-gb-m0-docs` | `7cd875758901fb05967e1430bc393ccd7244930f` | ok | IDP-first ORK docs + host-env-gb plan; doc-only gates |
-| M1 | | | pending | |
+| M1 | `stack/host-env-gb-m1-catalog` | `f938f627ffc9184e08d56755e7f1a23ff8f66447` | ok | Vault catalog fragment + secrets.example; doc/json gates |
 | M2 | | | pending | |
 | M3 | | | pending | |
 | M4 | | | pending | |
@@ -89,3 +89,5 @@
 | M6 | | | pending | |
 
 **M0 gates:** doc-only milestone — `composer test` not required (markdown only).
+
+**M1 gates:** doc/json only — `composer test` not required (no PHP changes).

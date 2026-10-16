@@ -1,0 +1,31 @@
+{
+  "profiles": [
+    {
+      "name": "idp-http",
+      "inject": [
+        "DB_PASS",
+        "AUTH_SERVER_DEFUSE_KEY",
+        "IDP_ORK_SHARED_SECRET",
+        "MANAGEMENT_KEY",
+        "MAILBOX_CODE_PEPPER",
+        "GOOGLE_CLIENT_SECRET",
+        "FACEBOOK_CLIENT_SECRET",
+        "DISCORD_CLIENT_SECRET",
+        "SENDGRID_API_KEY",
+        "AMAZON_SES_PASSWORD"
+      ],
+      "runtime": [],
+      "inject_files": ["oauth-private.key", "oauth-public.key"],
+      "runtime_files": [],
+      "socket": false
+    },
+    {
+      "name": "idp-worker",
+      "inject": ["DB_PASS"],
+      "runtime": [],
+      "inject_files": [],
+      "runtime_files": [],
+      "socket": false
+    }
+  ]
+}

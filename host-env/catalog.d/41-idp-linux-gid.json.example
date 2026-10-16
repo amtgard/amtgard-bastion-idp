@@ -1,0 +1,12 @@
+{
+  "profiles": [
+    {
+      "name": "idp-http",
+      "gid": 33
+    },
+    {
+      "name": "idp-worker",
+      "gid": 33
+    }
+  ]
+}
