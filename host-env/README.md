@@ -13,9 +13,9 @@ See also [agent/cursor/host-env-gb/README.md](../agent/cursor/host-env-gb/README
    ./scripts/local-shared-bootstrap.sh
    ```
 
-2. IDP catalog fragment — after green-blue wiring (M2), `scripts/gb-pre-hev-sync.sh` copies `host-env/catalog.d/40-idp.json` into the vault’s `dev-shared/catalog.d/` and refreshes `secrets/catalog.json` when merge scripts exist.
+2. IDP catalog fragment — `scripts/gb-pre-hev-sync.sh` (from `.greenblue.example.dev`) copies `host-env/catalog.d/40-idp.json` into the vault’s `dev-shared/catalog.d/` and refreshes `secrets/catalog.json` when merge scripts exist.
 
-   Until then, install the fragment manually:
+   Without green-blue, install the fragment manually:
 
    ```bash
    cp host-env/catalog.d/40-idp.json \
@@ -52,7 +52,7 @@ See also [agent/cursor/host-env-gb/README.md](../agent/cursor/host-env-gb/README
    ../generic-green-blue-deployment/bin/gb "$PWD" deploy
    ```
 
-   Compose mount wiring comes from `GB_HEV_MOUNT_MAP` → `{repo}/.gb/runtime.env` (not application `.env`).
+   Compose mount wiring comes from `GB_HEV_MOUNT_MAP` → `{repo}/.gb/runtime.env` (not application `.env`). Before M4 compose wiring, an empty fallback mount dir lives at `.local/empty-secrets/` (tracked via `.gitkeep`).
 
 ## Profiles
 

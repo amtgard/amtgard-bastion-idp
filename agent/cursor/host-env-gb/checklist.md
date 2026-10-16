@@ -30,12 +30,12 @@
 
 ## M2 — Green-blue config + scripts
 
-- [ ] `.greenblue.example.dev` — `GB_MODE=dev`, HEV local sync/render, `GB_HEV_PROFILES="idp-http idp-worker"`, `GB_HEV_MOUNT_MAP`, hooks, source `scripts/gb-greenblue-helpers.sh`
-- [ ] `.greenblue.example.prod` — SSM sync/render on deploy, host `GB_STATE_DIR`, same profiles (no connect)
-- [ ] `.gitignore` — `.greenblue`, `.gb/`
-- [ ] `scripts/gb-greenblue-helpers.sh`, `gb-pre-hev-sync.sh` (install `40-idp.json`), `gb-hev-after-render.sh`, `gb-after-slot-up.sh` (jwt-worker tag)
-- [ ] `.local/empty-secrets` pattern documented or mkdir in dev-up
-- [ ] One commit on `stack/host-env-gb-m2-greenblue`; check M2 boxes
+- [x] `.greenblue.example.dev` — `GB_MODE=dev`, HEV local sync/render, `GB_HEV_PROFILES="idp-http idp-worker"`, `GB_HEV_MOUNT_MAP`, hooks, source `scripts/gb-greenblue-helpers.sh`
+- [x] `.greenblue.example.prod` — SSM sync/render on deploy, host `GB_STATE_DIR`, same profiles (no connect)
+- [x] `.gitignore` — `.greenblue`, `.gb/`
+- [x] `scripts/gb-greenblue-helpers.sh`, `gb-pre-hev-sync.sh` (install `40-idp.json`), `gb-hev-after-render.sh`, `gb-after-slot-up.sh` (jwt-worker tag)
+- [x] `.local/empty-secrets` pattern documented or mkdir in dev-up
+- [x] One commit on `stack/host-env-gb-m2-greenblue`; check M2 boxes
 
 ---
 
@@ -82,7 +82,7 @@
 | --- | --- | --- | --- | --- |
 | M0 | `stack/host-env-gb-m0-docs` | `7cd875758901fb05967e1430bc393ccd7244930f` | ok | IDP-first ORK docs + host-env-gb plan; doc-only gates |
 | M1 | `stack/host-env-gb-m1-catalog` | `f938f627ffc9184e08d56755e7f1a23ff8f66447` | ok | Vault catalog fragment + secrets.example; doc/json gates |
-| M2 | | | pending | |
+| M2 | `stack/host-env-gb-m2-greenblue` | `5b49d42ce7758fc0a9b314e7c6010526985010bc` | ok | Green-blue examples + gb hooks; shell/json gates |
 | M3 | | | pending | |
 | M4 | | | pending | |
 | M5 | | | pending | |
@@ -91,3 +91,5 @@
 **M0 gates:** doc-only milestone — `composer test` not required (markdown only).
 
 **M1 gates:** doc/json only — `composer test` not required (no PHP changes).
+
+**M2 gates:** shell/json only — `bash -n` + `shellcheck` on `scripts/gb-*.sh`, `json.tool` on `host-env/catalog.d/40-idp.json`; `composer test` not required (no PHP changes).
