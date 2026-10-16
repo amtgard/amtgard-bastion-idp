@@ -10,6 +10,8 @@ $projectRoot = dirname(__DIR__);
 
 Dotenv\Dotenv::createImmutable($projectRoot)->safeLoad();
 
+require __DIR__ . '/host-env-bootstrap.php';
+
 $debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
 // Vendor packages may emit PHP 8.4 deprecations; keep them out of HTML/CLI noise.
 error_reporting($debug ? (E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED) : (E_ERROR | E_PARSE));

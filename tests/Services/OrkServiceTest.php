@@ -33,13 +33,13 @@ class OrkServiceTest extends TestCase
         $responseMock = $this->jsonResponse(['Status' => ['Status' => 0], 'Token' => 't']);
 
         $this->clientMock->expects($this->once())
-            ->method('get')
+            ->method('post')
             ->with(
                 'https://ork.amtgard.com/orkservice/Json/index.php',
                 $this->callback(function (array $options): bool {
-                    $this->assertSame('Authorization/Authorize', $options['query']['call']);
-                    $this->assertSame('alice', $options['query']['request']['UserName']);
-                    $this->assertSame('secret', $options['query']['request']['Password']);
+                    $this->assertSame('Authorization/Authorize', $options['form_params']['call']);
+                    $this->assertSame('alice', $options['form_params']['request']['UserName']);
+                    $this->assertSame('secret', $options['form_params']['request']['Password']);
 
                     return true;
                 }),
@@ -67,7 +67,7 @@ class OrkServiceTest extends TestCase
             }));
 
         $this->clientMock->expects($this->once())
-            ->method('get')
+            ->method('post')
             ->with(self::anything(), $this->callback(function ($options) use ($responseMock) {
                 if (isset($options['on_stats'])) {
                     $request = $this->createMock(\Psr\Http\Message\RequestInterface::class);
@@ -101,7 +101,7 @@ class OrkServiceTest extends TestCase
             }));
 
         $this->clientMock->expects($this->once())
-            ->method('get')
+            ->method('post')
             ->willReturn($responseMock);
 
         $this->assertNull($this->service->authorize('user', 'pass'));
@@ -119,7 +119,7 @@ class OrkServiceTest extends TestCase
             }));
 
         $this->clientMock->expects($this->once())
-            ->method('get')
+            ->method('post')
             ->willThrowException(new RequestException('Error', $request));
 
         $this->assertNull($this->service->authorize('user', 'pass'));

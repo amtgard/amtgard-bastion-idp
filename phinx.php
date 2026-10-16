@@ -4,6 +4,8 @@ require __DIR__ . '/vendor/autoload.php';
 
 Dotenv\Dotenv::createImmutable(__DIR__)->safeLoad();
 
+require __DIR__ . '/config/host-env-bootstrap.php';
+
 $migrateDbName = getenv('MIGRATE_DB_NAME');
 if ($migrateDbName !== false && $migrateDbName !== '') {
     $_ENV['DB_NAME'] = $migrateDbName;

@@ -41,11 +41,11 @@
 
 ## M3 — PHP inject bootstrap
 
-- [ ] `HostEnvBootstrap` + `InjectedSecretsLoader` under `src/Utility/Setup/HostEnv/` (Denarius pattern; map oauth basenames → `OAUTH_*` / `APPLE_KEY_FILE_PATH` for dev `.p8` only when file present)
-- [ ] `config/host-env-bootstrap.php`; wire `config/bootstrap.php` after immutable `.env`
-- [ ] `phinx.php` loads inject bootstrap (or equivalent) so migrate sees `DB_PASS` from mount
-- [ ] Unit tests + log tests for skip vs apply paths
-- [ ] One commit on `stack/host-env-gb-m3-hostenv-php`; check M3 boxes; record coverage + Infection in footer
+- [x] `HostEnvBootstrap` + `InjectedSecretsLoader` under `src/Utility/Setup/HostEnv/` (Denarius pattern; map oauth basenames → `OAUTH_*` / `APPLE_KEY_FILE_PATH` for dev `.p8` only when file present)
+- [x] `config/host-env-bootstrap.php`; wire `config/bootstrap.php` after immutable `.env`
+- [x] `phinx.php` loads inject bootstrap (or equivalent) so migrate sees `DB_PASS` from mount
+- [x] Unit tests + log tests for skip vs apply paths
+- [x] One commit on `stack/host-env-gb-m3-hostenv-php`; check M3 boxes; record coverage + Infection in footer
 
 ---
 
@@ -83,7 +83,7 @@
 | M0 | `stack/host-env-gb-m0-docs` | `7cd875758901fb05967e1430bc393ccd7244930f` | ok | IDP-first ORK docs + host-env-gb plan; doc-only gates |
 | M1 | `stack/host-env-gb-m1-catalog` | `f938f627ffc9184e08d56755e7f1a23ff8f66447` | ok | Vault catalog fragment + secrets.example; doc/json gates |
 | M2 | `stack/host-env-gb-m2-greenblue` | `5b49d42ce7758fc0a9b314e7c6010526985010bc` | ok | Green-blue examples + gb hooks; shell/json gates |
-| M3 | | | pending | |
+| M3 | `stack/host-env-gb-m3-hostenv-php` | `23b2e49d68515f7d44d36cd65f93eaeee6945442` | ok | HostEnv inject bootstrap + phinx; log-tested skip/apply |
 | M4 | | | pending | |
 | M5 | | | pending | |
 | M6 | | | pending | |
@@ -93,3 +93,5 @@
 **M1 gates:** doc/json only — `composer test` not required (no PHP changes).
 
 **M2 gates:** shell/json only — `bash -n` + `shellcheck` on `scripts/gb-*.sh`, `json.tool` on `host-env/catalog.d/40-idp.json`; `composer test` not required (no PHP changes).
+
+**M3 gates:** `composer test` OK (1037 tests); `src/` line coverage **86.58%** (6656/7688); Infection covered MSI **96%** on `src/Utility/Setup/HostEnv/`; log-tested `host_env_inject_skip` (debug) and `host_env_inject_applied` (info). Tip: `stack/host-env-gb-m3-hostenv-php` @ `23b2e49d68515f7d44d36cd65f93eaeee6945442`.
