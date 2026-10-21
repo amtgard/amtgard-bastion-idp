@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# shellcheck source=scripts/source-gb-runtime-env.sh disable=SC1091
+source "$ROOT/scripts/source-gb-runtime-env.sh" "$ROOT"
+
 NETWORK="${NETWORK:-amtgard-idp-shared}"
 INTEG_PROJECT="${INTEG_PROJECT:-amtgard-idp-integ}"
 WEB_PROJECT="${WEB_PROJECT:-amtgard-idp}"
@@ -45,12 +48,21 @@ compose_web_integ() {
     if [[ "${INTEG_COVERAGE:-}" == "1" ]]; then
         coverage_args=(-f docker/compose.integ-coverage.yml)
     fi
+    if ((${#coverage_args[@]} > 0)); then
+        docker compose --project-directory "$ROOT" -p "$WEB_PROJECT" \
+            -f docker/compose.prod.yml \
+            -f docker/compose.blue.yml \
+            -f docker/compose.dev.yml \
+            -f docker/compose.integ.yml \
+            "${coverage_args[@]}" \
+            "$@"
+        return
+    fi
     docker compose --project-directory "$ROOT" -p "$WEB_PROJECT" \
         -f docker/compose.prod.yml \
         -f docker/compose.blue.yml \
         -f docker/compose.dev.yml \
         -f docker/compose.integ.yml \
-        "${coverage_args[@]}" \
         "$@"
 }
 
@@ -59,11 +71,19 @@ compose_worker() {
     if [[ "${INTEG_COVERAGE:-}" == "1" ]]; then
         coverage_args=(-f docker/compose.worker.integ-coverage.yml)
     fi
+    if ((${#coverage_args[@]} > 0)); then
+        docker compose --project-directory "$ROOT" -p "$WORKER_PROJECT" \
+            -f docker/compose.worker.yml \
+            -f docker/compose.worker.dev.yml \
+            -f docker/compose.worker.integ.yml \
+            "${coverage_args[@]}" \
+            "$@"
+        return
+    fi
     docker compose --project-directory "$ROOT" -p "$WORKER_PROJECT" \
         -f docker/compose.worker.yml \
         -f docker/compose.worker.dev.yml \
         -f docker/compose.worker.integ.yml \
-        "${coverage_args[@]}" \
         "$@"
 }
 
@@ -137,6 +157,15 @@ docker exec "$APP_CONTAINER" bash -lc "
     sed -i '/^env\[REDIS_PVH_QUEUE_NAME\]/d' \"\$POOL\"
     sed -i '/^env\[INTEG_COVERAGE_ENABLED\]/d' \"\$POOL\"
     sed -i '/^env\[INTEG_COVERAGE_RAW_DIR\]/d' \"\$POOL\"
+    sed -i '/^env\[OAUTH_PRIVATE_KEY\]/d' \"\$POOL\"
+    sed -i '/^env\[OAUTH_PUBLIC_KEY\]/d' \"\$POOL\"
+    sed -i '/^env\[OAUTH_ENCRYPTION_KEY\]/d' \"\$POOL\"
+    sed -i '/^env\[OAUTH_AUTH_TOKEN_TTL\]/d' \"\$POOL\"
+    sed -i '/^env\[OAUTH_ACCESS_TOKEN_TTL\]/d' \"\$POOL\"
+    sed -i '/^env\[OAUTH_REFRESH_TOKEN_TTL\]/d' \"\$POOL\"
+    sed -i '/^env\[AUTH_SERVER_DEFUSE_KEY\]/d' \"\$POOL\"
+    sed -i '/^env\[APP_SECRET\]/d' \"\$POOL\"
+    sed -i '/^env\[JWT_KEY\]/d' \"\$POOL\"
     IDP_ORK_SHARED_SECRET=\"\$(printenv IDP_ORK_SHARED_SECRET || true)\"
     ORK_BASE_URL=\"\$(printenv ORK_BASE_URL || true)\"
     MANAGEMENT_KEY=\"\$(printenv MANAGEMENT_KEY || true)\"
@@ -163,6 +192,24 @@ docker exec "$APP_CONTAINER" bash -lc "
     echo \"env[MANAGEMENT_KEY] = \${MANAGEMENT_KEY}\" >> \"\$POOL\"
     echo \"env[LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS] = \${LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS}\" >> \"\$POOL\"
     echo \"env[MAILBOX_CODE_PEPPER] = \${MAILBOX_CODE_PEPPER}\" >> \"\$POOL\"
+    OAUTH_PRIVATE_KEY=\"\$(printenv OAUTH_PRIVATE_KEY || true)\"
+    OAUTH_PUBLIC_KEY=\"\$(printenv OAUTH_PUBLIC_KEY || true)\"
+    OAUTH_ENCRYPTION_KEY=\"\$(printenv OAUTH_ENCRYPTION_KEY || true)\"
+    echo \"env[OAUTH_PRIVATE_KEY] = \${OAUTH_PRIVATE_KEY}\" >> \"\$POOL\"
+    echo \"env[OAUTH_PUBLIC_KEY] = \${OAUTH_PUBLIC_KEY}\" >> \"\$POOL\"
+    echo \"env[OAUTH_ENCRYPTION_KEY] = \${OAUTH_ENCRYPTION_KEY}\" >> \"\$POOL\"
+    OAUTH_AUTH_TOKEN_TTL=\"\$(printenv OAUTH_AUTH_TOKEN_TTL || true)\"
+    OAUTH_ACCESS_TOKEN_TTL=\"\$(printenv OAUTH_ACCESS_TOKEN_TTL || true)\"
+    OAUTH_REFRESH_TOKEN_TTL=\"\$(printenv OAUTH_REFRESH_TOKEN_TTL || true)\"
+    AUTH_SERVER_DEFUSE_KEY=\"\$(printenv AUTH_SERVER_DEFUSE_KEY || true)\"
+    APP_SECRET=\"\$(printenv APP_SECRET || true)\"
+    JWT_KEY=\"\$(printenv JWT_KEY || true)\"
+    echo \"env[OAUTH_AUTH_TOKEN_TTL] = \${OAUTH_AUTH_TOKEN_TTL}\" >> \"\$POOL\"
+    echo \"env[OAUTH_ACCESS_TOKEN_TTL] = \${OAUTH_ACCESS_TOKEN_TTL}\" >> \"\$POOL\"
+    echo \"env[OAUTH_REFRESH_TOKEN_TTL] = \${OAUTH_REFRESH_TOKEN_TTL}\" >> \"\$POOL\"
+    echo \"env[AUTH_SERVER_DEFUSE_KEY] = \${AUTH_SERVER_DEFUSE_KEY}\" >> \"\$POOL\"
+    echo \"env[APP_SECRET] = \${APP_SECRET}\" >> \"\$POOL\"
+    echo \"env[JWT_KEY] = \${JWT_KEY}\" >> \"\$POOL\"
     INTEG_COVERAGE_ENABLED=\"\$(printenv INTEG_COVERAGE_ENABLED || true)\"
     INTEG_COVERAGE_RAW_DIR=\"\$(printenv INTEG_COVERAGE_RAW_DIR || true)\"
     if [[ -n \"\${INTEG_COVERAGE_ENABLED}\" ]]; then

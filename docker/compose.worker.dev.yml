@@ -1,4 +1,4 @@
-# Overlay on compose.worker.yml. Start with scripts/dev-up.sh.
+# Overlay on compose.worker.yml. Start with gb deploy (GB_MODE=dev).
 services:
   jwt-worker:
     image: amtgard-idp-dev
@@ -7,6 +7,9 @@ services:
       dockerfile: docker/Dockerfile.dev
     volumes:
       - .:/var/www/idp.amtgard.com
+      - ${IDP_HEV_WORKER_SECRETS:-./.local/empty-secrets}:/run/secrets:ro
+    env_file:
+      - .env
     environment:
       - ENVIRONMENT=DEV
       - XDEBUG_MODE=off

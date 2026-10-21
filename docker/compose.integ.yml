@@ -21,6 +21,17 @@ services:
       LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS: integ_confidential
       IDP_ORK_SHARED_SECRET: integ-ork-shared-secret-thirty-two-chars
       ORK_BASE_URL: https://ork.amtgard.com
+      ORK_JSON_API_BASE_URL: ""
+      ORK_CLAIM_MAIL_VIA_ORK: ""
       MAILBOX_CODE_PEPPER: integ-mailbox-pepper-not-for-production-use
       LOG_SPOOL_ENABLED: "true"
       LOG_ROOT: /var/www/idp.amtgard.com/logs/bundles-integ
+      OAUTH_PRIVATE_KEY: /var/www/idp.amtgard.com/tests/fixtures/oidc/private.pem
+      OAUTH_PUBLIC_KEY: /var/www/idp.amtgard.com/tests/fixtures/oidc/public.pem
+      OAUTH_ENCRYPTION_KEY: integ-oauth-encryption-key-not-for-production
+      OAUTH_AUTH_TOKEN_TTL: PT10M
+      OAUTH_ACCESS_TOKEN_TTL: PT2H
+      OAUTH_REFRESH_TOKEN_TTL: P1M
+      AUTH_SERVER_DEFUSE_KEY: integ-auth-server-defuse-key-not-for-production
+      APP_SECRET: integ-app-secret-not-for-production
+      JWT_KEY: integ-jwt-key-not-for-production

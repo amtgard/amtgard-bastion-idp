@@ -16,6 +16,6 @@ openssl genrsa -out oauth-private.key 2048
 openssl rsa -in oauth-private.key -pubout -out oauth-public.key
 ```
 
-The HTTP profile catalog lists `oauth-private.key` and `oauth-public.key` under `inject_files`. `apple.p8` is **not** in the catalog; keep it in `secrets/files/` for local Apple login and point `APPLE_KEY_FILE_PATH` in `idp-http.env` at `/run/secrets/files/apple.p8`.
+The HTTP profile catalog lists `oauth-private.key`, `oauth-public.key`, and `apple.p8` under `inject_files`. Use a real AuthKey on dev laptops; production hosts without Apple Sign In can use a placeholder file or trim `apple.p8` from a host-specific catalog overlay.
 
 After M3, the app maps inject file basenames to `OAUTH_PRIVATE_KEY`, `OAUTH_PUBLIC_KEY`, and (when present) `APPLE_KEY_FILE_PATH`.

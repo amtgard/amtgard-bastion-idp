@@ -70,18 +70,22 @@ A relying party that only needs to know who logged in:
 
 ## Development
 
-Local Docker uses the same three Compose projects as production (sessions, one web slot, jwt-worker). The web and worker overlays add `Dockerfile.dev`, a repo bind-mount, Xdebug on the web container (host port 41093), and a local MariaDB (`amtgard-idp-db`, volume `amtgard-idp_data-db`). Images require **PHP 8.4.27+** (2026-10-21 critical RCE advisories [CVE-2026-109618](https://www.php.net/archive/2026.php#2026-10-21-5), CVE-2026-109619); rebuild dev/prod images after pulling this commit so the ondrej PPA packages refresh. Copy `.env.example` to `.env`, fill in secrets, then from the **repository root**:
+Local Docker uses the same three Compose projects as production (sessions, one web slot, jwt-worker). The web and worker overlays add `Dockerfile.dev`, a repo bind-mount, Xdebug on the web container (host port 41093), and a local MariaDB (`amtgard-idp-db`, volume `amtgard-idp_data-db`). Images require **PHP 8.4.27+** (2026-10-21 critical RCE advisories [CVE-2026-109618](https://www.php.net/archive/2026.php#2026-10-21-5), CVE-2026-109619); rebuild dev/prod images after pulling this commit so the ondrej PPA packages refresh. Copy `.env.example` to `.env` (non-secret config). One-time per clone: `cp .greenblue.example.dev .greenblue` (see [host-env/README.md](host-env/README.md)).
+
+Start or refresh the stack from **any working directory** (same as [generic-green-blue-deployment](https://github.com/your-org/generic-green-blue-deployment) operator UX):
 
 ```bash
 ./scripts/setup-git-hooks.sh   # once per clone — auto-updates VERSION on commit
 composer install
 composer frontend:build        # after changing templates/CSS; commits include public/assets/idp.css
-./scripts/dev-up.sh
+/path/to/generic-green-blue-deployment/bin/gb /full/path/to/amtgard-idp deploy
 docker exec amtgard-idp bash -lc \
   "cd /var/www/idp.amtgard.com && vendor/robmorgan/phinx/bin/phinx migrate"
 ```
 
-Copy `.greenblue.example.dev` to `.greenblue` once per clone (see [host-env/README.md](./host-env/README.md)). `scripts/dev-up.sh` resolves the **generic-green-blue** `gb` binary, optionally syncs the vault catalog fragment, then runs `gb "$PWD" deploy` with `GB_MODE=dev` from `.greenblue` (sessions, web bind-mount slot, jwt-worker, HEV mount map → `.gb/runtime.env`).
+With `export GB_PROJECT_ROOT=/full/path/to/amtgard-idp`, `gb deploy` is enough.
+
+Local stack is **generic-green-blue only** (same as Denarius): dev mode in `.greenblue` starts sessions, bind-mounted web slot, jwt-worker, and host-env-vault sync/render on deploy when enabled (`GB_HEV_MOUNT_MAP` → `.gb/runtime.env`). Re-run the same `gb … deploy` after code or vault-catalog changes; `gb … revert` is prod-only.
 
 Stacks: `amtgard-idp-sessions`, `amtgard-idp` (37080 + `amtgard-idp-db` on 36306), `amtgard-idp-jwt-worker`.
 
@@ -136,10 +140,12 @@ Each commit records an orderable build id in `VERSION` and `version.json` (forma
 
 ### Tests (PHPUnit in Docker)
 
-PHPUnit requires PHP 8.4 (matches `composer.json`). After `./scripts/dev-up.sh`:
+PHPUnit requires PHP 8.4 (matches `composer.json`). With the dev stack up (`gb /full/path/to/amtgard-idp deploy`):
 
 ```bash
-./scripts/dev-up.sh test
+docker compose --project-directory . -p amtgard-idp \
+  -f docker/compose.prod.yml -f docker/compose.blue.yml -f docker/compose.dev.yml \
+  --profile test run --rm test
 ```
 
 Or against the running app container:

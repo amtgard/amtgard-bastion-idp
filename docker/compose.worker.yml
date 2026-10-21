@@ -9,8 +9,6 @@ services:
     command: ["php", "-d", "memory_limit=256M", "/var/www/idp.amtgard.com/bin/jwt-pvh-worker.php"]
     env_file:
       - .env
-    environment:
-      - HOST_ENV_SECRETS_DIR=/run/secrets
     volumes:
       - ./.env:/var/www/idp.amtgard.com/.env:ro
       - ${IDP_HEV_WORKER_SECRETS:-./.local/empty-secrets}:/run/secrets:ro

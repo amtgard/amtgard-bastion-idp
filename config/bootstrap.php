@@ -8,9 +8,8 @@ require_once __DIR__ . '/di-container.php';
 
 $projectRoot = dirname(__DIR__);
 
-Dotenv\Dotenv::createImmutable($projectRoot)->safeLoad();
-
-require __DIR__ . '/host-env-bootstrap.php';
+require_once __DIR__ . '/load-env.php';
+idp_load_process_env($projectRoot);
 
 $debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
 // Vendor packages may emit PHP 8.4 deprecations; keep them out of HTML/CLI noise.

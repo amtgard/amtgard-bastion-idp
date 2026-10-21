@@ -36,6 +36,30 @@ fi
 
 build_out="${vault_root}/dev-shared/build/catalog.json"
 secrets_dir="${vault_root}/dev-shared/secrets"
+secrets_example="${vault_root}/dev-shared/secrets.example"
 "$merge" "$build_out"
 mkdir -p "$secrets_dir"
 cp "$build_out" "${secrets_dir}/catalog.json"
+
+# Shared dev-shared catalog includes example-app profiles; seed missing *.env from secrets.example
+# so local sync does not fail for app-web, api-http, etc. (IDP only needs idp-*).
+if [[ -d "$secrets_example" ]]; then
+    for example_env in "$secrets_example"/*.env; do
+        [[ -f "$example_env" ]] || continue
+        base="$(basename "$example_env")"
+        dest="${secrets_dir}/${base}"
+        if [[ ! -f "$dest" ]]; then
+            cp "$example_env" "$dest"
+        fi
+    done
+    if [[ -d "${secrets_example}/files" ]]; then
+        mkdir -p "${secrets_dir}/files"
+        for example_file in "${secrets_example}/files"/*; do
+            [[ -f "$example_file" ]] || continue
+            dest="${secrets_dir}/files/$(basename "$example_file")"
+            if [[ ! -f "$dest" ]]; then
+                cp "$example_file" "$dest"
+            fi
+        done
+    fi
+fi

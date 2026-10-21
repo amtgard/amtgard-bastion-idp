@@ -1,7 +1,7 @@
-# Dev stack (bind-mounted source). Copy to .greenblue at the repo root (do not commit).
-# Run from anywhere (project root = this repo, must contain .greenblue):
+# Dev stack (bind-mounted source). One-time: cp .greenblue.example.dev .greenblue (do not commit .greenblue).
+# Deploy from any cwd (gb operator UX):
 #   /path/to/generic-green-blue-deployment/bin/gb /full/path/to/amtgard-idp deploy
-# Or: cd /full/path/to/amtgard-idp && gb "$PWD" deploy
+# Or: export GB_PROJECT_ROOT=/full/path/to/amtgard-idp && gb deploy
 
 # shellcheck source=scripts/gb-greenblue-helpers.sh disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/scripts/gb-greenblue-helpers.sh"
@@ -54,7 +54,7 @@ GB_HEV_RENDER_ON_DEV_UP="1"
 GB_HEV_SYNC_ON_DEPLOY="0"
 GB_HEV_RENDER_ON_DEPLOY="0"
 GB_HEV_SYNC_SOURCE="local"
-GB_HEV_SYNC_STRICT="0"
+GB_HEV_SYNC_STRICT="1"
 
 GB_HEV_MOUNT_MAP="idp-http:IDP_HEV_HTTP_SECRETS idp-worker:IDP_HEV_WORKER_SECRETS"
 

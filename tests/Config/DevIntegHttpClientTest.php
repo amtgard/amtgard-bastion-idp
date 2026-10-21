@@ -63,6 +63,39 @@ final class DevIntegHttpClientTest extends TestCase
         $this->assertSame(DevIntegHttpClient::INTEG_MUNDANE_ID, $payload['UserId']);
     }
 
+    public function testOrkAuthorizePostFormParamsMatchesOrkService(): void
+    {
+        $response = $this->client->post('https://ork.amtgard.com/orkservice/Json/index.php', [
+            'form_params' => [
+                'call' => 'Authorization/Authorize',
+                'request' => [
+                    'UserName' => DevIntegHttpClient::INTEG_ORK_USERNAME,
+                    'Password' => 'integ-ork-canned-password',
+                ],
+            ],
+        ]);
+        /** @var array<string, mixed> $payload */
+        $payload = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(0, $payload['Status']['Status']);
+    }
+
+    public function testOrkLocalDockerHostUsesCannedSearch(): void
+    {
+        $response = $this->client->get('http://ork3-php8-app/orkservice/Json/index.php', [
+            'query' => [
+                'call' => 'SearchService/Player',
+                'search' => DevIntegHttpClient::INTEG_ORK_USERNAME,
+                'limit' => '10',
+            ],
+        ]);
+        /** @var array<string, mixed> $payload */
+        $payload = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(0, $payload['Status']['Status']);
+        $this->assertSame(DevIntegHttpClient::INTEG_ORK_USERNAME, $payload['Result'][0]['UserName'] ?? null);
+    }
+
     public function testOrkHostReturnsCannedPlayer(): void
     {
         $response = $this->client->get('https://ork.amtgard.com/orkservice/Json/index.php', [

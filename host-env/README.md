@@ -25,7 +25,7 @@ See also [agent/cursor/host-env-gb/README.md](../agent/cursor/host-env-gb/README
 
    **Local dev mode:** `host-config.toml` uses `[sync] source = "local"`. Match that with `GB_HEV_SYNC_SOURCE=local` in `.greenblue` (see `.greenblue.example.dev` in M2).
 
-   **macOS render:** omit `"gid"` in the laptop catalog (as in `40-idp.json`) so `render` does not `chown root:www-data`. On Linux production hosts, merge `catalog.d/41-idp-linux-gid.json.example` (or equivalent) so each profile has `"gid": 33`.
+   **Render output:** vault must finish with **`secrets.env`** (and `files/` for PEMs). A leftover **`secrets.partial`** only means render failed mid-write — fix vault render; do not teach the app to read it.
 
 3. Seed secret **values** (gitignored on the vault side):
 
@@ -36,20 +36,20 @@ See also [agent/cursor/host-env-gb/README.md](../agent/cursor/host-env-gb/README
       ../host-env-vault/dev-shared/secrets/idp-worker.env
    ```
 
-   Edit those files with real values. Copy OAuth keys per [secrets.example/files/README.md](./secrets.example/files/README.md).
+   Edit those files with real values. Copy OAuth keys and dev-only `apple.p8` per [secrets.example/files/README.md](./secrets.example/files/README.md).
 
-4. Configure **generic-green-blue** (once per machine; M2 adds `.greenblue.example.dev`):
+   **OAuth / sync shortcut (laptop):** after `dev-keys/` exists, run `./scripts/refresh-dev-vault-idp-http.sh`. It copies PEMs into the vault `files/` tree, merges non-empty repo `.env` into `idp-http.env` (empty inject values break `host-env-vault sync`), re-renders `idp-http`, and recreates the dev web container. Re-run whenever OAuth signing fails after clone or placeholder PEMs.
+
+   **Shared vault:** `dev-shared/catalog.d` also merges example **app-web** / **api-http** profiles. `scripts/gb-pre-hev-sync.sh` copies missing `secrets.example/*.env` and `files/*` into `dev-shared/secrets/` so local `sync` does not fail for those profiles. You can still set `GB_HEV_SYNC_STRICT=0` to continue if sync warns.
+
+   **PHP:** `config/load-env.php` — immutable Dotenv for repo `.env`, then mutable Dotenv for `/run/secrets/secrets.env` (inject overrides overlapping keys). When `ENVIRONMENT=DEV`, every key listed in repo `.env` wins over inject (MariaDB password, `GOOGLE_CLIENT_SECRET`, etc.) so stale laptop vault bundles do not break local login. `ENVIRONMENT=DEV_INTEG` (integration Docker overlay) skips inject entirely; OAuth PEM paths come from `docker/compose.integ.yml`.
+
+4. Configure **generic-green-blue** once per clone: `cp .greenblue.example.dev .greenblue` (edit `GB_HEV_*` if the vault is not at `../host-env-vault/dev-shared`).
+
+5. Deploy from any directory — `gb` takes the **absolute app root** as its first argument (vault sync/render runs inside that deploy when enabled in `.greenblue`):
 
    ```bash
-   cp .greenblue.example.dev .greenblue
-   # edit GB_HEV_* overrides if the vault is not at ../host-env-vault/dev-shared
-   ```
-
-5. Start the IDP (generic-green-blue). The first argument to `gb` is the **IDP repo root** (where `.greenblue` lives):
-
-   ```bash
-   cd /full/path/to/amtgard-idp
-   ../generic-green-blue-deployment/bin/gb "$PWD" deploy
+   /path/to/generic-green-blue-deployment/bin/gb /full/path/to/amtgard-idp deploy
    ```
 
    Compose mount wiring comes from `GB_HEV_MOUNT_MAP` → `{repo}/.gb/runtime.env` (not application `.env`). Before M4 compose wiring, an empty fallback mount dir lives at `.local/empty-secrets/` (tracked via `.gitkeep`).
@@ -58,7 +58,7 @@ See also [agent/cursor/host-env-gb/README.md](../agent/cursor/host-env-gb/README
 
 | Profile | Mount role | Inject env (catalog) | Inject files |
 | --- | --- | --- | --- |
-| `idp-http` | Blue/green web slot | DB, Defuse, ORK shared secret, management key, mailbox pepper, social + mail provider secrets | `oauth-private.key`, `oauth-public.key` |
+| `idp-http` | Blue/green web slot | `APP_SECRET`, `JWT_KEY`, `OAUTH_ENCRYPTION_KEY`, DB, Defuse, ORK shared secret, management key, mailbox pepper, social + mail provider secrets | `oauth-private.key`, `oauth-public.key`, `apple.p8` (dev; omit on prod hosts without Apple Sign In) |
 | `idp-worker` | JWT PVH worker compose project | `DB_PASS` | — |
 
 ## Production
@@ -75,7 +75,7 @@ Copy `.greenblue.example.prod` to the host app directory (M2). Deploy from the t
 
 | Phase | Behavior |
 | --- | --- |
-| **Now** | `.env` holds non-secret config; rendered `secrets.env` on `/run/secrets` loads via Dotenv `safeLoad` (does not override `.env`). |
+| **Now** | `.env` non-secrets (immutable `safeLoad`); `/run/secrets/secrets.env` (mutable `load`) overrides overlapping keys. |
 | **Next** | Move provider and crypto secrets out of `.env` into vault profile env files; keep hosts, ports, client IDs, and feature flags in `.env`. |
 | **Prod** | `gb deploy` renders inject trees before the inactive slot starts; worker uses `idp-worker` inject only. |
 

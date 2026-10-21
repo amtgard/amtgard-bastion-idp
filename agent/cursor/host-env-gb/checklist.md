@@ -51,8 +51,8 @@
 
 ## M4 — Compose + env wiring
 
-- [x] `docker/compose.prod.yml` — mount `${IDP_HEV_HTTP_SECRETS:-./.local/empty-secrets}:/run/secrets:ro`; `HOST_ENV_SECRETS_DIR=/run/secrets`; drop or optionalize `keys/` / `dev-keys/` binds when inject files suffice
-- [x] `docker/compose.worker.yml` — worker secrets mount + `HOST_ENV_SECRETS_DIR`
+- [x] `docker/compose.prod.yml` — mount `${IDP_HEV_HTTP_SECRETS:-./.local/empty-secrets}:/run/secrets:ro`; PHP reads inject at fixed `/run/secrets`; drop or optionalize `keys/` / `dev-keys/` binds when inject files suffice
+- [x] `docker/compose.worker.yml` — worker secrets mount at `/run/secrets`
 - [x] `.env.example` — document non-secret vs vault; HEV comments; keep plain dev defaults
 - [x] One commit on `stack/host-env-gb-m4-compose`; check M4 boxes
 

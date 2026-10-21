@@ -16,7 +16,6 @@ services:
       - .env
     environment:
       - ENVIRONMENT=PROD
-      - HOST_ENV_SECRETS_DIR=/run/secrets
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
