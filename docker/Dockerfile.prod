@@ -8,6 +8,9 @@ RUN add-apt-repository -y ppa:ondrej/php && apt-get update
 RUN apt-get install --no-install-recommends -y php8.4
 RUN apt-get install -y php8.4-fpm php8.4-cli php8.4-common php8.4-mysql php8.4-mbstring php8.4-curl php8.4-xml php8.4-memcached php8.4-redis php8.4-gd
 
+# CVE-2026-109618 / CVE-2026-109619 — PHP 8.4.27+ (2026-10-21). Rebuild images after PPA updates.
+RUN php -r '$v=PHP_VERSION; if (version_compare($v, "8.4.27", "<")) { fwrite(STDERR, "Require PHP >= 8.4.27, got {$v}\n"); exit(1); }'
+
 RUN sed -i 's/;\s*clear_env = no/clear_env = no/g' /etc/php/8.4/fpm/pool.d/www.conf
 RUN echo "env[ENVIRONMENT] = PROD" >> /etc/php/8.4/fpm/pool.d/www.conf
 RUN sed -i 's/memory_limit = 128M/memory_limit = 32M/g' /etc/php/8.4/fpm/php.ini
@@ -15,6 +18,9 @@ RUN sed -i 's/session.gc_maxlifetime = 1440/session.gc_maxlifetime = 2592000/g' 
 RUN sed -i 's/session.cookie_lifetime = 0/session.cookie_lifetime = 2592000/g' /etc/php/8.4/fpm/php.ini
 # $_ENV needs the "E" in variables_order. Default Ubuntu PHP config omits it.
 RUN sed -i 's/^variables_order = .*/variables_order = "EGPCS"/' /etc/php/8.4/fpm/php.ini /etc/php/8.4/cli/php.ini
+
+COPY docker/php-fpm-security.ini /etc/php/8.4/fpm/conf.d/99-security.ini
+COPY docker/php-fpm-security.ini /etc/php/8.4/cli/conf.d/99-security.ini
 
 RUN mkdir -p /var/www/idp.amtgard.com
 

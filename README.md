@@ -70,7 +70,7 @@ A relying party that only needs to know who logged in:
 
 ## Development
 
-Local Docker uses the same three Compose projects as production (sessions, one web slot, jwt-worker). The web and worker overlays add `Dockerfile.dev`, a repo bind-mount, Xdebug on the web container (host port 41093), and a local MariaDB (`amtgard-idp-db`, volume `amtgard-idp_data-db`). Copy `.env.example` to `.env`, fill in secrets, then from the **repository root**:
+Local Docker uses the same three Compose projects as production (sessions, one web slot, jwt-worker). The web and worker overlays add `Dockerfile.dev`, a repo bind-mount, Xdebug on the web container (host port 41093), and a local MariaDB (`amtgard-idp-db`, volume `amtgard-idp_data-db`). Images require **PHP 8.4.27+** (2026-10-21 critical RCE advisories [CVE-2026-109618](https://www.php.net/archive/2026.php#2026-10-21-5), CVE-2026-109619); rebuild dev/prod images after pulling this commit so the ondrej PPA packages refresh. Copy `.env.example` to `.env`, fill in secrets, then from the **repository root**:
 
 ```bash
 ./scripts/setup-git-hooks.sh   # once per clone — auto-updates VERSION on commit
