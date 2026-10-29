@@ -24,6 +24,11 @@ function idp_is_prod_environment(): bool
 
 function idp_di_compilation_directory(string $projectRoot): string
 {
+    $override = getenv('IDP_DI_COMPILE_DIR');
+    if (is_string($override) && $override !== '') {
+        return $override;
+    }
+
     return $projectRoot . '/cache/di';
 }
 

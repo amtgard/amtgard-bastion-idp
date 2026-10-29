@@ -69,4 +69,29 @@ final class DiContainerCompilationTest extends TestCase
         );
         $this->assertDirectoryExists(idp_di_compilation_directory($this->projectRoot));
     }
+
+    public function testCompileDirectoryOverrideViaEnv(): void
+    {
+        $override = $this->projectRoot . '/cache/di-unit-override';
+        putenv('IDP_DI_COMPILE_DIR=' . $override);
+        $_ENV['ENVIRONMENT'] = 'PROD';
+
+        try {
+            $this->assertSame($override, idp_di_compilation_directory($this->projectRoot));
+
+            $builder = new ContainerBuilder();
+            idp_configure_di_container_builder($builder, $this->projectRoot);
+            $this->assertTrue($builder->isCompilationEnabled());
+        } finally {
+            putenv('IDP_DI_COMPILE_DIR');
+            if (is_dir($override)) {
+                foreach (glob($override . '/*') ?: [] as $path) {
+                    if (is_file($path)) {
+                        unlink($path);
+                    }
+                }
+                rmdir($override);
+            }
+        }
+    }
 }
