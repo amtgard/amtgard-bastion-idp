@@ -5,29 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Amtgard Identity Provider{% endblock %}</title>
     <link rel="icon" type="image/x-icon" href="/images/favicon.ico"/>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Roboto Condensed"', 'sans-serif'],
-                        serif: ['"Instrument Serif"', 'serif'],
-                    },
-                    colors: {
-                        primary: '#3498db',
-                        'primary-dark': '#2980b9',
-                        secondary: '#2c3e50',
-                        tertiary: '#34495e',
-                    }
-                }
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="/assets/idp.css"/>
     {% block styles %}{% endblock %}
 </head>
 <body class="font-sans leading-relaxed m-0 p-5 text-gray-800 bg-gray-50 min-h-screen">

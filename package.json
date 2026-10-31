@@ -1,0 +1,15 @@
+{
+  "name": "amtgard-idp-frontend",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:css && npm run copy:fonts",
+    "build:css": "tailwindcss -c tailwind.config.js -i assets/css/idp.entry.css -o public/assets/idp.css --minify",
+    "copy:fonts": "node scripts/copy-frontend-fonts.mjs"
+  },
+  "devDependencies": {
+    "@fontsource/instrument-serif": "^5.2.5",
+    "@fontsource/roboto-condensed": "^5.2.5",
+    "@fortawesome/fontawesome-free": "^6.5.1",
+    "tailwindcss": "^3.4.17"
+  }
+}

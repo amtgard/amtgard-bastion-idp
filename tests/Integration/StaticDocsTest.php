@@ -19,6 +19,9 @@ final class StaticDocsTest extends IntegTestCase
         $body = (string) $response->getBody();
         $this->assertStringContainsString('Amtgard Identity Provider', $body);
         $this->assertStringContainsString('Welcome to the Amtgard Identity Provider service', $body);
+        $this->assertStringContainsString('href="/assets/idp.css"', $body);
+        $this->assertStringNotContainsString('cdn.tailwindcss.com', $body);
+        $this->assertStringNotContainsString('fonts.googleapis.com', $body);
     }
 
     public function testSwaggerUiPageLoadsOpenApiShell(): void

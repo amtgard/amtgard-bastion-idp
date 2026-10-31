@@ -58,7 +58,8 @@
         "integ:coverage": "bash scripts/integ-coverage.sh",
         "cs": "phpcs",
         "stan": "phpstan analyse src tests",
-        "mutate": "bash scripts/mutation-test.sh"
+        "mutate": "bash scripts/mutation-test.sh",
+        "frontend:build": "npm ci && npm run build"
     },
     "repositories": [
         {

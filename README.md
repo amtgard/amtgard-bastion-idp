@@ -75,6 +75,7 @@ Local Docker uses the same three Compose projects as production (sessions, one w
 ```bash
 ./scripts/setup-git-hooks.sh   # once per clone — auto-updates VERSION on commit
 composer install
+composer frontend:build        # after changing templates/CSS; commits include public/assets/idp.css
 ./scripts/dev-up.sh
 docker exec amtgard-idp bash -lc \
   "cd /var/www/idp.amtgard.com && vendor/robmorgan/phinx/bin/phinx migrate"
