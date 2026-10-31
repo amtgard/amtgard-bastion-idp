@@ -2,6 +2,8 @@
 
 Tier profiles: **idp-http** (web / php-fpm slot) and **idp-worker** (JWT PVH CLI). Both are **inject-only** (`runtime` empty, `socket: false`). OAuth PEMs use `inject_files`; no runtime vault socket in this stack.
 
+**Full deploy runbook:** [docs/deploy-gb-host-env-vault.md](../docs/deploy-gb-host-env-vault.md).
+
 See also [agent/cursor/host-env-gb/README.md](../agent/cursor/host-env-gb/README.md).
 
 ## One-time laptop setup

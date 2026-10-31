@@ -26,3 +26,7 @@ Deploy-time **inject-only** secrets for production and local dev, following **am
 ## Checklist
 
 Work queue: [checklist.md](./checklist.md). Orchestrator runs milestones **serially**; each milestone is one stacked branch and one commit.
+
+## Operator runbook
+
+Step-by-step install, local intermediary vault, Docker validation, and production **`gb deploy` / `revert`**: [docs/deploy-gb-host-env-vault.md](../../../docs/deploy-gb-host-env-vault.md).

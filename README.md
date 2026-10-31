@@ -70,7 +70,7 @@ A relying party that only needs to know who logged in:
 
 ## Development
 
-Local Docker uses the same three Compose projects as production (sessions, one web slot, jwt-worker). The web and worker overlays add `Dockerfile.dev`, a repo bind-mount, Xdebug on the web container (host port 41093), and a local MariaDB (`amtgard-idp-db`, volume `amtgard-idp_data-db`). Images require **PHP 8.4.27+** (2026-10-21 critical RCE advisories [CVE-2026-109618](https://www.php.net/archive/2026.php#2026-10-21-5), CVE-2026-109619); rebuild dev/prod images after pulling this commit so the ondrej PPA packages refresh. Copy `.env.example` to `.env` (non-secret config). One-time per clone: `cp .greenblue.example.dev .greenblue` (see [host-env/README.md](host-env/README.md)).
+Local Docker uses the same three Compose projects as production (sessions, one web slot, jwt-worker). The web and worker overlays add `Dockerfile.dev`, a repo bind-mount, Xdebug on the web container (host port 41093), and a local MariaDB (`amtgard-idp-db`, volume `amtgard-idp_data-db`). Images require **PHP 8.4.27+** (2026-10-21 critical RCE advisories [CVE-2026-109618](https://www.php.net/archive/2026.php#2026-10-21-5), CVE-2026-109619); rebuild dev/prod images after pulling this commit so the ondrej PPA packages refresh. Copy `.env.example` to `.env` (non-secret config). One-time per clone: `cp .greenblue.example.dev .greenblue` (see [host-env/README.md](host-env/README.md) and the full runbook [docs/deploy-gb-host-env-vault.md](docs/deploy-gb-host-env-vault.md)).
 
 Start or refresh the stack from **any working directory** (same as [generic-green-blue-deployment](https://github.com/your-org/generic-green-blue-deployment) operator UX):
 
@@ -157,7 +157,7 @@ docker exec amtgard-idp bash -lc \
 
 ## Production
 
-Production uses **generic-green-blue-deployment** (`gb`) with `GB_MODE=prod` in a host-local `.greenblue` (copy from `.greenblue.example.prod`; never commit). Blue-green Docker slots (37080 / 37081) sit behind host nginx. Each slot is its own Compose project and **image**: `gb deploy` pulls `main`, optionally syncs/renders **host-env-vault** inject trees (no runtime vault socket), builds the inactive slot, runs `composer install` + Phinx in that container, health-checks, switches nginx, and leaves the previous slot running for rollback.
+Production uses **generic-green-blue-deployment** (`gb`) with `GB_MODE=prod` in a host-local `.greenblue` (copy from `.greenblue.example.prod`; never commit). Detailed steps: [docs/deploy-gb-host-env-vault.md](docs/deploy-gb-host-env-vault.md). Blue-green Docker slots (37080 / 37081) sit behind host nginx. Each slot is its own Compose project and **image**: `gb deploy` pulls `main`, optionally syncs/renders **host-env-vault** inject trees (no runtime vault socket), builds the inactive slot, runs `composer install` + Phinx in that container, health-checks, switches nginx, and leaves the previous slot running for rollback.
 
 Non-secret config stays in host `.env`. OAuth and DB credentials come from vault **inject-only** profiles (`idp-http`, `idp-worker`) mounted at `/run/secrets` via `GB_HEV_MOUNT_MAP` → `.gb/runtime.env`. Legacy `keys/` / `dev-keys/` binds are optional fallbacks when inject files are not used. **MySQL is host-owned** (no production MySQL Docker volume).
 
