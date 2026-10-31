@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/idp-environment.php';
+
 /**
  * Application `.env` (non-secrets) then vault inject `secrets.env` on `/run/secrets`.
  * Second load uses mutable Dotenv so inject overrides overlapping keys from `.env`.
@@ -62,16 +64,6 @@ function idp_apply_inject_file_paths_when_unset(string $injectDir): void
         $_ENV[$envKey] = $path;
         putenv($envKey . '=' . $path);
     }
-}
-
-function idp_runtime_environment(): ?string
-{
-    $environment = $_ENV['ENVIRONMENT'] ?? getenv('ENVIRONMENT');
-    if (!is_string($environment) || $environment === '') {
-        $environment = $_SERVER['ENVIRONMENT'] ?? null;
-    }
-
-    return is_string($environment) && $environment !== '' ? $environment : null;
 }
 
 function idp_is_dev_integ_environment(): bool
