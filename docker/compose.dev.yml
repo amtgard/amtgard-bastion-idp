@@ -1,4 +1,4 @@
-# Overlay on compose.prod.yml + compose.blue.yml. Start with scripts/dev-up.sh.
+# Overlay on compose.prod.yml + compose.blue.yml. Start with: gb /full/path/to/amtgard-idp deploy (GB_MODE=dev).
 name: amtgard-idp
 
 services:
@@ -11,6 +11,9 @@ services:
       - "41093:9003"
     volumes:
       - .:/var/www/idp.amtgard.com
+      - ${IDP_HEV_HTTP_SECRETS:-./.local/empty-secrets}:/run/secrets:ro
+    env_file:
+      - .env
     environment:
       - ENVIRONMENT=DEV
     container_name: amtgard-idp

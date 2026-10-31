@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# shellcheck source=scripts/source-gb-runtime-env.sh disable=SC1091
+source "$ROOT/scripts/source-gb-runtime-env.sh" "$ROOT"
+
 WEB_PROJECT="${WEB_PROJECT:-amtgard-idp}"
 WORKER_PROJECT="${WORKER_PROJECT:-amtgard-idp-worker}"
 APP_CONTAINER="${APP_CONTAINER:-amtgard-idp}"

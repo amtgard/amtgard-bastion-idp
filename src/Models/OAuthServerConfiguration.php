@@ -37,9 +37,9 @@ class OAuthServerConfiguration
     public function build(): AuthorizationServer {
         $nonceContext = $this->nonceContext ?? new OidcNonceContext();
 
-        // Path to private key
+        $privateKeyPath = OAuthKeyMaterial::pathFromEnv('OAUTH_PRIVATE_KEY');
         $privateKey = new CryptKey(
-            $_ENV['OAUTH_PRIVATE_KEY'],
+            $privateKeyPath,
             null,
             false
         );

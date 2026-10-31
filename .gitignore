@@ -1,4 +1,6 @@
 .env
+.greenblue
+.gb/
 .idea
 .phpunit.cache
 logs/
@@ -13,7 +15,9 @@ build/
 cache/
 keys/
 dev-keys/
-.local/
+.local/*
+!.local/empty-secrets/
+!.local/empty-secrets/.gitkeep
 .env.prod
 .phinx.env
 .deploy-state/

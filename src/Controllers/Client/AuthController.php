@@ -237,7 +237,14 @@ class AuthController extends BaseAuthController
             ->filter(fn (string $id): bool => $id !== '')
             ->ifPresent(function (string $userId): void {
                 $this->idpLogging->security()->info('logout cache invalidate', ['user_uuid' => $userId]);
-                $this->redisCacheRepository->invalidateUser($userId);
+                try {
+                    $this->redisCacheRepository->invalidateUser($userId);
+                } catch (\Throwable $e) {
+                    $this->idpLogging->security()->warning('logout cache invalidate failed', [
+                        'user_uuid' => $userId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             });
 
         // Clear session

@@ -2,7 +2,8 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-Dotenv\Dotenv::createImmutable(__DIR__)->safeLoad();
+require_once __DIR__ . '/config/load-env.php';
+idp_load_process_env(__DIR__);
 
 $migrateDbName = getenv('MIGRATE_DB_NAME');
 if ($migrateDbName !== false && $migrateDbName !== '') {

@@ -7,14 +7,14 @@ Prereqs: Docker, IDP repo, ORK3 repo (default path below — use your checkout i
 | IDP | http://localhost:37080 | `amtgard-idp` |
 | ORK3 | http://localhost:19080 | `ork3-php8-app` |
 
-Both stacks join Docker network **`amtgard-idp-shared`** (created by IDP `scripts/dev-up.sh`).
+Both stacks join Docker network **`amtgard-idp-shared`** (created by IDP `gb /full/path/to/amtgard-idp deploy`).
 
 ## 1. Start IDP
 
 From **amtgard-idp** repo root:
 
 ```bash
-./scripts/dev-up.sh
+../generic-green-blue-deployment/bin/gb /full/path/to/amtgard-idp deploy
 docker compose --project-directory . -p amtgard-idp \
   -f docker/compose.prod.yml -f docker/compose.blue.yml -f docker/compose.dev.yml \
   -f docker/compose.local-ork.yml up -d --build amtgardidpapp

@@ -1,0 +1,37 @@
+{
+  "profiles": [
+    {
+      "name": "idp-http",
+      "inject": [
+        "APP_SECRET",
+        "DB_PASS",
+        "JWT_KEY",
+        "AUTH_SERVER_DEFUSE_KEY",
+        "OAUTH_ENCRYPTION_KEY",
+        "IDP_ORK_SHARED_SECRET",
+        "MANAGEMENT_KEY",
+        "MAILBOX_CODE_PEPPER",
+        "GOOGLE_CLIENT_SECRET",
+        "FACEBOOK_CLIENT_SECRET",
+        "DISCORD_CLIENT_SECRET",
+        "SENDGRID_API_KEY",
+        "AMAZON_SES_PASSWORD",
+        "OAUTH_PRIVATE_KEY",
+        "OAUTH_PUBLIC_KEY",
+        "APPLE_KEY_FILE_PATH"
+      ],
+      "runtime": [],
+      "inject_files": ["oauth-private.key", "oauth-public.key", "apple.p8"],
+      "runtime_files": [],
+      "socket": false
+    },
+    {
+      "name": "idp-worker",
+      "inject": ["DB_PASS"],
+      "runtime": [],
+      "inject_files": [],
+      "runtime_files": [],
+      "socket": false
+    }
+  ]
+}

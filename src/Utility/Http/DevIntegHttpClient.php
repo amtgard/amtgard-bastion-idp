@@ -51,7 +51,7 @@ final class DevIntegHttpClient extends Client
 
         $logger->info('DevIntegHttpClient answered request', ['host' => $host]);
 
-        if ($host === 'ork.amtgard.com') {
+        if (self::isOrkJsonApiRequest($host, $path)) {
             return self::orkResponse($request, $options);
         }
 
@@ -103,16 +103,52 @@ final class DevIntegHttpClient extends Client
         return ($query['code'] ?? '') === self::INTEG_DENY_CODE;
     }
 
+    private static function isOrkJsonApiRequest(string $host, string $path): bool
+    {
+        if ($host === 'ork.amtgard.com' || $host === 'ork3-php8-app') {
+            return true;
+        }
+
+        return str_contains($path, '/orkservice/Json/');
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     *
+     * @return array<string, mixed>
+     */
+    private static function orkRequestParams(RequestInterface $request, array $options): array
+    {
+        /** @var array<string, mixed> $params */
+        $params = is_array($options['query'] ?? null) ? $options['query'] : [];
+        if ($params === []) {
+            parse_str($request->getUri()->getQuery(), $parsed);
+            $params = is_array($parsed) ? $parsed : [];
+        }
+
+        /** @var array<string, mixed> $formParams */
+        $formParams = is_array($options['form_params'] ?? null) ? $options['form_params'] : [];
+        if ($formParams !== []) {
+            $params = array_replace_recursive($params, $formParams);
+        } else {
+            $body = (string) $request->getBody();
+            if ($body !== '' && strtoupper($request->getMethod()) === 'POST') {
+                parse_str($body, $parsedBody);
+                if (is_array($parsedBody) && $parsedBody !== []) {
+                    $params = array_replace_recursive($params, $parsedBody);
+                }
+            }
+        }
+
+        return $params;
+    }
+
     /**
      * @param array<string, mixed> $options
      */
     private static function orkResponse(RequestInterface $request, array $options): ResponseInterface
     {
-        $query = $options['query'] ?? [];
-        if ($query === []) {
-            parse_str($request->getUri()->getQuery(), $parsed);
-            $query = $parsed;
-        }
+        $query = self::orkRequestParams($request, $options);
 
         $call = $query['call'] ?? '';
         $requestPayload = $query['request'] ?? [];

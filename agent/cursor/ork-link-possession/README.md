@@ -2,28 +2,30 @@
 
 **Flow A (ORK mails the claim code, nonce callback):** [flow-a-ork-mail-plan.md](./flow-a-ork-mail-plan.md).
 
-**Agents implementing or changing this integration:** read [idp-contract.md](./idp-contract.md). It is the IDP behavior on `feature/ork-mailbox-possession`. The design and milestone files below still describe the original cutover. Where they disagree with the contract, the contract wins.
+**Product decision (2026-10):** **ORK linking always originates on the IDP.** The user must create an IDP account or sign in first, then start linking from `/resources/profile` via **Email Code** (Flow A v2 when `ORK_CLAIM_MAIL_VIA_ORK=1`). **Flow B is dropped:** we will not build ORK-initiated “go to the IDP and prove your IDP inbox” linking. Most players do not have IDP accounts yet; that path adds confusion. ORK “Log in with Amtgard” stays for **already linked** accounts only. Legacy ORK `/auth/connect` login/register handoffs remain in code for old integrations but are **compat-only—not the planned UX.**
 
-Design pack for replacing email-equality auto-link and password-as-proof with a one-time code sent to the mailbox that owns the account being claimed.
+**Status:** IDP milestones **I1–I6 are on `main`**. ORK checklist **O1–O5** in [milestones.md](./milestones.md) is still open (`amtgard/ORK3`). Human API copy: `templates/api.md` §7.
 
-**Scope of this pack:** documents only. No application code, migrations, or tests land until a follow-up implementation branch.
+**Agents:** read [idp-contract.md](./idp-contract.md) first. [detailed-design.md](./detailed-design.md) and older milestone cutover text are historical. Where they disagree with the contract, the contract wins.
 
-The bind crosses this IDP and ORK. IDP milestones in [milestones.md](./milestones.md) are implemented in this repo. ORK milestones are a companion checklist for `amtgard/ORK3`. Shipping one side alone leaves the elevation hole open. The release order at the top of the milestone checklist is the merge gate.
+Design pack for mailbox possession linking (codes to the mailbox that owns the account being claimed), replacing email-equality auto-link as the **planned** UX. Legacy password and `/auth/connect` handoff routes remain for compatibility until ORK and product remove them.
 
 ## Documents
 
 | Doc | Purpose |
 |-----|---------|
 | [idp-contract.md](./idp-contract.md) | IDP behavior as built. Source of truth for agents. |
-| [detailed-design.md](./detailed-design.md) | Original proof rule, flows, challenge record, file touch map |
-| [milestones.md](./milestones.md) | Ordered IDP and ORK checklist. I3–I5 cutover items were not what shipped. |
+| [detailed-design.md](./detailed-design.md) | **Historical** — pre-ship cutover; Flow B table rows are not product |
+| [milestones.md](./milestones.md) | IDP done checklist + open ORK work; I3 Flow B **cancelled** |
 
-## Current state
+## Shipped on IDP (`main`)
 
-- `POST /resources/profile/link-ork` links by ORK username and password (`ResourcesController::linkOrkAccount`).
-- `GET /auth/connect` plus `POST /auth/connect/login` and `POST /auth/connect/register` bind the mundane in an ORK-signed JWT to the IDP user whose email equals the JWT `email` claim (`ConnectController`, `OrkLinkTokenService`). Registration creates that user immediately. There is no mailer in this repo.
-- `POST /resources/link-ork-profile` writes `{idp_user_id, mundane_id}` for the ORK confidential client. `user_ork_profiles.mundane_id` is already unique.
-- ORK `feature/login-with-amtgard-workflow` (ORK3-tobias PR #19) auto-links on exact email match, accepts an ORK password as claim proof, and mails a 24-hour bearer URL. `ork_idp_auth.mundane_id` is not unique. `UpdatePlayer` still lets a park or kingdom officer rewrite a non-admin email with no message to the previous address.
+- **Planned UX:** signed-in user on `/resources/profile` → **Email Code** → `POST /resources/profile/link-ork-code-mail`; with `ORK_CLAIM_MAIL_VIA_ORK=1`, ORK mails the mundane mailbox and validates via `POST /resources/ork/validate-send-nonce` (see [flow-a-ork-mail-plan.md](./flow-a-ork-mail-plan.md)).
+- **Compat:** `POST /resources/profile/link-ork` with username + password still calls `OrkService::authorize`. `GET /auth/connect` login/register handoff (email in JWT, no possession). Flow B `/auth/connect/code` exists in code but is **not** product.
+- **Mirror:** `POST /resources/link-ork-profile` for the ORK confidential client; optional `challenge_id` enforcement when present.
+- **Email migration:** `POST /resources/profile/email/{start,confirm,commit}`.
+
+ORK-side elevation (auto-link, password claim, officer email rewrite) is **not** fixed by IDP alone; see milestones **O1–O5**.
 
 ## Hard constraints
 
