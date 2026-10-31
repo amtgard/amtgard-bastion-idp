@@ -4,9 +4,8 @@
 
 {% block content %}
     <div class="md:flex md:gap-6 md:items-start">
-        <!-- Desktop Logo -->
-        <div class="hidden md:block flex-shrink-0">
-             <a href="/"><img src="/images/idp_logo_small.jpeg" alt="Amtgard IDP Logo" class="rounded-lg"></a>
+        <div class="flex-shrink-0 mb-4 md:mb-0">
+            <a href="/"><img src="/images/idp_logo_small.jpeg" alt="Amtgard IDP Logo" class="rounded-lg max-w-[72px] md:max-w-none"></a>
         </div>
 
         <div>
@@ -14,9 +13,6 @@
                 <a href="/" class="hover:text-secondary-dark transition-colors">Amtgard Identity Provider</a>
             </h1>
             <p class="mb-4">
-                <a href="/" class="md:hidden float-left mr-3 mb-1">
-                    <img src="/images/idp_logo_tiny.jpeg" alt="Amtgard IDP" class="rounded">
-                </a>
                 Welcome to the Amtgard Identity Provider service. This service allows users to authenticate and authorize applications to access their Amtgard data.
             </p>
 

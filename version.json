@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-10-31.296",
+  "build_id": "2026-10-31.298",
   "date": "2026-10-31",
-  "revision": 296,
-  "branch": "fix/bootstrap-env-helper-dedupe"
+  "revision": 298,
+  "branch": "chore/frontend-asset-bundle"
 }
