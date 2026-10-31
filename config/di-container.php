@@ -5,22 +5,7 @@ declare(strict_types=1);
 use DI\Container;
 use DI\ContainerBuilder;
 
-function idp_runtime_environment(): ?string
-{
-    $environment = $_ENV['ENVIRONMENT'] ?? getenv('ENVIRONMENT');
-    if (!is_string($environment) || $environment === '') {
-        $environment = $_SERVER['ENVIRONMENT'] ?? null;
-    }
-
-    return is_string($environment) && $environment !== '' ? $environment : null;
-}
-
-function idp_is_prod_environment(): bool
-{
-    $environment = idp_runtime_environment();
-
-    return is_string($environment) && strtoupper($environment) === 'PROD';
-}
+require_once __DIR__ . '/idp-environment.php';
 
 function idp_di_compilation_directory(string $projectRoot): string
 {
