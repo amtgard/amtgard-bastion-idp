@@ -46,4 +46,30 @@ final class BaseLayoutAssetsTest extends TestCase
         $this->assertStringContainsString('Roboto Condensed', $css);
         $this->assertStringContainsString('Instrument Serif', $css);
     }
+
+    public function testBuiltStylesheetFontFacesHaveSingleWoff2Format(): void
+    {
+        $cssPath = dirname(__DIR__, 2) . '/public/assets/idp.css';
+        $css = (string) file_get_contents($cssPath);
+
+        // The copy-frontend-fonts step used to strip only the woff/ttf url(),
+        // leaving an orphan format("woff") / format("truetype") behind the
+        // woff2 url. Two format() hints for one url is invalid CSS, so
+        // browsers dropped every @font-face rule and neither the text fonts
+        // nor the Font Awesome icons loaded at all.
+        $this->assertStringNotContainsString('format("woff2") format(', $css);
+        $this->assertStringNotContainsString('format("woff")', $css);
+        $this->assertStringNotContainsString('format("truetype")', $css);
+
+        $matches = [];
+        $count = preg_match_all('#@font-face\{[^}]*\}#', $css, $matches);
+        $this->assertSame(11, $count, 'expected 11 inlined @font-face rules');
+        foreach ($matches[0] as $face) {
+            $this->assertMatchesRegularExpression(
+                '#src:url\(data:font/woff2;base64,[A-Za-z0-9+/=]+\) format\("woff2"\)\}#',
+                $face,
+                'each @font-face must have exactly one woff2 data URI and one format hint',
+            );
+        }
+    }
 }
