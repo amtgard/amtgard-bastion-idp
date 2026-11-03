@@ -23,7 +23,14 @@ const faWoff2 = ['fa-brands-400.woff2', 'fa-solid-900.woff2'];
 let css = readFileSync(cssPath, 'utf8');
 css = css.replaceAll('url(files/', 'url(/assets/fonts/');
 css = css.replaceAll('url(../webfonts/', 'url(/assets/webfonts/');
-css = css.replaceAll(/,\s*url\([^)]+\.(?:woff|ttf)\)/g, '');
+// Strip the woff/ttf fallback source AND its format() hint. Stripping only
+// the url() left an orphan format("woff") / format("truetype") behind the woff2
+// url, giving every @font-face a src of
+//   url(data:font/woff2;base64,...) format("woff2") format("woff")
+// Two format() hints for one url is invalid CSS, so browsers drop the whole
+// @font-face rule - which is why neither the text fonts nor the Font Awesome
+// icons loaded at all, even though the woff2 data itself was valid.
+css = css.replaceAll(/,\s*url\([^)]+\.(?:woff|ttf)\)\s*format\([^)]+\)/g, '');
 
 const resolveAssetPath = (dir, file) => {
   if (dir === 'fonts') {
