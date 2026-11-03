@@ -32,4 +32,18 @@ final class BaseLayoutAssetsTest extends TestCase
         $this->assertStringContainsString('data:font/woff2;base64,', $css);
         $this->assertDoesNotMatchRegularExpression('#url\\(/assets/(fonts|webfonts)/#', $css);
     }
+
+    public function testBuiltStylesheetCoversWeightsAndItalicsUsedInTemplates(): void
+    {
+        $cssPath = dirname(__DIR__, 2) . '/public/assets/idp.css';
+        $css = (string) file_get_contents($cssPath);
+        // PR94 shipped only Roboto Condensed 400/700 normal, dropping the
+        // 500/600 weights (font-medium/font-semibold) and all Roboto italics
+        // the old Google Fonts link provided. Every face below must be inlined.
+        $this->assertStringContainsString('font-weight:500', $css);
+        $this->assertStringContainsString('font-weight:600', $css);
+        $this->assertStringContainsString('font-style:italic', $css);
+        $this->assertStringContainsString('Roboto Condensed', $css);
+        $this->assertStringContainsString('Instrument Serif', $css);
+    }
 }

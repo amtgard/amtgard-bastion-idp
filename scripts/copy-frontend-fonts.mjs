@@ -8,7 +8,12 @@ const cssPath = join(assetsDir, 'idp.css');
 
 const fontSources = [
   ['@fontsource/roboto-condensed', 'roboto-condensed-latin-400-normal.woff2'],
+  ['@fontsource/roboto-condensed', 'roboto-condensed-latin-500-normal.woff2'],
+  ['@fontsource/roboto-condensed', 'roboto-condensed-latin-600-normal.woff2'],
   ['@fontsource/roboto-condensed', 'roboto-condensed-latin-700-normal.woff2'],
+  ['@fontsource/roboto-condensed', 'roboto-condensed-latin-400-italic.woff2'],
+  ['@fontsource/roboto-condensed', 'roboto-condensed-latin-500-italic.woff2'],
+  ['@fontsource/roboto-condensed', 'roboto-condensed-latin-700-italic.woff2'],
   ['@fontsource/instrument-serif', 'instrument-serif-latin-400-normal.woff2'],
   ['@fontsource/instrument-serif', 'instrument-serif-latin-400-italic.woff2'],
 ];
