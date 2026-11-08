@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.prod
     working_dir: /var/www
+    restart: unless-stopped
     volumes:
       # App code is copied into the image so each slot keeps its own release.
       # Only host secrets/config are shared across blue/green.
