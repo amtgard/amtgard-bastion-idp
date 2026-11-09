@@ -44,10 +44,10 @@ Check milestones in order. One branch → one commit → stack next branch from 
 
 **Branch:** `stack/psalm-7-m1-deps`
 
-- [ ] `composer require --dev vimeo/psalm:^7.0 psalm/plugin-phpunit:^1.0` (exact constraint after first `composer update`)
-- [ ] Confirm PHP 8.4 satisfies Psalm 7 runner requirements
-- [ ] No `psalm.xml` yet (or empty stub) — must not break CI expectations
-- [ ] Update [milestones.md](./milestones.md) appendix: Psalm version from lock
+- [x] `composer require --dev vimeo/psalm:^7.0 psalm/plugin-phpunit:^0.22` (`^1.0` not on Packagist yet; lock pins `7.2.0` / `0.22.0`)
+- [x] Confirm PHP 8.4 satisfies Psalm 7 runner requirements
+- [x] No `psalm.xml` yet (or empty stub) — must not break CI expectations
+- [x] Update [milestones.md](./milestones.md) appendix: Psalm version from lock
 
 **Gates:** `composer test`; `composer mutate`; `composer cs`; `composer stan` (unchanged behavior).
 
@@ -59,11 +59,11 @@ Check milestones in order. One branch → one commit → stack next branch from 
 
 **Branch:** `stack/psalm-7-m2-config`
 
-- [ ] Add `psalm.xml`: `projectFiles` = `src/`; `runTaintAnalysis="true"`; `loadLibraryStubs="true"`; `phpVersion="8.4"`
-- [ ] Register `psalm/plugin-phpunit` when ready to analyse tests later (may leave unused in M2)
-- [ ] Composer scripts: `psalm`, `psalm:ci`, `psalm:security` (SARIF → `build/`, gitignored)
-- [ ] Document intentional **scope mismatch**: PHPStan `src` + `tests`, Psalm `src` only
-- [ ] First local run allowed to fail (no baseline yet) — do not commit red run as gate
+- [x] Add `psalm.xml`: `projectFiles` = `src/`; `runTaintAnalysis="true"`; `loadLibraryStubs="true"`; `phpVersion="8.4"`
+- [x] Register `psalm/plugin-phpunit` when ready to analyse tests later (may leave unused in M2)
+- [x] Composer scripts: `psalm`, `psalm:ci`, `psalm:security` (SARIF → `build/`, gitignored)
+- [x] Document intentional **scope mismatch**: PHPStan `src` + `tests`, Psalm `src` only
+- [x] First local run allowed to fail (no baseline yet) — do not commit red run as gate
 
 **Gates:** `composer test`; `composer mutate`; `composer stan`; config validates (`vendor/bin/psalm --show-info=false` exits non-zero OK).
 
@@ -137,12 +137,18 @@ Check milestones in order. One branch → one commit → stack next branch from 
 
 ## Appendix template (fill per milestone)
 
-```markdown
-### Mx — title
-- Branch: `stack/psalm-7-mx-...`
-- Commit: `<sha>`
+### M1 — Dependencies
+- Branch: `stack/psalm-7-m1-deps`
+- Commit: `23fe15c`
+- Line coverage: 86.54% (PHPUnit text report)
+- Infection covered MSI: 91%
+- Psalm: N/A (no config)
+- Notes: `psalm/plugin-phpunit` locked at `0.22.0` (Psalm 7–compatible; no stable `1.0` yet). Gates: `test` pass (OAuth `file:///tmp/` keys in local `.env` for suite), `mutate` pass, `cs` N/A (no phpcs ruleset), `stan` 15 findings @ 1G (pre-existing, unchanged).
+
+### M2 — Configuration
+- Branch: `stack/psalm-7-m2-config`
+- Commit: `<pending>`
 - Line coverage: …%
 - Infection covered MSI: …%
-- Psalm: ERROR …, SECURITY …, baseline lines …
-- Notes: …
-```
+- Psalm: ERROR 1286 (no baseline), SECURITY (see first scan)
+- Notes: First `vendor/bin/psalm` on `src/` before baseline; exit non-zero expected.

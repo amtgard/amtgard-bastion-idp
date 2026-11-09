@@ -7,3 +7,12 @@ Adopt [Psalm 7](https://psalm.dev/articles/psalm-7) on the Amtgard IDP Slim app 
 **Deliverables:** [implementation-plan.md](./implementation-plan.md) · [milestones.md](./milestones.md) · [risks.md](./risks.md)
 
 **Resume:** stack tip after planning → `stack/psalm-7` (this pack only). First implementation branch → `stack/psalm-7-m1-deps`.
+
+## Analyzer scope (M2+)
+
+| Tool | Paths |
+|------|--------|
+| `composer stan` | `src/`, `tests/` |
+| `composer psalm` | `src/` only (`tests/` deferred; PHPUnit plugin registered for a later scope widen) |
+
+Taint analysis is on by default in Psalm 7 (`runTaintAnalysis` in `psalm.xml`). SARIF output from `composer psalm:security` lands under `build/` (gitignored).
