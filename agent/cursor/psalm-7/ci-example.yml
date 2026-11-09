@@ -1,0 +1,64 @@
+# Psalm 7 CI example — NOT wired in-repo (no `.github/workflows/` today).
+# Copy to `.github/workflows/psalm.yml` (or merge jobs into an existing workflow).
+# Pin image tag to the lockfile Psalm version (see composer.lock → vimeo/psalm).
+
+name: IDP quality gates (example)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  # Required for SARIF → Code Scanning (private repos need GitHub Advanced Security):
+  security-events: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: php-actions/composer@v6
+        with:
+          php_version: "8.4"
+          version: "2"
+          command: test
+
+  stan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: php-actions/composer@v6
+        with:
+          php_version: "8.4"
+          extensions: redis
+          command: stan
+
+  psalm:
+    name: Psalm
+    runs-on: ubuntu-latest
+    container:
+      # Match composer.lock: vimeo/psalm 7.2.x
+      image: ghcr.io/psalm/psalm:7.2.0
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        env:
+          COMPOSER_ALLOW_SUPERUSER: "1"
+        run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Run Psalm (PR annotations)
+        run: psalm -c psalm.xml --output-format=github --no-cache --no-progress
+      - name: Run Psalm (SARIF for Code Scanning)
+        run: psalm -c psalm.xml --no-cache --report=results.sarif
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  # Optional P2 — composer audit beside static analysis:
+  # audit:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #     - run: composer audit

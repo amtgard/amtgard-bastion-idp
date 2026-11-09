@@ -168,3 +168,19 @@ Check milestones in order. One branch → one commit → stack next branch from 
 - Infection covered MSI: 91% (mutate not re-run)
 - Psalm: baseline 1284 codes (−2 vs M3); 2592 XML lines
 - Notes: Built-in PSR-7 stubs sufficient (no `stubs/`). `RedirectValidator` taint escapes; `ScriptAlertResponse` sanitizes redirect URL. Aligns with security review open-redirect discussion (manual AGREE items unchanged).
+
+### M5 — Dual analyse
+- Branch: `stack/psalm-7-m5-dual-analyse`
+- Commit: `613d5be`
+- Line coverage: 86.54%
+- Infection covered MSI: 91%
+- Psalm: baseline 2592 lines
+- Notes: `composer analyse` = `@stan` + `@psalm`. Stan uses `--memory-limit=1G`.
+
+### M6 — CI example
+- Branch: `stack/psalm-7-m6-ci`
+- Commit: `cba9643`
+- Line coverage: 86.54%
+- Infection covered MSI: 91% (mutate not re-run this session)
+- Psalm: baseline 2592 lines; `composer psalm:ci` exit 0
+- Notes: `agent/cursor/psalm-7/ci-example.yml` (parallel `test` / `stan` / `psalm` + SARIF). No `.github/workflows`. `phpstan.neon` + bootstrap on this commit; unsafe-redirect unit test.

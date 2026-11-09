@@ -29,9 +29,9 @@ Taint analysis is on by default in Psalm 7 (`runTaintAnalysis` in `psalm.xml`). 
 | `composer psalm:security` | ~7–15s | writes `build/psalm-security.sarif` |
 | `composer cs` | N/A | no PHPCS ruleset in repo |
 
-PHPStan may need `php -d memory_limit=1G vendor/bin/phpstan analyse src tests` on memory-constrained hosts; default `composer stan` matches existing project script.
+`composer stan` uses `phpstan.neon` (level 0 + config bootstrap) and passes `--memory-limit=1G` to avoid parallel-worker OOM on large trees.
 
-**Local gates (after M3):** `composer test`, `composer mutate`, `composer stan`, **`composer psalm`** (green via committed `psalm-baseline.xml`; single baseline for types + taint).
+**CI:** copy [ci-example.yml](./ci-example.yml) into `.github/workflows/` when ready. Pin `ghcr.io/psalm/psalm` to the lockfile version; Code Scanning needs GHAS or a public repository.
 
 ## App taint model (M4)
 
