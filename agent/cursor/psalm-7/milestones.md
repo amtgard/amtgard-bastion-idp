@@ -1,0 +1,148 @@
+# Psalm 7 — milestones
+
+**Stack base:** `main` @ `d2bf400` (docs/nginx merged). **Planning branch:** `stack/psalm-7` (docs only).
+
+**Resume:** After M0 commit, checkout `stack/psalm-7-m1-deps` from `stack/psalm-7` tip.
+
+**Companion:** [README.md](./README.md) · [implementation-plan.md](./implementation-plan.md) · [risks.md](./risks.md)
+
+Check milestones in order. One branch → one commit → stack next branch from prior tip.
+
+---
+
+## Stacked branch table
+
+| # | Branch | Single-commit goal |
+|---|--------|-------------------|
+| M0 | `stack/psalm-7` | Planning pack under `agent/cursor/psalm-7/` |
+| M1 | `stack/psalm-7-m1-deps` | Add Psalm 7 + PHPUnit plugin dev-deps; lockfile only |
+| M2 | `stack/psalm-7-m2-config` | `psalm.xml`, `composer psalm` scripts, `src/` scope, taint on |
+| M3 | `stack/psalm-7-m3-baseline` | First green `composer psalm` via committed baseline |
+| M4 | `stack/psalm-7-m4-taint-stubs` | PSR-7 gaps, `RedirectValidator`, Twig/sink annotations |
+| M5 | `stack/psalm-7-m5-dual-analyse` | `composer analyse`, docs in README; optional baseline shrink |
+| M6 | `stack/psalm-7-m6-ci` | CI recipe: `--init-ci`, SARIF, Code Scanning (wire or doc-only) |
+
+---
+
+## M0 — Planning
+
+**Branch:** `stack/psalm-7`
+
+- [x] `agent/cursor/psalm-7/README.md` — scope, non-goals, Psalm 7 article link
+- [x] `implementation-plan.md` — architecture, PHPStan coexistence, Slim taint, CI, baseline
+- [x] `milestones.md` — this file
+- [x] `risks.md` — false positives, vendor, dual analyzer cost
+- [x] No `vimeo/psalm` in `composer.json` on this branch
+
+**Gates:** N/A (docs). Parent agent may merge plan to `main` separately.
+
+**Exit:** Implementer starts M1 from this tip.
+
+---
+
+## M1 — Dependencies
+
+**Branch:** `stack/psalm-7-m1-deps`
+
+- [ ] `composer require --dev vimeo/psalm:^7.0 psalm/plugin-phpunit:^1.0` (exact constraint after first `composer update`)
+- [ ] Confirm PHP 8.4 satisfies Psalm 7 runner requirements
+- [ ] No `psalm.xml` yet (or empty stub) — must not break CI expectations
+- [ ] Update [milestones.md](./milestones.md) appendix: Psalm version from lock
+
+**Gates:** `composer test`; `composer mutate`; `composer cs`; `composer stan` (unchanged behavior).
+
+**Exit:** `vendor/bin/psalm --version` works.
+
+---
+
+## M2 — Configuration
+
+**Branch:** `stack/psalm-7-m2-config`
+
+- [ ] Add `psalm.xml`: `projectFiles` = `src/`; `runTaintAnalysis="true"`; `loadLibraryStubs="true"`; `phpVersion="8.4"`
+- [ ] Register `psalm/plugin-phpunit` when ready to analyse tests later (may leave unused in M2)
+- [ ] Composer scripts: `psalm`, `psalm:ci`, `psalm:security` (SARIF → `build/`, gitignored)
+- [ ] Document intentional **scope mismatch**: PHPStan `src` + `tests`, Psalm `src` only
+- [ ] First local run allowed to fail (no baseline yet) — do not commit red run as gate
+
+**Gates:** `composer test`; `composer mutate`; `composer stan`; config validates (`vendor/bin/psalm --show-info=false` exits non-zero OK).
+
+**Exit:** Config committed; team can reproduce failing scan locally.
+
+---
+
+## M3 — Baseline
+
+**Branch:** `stack/psalm-7-m3-baseline`
+
+- [ ] Run `vendor/bin/psalm --set-baseline=psalm-baseline.xml` on `src/`
+- [ ] Record baseline stats in milestone appendix (total issues, SECURITY count)
+- [ ] Add `composer psalm` to “full gate” list in root README or agent doc if appropriate
+- [ ] Enable `findUnusedBaselineEntry="true"` when supported
+- [ ] Decision: single baseline vs split taint baseline (default: **single** unless SECURITY > 50% of entries)
+
+**Gates:** `composer test`; `composer mutate`; `composer stan`; **`composer psalm` exit 0**.
+
+**Exit:** Green Psalm on default developer workflow.
+
+---
+
+## M4 — Taint stubs and app annotations
+
+**Branch:** `stack/psalm-7-m4-taint-stubs`
+
+- [ ] Verify built-in PSR-7 stubs cover Slim request usage; add `stubs/` only for gaps
+- [ ] Annotate `RedirectValidator::sanitize*` with taint escape + flow (see implementation plan)
+- [ ] Review `ScriptAlertResponse`, `BaseAuthController` Location headers, OAuth redirects for real issues vs baseline noise — fix real, suppress with comment only if intentional
+- [ ] Twig: confirm `render()` sink behavior; auto-escaped templates vs raw context keys
+- [ ] Shrink baseline where annotations fix SECURITY without behavior change
+- [ ] Cross-reference new SECURITY findings to [security-review-owasp-cisa.md](../security-review-owasp-cisa.md) (tag AGREE items only in notes)
+
+**Gates:** `composer test`; `composer mutate`; `composer stan`; `composer psalm`; no regression in baseline count without justification in commit message.
+
+**Exit:** Documented app taint model; measurably fewer false open-redirect / HTML paths.
+
+---
+
+## M5 — Dual analyse workflow
+
+**Branch:** `stack/psalm-7-m5-dual-analyse`
+
+- [ ] Add `composer analyse` → `stan` then `psalm` (fail fast)
+- [ ] Optional: chip 10–20% highest-value baseline entries (types or SECURITY) with code fixes
+- [ ] Update `agent/cursor/psalm-7/README.md` appendix with commands and expected runtime
+- [ ] Confirm `phpcs` still independent (no ruleset in repo is OK)
+
+**Gates:** `composer analyse`; full test + mutation gates.
+
+**Exit:** One command runs both analyzers; PHPStan remains required.
+
+---
+
+## M6 — CI and SARIF
+
+**Branch:** `stack/psalm-7-m6-ci`
+
+- [ ] Run `vendor/bin/psalm --init-ci`; commit `.github/workflows/psalm.yml` **or** `agent/cursor/psalm-7/ci-example.yml` if team defers workflow
+- [ ] Document SARIF upload and `ghcr.io/psalm/psalm` image pin
+- [ ] Document parallel job layout: `test` / `mutate` / `stan` / `psalm`
+- [ ] Optional: `composer audit` in same workflow (security review P2)
+- [ ] Note: Code Scanning requires GitHub Advanced Security or public repo policy
+
+**Gates:** If workflow committed: workflow YAML valid; local `composer psalm:ci` dry-run documented. If doc-only: reviewer sign-off in milestone appendix.
+
+**Exit:** CI path is unambiguous for the next human merge.
+
+---
+
+## Appendix template (fill per milestone)
+
+```markdown
+### Mx — title
+- Branch: `stack/psalm-7-mx-...`
+- Commit: `<sha>`
+- Line coverage: …%
+- Infection covered MSI: …%
+- Psalm: ERROR …, SECURITY …, baseline lines …
+- Notes: …
+```

@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-11-09.312",
+  "build_id": "2026-11-09.320",
   "date": "2026-11-09",
-  "revision": 312,
-  "branch": "fix/docs-nginx-routing"
+  "revision": 320,
+  "branch": "stack/psalm-7"
 }
