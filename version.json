@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-11-09.323",
+  "build_id": "2026-11-09.324",
   "date": "2026-11-09",
-  "revision": 323,
-  "branch": "stack/psalm-7-m3-baseline"
+  "revision": 324,
+  "branch": "stack/psalm-7-m4-taint-stubs"
 }

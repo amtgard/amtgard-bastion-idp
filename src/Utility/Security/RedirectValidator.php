@@ -8,6 +8,9 @@ namespace Amtgard\IdP\Utility\Security;
  */
 class RedirectValidator
 {
+    /**
+     * @psalm-assert-if-true non-empty-string $url
+     */
     public static function isSafe(?string $url): bool
     {
         if ($url === null || $url === '') {
@@ -35,13 +38,29 @@ class RedirectValidator
         return $requestHost !== null && strcasecmp($host, $requestHost) === 0;
     }
 
+    /**
+     * @psalm-taint-escape url
+     * @psalm-flow ($url) -> return
+     */
     public static function sanitize(?string $url, string $fallback): string
     {
-        return self::isSafe($url) ? $url : $fallback;
+        if (!self::isSafe($url)) {
+            return $fallback;
+        }
+
+        return $url;
     }
 
+    /**
+     * @psalm-taint-escape url
+     * @psalm-flow ($url) -> return
+     */
     public static function sanitizeOrNull(?string $url): ?string
     {
-        return self::isSafe($url) ? $url : null;
+        if (!self::isSafe($url)) {
+            return null;
+        }
+
+        return $url;
     }
 }

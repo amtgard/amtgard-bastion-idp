@@ -2558,12 +2558,6 @@
     </UnusedClass>
   </file>
   <file src="src/Utility/Security/RedirectValidator.php">
-    <InvalidNullableReturnType>
-      <code><![CDATA[string]]></code>
-    </InvalidNullableReturnType>
-    <NullableReturnStatement>
-      <code><![CDATA[self::isSafe($url) ? $url : $fallback]]></code>
-    </NullableReturnStatement>
     <UnusedClass>
       <code><![CDATA[RedirectValidator]]></code>
     </UnusedClass>

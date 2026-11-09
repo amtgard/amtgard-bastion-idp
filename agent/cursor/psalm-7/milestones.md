@@ -91,12 +91,12 @@ Check milestones in order. One branch → one commit → stack next branch from 
 
 **Branch:** `stack/psalm-7-m4-taint-stubs`
 
-- [ ] Verify built-in PSR-7 stubs cover Slim request usage; add `stubs/` only for gaps
-- [ ] Annotate `RedirectValidator::sanitize*` with taint escape + flow (see implementation plan)
-- [ ] Review `ScriptAlertResponse`, `BaseAuthController` Location headers, OAuth redirects for real issues vs baseline noise — fix real, suppress with comment only if intentional
-- [ ] Twig: confirm `render()` sink behavior; auto-escaped templates vs raw context keys
-- [ ] Shrink baseline where annotations fix SECURITY without behavior change
-- [ ] Cross-reference new SECURITY findings to [security-review-owasp-cisa.md](../security-review-owasp-cisa.md) (tag AGREE items only in notes)
+- [x] Verify built-in PSR-7 stubs cover Slim request usage; add `stubs/` only for gaps
+- [x] Annotate `RedirectValidator::sanitize*` with taint escape + flow (see implementation plan)
+- [x] Review `ScriptAlertResponse`, `BaseAuthController` Location headers, OAuth redirects for real issues vs baseline noise — fix real, suppress with comment only if intentional
+- [x] Twig: confirm `render()` sink behavior; auto-escaped templates vs raw context keys
+- [x] Shrink baseline where annotations fix SECURITY without behavior change
+- [x] Cross-reference new SECURITY findings to [security-review-owasp-cisa.md](../security-review-owasp-cisa.md) (tag AGREE items only in notes)
 
 **Gates:** `composer test`; `composer mutate`; `composer stan`; `composer psalm`; no regression in baseline count without justification in commit message.
 
@@ -160,3 +160,11 @@ Check milestones in order. One branch → one commit → stack next branch from 
 - Infection covered MSI: 91%
 - Psalm: baselined ~1286 issues, 2598 XML lines, 195 files; single `psalm-baseline.xml`
 - Notes: `findUnusedBaselineEntry="true"`. `composer psalm` exit 0.
+
+### M4 — Taint stubs
+- Branch: `stack/psalm-7-m4-taint-stubs`
+- Commit: `<pending>`
+- Line coverage: 86.54%
+- Infection covered MSI: 91%
+- Psalm: baseline 2592 lines (−6 vs M3); `RedirectValidator` type baseline entries removed
+- Notes: Built-in PSR-7 stubs sufficient (no `stubs/`). `ScriptAlertResponse` sanitizes redirect URL. Aligns with security review open-redirect / XSS discussion (manual AGREE items unchanged).
