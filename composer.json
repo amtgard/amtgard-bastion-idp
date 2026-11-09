@@ -59,7 +59,11 @@
         "ses:live": "phpunit -c phpunit.live.xml --testdox",
         "integ:coverage": "bash scripts/integ-coverage.sh",
         "cs": "phpcs",
-        "stan": "phpstan analyse src tests",
+        "stan": "phpstan analyse --memory-limit=1G src tests",
+        "analyse": [
+            "@stan",
+            "@psalm"
+        ],
         "psalm": "psalm --no-cache",
         "psalm:ci": "psalm --no-cache --output-format=github",
         "psalm:security": "psalm --no-cache --report=build/psalm-security.sarif",

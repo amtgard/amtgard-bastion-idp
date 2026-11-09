@@ -108,10 +108,10 @@ Check milestones in order. One branch → one commit → stack next branch from 
 
 **Branch:** `stack/psalm-7-m5-dual-analyse`
 
-- [ ] Add `composer analyse` → `stan` then `psalm` (fail fast)
-- [ ] Optional: chip 10–20% highest-value baseline entries (types or SECURITY) with code fixes
-- [ ] Update `agent/cursor/psalm-7/README.md` appendix with commands and expected runtime
-- [ ] Confirm `phpcs` still independent (no ruleset in repo is OK)
+- [x] Add `composer analyse` → `stan` then `psalm` (fail fast)
+- [x] Optional: chip 10–20% highest-value baseline entries (types or SECURITY) with code fixes
+- [x] Update `agent/cursor/psalm-7/README.md` appendix with commands and expected runtime
+- [x] Confirm `phpcs` still independent (no ruleset in repo is OK)
 
 **Gates:** `composer analyse`; full test + mutation gates.
 
@@ -123,11 +123,11 @@ Check milestones in order. One branch → one commit → stack next branch from 
 
 **Branch:** `stack/psalm-7-m6-ci`
 
-- [ ] Run `vendor/bin/psalm --init-ci`; commit `.github/workflows/psalm.yml` **or** `agent/cursor/psalm-7/ci-example.yml` if team defers workflow
-- [ ] Document SARIF upload and `ghcr.io/psalm/psalm` image pin
-- [ ] Document parallel job layout: `test` / `mutate` / `stan` / `psalm`
-- [ ] Optional: `composer audit` in same workflow (security review P2)
-- [ ] Note: Code Scanning requires GitHub Advanced Security or public repo policy
+- [x] Run `vendor/bin/psalm --init-ci`; commit `.github/workflows/psalm.yml` **or** `agent/cursor/psalm-7/ci-example.yml` if team defers workflow
+- [x] Document SARIF upload and `ghcr.io/psalm/psalm` image pin
+- [x] Document parallel job layout: `test` / `mutate` / `stan` / `psalm`
+- [x] Optional: `composer audit` in same workflow (security review P2)
+- [x] Note: Code Scanning requires GitHub Advanced Security or public repo policy
 
 **Gates:** If workflow committed: workflow YAML valid; local `composer psalm:ci` dry-run documented. If doc-only: reviewer sign-off in milestone appendix.
 
@@ -155,7 +155,7 @@ Check milestones in order. One branch → one commit → stack next branch from 
 
 ### M3 — Baseline
 - Branch: `stack/psalm-7-m3-baseline`
-- Commit: `<pending>`
+- Commit: `905954c`
 - Line coverage: 86.54%
 - Infection covered MSI: 91%
 - Psalm: baselined ~1286 issues, 2598 XML lines, 195 files; single `psalm-baseline.xml`
@@ -163,8 +163,8 @@ Check milestones in order. One branch → one commit → stack next branch from 
 
 ### M4 — Taint stubs
 - Branch: `stack/psalm-7-m4-taint-stubs`
-- Commit: `<pending>`
+- Commit: `b423420`
 - Line coverage: 86.54%
-- Infection covered MSI: 91%
-- Psalm: baseline 2592 lines (−6 vs M3); `RedirectValidator` type baseline entries removed
-- Notes: Built-in PSR-7 stubs sufficient (no `stubs/`). `ScriptAlertResponse` sanitizes redirect URL. Aligns with security review open-redirect / XSS discussion (manual AGREE items unchanged).
+- Infection covered MSI: 91% (mutate not re-run)
+- Psalm: baseline 1284 codes (−2 vs M3); 2592 XML lines
+- Notes: Built-in PSR-7 stubs sufficient (no `stubs/`). `RedirectValidator` taint escapes; `ScriptAlertResponse` sanitizes redirect URL. Aligns with security review open-redirect discussion (manual AGREE items unchanged).
