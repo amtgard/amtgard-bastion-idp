@@ -48,6 +48,7 @@ GB_GIT_BRANCH="main"
 GB_SESSION_REDIS_DB="1"
 
 GB_HOOK_AFTER_SLOT_UP="scripts/gb-after-slot-up.sh"
+GB_HOOK_AFTER_SLOT_HEALTH="scripts/gb-health-developer-docs.sh"
 GB_HOOK_HEV_AFTER_RENDER="scripts/gb-hev-after-render.sh"
 GB_HOOK_PRE_DEPLOY="scripts/gb-pre-hev-sync.sh"
 
