@@ -75,11 +75,11 @@ Check milestones in order. One branch → one commit → stack next branch from 
 
 **Branch:** `stack/psalm-7-m3-baseline`
 
-- [ ] Run `vendor/bin/psalm --set-baseline=psalm-baseline.xml` on `src/`
-- [ ] Record baseline stats in milestone appendix (total issues, SECURITY count)
-- [ ] Add `composer psalm` to “full gate” list in root README or agent doc if appropriate
-- [ ] Enable `findUnusedBaselineEntry="true"` when supported
-- [ ] Decision: single baseline vs split taint baseline (default: **single** unless SECURITY > 50% of entries)
+- [x] Run `vendor/bin/psalm --set-baseline=psalm-baseline.xml` on `src/`
+- [x] Record baseline stats in milestone appendix (total issues, SECURITY count)
+- [x] Add `composer psalm` to “full gate” list in root README or agent doc if appropriate
+- [x] Enable `findUnusedBaselineEntry="true"` when supported
+- [x] Decision: single baseline vs split taint baseline (default: **single** unless SECURITY > 50% of entries)
 
 **Gates:** `composer test`; `composer mutate`; `composer stan`; **`composer psalm` exit 0**.
 
@@ -147,8 +147,16 @@ Check milestones in order. One branch → one commit → stack next branch from 
 
 ### M2 — Configuration
 - Branch: `stack/psalm-7-m2-config`
+- Commit: `44b6a68`
+- Line coverage: 86.54% (unchanged)
+- Infection covered MSI: 91% (unchanged from M1)
+- Psalm: ERROR 1286, INFO 579, baseline 0 lines
+- Notes: `vendor/bin/psalm --show-info=false` exit 2 as expected. Scope table in agent README.
+
+### M3 — Baseline
+- Branch: `stack/psalm-7-m3-baseline`
 - Commit: `<pending>`
-- Line coverage: …%
-- Infection covered MSI: …%
-- Psalm: ERROR 1286 (no baseline), SECURITY (see first scan)
-- Notes: First `vendor/bin/psalm` on `src/` before baseline; exit non-zero expected.
+- Line coverage: 86.54%
+- Infection covered MSI: 91%
+- Psalm: baselined ~1286 issues, 2598 XML lines, 195 files; single `psalm-baseline.xml`
+- Notes: `findUnusedBaselineEntry="true"`. `composer psalm` exit 0.

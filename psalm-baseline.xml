@@ -1,0 +1,2598 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<files psalm-version="7.2.0@7c1fcd8a86b7912663bffd385da323dd8dcce1c5">
+  <file src="src/Controllers/Api/ApiController.php">
+    <UnusedClass>
+      <code><![CDATA[ApiController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Client/AppleAuthController.php">
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getFirstName]]></code>
+      <code><![CDATA[getLastName]]></code>
+    </UndefinedInterfaceMethod>
+    <UnusedClass>
+      <code><![CDATA[AppleAuthController]]></code>
+    </UnusedClass>
+    <UnusedClosureParam>
+      <code><![CDATA[$token]]></code>
+    </UnusedClosureParam>
+  </file>
+  <file src="src/Controllers/Client/AuthController.php">
+    <UndefinedMagicMethod>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[AuthController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Client/BaseAuthController.php">
+    <InaccessibleProperty>
+      <code><![CDATA[$login->user]]></code>
+    </InaccessibleProperty>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[finalizeAuthorization]]></code>
+      <code><![CDATA[userForProviderLogin]]></code>
+    </PossiblyUnusedMethod>
+    <PossiblyUnusedProperty>
+      <code><![CDATA[$amtgardIdpJwt]]></code>
+      <code><![CDATA[$idpLogging]]></code>
+      <code><![CDATA[$logger]]></code>
+    </PossiblyUnusedProperty>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getAvatarUrl]]></code>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Controllers/Client/ConnectController.php">
+    <InvalidArrayOffset>
+      <code><![CDATA[$result['error']]]></code>
+      <code><![CDATA[$result['error']]]></code>
+    </InvalidArrayOffset>
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['ORK_BASE_URL'] ?? '')]]></code>
+    </RedundantCast>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[ConnectController]]></code>
+    </UnusedClass>
+    <UnusedVariable>
+      <code><![CDATA[$createdUser]]></code>
+    </UnusedVariable>
+  </file>
+  <file src="src/Controllers/Client/DiscordAuthController.php">
+    <UnusedClass>
+      <code><![CDATA[DiscordAuthController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Client/FacebookAuthController.php">
+    <PossiblyUnusedParam>
+      <code><![CDATA[$request]]></code>
+    </PossiblyUnusedParam>
+    <UnusedClass>
+      <code><![CDATA[FacebookAuthController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Client/GoogleAuthController.php">
+    <UnusedClass>
+      <code><![CDATA[GoogleAuthController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/HomeController.php">
+    <PossiblyUnusedParam>
+      <code><![CDATA[$request]]></code>
+    </PossiblyUnusedParam>
+    <UnusedClass>
+      <code><![CDATA[HomeController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Management/ClientAccessController.php">
+    <RedundantCondition>
+      <code><![CDATA[is_array($params)]]></code>
+    </RedundantCondition>
+    <TypeDoesNotContainType>
+      <code><![CDATA[null]]></code>
+    </TypeDoesNotContainType>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[setIamService]]></code>
+      <code><![CDATA[setIamServiceFormat]]></code>
+      <code><![CDATA[setRedirectUri]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[ClientAccessController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Management/ManagementController.php">
+    <PossiblyUnusedParam>
+      <code><![CDATA[$request]]></code>
+      <code><![CDATA[$request]]></code>
+    </PossiblyUnusedParam>
+    <RedundantCondition>
+      <code><![CDATA[is_array($params)]]></code>
+    </RedundantCondition>
+    <TypeDoesNotContainType>
+      <code><![CDATA[null]]></code>
+    </TypeDoesNotContainType>
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[deleteExpiredAuthCodes]]></code>
+      <code><![CDATA[deleteExpiredTokens]]></code>
+      <code><![CDATA[deleteExpiredTokens]]></code>
+      <code><![CDATA[deleteOrphanedRefreshTokens]]></code>
+      <code><![CDATA[setClientSecret]]></code>
+      <code><![CDATA[setIamService]]></code>
+      <code><![CDATA[setIamServiceFormat]]></code>
+      <code><![CDATA[setIdentifier]]></code>
+      <code><![CDATA[setIsConfidential]]></code>
+      <code><![CDATA[setIsDev]]></code>
+      <code><![CDATA[setName]]></code>
+      <code><![CDATA[setRedirectUri]]></code>
+    </UndefinedInterfaceMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getClientSecret]]></code>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getIamService]]></code>
+      <code><![CDATA[getIamServiceFormat]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getIsConfidential]]></code>
+      <code><![CDATA[getIsDev]]></code>
+      <code><![CDATA[getName]]></code>
+      <code><![CDATA[getRedirectUri]]></code>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+    <UnnecessaryVarAnnotation>
+      <code><![CDATA[ClientAccess]]></code>
+    </UnnecessaryVarAnnotation>
+    <UnusedClass>
+      <code><![CDATA[ManagementController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Resource/ClientIamRequestInterpreter.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[client]]></code>
+      <code><![CDATA[findUserByEmail]]></code>
+      <code><![CDATA[requireUser]]></code>
+      <code><![CDATA[requireUserAndLogin]]></code>
+      <code><![CDATA[requireUserAndLoginFromQuery]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getId]]></code>
+    </UndefinedMagicMethod>
+    <UnusedMethod>
+      <code><![CDATA[requireLoginForUser]]></code>
+    </UnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$idpLogging]]></code>
+      <code><![CDATA[$users]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Controllers/Resource/ClientPolicyClaimsController.php">
+    <UndefinedMagicMethod>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[ClientPolicyClaimsController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Resource/ClientServiceFormatController.php">
+    <UndefinedMagicMethod>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[ClientServiceFormatController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Resource/ClientUserLookupController.php">
+    <UndefinedMagicMethod>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[ClientUserLookupController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Resource/ClientUserMetadataController.php">
+    <UndefinedMagicMethod>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[ClientUserMetadataController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Resource/LogsController.php">
+    <UnusedClass>
+      <code><![CDATA[LogsController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Resource/LowLatencyController.php">
+    <UndefinedMagicMethod>
+      <code><![CDATA[getHandle]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[LowLatencyController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Resource/OpenApi.php">
+    <UnusedClass>
+      <code><![CDATA[OpenApi]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Resource/OrkAccountUnlinkController.php">
+    <UndefinedMagicMethod>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[OrkAccountUnlinkController]]></code>
+    </UnusedClass>
+    <UnusedParam>
+      <code><![CDATA[$request]]></code>
+    </UnusedParam>
+  </file>
+  <file src="src/Controllers/Resource/OrkIntegrationController.php">
+    <UnusedClass>
+      <code><![CDATA[OrkIntegrationController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Resource/ResourcesController.php">
+    <PossiblyUnusedParam>
+      <code><![CDATA[$request]]></code>
+      <code><![CDATA[$request]]></code>
+      <code><![CDATA[$request]]></code>
+      <code><![CDATA[$request]]></code>
+    </PossiblyUnusedParam>
+    <RedundantCast>
+      <code><![CDATA[(int) $existing->getUserId()]]></code>
+      <code><![CDATA[(string) ($_ENV['APP_URL'] ?? '')]]></code>
+    </RedundantCast>
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[findActiveClientsForUser]]></code>
+      <code><![CDATA[findActiveClientsForUser]]></code>
+      <code><![CDATA[getClientEntity]]></code>
+    </UndefinedInterfaceMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getConsumedAt]]></code>
+      <code><![CDATA[getExpiresAt]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getIdpUserId]]></code>
+      <code><![CDATA[getIdpUserId]]></code>
+      <code><![CDATA[getMundaneId]]></code>
+      <code><![CDATA[getMundaneId]]></code>
+      <code><![CDATA[getPurpose]]></code>
+      <code><![CDATA[getSentToHash]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[ResourcesController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Server/OAuth/DiscoveryController.php">
+    <UnusedClass>
+      <code><![CDATA[DiscoveryController]]></code>
+    </UnusedClass>
+    <UnusedParam>
+      <code><![CDATA[$request]]></code>
+      <code><![CDATA[$request]]></code>
+    </UnusedParam>
+  </file>
+  <file src="src/Controllers/Server/OAuth/OAuthApproveAction.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[handle]]></code>
+    </PossiblyUnusedMethod>
+    <RedundantCast>
+      <code><![CDATA[(string) $sessionUserId]]></code>
+    </RedundantCast>
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[fetchBy]]></code>
+    </UndefinedInterfaceMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getId]]></code>
+    </UndefinedMagicMethod>
+    <UnusedVariable>
+      <code><![CDATA[$clientId]]></code>
+      <code><![CDATA[$userUuid]]></code>
+    </UnusedVariable>
+  </file>
+  <file src="src/Controllers/Server/OAuth/OAuthAuthorizeAction.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[buildPostAuthenticationRedirectUrl]]></code>
+      <code><![CDATA[handle]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[fetchBy]]></code>
+      <code><![CDATA[getUserEntityById]]></code>
+      <code><![CDATA[getUserEntityById]]></code>
+      <code><![CDATA[getUserEntityById]]></code>
+    </UndefinedInterfaceMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Controllers/Server/OAuth/OAuthFlowErrorRenderer.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[renderOAuthFlowError]]></code>
+      <code><![CDATA[renderOAuthTokenError]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Controllers/Server/OAuth/OAuthSessionAuthRequestStore.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[clearApproval]]></code>
+      <code><![CDATA[clearAuthRequest]]></code>
+      <code><![CDATA[clearAuthorizationState]]></code>
+      <code><![CDATA[clearPrompt]]></code>
+      <code><![CDATA[clearSessionUserId]]></code>
+      <code><![CDATA[hasAuthRequest]]></code>
+      <code><![CDATA[hasPrompt]]></code>
+      <code><![CDATA[isApproved]]></code>
+      <code><![CDATA[load]]></code>
+      <code><![CDATA[markApproved]]></code>
+      <code><![CDATA[prompt]]></code>
+      <code><![CDATA[sessionUserId]]></code>
+      <code><![CDATA[store]]></code>
+      <code><![CDATA[storeNonce]]></code>
+      <code><![CDATA[storePrompt]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Controllers/Server/OAuth/OAuthTokenAction.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[handle]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Controllers/Server/OAuth/OidcUserInfoController.php">
+    <UnusedClass>
+      <code><![CDATA[OidcUserInfoController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/Server/OAuth2ServerController.php">
+    <PossiblyUnusedParam>
+      <code><![CDATA[$request]]></code>
+      <code><![CDATA[$request]]></code>
+      <code><![CDATA[$request]]></code>
+    </PossiblyUnusedParam>
+    <UnusedClass>
+      <code><![CDATA[OAuth2ServerController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/SwaggerController.php">
+    <PossiblyUnusedParam>
+      <code><![CDATA[$request]]></code>
+      <code><![CDATA[$request]]></code>
+      <code><![CDATA[$request]]></code>
+      <code><![CDATA[$request]]></code>
+    </PossiblyUnusedParam>
+    <UnusedClass>
+      <code><![CDATA[SwaggerController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controllers/VersionController.php">
+    <PossiblyUnusedParam>
+      <code><![CDATA[$request]]></code>
+    </PossiblyUnusedParam>
+    <UnusedClass>
+      <code><![CDATA[VersionController]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Handlers/ApiAwareErrorHandler.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function determineContentType(ServerRequestInterface $request): ?string]]></code>
+      <code><![CDATA[public function __invoke(]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[ApiAwareErrorHandler]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Handlers/FriendlyHtmlErrorRenderer.php">
+    <UnusedParam>
+      <code><![CDATA[$displayErrorDetails]]></code>
+      <code><![CDATA[$exception]]></code>
+    </UnusedParam>
+  </file>
+  <file src="src/Handlers/NotFoundErrorHandler.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function writeToErrorLog(): void]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[NotFoundErrorHandler]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/CachedJwtLocalIdpAuthMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Middleware/ClientRestrictedAuthMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(Request $request, RequestHandler $handler): Response]]></code>
+    </MissingOverrideAttribute>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getClientIds]]></code>
+      <code><![CDATA[getClientIds]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[ClientRestrictedAuthMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/ConfidentialClientAuthMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(Request $request, RequestHandler $handler): Response]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getIamService]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Middleware/ConfidentialClientBasicAuthMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(Request $request, RequestHandler $handler): Response]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[ConfidentialClientBasicAuthMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/ConfidentialClientCredentialMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(Request $request, RequestHandler $handler): Response]]></code>
+    </MissingOverrideAttribute>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getIdentifier]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[ConfidentialClientCredentialMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/CorrelationMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[CorrelationMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/CorsMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(Request $request, RequestHandler $handler): Response]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[CorsMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/CsrfMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(Request $request, RequestHandler $handler): Response]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[CsrfMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/HttpObservabilityMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[HttpObservabilityMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/JsonBodyParserMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(Request $request, RequestHandler $handler): Response]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[JsonBodyParserMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/LocalAdminUserMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(Request $request, RequestHandler $handler): Response]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[LocalAdminUserMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/LocalIdpAuthMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(Request $request, RequestHandler $handler): Response]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedParam>
+      <code><![CDATA[$em]]></code>
+    </PossiblyUnusedParam>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getClientIds]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Middleware/LogReaderAuthorizationMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[LogReaderAuthorizationMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/ManagementMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(Request $request, RequestHandler $handler): Response]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[ManagementMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/OAuthAccessTokenElevationMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface]]></code>
+    </MissingOverrideAttribute>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getClientIds]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[OAuthAccessTokenElevationMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Middleware/SessionMiddleware.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function process(Request $request, RequestHandler $handler): Response]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[SessionMiddleware]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Models/AllowedLinkOrkProfileClientIds.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[all]]></code>
+    </PossiblyUnusedMethod>
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS'] ?? '')]]></code>
+    </RedundantCast>
+  </file>
+  <file src="src/Models/AmtgardIdpJwt.php">
+    <NoInterfaceProperties>
+      <code><![CDATA[$user->email]]></code>
+      <code><![CDATA[$user->userId]]></code>
+    </NoInterfaceProperties>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[buildAuthorizationJwt]]></code>
+      <code><![CDATA[buildAuthorizationTokens]]></code>
+      <code><![CDATA[validateJwtChallenge]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Models/AuthorizationClientContext.php">
+    <UnusedClass>
+      <code><![CDATA[AuthorizationClientContext]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Models/AuthorizationJwtAssembler.php">
+    <InvalidOperand>
+      <code><![CDATA[microtime(true) * 1000]]></code>
+    </InvalidOperand>
+    <NoInterfaceProperties>
+      <code><![CDATA[$user->email]]></code>
+      <code><![CDATA[$user->id]]></code>
+      <code><![CDATA[$user->id]]></code>
+      <code><![CDATA[$user->id]]></code>
+      <code><![CDATA[$user->orkUserId]]></code>
+      <code><![CDATA[$user->userId]]></code>
+      <code><![CDATA[$user->userId]]></code>
+      <code><![CDATA[$user->username]]></code>
+    </NoInterfaceProperties>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[buildClaims]]></code>
+      <code><![CDATA[compactClaims]]></code>
+      <code><![CDATA[computePolicyHashForAudience]]></code>
+      <code><![CDATA[lastGeneration]]></code>
+      <code><![CDATA[validateJwtChallenge]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getPvh]]></code>
+    </UndefinedMagicMethod>
+    <UnusedMethod>
+      <code><![CDATA[applyAudienceClaims]]></code>
+      <code><![CDATA[applyPvhClaim]]></code>
+      <code><![CDATA[baseClaims]]></code>
+      <code><![CDATA[metadataForAudience]]></code>
+      <code><![CDATA[resolveAudience]]></code>
+      <code><![CDATA[resolveClientContext]]></code>
+      <code><![CDATA[resolveLoginDbId]]></code>
+    </UnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$clientRepository]]></code>
+      <code><![CDATA[$generationRepository]]></code>
+      <code><![CDATA[$idpLogging]]></code>
+      <code><![CDATA[$jwtChallenge]]></code>
+      <code><![CDATA[$lastGeneration]]></code>
+      <code><![CDATA[$metadataRepository]]></code>
+      <code><![CDATA[$userLoginRepository]]></code>
+      <code><![CDATA[$userPolicy]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Models/OAuthServerConfiguration.php">
+    <UnusedClass>
+      <code><![CDATA[OAuthServerConfiguration]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Models/Oidc/IdentityRepository.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$this->userRepository->getUserEntityById((string) $identifier)]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[?UserEntityInterface]]></code>
+    </InvalidReturnType>
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function getUserEntityByIdentifier($identifier): ?UserEntityInterface]]></code>
+    </MissingOverrideAttribute>
+    <NullableReturnStatement>
+      <code><![CDATA[$this->userRepository->getUserEntityById((string) $identifier)]]></code>
+    </NullableReturnStatement>
+    <UnusedClass>
+      <code><![CDATA[IdentityRepository]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Models/Oidc/OidcAuthCodeGrant.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function respondToAccessTokenRequest(]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[OidcAuthCodeGrant]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Models/Oidc/OidcClaimFactory.php">
+    <UndefinedMagicMethod>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getFirstName]]></code>
+      <code><![CDATA[getLastName]]></code>
+      <code><![CDATA[getUpdatedAt]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUsername]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Models/Oidc/OidcIdTokenResponse.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function getBuilder(AccessTokenEntityInterface $accessToken, UserEntityInterface $userEntity)]]></code>
+    </MissingOverrideAttribute>
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['APP_URL'] ?? '')]]></code>
+    </RedundantCast>
+    <UnusedClass>
+      <code><![CDATA[OidcIdTokenResponse]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Models/Orn/ClientApplicationClaim.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function getResourceMap(?string $resource = null): array]]></code>
+      <code><![CDATA[protected function validResource(Resource $resource): bool]]></code>
+      <code><![CDATA[public function ornSegmentSchema(): array]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="src/Models/Orn/ClientApplicationFormat.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function getValidResourceMap($resource = null): array]]></code>
+      <code><![CDATA[public static function ornSegmentSchema(): array]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="src/Models/Orn/IdpClaim.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function getResourceMap(?string $resource = null): array]]></code>
+      <code><![CDATA[public function ornSegmentSchema(): array]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="src/Models/Orn/IdpFormat.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function getValidResourceMap($resource = null): array]]></code>
+      <code><![CDATA[public static function ornSegmentSchema(): array]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[announceLogReaderResources]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedDocblockParam>
+      <code><![CDATA[$actions]]></code>
+    </UnusedDocblockParam>
+  </file>
+  <file src="src/Models/Orn/IdpRequirement.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function getResourceMap(?string $resource = null): array]]></code>
+      <code><![CDATA[public function ornSegmentSchema(): array]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="src/Persistence/Client/Entities/UserEntity.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[getFullName]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Persistence/Client/Entities/UserLoginEntity.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getLinkedUserId]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Persistence/Client/Entities/UserOrkProfileEntity.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[getCreatedAt]]></code>
+      <code><![CDATA[getDuesThrough]]></code>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getHeraldry]]></code>
+      <code><![CDATA[getImage]]></code>
+      <code><![CDATA[getKingdomId]]></code>
+      <code><![CDATA[getKingdomName]]></code>
+      <code><![CDATA[getMundaneId]]></code>
+      <code><![CDATA[getOrkToken]]></code>
+      <code><![CDATA[getParkId]]></code>
+      <code><![CDATA[getParkName]]></code>
+      <code><![CDATA[getPersona]]></code>
+      <code><![CDATA[getSuspended]]></code>
+      <code><![CDATA[getSuspendedAt]]></code>
+      <code><![CDATA[getSuspendedUntil]]></code>
+      <code><![CDATA[getUpdatedAt]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUsername]]></code>
+      <code><![CDATA[setCreatedAt]]></code>
+      <code><![CDATA[setDuesThrough]]></code>
+      <code><![CDATA[setEmail]]></code>
+      <code><![CDATA[setHeraldry]]></code>
+      <code><![CDATA[setImage]]></code>
+      <code><![CDATA[setKingdomId]]></code>
+      <code><![CDATA[setKingdomName]]></code>
+      <code><![CDATA[setMundaneId]]></code>
+      <code><![CDATA[setOrkToken]]></code>
+      <code><![CDATA[setParkId]]></code>
+      <code><![CDATA[setParkName]]></code>
+      <code><![CDATA[setPersona]]></code>
+      <code><![CDATA[setSuspended]]></code>
+      <code><![CDATA[setSuspendedAt]]></code>
+      <code><![CDATA[setSuspendedUntil]]></code>
+      <code><![CDATA[setUpdatedAt]]></code>
+      <code><![CDATA[setUserId]]></code>
+      <code><![CDATA[setUsername]]></code>
+      <code><![CDATA[toUserinfoProfileArray]]></code>
+    </PossiblyUnusedMethod>
+    <RedundantCondition>
+      <code><![CDATA[isset($this->orkToken)]]></code>
+      <code><![CDATA[isset($this->persona)]]></code>
+      <code><![CDATA[isset($this->username)]]></code>
+    </RedundantCondition>
+    <TypeDoesNotContainType>
+      <code><![CDATA['']]></code>
+      <code><![CDATA['']]></code>
+      <code><![CDATA['']]></code>
+    </TypeDoesNotContainType>
+  </file>
+  <file src="src/Persistence/Client/Repositories/MailboxChallengeRepository.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$rows]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[MailboxChallengeEntity[]]]></code>
+    </InvalidReturnType>
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function persist(EntityInterface $entity): EntityInterface]]></code>
+      <code><![CDATA[public static function getEntityClass(): string]]></code>
+      <code><![CDATA[public static function getTableName(): string]]></code>
+    </MissingOverrideAttribute>
+    <NoInterfaceProperties>
+      <code><![CDATA[$recordSet->attempts]]></code>
+      <code><![CDATA[$recordSet->code_hash]]></code>
+      <code><![CDATA[$recordSet->consumed_at]]></code>
+      <code><![CDATA[$recordSet->created_at]]></code>
+      <code><![CDATA[$recordSet->expires_at]]></code>
+      <code><![CDATA[$recordSet->id]]></code>
+      <code><![CDATA[$recordSet->idp_user_id]]></code>
+      <code><![CDATA[$recordSet->mundane_id]]></code>
+      <code><![CDATA[$recordSet->new_email]]></code>
+      <code><![CDATA[$recordSet->purpose]]></code>
+      <code><![CDATA[$recordSet->send_count]]></code>
+      <code><![CDATA[$recordSet->sent_to_hash]]></code>
+      <code><![CDATA[$recordSet->stage]]></code>
+    </NoInterfaceProperties>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[countSendsSince]]></code>
+      <code><![CDATA[findByDestinationAndPurpose]]></code>
+      <code><![CDATA[findById]]></code>
+      <code><![CDATA[findLatestOpenByUserAndPurpose]]></code>
+      <code><![CDATA[findOpenByMundanePurposeAndHash]]></code>
+      <code><![CDATA[useDatabase]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getAttempts]]></code>
+      <code><![CDATA[getCodeHash]]></code>
+      <code><![CDATA[getConsumedAt]]></code>
+      <code><![CDATA[getConsumedAt]]></code>
+      <code><![CDATA[getConsumedAt]]></code>
+      <code><![CDATA[getConsumedAt]]></code>
+      <code><![CDATA[getConsumedAt]]></code>
+      <code><![CDATA[getCreatedAt]]></code>
+      <code><![CDATA[getCreatedAt]]></code>
+      <code><![CDATA[getCreatedAt]]></code>
+      <code><![CDATA[getCreatedAt]]></code>
+      <code><![CDATA[getCreatedAt]]></code>
+      <code><![CDATA[getCreatedAt]]></code>
+      <code><![CDATA[getExpiresAt]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getIdpUserId]]></code>
+      <code><![CDATA[getMundaneId]]></code>
+      <code><![CDATA[getNewEmail]]></code>
+      <code><![CDATA[getPurpose]]></code>
+      <code><![CDATA[getSendCount]]></code>
+      <code><![CDATA[getSendCount]]></code>
+      <code><![CDATA[getSentToHash]]></code>
+      <code><![CDATA[getStage]]></code>
+    </UndefinedMagicMethod>
+    <UndefinedMagicPropertyFetch>
+      <code><![CDATA[$recordSet->attempts]]></code>
+      <code><![CDATA[$recordSet->code_hash]]></code>
+      <code><![CDATA[$recordSet->consumed_at]]></code>
+      <code><![CDATA[$recordSet->created_at]]></code>
+      <code><![CDATA[$recordSet->expires_at]]></code>
+      <code><![CDATA[$recordSet->id]]></code>
+      <code><![CDATA[$recordSet->idp_user_id]]></code>
+      <code><![CDATA[$recordSet->mundane_id]]></code>
+      <code><![CDATA[$recordSet->new_email]]></code>
+      <code><![CDATA[$recordSet->purpose]]></code>
+      <code><![CDATA[$recordSet->send_count]]></code>
+      <code><![CDATA[$recordSet->sent_to_hash]]></code>
+      <code><![CDATA[$recordSet->stage]]></code>
+    </UndefinedMagicPropertyFetch>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$this->__set('attempts', $entity->getAttempts())]]></code>
+      <code><![CDATA[$this->__set('code_hash', $entity->getCodeHash())]]></code>
+      <code><![CDATA[$this->__set('consumed_at', $entity->getConsumedAt()?->format('Y-m-d H:i:s') ?? '')]]></code>
+      <code><![CDATA[$this->__set('created_at', $entity->getCreatedAt()->format('Y-m-d H:i:s'))]]></code>
+      <code><![CDATA[$this->__set('expires_at', $entity->getExpiresAt()->format('Y-m-d H:i:s'))]]></code>
+      <code><![CDATA[$this->__set('id', $entity->getId())]]></code>
+      <code><![CDATA[$this->__set('idp_user_id', $entity->getIdpUserId() ?? '')]]></code>
+      <code><![CDATA[$this->__set('mundane_id', $entity->getMundaneId() ?? 0)]]></code>
+      <code><![CDATA[$this->__set('new_email', $entity->getNewEmail() ?? '')]]></code>
+      <code><![CDATA[$this->__set('purpose', $entity->getPurpose())]]></code>
+      <code><![CDATA[$this->__set('send_count', $entity->getSendCount())]]></code>
+      <code><![CDATA[$this->__set('sent_to_hash', $entity->getSentToHash())]]></code>
+      <code><![CDATA[$this->__set('stage', $entity->getStage() ?? '')]]></code>
+      <code><![CDATA[$this->idp_user_id]]></code>
+      <code><![CDATA[$this->mundane_id]]></code>
+      <code><![CDATA[$this->purpose]]></code>
+      <code><![CDATA[$this->purpose]]></code>
+      <code><![CDATA[$this->purpose]]></code>
+      <code><![CDATA[$this->sent_to_hash]]></code>
+      <code><![CDATA[$this->sent_to_hash]]></code>
+    </UndefinedThisPropertyAssignment>
+    <UnusedMethod>
+      <code><![CDATA[fetchAll]]></code>
+      <code><![CDATA[fetchOne]]></code>
+      <code><![CDATA[findByDestinationAndPurposeViaActiveRecord]]></code>
+      <code><![CDATA[findLatestOpenByUserAndPurposeViaActiveRecord]]></code>
+      <code><![CDATA[findOpenByMundanePurposeAndHashViaActiveRecord]]></code>
+      <code><![CDATA[hydrate]]></code>
+    </UnusedMethod>
+  </file>
+  <file src="src/Persistence/Client/Repositories/OrkClaimPendingRepository.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function getEntityClass(): string]]></code>
+      <code><![CDATA[public static function getTableName(): string]]></code>
+    </MissingOverrideAttribute>
+    <NoInterfaceProperties>
+      <code><![CDATA[$recordSet->consumed_at]]></code>
+      <code><![CDATA[$recordSet->expires_at]]></code>
+      <code><![CDATA[$recordSet->id]]></code>
+      <code><![CDATA[$recordSet->mundane_id]]></code>
+      <code><![CDATA[$recordSet->username]]></code>
+    </NoInterfaceProperties>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[complete]]></code>
+      <code><![CDATA[findOpenByIdpUserId]]></code>
+      <code><![CDATA[replaceOpen]]></code>
+      <code><![CDATA[useDatabase]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicPropertyFetch>
+      <code><![CDATA[$recordSet->consumed_at]]></code>
+      <code><![CDATA[$recordSet->expires_at]]></code>
+      <code><![CDATA[$recordSet->id]]></code>
+      <code><![CDATA[$recordSet->mundane_id]]></code>
+      <code><![CDATA[$recordSet->username]]></code>
+    </UndefinedMagicPropertyFetch>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$database->__set('completed_at', $now->format('Y-m-d H:i:s'))]]></code>
+      <code><![CDATA[$database->__set('completed_at', $now->format('Y-m-d H:i:s'))]]></code>
+      <code><![CDATA[$database->__set('created_at', $now->format('Y-m-d H:i:s'))]]></code>
+      <code><![CDATA[$database->__set('expires_at', $expiresAt->format('Y-m-d H:i:s'))]]></code>
+      <code><![CDATA[$database->__set('id', $id)]]></code>
+      <code><![CDATA[$database->__set('id', $id)]]></code>
+      <code><![CDATA[$database->__set('idp_user_id', $idpUserId)]]></code>
+      <code><![CDATA[$database->__set('idp_user_id', $idpUserId)]]></code>
+      <code><![CDATA[$database->__set('mundane_id', $mundaneId)]]></code>
+      <code><![CDATA[$database->__set('username', $username)]]></code>
+    </UndefinedThisPropertyAssignment>
+    <UnusedMethod>
+      <code><![CDATA[fetchRow]]></code>
+      <code><![CDATA[requireDatabase]]></code>
+    </UnusedMethod>
+  </file>
+  <file src="src/Persistence/Client/Repositories/OrkClaimSendNonceRepository.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function getEntityClass(): string]]></code>
+      <code><![CDATA[public static function getTableName(): string]]></code>
+    </MissingOverrideAttribute>
+    <NoInterfaceProperties>
+      <code><![CDATA[$recordSet->consumed_at]]></code>
+      <code><![CDATA[$recordSet->expires_at]]></code>
+      <code><![CDATA[$recordSet->id]]></code>
+      <code><![CDATA[$recordSet->idp_user_id]]></code>
+      <code><![CDATA[$recordSet->mundane_id]]></code>
+      <code><![CDATA[$recordSet->username]]></code>
+    </NoInterfaceProperties>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[consumeValid]]></code>
+      <code><![CDATA[insert]]></code>
+      <code><![CDATA[useDatabase]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicPropertyFetch>
+      <code><![CDATA[$recordSet->consumed_at]]></code>
+      <code><![CDATA[$recordSet->expires_at]]></code>
+      <code><![CDATA[$recordSet->id]]></code>
+      <code><![CDATA[$recordSet->idp_user_id]]></code>
+      <code><![CDATA[$recordSet->mundane_id]]></code>
+      <code><![CDATA[$recordSet->username]]></code>
+    </UndefinedMagicPropertyFetch>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$database->__set('consumed_at', $now->format('Y-m-d H:i:s'))]]></code>
+      <code><![CDATA[$database->__set('created_at', $now->format('Y-m-d H:i:s'))]]></code>
+      <code><![CDATA[$database->__set('expires_at', $expiresAt->format('Y-m-d H:i:s'))]]></code>
+      <code><![CDATA[$database->__set('idp_user_id', $idpUserId)]]></code>
+      <code><![CDATA[$database->__set('mundane_id', $mundaneId)]]></code>
+      <code><![CDATA[$database->__set('nonce_hash', $nonceHash)]]></code>
+      <code><![CDATA[$database->__set('nonce_hash', $nonceHash)]]></code>
+    </UndefinedThisPropertyAssignment>
+    <UnusedMethod>
+      <code><![CDATA[fetchRow]]></code>
+      <code><![CDATA[requireDatabase]]></code>
+      <code><![CDATA[rowToArray]]></code>
+    </UnusedMethod>
+  </file>
+  <file src="src/Persistence/Client/Repositories/UserLoginRepository.php">
+    <InaccessibleProperty>
+      <code><![CDATA[$login->user]]></code>
+      <code><![CDATA[$login->userId]]></code>
+    </InaccessibleProperty>
+    <InvalidReturnStatement>
+      <code><![CDATA[$login]]></code>
+      <code><![CDATA[$login]]></code>
+      <code><![CDATA[$logins]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[UserLoginEntity]]></code>
+      <code><![CDATA[UserLoginEntity]]></code>
+      <code><![CDATA[UserLoginEntity[]]]></code>
+    </InvalidReturnType>
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function getEntityClass()]]></code>
+      <code><![CDATA[static function getTableName()]]></code>
+    </MissingOverrideAttribute>
+    <NoInterfaceProperties>
+      <code><![CDATA[$login->user]]></code>
+      <code><![CDATA[$login->user]]></code>
+    </NoInterfaceProperties>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[createLocalLogin]]></code>
+      <code><![CDATA[createLoginFromAppleData]]></code>
+      <code><![CDATA[createLoginFromDiscordData]]></code>
+      <code><![CDATA[createLoginFromFacebookData]]></code>
+      <code><![CDATA[createLoginFromGoogleData]]></code>
+      <code><![CDATA[createLoginFromProvider]]></code>
+      <code><![CDATA[findLoginById]]></code>
+      <code><![CDATA[getAllLoginsForUser]]></code>
+      <code><![CDATA[getLoginByProviderId]]></code>
+      <code><![CDATA[getLoginByUser]]></code>
+      <code><![CDATA[loginBelongsToUser]]></code>
+      <code><![CDATA[resolveDefaultLoginIdForUser]]></code>
+      <code><![CDATA[updateLoginTokens]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[setExpiryDateTime]]></code>
+      <code><![CDATA[setProviderId]]></code>
+      <code><![CDATA[setRefreshToken]]></code>
+    </UndefinedMagicMethod>
+    <UndefinedMagicPropertyAssignment>
+      <code><![CDATA[$login->user]]></code>
+    </UndefinedMagicPropertyAssignment>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$this->type]]></code>
+      <code><![CDATA[$this->type]]></code>
+      <code><![CDATA[$this->user_id]]></code>
+      <code><![CDATA[$this->user_id]]></code>
+      <code><![CDATA[$this->user_id]]></code>
+    </UndefinedThisPropertyAssignment>
+    <UndefinedThisPropertyFetch>
+      <code><![CDATA[$this->id]]></code>
+    </UndefinedThisPropertyFetch>
+    <UnusedMethod>
+      <code><![CDATA[configureNewLogin]]></code>
+    </UnusedMethod>
+  </file>
+  <file src="src/Persistence/Client/Repositories/UserOrkProfileRepository.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function getEntityClass()]]></code>
+      <code><![CDATA[static function getTableName()]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[findByMundaneId]]></code>
+      <code><![CDATA[findByUserId]]></code>
+      <code><![CDATA[linkExistingUserToMundane]]></code>
+      <code><![CDATA[saveOrUpdateProfile]]></code>
+      <code><![CDATA[unlinkByUserId]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$this->user_id]]></code>
+    </UndefinedThisPropertyAssignment>
+    <UnusedMethod>
+      <code><![CDATA[parseOrkDate]]></code>
+      <code><![CDATA[persistProfile]]></code>
+    </UnusedMethod>
+  </file>
+  <file src="src/Persistence/Client/Repositories/UserRepository.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$user]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[UserEntity]]></code>
+    </InvalidReturnType>
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function getUserEntityByUserCredentials($username, $password, $grantType, ClientEntityInterface $clientEntity)]]></code>
+      <code><![CDATA[public static function getEntityClass()]]></code>
+      <code><![CDATA[static function getTableName()]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[createLocalUser]]></code>
+      <code><![CDATA[createUserFromAppleData]]></code>
+      <code><![CDATA[createUserFromDiscordData]]></code>
+      <code><![CDATA[createUserFromFacebookData]]></code>
+      <code><![CDATA[createUserFromGoogleData]]></code>
+      <code><![CDATA[createUserFromOAuthProfile]]></code>
+      <code><![CDATA[findUserById]]></code>
+      <code><![CDATA[getUserByEmail]]></code>
+      <code><![CDATA[searchByEmailPrefix]]></code>
+      <code><![CDATA[updateEmail]]></code>
+      <code><![CDATA[userExists]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[like]]></code>
+      <code><![CDATA[setEmail]]></code>
+    </UndefinedMagicMethod>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$this->email]]></code>
+    </UndefinedThisPropertyAssignment>
+    <UnusedMethod>
+      <code><![CDATA[configureNewUser]]></code>
+    </UnusedMethod>
+  </file>
+  <file src="src/Persistence/Common/Repositories/ClaimOrnValidator.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[assertClaimParses]]></code>
+      <code><![CDATA[assertValidOrnParts]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$idpLogging]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Persistence/Common/Repositories/JwtChallenge.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[createChallenge]]></code>
+      <code><![CDATA[validateChallenge]]></code>
+    </PossiblyUnusedMethod>
+    <PossiblyUnusedParam>
+      <code><![CDATA[$jwt]]></code>
+      <code><![CDATA[$user]]></code>
+    </PossiblyUnusedParam>
+  </file>
+  <file src="src/Persistence/Common/Repositories/UserPolicy.php">
+    <NoInterfaceProperties>
+      <code><![CDATA[$user->getInternalEntity()->id]]></code>
+      <code><![CDATA[$user->id]]></code>
+    </NoInterfaceProperties>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[toPolicyJson]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Persistence/Common/Repositories/UserPolicyClaimReader.php">
+    <NoInterfaceProperties>
+      <code><![CDATA[$user->getInternalEntity()->id]]></code>
+      <code><![CDATA[$user->id]]></code>
+    </NoInterfaceProperties>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[listClaimsForUser]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicPropertyAssignment>
+      <code><![CDATA[$this->userClaims->user_id]]></code>
+    </UndefinedMagicPropertyAssignment>
+    <UndefinedMagicPropertyFetch>
+      <code><![CDATA[$this->userClaims->provisos]]></code>
+      <code><![CDATA[$this->userClaims->provisos]]></code>
+      <code><![CDATA[$this->userClaims->resource]]></code>
+      <code><![CDATA[$this->userClaims->resource]]></code>
+      <code><![CDATA[$this->userClaims->service]]></code>
+      <code><![CDATA[$this->userClaims->service]]></code>
+      <code><![CDATA[$this->userClaims->service]]></code>
+    </UndefinedMagicPropertyFetch>
+    <UnusedMethod>
+      <code><![CDATA[currentClaimRow]]></code>
+      <code><![CDATA[matchesListFilters]]></code>
+    </UnusedMethod>
+  </file>
+  <file src="src/Persistence/Common/Repositories/UserPolicyClaimRepository.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[addClaim]]></code>
+      <code><![CDATA[deleteClaim]]></code>
+      <code><![CDATA[listClaimsForUser]]></code>
+      <code><![CDATA[useClaimsMapper]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$idpLogging]]></code>
+      <code><![CDATA[$ornValidator]]></code>
+      <code><![CDATA[$userClaims]]></code>
+      <code><![CDATA[$writer]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Persistence/Common/Repositories/UserPolicyClaimWriter.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[addClaim]]></code>
+      <code><![CDATA[deleteClaim]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicPropertyAssignment>
+      <code><![CDATA[$this->userClaims->client_id]]></code>
+      <code><![CDATA[$this->userClaims->client_id]]></code>
+      <code><![CDATA[$this->userClaims->provisos]]></code>
+      <code><![CDATA[$this->userClaims->provisos]]></code>
+      <code><![CDATA[$this->userClaims->provisos]]></code>
+      <code><![CDATA[$this->userClaims->resource]]></code>
+      <code><![CDATA[$this->userClaims->resource]]></code>
+      <code><![CDATA[$this->userClaims->resource]]></code>
+      <code><![CDATA[$this->userClaims->service]]></code>
+      <code><![CDATA[$this->userClaims->service]]></code>
+      <code><![CDATA[$this->userClaims->service]]></code>
+      <code><![CDATA[$this->userClaims->updated_at]]></code>
+      <code><![CDATA[$this->userClaims->updated_by_user_id]]></code>
+      <code><![CDATA[$this->userClaims->user_id]]></code>
+      <code><![CDATA[$this->userClaims->user_id]]></code>
+      <code><![CDATA[$this->userClaims->user_id]]></code>
+      <code><![CDATA[$this->userClaims->user_id]]></code>
+    </UndefinedMagicPropertyAssignment>
+    <UnusedMethod>
+      <code><![CDATA[assertClientClaimCap]]></code>
+      <code><![CDATA[assertThirdPartyClaimHasClient]]></code>
+      <code><![CDATA[claimExists]]></code>
+      <code><![CDATA[insertClaim]]></code>
+    </UnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$idpLogging]]></code>
+      <code><![CDATA[$ornValidator]]></code>
+      <code><![CDATA[$userClaims]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Persistence/Server/Entities/OAuth/OAuthUser.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function getClaims(): array]]></code>
+    </MissingOverrideAttribute>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getUserEntity]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Persistence/Server/Entities/Repository/Client.php">
+    <TooManyArguments>
+      <code><![CDATA[PrimaryKey('id', 'int')]]></code>
+    </TooManyArguments>
+  </file>
+  <file src="src/Persistence/Server/Entities/Repository/Grant.php">
+    <UnusedClass>
+      <code><![CDATA[Grant]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Persistence/Server/Entities/Repository/RefreshToken.php">
+    <TooManyArguments>
+      <code><![CDATA[PrimaryKey('id', 'int')]]></code>
+    </TooManyArguments>
+  </file>
+  <file src="src/Persistence/Server/Entities/Repository/UserJwtGeneration.php">
+    <TooManyArguments>
+      <code><![CDATA[PrimaryKey('id', 'int')]]></code>
+    </TooManyArguments>
+  </file>
+  <file src="src/Persistence/Server/Entities/Repository/UserLoginClient.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[getClientDbId]]></code>
+      <code><![CDATA[getEncoding]]></code>
+      <code><![CDATA[getLoginId]]></code>
+      <code><![CDATA[getMetadata]]></code>
+      <code><![CDATA[getUpdatedAt]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[replaceMetadata]]></code>
+    </PossiblyUnusedMethod>
+    <TooManyArguments>
+      <code><![CDATA[PrimaryKey('id', 'int')]]></code>
+    </TooManyArguments>
+  </file>
+  <file src="src/Persistence/Server/Repositories/AccessTokenRepository.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function getNewToken(ClientEntityInterface $clientEntity, array $scopes, $userIdentifier = null)]]></code>
+      <code><![CDATA[public function isAccessTokenRevoked($tokenId)]]></code>
+      <code><![CDATA[public function persistNewAccessToken(AccessTokenEntityInterface $accessTokenEntity)]]></code>
+      <code><![CDATA[public function revokeAccessToken($tokenId)]]></code>
+      <code><![CDATA[public static function getEntityClass()]]></code>
+      <code><![CDATA[static function getTableName()]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[deleteExpiredTokens]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[getAccessTokenEntity]]></code>
+      <code><![CDATA[getClientEntity]]></code>
+    </UndefinedInterfaceMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getClientEntity]]></code>
+      <code><![CDATA[getExpiryDateTime]]></code>
+      <code><![CDATA[getMapper]]></code>
+      <code><![CDATA[getMapper]]></code>
+      <code><![CDATA[setClient]]></code>
+      <code><![CDATA[setExpiryDateTime]]></code>
+      <code><![CDATA[setExpiryDateTime]]></code>
+      <code><![CDATA[setIdentifier]]></code>
+      <code><![CDATA[setUserIdentifier]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Persistence/Server/Repositories/AuthCodeRepository.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function findNonceByAuthCodeId(string $authCodeId): ?string]]></code>
+      <code><![CDATA[public function getNewAuthCode()]]></code>
+      <code><![CDATA[public function isAuthCodeRevoked($codeId)]]></code>
+      <code><![CDATA[public function persistNewAuthCode(AuthCodeEntityInterface $authCodeEntity)]]></code>
+      <code><![CDATA[public function revokeAuthCode($codeId)]]></code>
+      <code><![CDATA[public static function getEntityClass()]]></code>
+      <code><![CDATA[static function getTableName()]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[deleteExpiredAuthCodes]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[fetchBy]]></code>
+    </UndefinedInterfaceMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getAuthCodeEntity]]></code>
+      <code><![CDATA[getExpiryDateTime]]></code>
+      <code><![CDATA[getMapper]]></code>
+      <code><![CDATA[getMapper]]></code>
+      <code><![CDATA[setClient]]></code>
+      <code><![CDATA[setExpiryDateTime]]></code>
+      <code><![CDATA[setExpiryDateTime]]></code>
+      <code><![CDATA[setIdentifier]]></code>
+      <code><![CDATA[setRedirectUri]]></code>
+      <code><![CDATA[setUserIdentifier]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Persistence/Server/Repositories/ClientAccessRepository.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$rows]]></code>
+      <code><![CDATA[$rows]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[ClientAccess[]]]></code>
+      <code><![CDATA[ClientAccess[]]]></code>
+    </InvalidReturnType>
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function getEntityClass(): string]]></code>
+      <code><![CDATA[public static function getTableName(): string]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[findByClientId]]></code>
+      <code><![CDATA[findByUserId]]></code>
+      <code><![CDATA[grant]]></code>
+      <code><![CDATA[hasAccess]]></code>
+      <code><![CDATA[revoke]]></code>
+      <code><![CDATA[userHasAnyAccess]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$this->client_id]]></code>
+      <code><![CDATA[$this->client_id]]></code>
+      <code><![CDATA[$this->client_id]]></code>
+      <code><![CDATA[$this->user_id]]></code>
+      <code><![CDATA[$this->user_id]]></code>
+      <code><![CDATA[$this->user_id]]></code>
+      <code><![CDATA[$this->user_id]]></code>
+    </UndefinedThisPropertyAssignment>
+  </file>
+  <file src="src/Persistence/Server/Repositories/ClientRepository.php">
+    <InaccessibleProperty>
+      <code><![CDATA[$client->name]]></code>
+    </InaccessibleProperty>
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function getClientEntity($clientIdentifier): ?ClientEntityInterface]]></code>
+      <code><![CDATA[public function validateClient($clientIdentifier, $clientSecret, $grantType): bool]]></code>
+      <code><![CDATA[public static function getEntityClass()]]></code>
+      <code><![CDATA[static function getTableName()]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[accessRepository]]></code>
+      <code><![CDATA[findActiveClientsForUser]]></code>
+      <code><![CDATA[findClientsGrantedToUser]]></code>
+      <code><![CDATA[getAllClients]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getClientDbId]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getIsConfidential]]></code>
+      <code><![CDATA[getName]]></code>
+      <code><![CDATA[getRedirectUri]]></code>
+      <code><![CDATA[getRedirectUri]]></code>
+      <code><![CDATA[in]]></code>
+    </UndefinedMagicMethod>
+    <UndefinedMagicPropertyFetch>
+      <code><![CDATA[$client->client_id]]></code>
+    </UndefinedMagicPropertyFetch>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$this->user_id]]></code>
+    </UndefinedThisPropertyAssignment>
+    <UnusedParam>
+      <code><![CDATA[$client]]></code>
+      <code><![CDATA[$grantType]]></code>
+    </UnusedParam>
+  </file>
+  <file src="src/Persistence/Server/Repositories/RedisCacheRepository.php">
+    <InvalidCast>
+      <code><![CDATA[$this->redis->del($keys)]]></code>
+      <code><![CDATA[$this->redis->del($userId)]]></code>
+    </InvalidCast>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[deleteLegacyUserEntry]]></code>
+      <code><![CDATA[hasLegacyUserEntry]]></code>
+      <code><![CDATA[invalidateUser]]></code>
+      <code><![CDATA[queueUserValidation]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getHandle]]></code>
+    </UndefinedMagicMethod>
+    <UnusedProperty>
+      <code><![CDATA[$pubSubQueue]]></code>
+      <code><![CDATA[$pvhQueueHandle]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Persistence/Server/Repositories/RefreshTokenRepository.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function getNewRefreshToken()]]></code>
+      <code><![CDATA[public function isRefreshTokenRevoked($tokenId)]]></code>
+      <code><![CDATA[public function persistNewRefreshToken(RefreshTokenEntityInterface $refreshTokenEntity)]]></code>
+      <code><![CDATA[public function revokeRefreshToken($tokenId)]]></code>
+      <code><![CDATA[public static function getEntityClass()]]></code>
+      <code><![CDATA[static function getTableName()]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[deleteExpiredTokens]]></code>
+      <code><![CDATA[deleteOrphanedRefreshTokens]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getAccessTokenEntity]]></code>
+      <code><![CDATA[getExpiryDateTime]]></code>
+      <code><![CDATA[getMapper]]></code>
+      <code><![CDATA[getMapper]]></code>
+      <code><![CDATA[getRefreshToken]]></code>
+      <code><![CDATA[setAccessToken]]></code>
+      <code><![CDATA[setAccessToken]]></code>
+      <code><![CDATA[setExpiryDateTime]]></code>
+      <code><![CDATA[setExpiryDateTime]]></code>
+      <code><![CDATA[setIdentifier]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Persistence/Server/Repositories/ScopeRepository.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function finalizeScopes(array $scopes, $grantType, ClientEntityInterface $clientEntity, $userIdentifier = null)]]></code>
+      <code><![CDATA[public function getScopeEntityByIdentifier($identifier)]]></code>
+      <code><![CDATA[public static function getEntityClass()]]></code>
+      <code><![CDATA[static function getTableName()]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="src/Persistence/Server/Repositories/UserClientAuthorizationRepository.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function getEntityClass()]]></code>
+      <code><![CDATA[static function getTableName()]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[authorize]]></code>
+      <code><![CDATA[hasAuthorization]]></code>
+      <code><![CDATA[revokeAuthorization]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$this->client_id]]></code>
+      <code><![CDATA[$this->client_id]]></code>
+      <code><![CDATA[$this->user_identifier]]></code>
+      <code><![CDATA[$this->user_identifier]]></code>
+    </UndefinedThisPropertyAssignment>
+  </file>
+  <file src="src/Persistence/Server/Repositories/UserJwtGenerationRepository.php">
+    <InaccessibleProperty>
+      <code><![CDATA[$existing->policyHash]]></code>
+      <code><![CDATA[$existing->prevPvh]]></code>
+      <code><![CDATA[$existing->pvh]]></code>
+      <code><![CDATA[$existing->updatedAt]]></code>
+    </InaccessibleProperty>
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function getEntityClass(): string]]></code>
+      <code><![CDATA[public static function getTableName(): string]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[findByUserUuidAndAud]]></code>
+      <code><![CDATA[saveForPolicyHash]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getPolicyHash]]></code>
+      <code><![CDATA[getPvh]]></code>
+    </UndefinedMagicMethod>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$this->aud]]></code>
+      <code><![CDATA[$this->user_uuid]]></code>
+    </UndefinedThisPropertyAssignment>
+  </file>
+  <file src="src/Persistence/Server/Repositories/UserLoginClientRepository.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public static function getEntityClass(): string]]></code>
+      <code><![CDATA[public static function getTableName(): string]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[deleteMetadata]]></code>
+      <code><![CDATA[getMetadata]]></code>
+      <code><![CDATA[getMetadataForJwt]]></code>
+      <code><![CDATA[upsertMetadata]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$this->client_id]]></code>
+      <code><![CDATA[$this->client_id]]></code>
+      <code><![CDATA[$this->client_id]]></code>
+      <code><![CDATA[$this->login_id]]></code>
+      <code><![CDATA[$this->login_id]]></code>
+      <code><![CDATA[$this->login_id]]></code>
+    </UndefinedThisPropertyAssignment>
+    <UnusedMethod>
+      <code><![CDATA[findRow]]></code>
+    </UnusedMethod>
+  </file>
+  <file src="src/Services/ClientIamMetadataService.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[delete]]></code>
+      <code><![CDATA[get]]></code>
+      <code><![CDATA[upsert]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+    </UndefinedMagicMethod>
+    <UnusedParam>
+      <code><![CDATA[$user]]></code>
+    </UnusedParam>
+  </file>
+  <file src="src/Services/ClientIamPolicyService.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[addClaim]]></code>
+      <code><![CDATA[deleteClaim]]></code>
+      <code><![CDATA[listClaims]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getIamService]]></code>
+      <code><![CDATA[getIamService]]></code>
+      <code><![CDATA[getIamService]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getIdentifier]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Services/ClientIamServiceFormatService.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[hasConfiguredFormat]]></code>
+      <code><![CDATA[payload]]></code>
+      <code><![CDATA[save]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getIamService]]></code>
+      <code><![CDATA[getIamServiceFormat]]></code>
+      <code><![CDATA[getIamServiceFormat]]></code>
+      <code><![CDATA[setIamServiceFormat]]></code>
+    </UndefinedMagicMethod>
+    <UnusedMethod>
+      <code><![CDATA[encodedFormat]]></code>
+    </UnusedMethod>
+  </file>
+  <file src="src/Services/IdpEmailMigrationService.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[commit]]></code>
+      <code><![CDATA[confirm]]></code>
+      <code><![CDATA[start]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getNewEmail]]></code>
+      <code><![CDATA[getNewEmail]]></code>
+      <code><![CDATA[getSentToHash]]></code>
+      <code><![CDATA[getStage]]></code>
+      <code><![CDATA[getStage]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+    <UnusedProperty>
+      <code><![CDATA[$challenges]]></code>
+      <code><![CDATA[$logger]]></code>
+      <code><![CDATA[$users]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Services/JwtPvhRefreshResult.php">
+    <UnusedClass>
+      <code><![CDATA[JwtPvhRefreshResult]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/JwtPvhRefreshService.php">
+    <InvalidOperand>
+      <code><![CDATA[microtime(true) * 1000]]></code>
+    </InvalidOperand>
+    <NoInterfaceProperties>
+      <code><![CDATA[$user->email]]></code>
+      <code><![CDATA[$user->id]]></code>
+      <code><![CDATA[$user->userId]]></code>
+    </NoInterfaceProperties>
+    <NullableReturnStatement>
+      <code><![CDATA[$noop->get()]]></code>
+    </NullableReturnStatement>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[refresh]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getPolicyHash]]></code>
+    </UndefinedMagicMethod>
+    <UnusedProperty>
+      <code><![CDATA[$assembler]]></code>
+      <code><![CDATA[$generationRepository]]></code>
+      <code><![CDATA[$idpLogging]]></code>
+      <code><![CDATA[$redisCache]]></code>
+      <code><![CDATA[$userRepository]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Services/LogReaderRateLimiter.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[allowAnalyze]]></code>
+      <code><![CDATA[allowQuery]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedMethod>
+      <code><![CDATA[allow]]></code>
+    </UnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$analyzePerMinute]]></code>
+      <code><![CDATA[$buckets]]></code>
+      <code><![CDATA[$queryPerMinute]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Services/LogsQueryService.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[analyze]]></code>
+      <code><![CDATA[search]]></code>
+      <code><![CDATA[searchErrors]]></code>
+      <code><![CDATA[searchTrace]]></code>
+      <code><![CDATA[stats]]></code>
+      <code><![CDATA[traceByRequestId]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedMethod>
+      <code><![CDATA[buildCriteria]]></code>
+      <code><![CDATA[optionalString]]></code>
+      <code><![CDATA[resolveLimit]]></code>
+    </UnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$idpLogging]]></code>
+      <code><![CDATA[$sqliteLogQuery]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Services/Mail/IntegRecordingOutboundMail.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function send(string $to, string $subject, string $text): void]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[IntegRecordingOutboundMail]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Mail/LogOutboundMail.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function send(string $to, string $subject, string $text): void]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[LogOutboundMail]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Mail/MailCarrier.php">
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['MAIL_TRANSPORT'] ?? '')]]></code>
+    </RedundantCast>
+    <UnusedClass>
+      <code><![CDATA[MailCarrier]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Mail/MailCarrierSettings.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[fromEnv]]></code>
+    </PossiblyUnusedMethod>
+    <PossiblyUnusedProperty>
+      <code><![CDATA[$sendGridApiKey]]></code>
+      <code><![CDATA[$sendGridFromEmail]]></code>
+      <code><![CDATA[$sesFromEmail]]></code>
+      <code><![CDATA[$sesHost]]></code>
+      <code><![CDATA[$sesPassword]]></code>
+      <code><![CDATA[$sesPort]]></code>
+      <code><![CDATA[$sesUsername]]></code>
+    </PossiblyUnusedProperty>
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['AMAZON_SES_FROM_EMAIL'] ?? '')]]></code>
+      <code><![CDATA[(string) ($_ENV['AMAZON_SES_HOST'] ?? '')]]></code>
+      <code><![CDATA[(string) ($_ENV['AMAZON_SES_PASSWORD'] ?? '')]]></code>
+      <code><![CDATA[(string) ($_ENV['AMAZON_SES_PORT'] ?? '')]]></code>
+      <code><![CDATA[(string) ($_ENV['AMAZON_SES_USERNAME'] ?? '')]]></code>
+      <code><![CDATA[(string) ($_ENV['SENDGRID_API_KEY'] ?? '')]]></code>
+      <code><![CDATA[(string) ($_ENV['SENDGRID_FROM_EMAIL'] ?? '')]]></code>
+    </RedundantCast>
+  </file>
+  <file src="src/Services/Mail/OutboundMail.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[send]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Services/Mail/OutboundMailFactory.php">
+    <UnusedClass>
+      <code><![CDATA[OutboundMailFactory]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Mail/PhpOutboundMail.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function send(string $to, string $subject, string $text): void]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[PhpOutboundMail]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Mail/SendGridOutboundMail.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function send(string $to, string $subject, string $text): void]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[SendGridOutboundMail]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Mail/SesOutboundMail.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function send(string $to, string $subject, string $text): void]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[SesOutboundMail]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Mail/SmtpPipe.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[readResponse]]></code>
+      <code><![CDATA[startTls]]></code>
+      <code><![CDATA[write]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Services/Mail/StreamSmtpPipe.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function readResponse(): string]]></code>
+      <code><![CDATA[public function startTls(): void]]></code>
+      <code><![CDATA[public function write(string $data): void]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[StreamSmtpPipe]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Mailbox/MailboxChallengeCheckResult.php">
+    <UnusedClass>
+      <code><![CDATA[MailboxChallengeCheckResult]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Mailbox/MailboxChallengeIssueResult.php">
+    <UnusedClass>
+      <code><![CDATA[MailboxChallengeIssueResult]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Mailbox/MailboxChallengePurpose.php">
+    <UnusedClass>
+      <code><![CDATA[MailboxChallengePurpose]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Mailbox/OrkFlowAMailDiagnostics.php">
+    <UnusedClass>
+      <code><![CDATA[OrkFlowAMailDiagnostics]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/MailboxChallengeService.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[advanceMigrationToNewMailbox]]></code>
+      <code><![CDATA[check]]></code>
+      <code><![CDATA[consume]]></code>
+      <code><![CDATA[findById]]></code>
+      <code><![CDATA[findLatestOpenByUserAndPurpose]]></code>
+      <code><![CDATA[findOpenByMundanePurposeAndHash]]></code>
+      <code><![CDATA[isConsumedForUser]]></code>
+      <code><![CDATA[issue]]></code>
+      <code><![CDATA[resend]]></code>
+      <code><![CDATA[reserve]]></code>
+    </PossiblyUnusedMethod>
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['MAILBOX_CODE_PEPPER'] ?? '')]]></code>
+    </RedundantCast>
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getSentToHash]]></code>
+    </UndefinedInterfaceMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getAttempts]]></code>
+      <code><![CDATA[getAttempts]]></code>
+      <code><![CDATA[getCodeHash]]></code>
+      <code><![CDATA[getConsumedAt]]></code>
+      <code><![CDATA[getConsumedAt]]></code>
+      <code><![CDATA[getConsumedAt]]></code>
+      <code><![CDATA[getConsumedAt]]></code>
+      <code><![CDATA[getConsumedAt]]></code>
+      <code><![CDATA[getExpiresAt]]></code>
+      <code><![CDATA[getExpiresAt]]></code>
+      <code><![CDATA[getExpiresAt]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getIdpUserId]]></code>
+      <code><![CDATA[getPurpose]]></code>
+      <code><![CDATA[getPurpose]]></code>
+      <code><![CDATA[getPurpose]]></code>
+      <code><![CDATA[getPurpose]]></code>
+      <code><![CDATA[getPurpose]]></code>
+      <code><![CDATA[getPurpose]]></code>
+      <code><![CDATA[getSendCount]]></code>
+      <code><![CDATA[getSendCount]]></code>
+      <code><![CDATA[getSentToHash]]></code>
+      <code><![CDATA[getSentToHash]]></code>
+    </UndefinedMagicMethod>
+    <UnusedMethod>
+      <code><![CDATA[assertKnownPurpose]]></code>
+      <code><![CDATA[deliver]]></code>
+      <code><![CDATA[evaluate]]></code>
+      <code><![CDATA[generateCode]]></code>
+      <code><![CDATA[hashCode]]></code>
+      <code><![CDATA[pepper]]></code>
+    </UnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$challenges]]></code>
+      <code><![CDATA[$logger]]></code>
+      <code><![CDATA[$mail]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Services/Ork/OrkClaimMailViaOrkFeature.php">
+    <UnusedClass>
+      <code><![CDATA[OrkClaimMailViaOrkFeature]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/Ork/OrkClaimSendNonceService.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[completePendingClaim]]></code>
+      <code><![CDATA[findOpenPendingClaim]]></code>
+      <code><![CDATA[issueForClaim]]></code>
+      <code><![CDATA[validateAndConsumeSendNonce]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$pendingClaims]]></code>
+      <code><![CDATA[$sendNonces]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Services/Ork/OrkPublicAssetUrl.php">
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['ORK_BASE_URL'] ?? '')]]></code>
+      <code><![CDATA[(string) ($parts['host'] ?? '')]]></code>
+    </RedundantCast>
+    <UnusedClass>
+      <code><![CDATA[OrkPublicAssetUrl]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Services/OrkLinkTokenService.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[cleanExpiredJti]]></code>
+      <code><![CDATA[consumeJti]]></code>
+      <code><![CDATA[flowAClaimRedirectUrl]]></code>
+      <code><![CDATA[flowBCompletionRedirectUrl]]></code>
+      <code><![CDATA[hasSharedSecret]]></code>
+      <code><![CDATA[mintFlowAHandoff]]></code>
+      <code><![CDATA[mintFlowBCompletion]]></code>
+      <code><![CDATA[mintLegacyCompletion]]></code>
+      <code><![CDATA[mintMailboxMagicLink]]></code>
+      <code><![CDATA[orkBaseUrl]]></code>
+      <code><![CDATA[peekClaims]]></code>
+      <code><![CDATA[peekFlowACompletion]]></code>
+      <code><![CDATA[peekLegacyClaims]]></code>
+      <code><![CDATA[peekMailboxMagicLink]]></code>
+    </PossiblyUnusedMethod>
+    <RedundantCast>
+      <code><![CDATA[(string) $parts['scheme']]]></code>
+      <code><![CDATA[(string) $secret]]></code>
+      <code><![CDATA[(string) ($_ENV['ORK_BASE_URL'] ?? '')]]></code>
+    </RedundantCast>
+    <UndefinedThisPropertyAssignment>
+      <code><![CDATA[$this->database->__set('jti', $jti)]]></code>
+    </UndefinedThisPropertyAssignment>
+    <UnusedMethod>
+      <code><![CDATA[decode]]></code>
+      <code><![CDATA[encode]]></code>
+      <code><![CDATA[sharedSecret]]></code>
+    </UnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$database]]></code>
+      <code><![CDATA[$idpLogging]]></code>
+    </UnusedProperty>
+    <UnusedVariable>
+      <code><![CDATA[$aud]]></code>
+    </UnusedVariable>
+  </file>
+  <file src="src/Services/OrkService.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$data]]></code>
+      <code><![CDATA[$data]]></code>
+      <code><![CDATA[$matches]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[?array]]></code>
+      <code><![CDATA[?array]]></code>
+      <code><![CDATA[list<array{mundaneId: int, username: string, persona: string, parkName: string, kingdomName: string}>]]></code>
+    </InvalidReturnType>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[authorize]]></code>
+      <code><![CDATA[beginClaimOrkMail]]></code>
+      <code><![CDATA[getParkShortInfo]]></code>
+      <code><![CDATA[getPlayer]]></code>
+      <code><![CDATA[getPlayerByMundaneId]]></code>
+      <code><![CDATA[resolveParkDataFromPlayer]]></code>
+      <code><![CDATA[searchUsernames]]></code>
+      <code><![CDATA[validateClaimOrkCode]]></code>
+    </PossiblyUnusedMethod>
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['ORK_JSON_API_BASE_URL'] ?? '')]]></code>
+    </RedundantCast>
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[get]]></code>
+      <code><![CDATA[get]]></code>
+      <code><![CDATA[get]]></code>
+      <code><![CDATA[get]]></code>
+      <code><![CDATA[get]]></code>
+      <code><![CDATA[get]]></code>
+      <code><![CDATA[post]]></code>
+    </UndefinedInterfaceMethod>
+    <UnusedClosureParam>
+      <code><![CDATA[$stats]]></code>
+      <code><![CDATA[$stats]]></code>
+    </UnusedClosureParam>
+    <UnusedMethod>
+      <code><![CDATA[extractParkRelatedFields]]></code>
+      <code><![CDATA[isOrkJsonSuccess]]></code>
+      <code><![CDATA[jsonApiBaseUrl]]></code>
+    </UnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$httpClient]]></code>
+      <code><![CDATA[$idpLogging]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Services/RegistrationService.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[['ok' => false, 'error' => 'All fields are required']]]></code>
+      <code><![CDATA[['ok' => false, 'error' => 'Email already registered']]]></code>
+      <code><![CDATA[['ok' => false, 'error' => 'Invalid email format']]]></code>
+    </InvalidReturnStatement>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[register]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+    <UnusedProperty>
+      <code><![CDATA[$idpLogging]]></code>
+      <code><![CDATA[$logins]]></code>
+      <code><![CDATA[$users]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Services/ResourcesUserinfoService.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[buildPayload]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getEmail]]></code>
+      <code><![CDATA[getId]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Utility/AppleLoginFeature.php">
+    <UnusedClass>
+      <code><![CDATA[AppleLoginFeature]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/BuildInfo.php">
+    <ForbiddenCode>
+      <code><![CDATA[shell_exec($cmd)]]></code>
+    </ForbiddenCode>
+    <InvalidReturnStatement>
+      <code><![CDATA[[
+            'short_commit' => $short,
+            'commit' => self::gitCommand('rev-parse HEAD'),
+            'branch' => self::gitCommand('rev-parse --abbrev-ref HEAD'),
+        ]]]></code>
+      <code><![CDATA[[
+            'version' => $short !== null && $short !== '' ? $buildId . '+' . $short : $buildId,
+            'build_id' => $buildId,
+            'date' => $data['date'] ?? null,
+            'revision' => isset($data['revision']) ? (int) $data['revision'] : null,
+            'short_commit' => $short,
+            'commit' => $full,
+            'branch' => $git['branch'] ?? ($data['branch'] ?? null),
+        ]]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[array{
+     *     version: string,
+     *     build_id: string,
+     *     date?: string,
+     *     revision?: int,
+     *     short_commit?: string,
+     *     commit?: string,
+     *     branch?: string
+     * }]]></code>
+    </InvalidReturnType>
+    <UnusedClass>
+      <code><![CDATA[BuildInfo]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/BuiltInOrkPolicyServices.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[serviceNames]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/CallConsumersBackoff.php">
+    <UnusedClass>
+      <code><![CDATA[CallConsumersBackoff]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Client/ClientEmailLookupRejection.php">
+    <UnusedClass>
+      <code><![CDATA[ClientEmailLookupRejection]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Client/ClientIamAdminInput.php">
+    <UnusedClass>
+      <code><![CDATA[ClientIamAdminInput]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Client/ClientResourcesRequestResolver.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[findLoginIdForUser]]></code>
+      <code><![CDATA[findUserByEmail]]></code>
+      <code><![CDATA[findUserByPublicId]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$userLoginRepository]]></code>
+      <code><![CDATA[$userRepository]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Utility/ClientApplicationFormatRegistry.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[has]]></code>
+      <code><![CDATA[register]]></code>
+      <code><![CDATA[reset]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/ClientMetadata/Base64MetadataEncodingStrategy.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function encodingName(): string]]></code>
+      <code><![CDATA[public function prepare(mixed $metadata): array]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[Base64MetadataEncodingStrategy]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/ClientMetadata/ClientMetadataEncodingRegistry.php">
+    <InvalidPropertyAssignmentValue>
+      <code><![CDATA[[
+        ClientMetadataValidator::ENCODING_JSON => JsonObjectMetadataEncodingStrategy::class,
+        ClientMetadataValidator::ENCODING_BASE64 => Base64MetadataEncodingStrategy::class,
+    ]]]></code>
+    </InvalidPropertyAssignmentValue>
+    <UnusedClass>
+      <code><![CDATA[ClientMetadataEncodingRegistry]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/ClientMetadata/ClientMetadataEncodingStrategy.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[encodingName]]></code>
+      <code><![CDATA[prepare]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/ClientMetadata/JsonObjectMetadataEncodingStrategy.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function encodingName(): string]]></code>
+      <code><![CDATA[public function prepare(mixed $metadata): array]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[JsonObjectMetadataEncodingStrategy]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/ClientMetadata/MetadataSizeGuard.php">
+    <UnusedClass>
+      <code><![CDATA[MetadataSizeGuard]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/ClientMetadataValidator.php">
+    <UnusedClass>
+      <code><![CDATA[ClientMetadataValidator]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Constants.php">
+    <UnusedClass>
+      <code><![CDATA[Constants]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Exception/MalformedUserPolicyException.php">
+    <UnusedClass>
+      <code><![CDATA[MalformedUserPolicyException]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Http/DevIntegHttpClient.php">
+    <InvalidArgument>
+      <code><![CDATA[$logger]]></code>
+    </InvalidArgument>
+    <InvalidExtendClass>
+      <code><![CDATA[Client]]></code>
+    </InvalidExtendClass>
+    <InvalidOperand>
+      <code><![CDATA[self::appleSigningKeyPath()]]></code>
+    </InvalidOperand>
+    <MismatchingDocblockReturnType>
+      <code><![CDATA[array<string, mixed>]]></code>
+    </MismatchingDocblockReturnType>
+    <RedundantCondition>
+      <code><![CDATA[is_array($parsed)]]></code>
+      <code><![CDATA[is_array($parsedBody)]]></code>
+    </RedundantCondition>
+    <RedundantFunctionCall>
+      <code><![CDATA[strtolower]]></code>
+    </RedundantFunctionCall>
+    <TypeDoesNotContainType>
+      <code><![CDATA[[]]]></code>
+    </TypeDoesNotContainType>
+    <UnusedClass>
+      <code><![CDATA[DevIntegHttpClient]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Http/OrkHttpClient.php">
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['ORK_API_CLIENT'] ?? 'AmtgardIDP/1.0')]]></code>
+      <code><![CDATA[(string) ($_ENV['ORK_API_KEY'] ?? '')]]></code>
+    </RedundantCast>
+    <UnusedClass>
+      <code><![CDATA[OrkHttpClient]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Http/SocialOAuthHttpClient.php">
+    <UnusedClass>
+      <code><![CDATA[SocialOAuthHttpClient]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/IamServiceFormatParser.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[encode]]></code>
+      <code><![CDATA[parse]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/IamServiceFormatValidator.php">
+    <UnusedClass>
+      <code><![CDATA[IamServiceFormatValidator]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/IamServiceValidator.php">
+    <UnusedClass>
+      <code><![CDATA[IamServiceValidator]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/JwksFactory.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[document]]></code>
+      <code><![CDATA[fromPublicKeyPem]]></code>
+      <code><![CDATA[jwk]]></code>
+      <code><![CDATA[kid]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedConstructor>
+      <code><![CDATA[__construct]]></code>
+    </UnusedConstructor>
+    <UnusedMethod>
+      <code><![CDATA[base64UrlEncode]]></code>
+    </UnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$requiredMembers]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Utility/Jwt.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[validateJwt]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/Log/CorrelationProcessor.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function __invoke(LogRecord $record): LogRecord]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="src/Utility/Log/IdpLogging.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[forChannel]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/Log/IdpLoggingRuntime.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[audit]]></code>
+      <code><![CDATA[bind]]></code>
+      <code><![CDATA[reset]]></code>
+      <code><![CDATA[security]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/Log/IdpLogsCli.php">
+    <UnusedClass>
+      <code><![CDATA[IdpLogsCli]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Log/LogChannelFactory.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/Log/LogRetentionPurger.php">
+    <UnusedClass>
+      <code><![CDATA[LogRetentionPurger]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Log/LogRootBootGuard.php">
+    <UnusedClass>
+      <code><![CDATA[LogRootBootGuard]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Log/RedactionProcessor.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function __invoke(LogRecord $record): LogRecord]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="src/Utility/Log/Sqlite/JsonLogSpoolHandler.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function write(LogRecord $record): void]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="src/Utility/Log/Sqlite/LogPathResolver.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[fromEnv]]></code>
+      <code><![CDATA[root]]></code>
+      <code><![CDATA[sqlitePathForInstant]]></code>
+    </PossiblyUnusedMethod>
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['LOG_ROOT'] ?? '')]]></code>
+    </RedundantCast>
+  </file>
+  <file src="src/Utility/Log/Sqlite/LogSearchCriteria.php">
+    <UnusedClass>
+      <code><![CDATA[LogSearchCriteria]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Log/Sqlite/LogSearchPage.php">
+    <UnusedClass>
+      <code><![CDATA[LogSearchPage]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Log/Sqlite/LogSpoolDrainer.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[drainOnce]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedMethod>
+      <code><![CDATA[bindInsert]]></code>
+      <code><![CDATA[instantFromRow]]></code>
+      <code><![CDATA[prepareInsert]]></code>
+      <code><![CDATA[readSpoolLines]]></code>
+      <code><![CDATA[truncateSpool]]></code>
+    </UnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$parser]]></code>
+      <code><![CDATA[$paths]]></code>
+      <code><![CDATA[$schema]]></code>
+    </UnusedProperty>
+    <UnusedVariable>
+      <code><![CDATA[$pdo]]></code>
+    </UnusedVariable>
+  </file>
+  <file src="src/Utility/Log/Sqlite/MonologJsonLineParser.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[parse]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedMethod>
+      <code><![CDATA[stringOrNull]]></code>
+    </UnusedMethod>
+  </file>
+  <file src="src/Utility/Log/Sqlite/SqliteLogQuery.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[decodeCursor]]></code>
+      <code><![CDATA[encodeCursor]]></code>
+      <code><![CDATA[entriesForRequestId]]></code>
+      <code><![CDATA[rawLinesForRequestId]]></code>
+      <code><![CDATA[search]]></code>
+      <code><![CDATA[stats]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedMethod>
+      <code><![CDATA[isFileBeforeCursor]]></code>
+      <code><![CDATA[listSqliteFiles]]></code>
+      <code><![CDATA[normalizeRow]]></code>
+      <code><![CDATA[queryFile]]></code>
+      <code><![CDATA[streamRoot]]></code>
+    </UnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$paths]]></code>
+      <code><![CDATA[$schema]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Utility/Log/Sqlite/SqliteLogSchema.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[apply]]></code>
+      <code><![CDATA[open]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/Log/UsesIdpLogging.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[logApp]]></code>
+      <code><![CDATA[logApp]]></code>
+      <code><![CDATA[logApp]]></code>
+      <code><![CDATA[logApp]]></code>
+      <code><![CDATA[logApp]]></code>
+      <code><![CDATA[logApp]]></code>
+      <code><![CDATA[logApp]]></code>
+      <code><![CDATA[logApp]]></code>
+      <code><![CDATA[logApp]]></code>
+      <code><![CDATA[logAudit]]></code>
+      <code><![CDATA[logAudit]]></code>
+      <code><![CDATA[logAudit]]></code>
+      <code><![CDATA[logAudit]]></code>
+      <code><![CDATA[logAudit]]></code>
+      <code><![CDATA[logAudit]]></code>
+      <code><![CDATA[logAudit]]></code>
+      <code><![CDATA[logAudit]]></code>
+      <code><![CDATA[logAudit]]></code>
+      <code><![CDATA[logPvh]]></code>
+      <code><![CDATA[logPvh]]></code>
+      <code><![CDATA[logPvh]]></code>
+      <code><![CDATA[logPvh]]></code>
+      <code><![CDATA[logPvh]]></code>
+      <code><![CDATA[logPvh]]></code>
+      <code><![CDATA[logPvh]]></code>
+      <code><![CDATA[logPvh]]></code>
+      <code><![CDATA[logPvh]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/LoginSession.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[getLoginId]]></code>
+      <code><![CDATA[setLoginId]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/OAuthKeyMaterial.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[pathFromEnv]]></code>
+    </PossiblyUnusedMethod>
+    <TypeDoesNotContainType>
+      <code><![CDATA[!is_string($configured)]]></code>
+    </TypeDoesNotContainType>
+  </file>
+  <file src="src/Utility/OrnClaimRegistry.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[registerForClient]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getIamService]]></code>
+      <code><![CDATA[getIamServiceFormat]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClosureParam>
+      <code><![CDATA[$service]]></code>
+    </UnusedClosureParam>
+  </file>
+  <file src="src/Utility/Pvh.php">
+    <FalsableReturnStatement>
+      <code><![CDATA[json_encode($metadata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)]]></code>
+    </FalsableReturnStatement>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[policyHashFromHex]]></code>
+      <code><![CDATA[policyHashToHex]]></code>
+      <code><![CDATA[reuseOrMint]]></code>
+      <code><![CDATA[timestampMs]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/Pvh/JwtPvhQueueProcessor.php">
+    <UnusedClass>
+      <code><![CDATA[JwtPvhQueueProcessor]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Pvh/PvhAuthorizationGate.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[lastCachedRecord]]></code>
+      <code><![CDATA[lastResolvedRecord]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/Pvh/PvhQueueMessage.php">
+    <UnusedClass>
+      <code><![CDATA[PvhQueueMessage]]></code>
+    </UnusedClass>
+    <UnusedFunctionCall>
+      <code><![CDATA[json_decode]]></code>
+    </UnusedFunctionCall>
+  </file>
+  <file src="src/Utility/PvhCacheRecord.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[fromGeneration]]></code>
+      <code><![CDATA[getEmail]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getAud]]></code>
+      <code><![CDATA[getPrevPvh]]></code>
+      <code><![CDATA[getPvh]]></code>
+      <code><![CDATA[getUserUuid]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Utility/PvhGate.php">
+    <InvalidOperand>
+      <code><![CDATA[microtime(true) * 1000]]></code>
+    </InvalidOperand>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[writeUnauthorized]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/PvhSetQueue.php">
+    <UnusedClass>
+      <code><![CDATA[PvhSetQueue]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Redis/PubSubRedisConfig.php">
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['REDIS_PUBSUB_HOST'] ?? self::LOCAL_FALLBACK_HOST)]]></code>
+      <code><![CDATA[(string) ($_ENV['REDIS_PUBSUB_QUEUE_NAME'] ?? 'amtgard-idp')]]></code>
+      <code><![CDATA[(string) ($_ENV['REDIS_PVH_QUEUE_NAME'] ?? 'amtgard-idp-pvh')]]></code>
+    </RedundantCast>
+    <UnusedClass>
+      <code><![CDATA[PubSubRedisConfig]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Security/AllowListedConfidentialClientAuthenticator.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/Security/ConfidentialClientAuthenticator.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getIamService]]></code>
+      <code><![CDATA[getIsConfidential]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Utility/Security/CsrfTokenManager.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[generate]]></code>
+      <code><![CDATA[getOrCreate]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/Security/CurrentUserResolver.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function resolve(): ?UserEntity]]></code>
+    </MissingOverrideAttribute>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getUserEntity]]></code>
+    </UndefinedMagicMethod>
+    <UnusedClass>
+      <code><![CDATA[CurrentUserResolver]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Security/CurrentUserResolverInterface.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[resolve]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/Security/HttpBasicCredentialsParser.php">
+    <PossiblyUnusedProperty>
+      <code><![CDATA[$clientId]]></code>
+      <code><![CDATA[$clientSecret]]></code>
+    </PossiblyUnusedProperty>
+  </file>
+  <file src="src/Utility/Security/OAuth2StateManager.php">
+    <UnusedClass>
+      <code><![CDATA[OAuth2StateManager]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Security/OAuthAccessTokenFallback.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Utility/Security/OAuthCallbackValidator.php">
+    <UnusedClass>
+      <code><![CDATA[OAuthCallbackValidator]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Security/OAuthSocialCallbackHandler.php">
+    <UnusedClass>
+      <code><![CDATA[OAuthSocialCallbackHandler]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Security/OAuthSocialRedirectSessionStore.php">
+    <UnusedClass>
+      <code><![CDATA[OAuthSocialRedirectSessionStore]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Security/RedirectValidator.php">
+    <InvalidNullableReturnType>
+      <code><![CDATA[string]]></code>
+    </InvalidNullableReturnType>
+    <NullableReturnStatement>
+      <code><![CDATA[self::isSafe($url) ? $url : $fallback]]></code>
+    </NullableReturnStatement>
+    <UnusedClass>
+      <code><![CDATA[RedirectValidator]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Security/ScriptAlertResponse.php">
+    <UnusedClass>
+      <code><![CDATA[ScriptAlertResponse]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Utility/Security/SessionStorage.php">
+    <RedundantCast>
+      <code><![CDATA[(string) ($_ENV['SESSION_REDIS_DB'] ?? '1')]]></code>
+      <code><![CDATA[(string) ($_ENV['SESSION_REDIS_HOST'] ?? '')]]></code>
+      <code><![CDATA[(string) ($_ENV['SESSION_REDIS_PORT'] ?? '6379')]]></code>
+      <code><![CDATA[(string) ($_ENV['SESSION_REDIS_PREFIX'] ?? 'PHPSESS:')]]></code>
+    </RedundantCast>
+  </file>
+  <file src="src/Utility/UserAuthority.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="src/Utility/Utility.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[getAuthenticatedUser]]></code>
+      <code><![CDATA[userIsAuthenticated]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+</files>

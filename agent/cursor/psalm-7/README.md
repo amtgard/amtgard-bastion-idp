@@ -16,3 +16,7 @@ Adopt [Psalm 7](https://psalm.dev/articles/psalm-7) on the Amtgard IDP Slim app 
 | `composer psalm` | `src/` only (`tests/` deferred; PHPUnit plugin registered for a later scope widen) |
 
 Taint analysis is on by default in Psalm 7 (`runTaintAnalysis` in `psalm.xml`). SARIF output from `composer psalm:security` lands under `build/` (gitignored).
+
+**Developer gates (post-M3):** `composer test`, `composer mutate`, `composer stan`, **`composer psalm`** (green against committed `psalm-baseline.xml`).
+
+**Local gates (after M3):** `composer test`, `composer mutate`, `composer stan`, **`composer psalm`** (green via committed `psalm-baseline.xml`; single baseline for types + taint).
