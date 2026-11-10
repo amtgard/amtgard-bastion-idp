@@ -5,8 +5,6 @@
     phpVersion="8.4"
     runTaintAnalysis="true"
     loadLibraryStubs="true"
-    errorBaseline="psalm-baseline.xml"
-    findUnusedBaselineEntry="true"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xmlns="https://getpsalm.org/schema/config"
     xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"

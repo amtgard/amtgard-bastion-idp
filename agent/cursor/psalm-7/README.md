@@ -17,7 +17,7 @@ Adopt [Psalm 7](https://psalm.dev/articles/psalm-7) on the Amtgard IDP Slim app 
 
 Taint analysis is on by default in Psalm 7 (`runTaintAnalysis` in `psalm.xml`). SARIF output from `composer psalm:security` lands under `build/` (gitignored).
 
-**Developer gates (post-M3):** `composer test`, `composer mutate`, `composer stan`, **`composer psalm`** (green against committed `psalm-baseline.xml`). Post-M5: **`composer analyse`** runs `@stan` then `@psalm` (fail fast).
+**Developer gates:** `composer test`, `composer mutate`, `composer stan`. **`composer psalm`** is optional until you generate a **local** baseline (`composer psalm:baseline` → gitignored `psalm-baseline.xml`; `scripts/psalm.sh` applies it automatically). **`composer analyse`** runs PHPStan only; use **`composer analyse:psalm`** for stan + psalm.
 
 ## Commands appendix (local)
 
@@ -25,7 +25,9 @@ Taint analysis is on by default in Psalm 7 (`runTaintAnalysis` in `psalm.xml`). 
 |--------|-------------------------------|--------|
 | `composer stan` | ~20–25s @ 1G memory | `src/` + `tests/` |
 | `composer psalm` | ~7–15s | `src/` only, `--no-cache` |
-| `composer analyse` | ~30–40s | stan then psalm |
+| `composer analyse` | ~20–25s | PHPStan only |
+| `composer analyse:psalm` | ~30–40s | stan then psalm (uses local baseline when present) |
+| `composer psalm:baseline` | once | writes gitignored `psalm-baseline.xml` |
 | `composer psalm:security` | ~7–15s | writes `build/psalm-security.sarif` |
 | `composer cs` | N/A | no PHPCS ruleset in repo |
 
@@ -48,7 +50,8 @@ Taint analysis is on by default in Psalm 7 (`runTaintAnalysis` in `psalm.xml`). 
 
 | Command | Role | Approx. runtime (dev laptop) |
 |---------|------|------------------------------|
-| `composer analyse` | PHPStan (`src`+`tests`) then Psalm (`src`); fails fast | ~90s (`stan` ~75s, `psalm` ~8s) |
+| `composer analyse` | PHPStan (`src`+`tests`) | ~20–25s |
+| `composer analyse:psalm` | stan then psalm | ~30–40s |
 | `composer psalm:ci` | GitHub Actions annotation format | ~8s |
 | `composer psalm:security` | SARIF → `build/psalm-security.sarif` | ~8s |
 | `composer cs` | PHPCS (no ruleset in repo; exits 3) | &lt;1s |

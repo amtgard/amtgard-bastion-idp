@@ -60,13 +60,15 @@
         "integ:coverage": "bash scripts/integ-coverage.sh",
         "cs": "phpcs",
         "stan": "phpstan analyse --memory-limit=1G src tests",
-        "analyse": [
+        "analyse": "@stan",
+        "analyse:psalm": [
             "@stan",
             "@psalm"
         ],
-        "psalm": "psalm --no-cache",
-        "psalm:ci": "psalm --no-cache --output-format=github",
-        "psalm:security": "psalm --no-cache --report=build/psalm-security.sarif",
+        "psalm": "bash scripts/psalm.sh",
+        "psalm:ci": "bash scripts/psalm.sh --output-format=github",
+        "psalm:baseline": "psalm --no-cache --set-baseline=psalm-baseline.xml",
+        "psalm:security": "bash scripts/psalm.sh --report=build/psalm-security.sarif",
         "mutate": "bash scripts/mutation-test.sh",
         "frontend:build": "npm ci && npm run build"
     },

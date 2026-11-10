@@ -2,6 +2,8 @@
 
 **Stack base:** `main` @ `d2bf400` (docs/nginx merged). **Planning branch:** `stack/psalm-7` (docs only).
 
+**Baseline policy (merge to main):** `psalm-baseline.xml` is **not** committed — listed in `.gitignore`. Run `composer psalm:baseline` locally; `scripts/psalm.sh` picks it up automatically.
+
 **Resume:** After M0 commit, checkout `stack/psalm-7-m1-deps` from `stack/psalm-7` tip.
 
 **Companion:** [README.md](./README.md) · [implementation-plan.md](./implementation-plan.md) · [risks.md](./risks.md)
