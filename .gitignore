@@ -22,3 +22,4 @@ dev-keys/
 .phinx.env
 .deploy-state/
 .infection-tmp/
+psalm-baseline.xml

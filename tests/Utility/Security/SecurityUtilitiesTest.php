@@ -121,6 +121,13 @@ class SecurityUtilitiesTest extends TestCase
         );
     }
 
+    public function testScriptAlertResponseSanitizesUnsafeRedirectTarget(): void
+    {
+        $html = ScriptAlertResponse::alertAndRedirect('denied', 'https://evil.example/phish');
+
+        ScriptAlertResponseAssert::assertRedirectWithError($html, 'denied', '/auth/login');
+    }
+
     public function testScriptAlertResponseOauthProviderError(): void
     {
         $html = ScriptAlertResponse::oauthProviderError('Google', 'access_denied', '/custom/login');

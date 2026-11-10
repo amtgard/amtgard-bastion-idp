@@ -10,6 +10,7 @@ class ScriptAlertResponse
 {
     public static function alertAndRedirect(string $message, string $redirectUrl): string
     {
+        $redirectUrl = RedirectValidator::sanitize($redirectUrl, '/auth/login');
         $separator = str_contains($redirectUrl, '?') ? '&' : '?';
         $url = $redirectUrl . $separator . 'error=' . urlencode($message);
         return '<script>window.location.href = ' . json_encode($url) . ';</script>';
