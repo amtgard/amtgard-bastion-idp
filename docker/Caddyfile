@@ -18,15 +18,30 @@
 	encode zstd gzip
 
 	route {
-		@docsExact path /docs /docs/
-		rewrite @docsExact /index.php{query}
-
-		handle_path /docs/* {
-			try_files {path} /index.php{query}
+		# Docsify lives in Slim (/docs, /docs/readme.md). A physical public/docs/
+		# directory (for example a symlink to the repo docs/ runbook) would make
+		# try_files serve the folder before PHP — route these paths to the worker
+		# with the original URI intact, so Slim sees /docs, not /index.php.
+		# Do NOT rewrite to /index.php: a rewrite loses the /docs URI and, worse,
+		# lets the static-file handle serve the front controller's source.
+		@docs path /docs /docs/*
+		handle @docs {
+			php_server {
+				try_files /index.php{query}
+				worker {
+					file /var/www/idp.amtgard.com/bin/http-worker.php
+					num {$FRANKENPHP_NUM:2}
+				}
+			}
 		}
 
-		@onDisk file
-		handle @onDisk {
+		# Static assets are served from disk, but never a .php file: a .php file
+		# must always reach the worker, otherwise Caddy serves its source raw.
+		@static {
+			file
+			not path *.php
+		}
+		handle @static {
 			@cachedImages path_regexp cachedImages \.(jpg|gif|png|jpeg)$
 			header @cachedImages Cache-Control "public, max-age=300, must-revalidate"
 			file_server
