@@ -1,0 +1,36 @@
+FROM dunglas/frankenphp:1-php8.4-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends git unzip mysql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN install-php-extensions \
+    @composer \
+    pdo_mysql \
+    sqlite3 \
+    redis \
+    gd \
+    zip \
+    opcache \
+    mbstring \
+    xml \
+    curl
+
+RUN php -r '$v=PHP_VERSION; if (version_compare($v, "8.4.27", "<")) { fwrite(STDERR, "Require PHP >= 8.4.27, got {$v}\n"); exit(1); }'
+
+COPY docker/php-frankenphp.ini /usr/local/etc/php/conf.d/99-idp.ini
+
+ENV COMPOSER_ALLOW_SUPERUSER=1
+ENV FRANKENPHP_NUM=2
+ENV ENVIRONMENT=DEV
+
+WORKDIR /var/www/idp.amtgard.com
+
+COPY docker/Caddyfile.dev /etc/caddy/Caddyfile
+
+WORKDIR /var/www
+
+COPY docker/frankenphp-entrypoint.sh /usr/local/bin/idp-frankenphp-entrypoint.sh
+RUN chmod +x /usr/local/bin/idp-frankenphp-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/idp-frankenphp-entrypoint.sh"]
+CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]

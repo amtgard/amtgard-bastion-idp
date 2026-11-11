@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-11-11.330",
+  "build_id": "2026-11-11.331",
   "date": "2026-11-11",
-  "revision": 330,
-  "branch": "stack/frankenphp-m1-prod-runtime"
+  "revision": 331,
+  "branch": "stack/frankenphp-m2-dev-opt-in"
 }
