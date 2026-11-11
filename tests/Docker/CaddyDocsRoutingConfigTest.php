@@ -18,5 +18,7 @@ final class CaddyDocsRoutingConfigTest extends TestCase
         $this->assertStringContainsString('rewrite @docsExact /index.php{query}', $config);
         $this->assertStringContainsString('handle_path /docs/*', $config);
         $this->assertStringContainsString('try_files {path} /index.php{query}', $config);
+        $this->assertStringContainsString('@onDisk file', $config);
+        $this->assertStringContainsString('file_server', $config);
     }
 }

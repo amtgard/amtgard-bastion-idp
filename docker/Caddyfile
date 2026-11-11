@@ -17,20 +17,29 @@
 	root * /var/www/idp.amtgard.com/public
 	encode zstd gzip
 
-	@docsExact path /docs /docs/
-	rewrite @docsExact /index.php{query}
+	route {
+		@docsExact path /docs /docs/
+		rewrite @docsExact /index.php{query}
 
-	handle_path /docs/* {
-		try_files {path} /index.php{query}
-	}
+		handle_path /docs/* {
+			try_files {path} /index.php{query}
+		}
 
-	@cachedImages path_regexp cachedImages \.(jpg|gif|png)$
-	header @cachedImages Cache-Control "public, max-age=300, must-revalidate"
+		@onDisk file
+		handle @onDisk {
+			@cachedImages path_regexp cachedImages \.(jpg|gif|png|jpeg)$
+			header @cachedImages Cache-Control "public, max-age=300, must-revalidate"
+			file_server
+		}
 
-	php_server {
-		worker {
-			file /var/www/idp.amtgard.com/bin/http-worker.php
-			num {$FRANKENPHP_NUM:2}
+		handle {
+			php_server {
+				try_files {path} {path}/ /index.php{query}
+				worker {
+					file /var/www/idp.amtgard.com/bin/http-worker.php
+					num {$FRANKENPHP_NUM:2}
+				}
+			}
 		}
 	}
 }

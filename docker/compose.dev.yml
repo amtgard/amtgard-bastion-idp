@@ -11,6 +11,7 @@ services:
       - "41093:9003"
     volumes:
       - .:/var/www/idp.amtgard.com
+      - ./docker/Caddyfile.dev:/etc/caddy/Caddyfile:ro
       - ${IDP_HEV_HTTP_SECRETS:-./.local/empty-secrets}:/run/secrets:ro
     env_file:
       - .env
