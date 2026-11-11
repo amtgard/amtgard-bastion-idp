@@ -6,7 +6,7 @@
 
 **Do not push** unless the user asks.
 
-**Resume from:** first unchecked milestone below.
+**Resume from:** M3 complete — stack tip `stack/frankenphp-m3-closeout`.
 
 ---
 
@@ -20,32 +20,32 @@
 
 ## M1 — Production FrankenPHP runtime
 
-- [ ] `docker/Dockerfile.prod` — FrankenPHP base, extensions, Composer, no nginx/fpm/memcached
-- [ ] `docker/Caddyfile`, `docker/frankenphp-entrypoint.sh`, `docker/php-frankenphp.ini` (or equivalent)
-- [ ] `config/http-app.php`; slim boot from `public/index.php` and `bin/http-worker.php`
-- [ ] `src/Utility/Http/WorkerRequestScope.php` + unit tests (session + `RequestLogContext` reset)
-- [ ] Log test if new decision branch (e.g. worker scope cleanup path)
-- [ ] Update [milestones.md](./milestones.md) M1 appendix: coverage + Infection
-- [ ] One commit on `stack/frankenphp-m1-prod-runtime`; check M1 boxes
+- [x] `docker/Dockerfile.prod` — FrankenPHP base, extensions, Composer, no nginx/fpm/memcached
+- [x] `docker/Caddyfile`, `docker/frankenphp-entrypoint.sh`, `docker/php-frankenphp.ini` (or equivalent)
+- [x] `config/http-app.php`; slim boot from `public/index.php` and `bin/http-worker.php`
+- [x] `src/Utility/Http/WorkerRequestScope.php` + unit tests (session + `RequestLogContext` reset)
+- [x] Log test if new decision branch (e.g. worker scope cleanup path) — N/A (unconditional cleanup)
+- [x] Update [milestones.md](./milestones.md) M1 appendix: coverage + Infection
+- [x] One commit on `stack/frankenphp-m1-prod-runtime`; check M1 boxes
 
 ---
 
 ## M2 — Dev opt-in
 
-- [ ] `docker/Dockerfile.frankenphp.dev` + `docker/Caddyfile.dev` (file watch)
-- [ ] `docker/compose.dev.yml` — `IDP_DEV_DOCKERFILE` interpolation
-- [ ] `.env.example` — document switch
-- [ ] `scripts/integ-up.sh`, `scripts/integ-down.sh`, integ-coverage paths pin FPM dev dockerfile
-- [ ] One commit on `stack/frankenphp-m2-dev-opt-in`; check M2 boxes
+- [x] `docker/Dockerfile.frankenphp.dev` + `docker/Caddyfile.dev` (file watch)
+- [x] `docker/compose.dev.yml` — `IDP_DEV_DOCKERFILE` interpolation
+- [x] `.env.example` — document switch
+- [x] `scripts/integ-up.sh`, `scripts/integ-down.sh`, integ-coverage paths pin FPM dev dockerfile
+- [x] One commit on `stack/frankenphp-m2-dev-opt-in`; check M2 boxes
 
 ---
 
 ## M3 — Closeout
 
-- [ ] `tests/Docker/CaddyDocsRoutingConfigTest.php` (Docsify routing parity)
-- [ ] `README.md`, `docs/deploy-gb-host-env-vault.md` — FrankenPHP prod, optional dev
-- [ ] Full `composer test` + Infection on touched scope; checklist footer
-- [ ] One commit on `stack/frankenphp-m3-closeout`; check M3 boxes
+- [x] `tests/Docker/CaddyDocsRoutingConfigTest.php` (Docsify routing parity)
+- [x] `README.md`, `docs/deploy-gb-host-env-vault.md` — FrankenPHP prod, optional dev
+- [x] Full `composer test` + Infection on touched scope; checklist footer
+- [x] One commit on `stack/frankenphp-m3-closeout`; check M3 boxes
 
 ---
 
@@ -53,7 +53,9 @@
 
 | Milestone | Branch | Commit | Status | Notes |
 | --- | --- | --- | --- | --- |
-| M0 | `stack/frankenphp-worker` | `97ac540` | ok | Preflight pack only |
-| M1 | | | | |
-| M2 | | | | |
-| M3 | | | | |
+| M0 | `stack/frankenphp-worker` | `8560d8c` | ok | Preflight pack |
+| M1 | `stack/frankenphp-m1-prod-runtime` | `9a2fa6e` | ok | Prod image + worker loop |
+| M2 | `stack/frankenphp-m2-dev-opt-in` | `f9c5fdc` | ok | Dev compose opt-in |
+| M3 | `stack/frankenphp-m3-closeout` | `16732c8` | ok | Docs + Caddy test |
+
+**M3 gates:** `composer test` OK (1052 tests); Infection on `WorkerRequestScope` ≥80% MSI; no new log branches. **Tip:** `stack/frankenphp-m3-closeout` @ `16732c8`.

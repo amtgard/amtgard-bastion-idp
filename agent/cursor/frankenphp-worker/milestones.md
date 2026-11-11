@@ -18,3 +18,11 @@ Check milestones in order. One branch → one commit → next branch stacks on p
 | M3 | `stack/frankenphp-m3-closeout` | Caddy config test, README + deploy doc, full gates |
 
 **Checklist (orchestrator):** [checklist.md](./checklist.md)
+
+---
+
+## M1 appendix (gates)
+
+- **Branch:** `stack/frankenphp-m1-prod-runtime` @ `9a2fa6e`
+- **Infection:** `bash scripts/mutation-test.sh --filter=WorkerRequestScope` — covered MSI ≥80%
+- **Tests:** `WorkerRequestScopeTest`, existing container health tests unchanged
