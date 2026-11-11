@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+export IDP_DEV_DOCKERFILE="${IDP_DEV_DOCKERFILE:-docker/Dockerfile.dev}"
+
 # shellcheck source=scripts/source-gb-runtime-env.sh disable=SC1091
 source "$ROOT/scripts/source-gb-runtime-env.sh" "$ROOT"
 

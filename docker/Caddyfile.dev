@@ -1,0 +1,49 @@
+{
+	admin off
+
+	frankenphp {
+		max_requests 500
+		php_ini variables_order "EGPCS"
+		php_ini memory_limit "128M"
+		php_ini session.gc_maxlifetime "2592000"
+		php_ini session.cookie_lifetime "2592000"
+		php_ini session.upload_progress.enabled "0"
+		php_ini opcache.enable "1"
+		php_ini opcache.validate_timestamps "1"
+	}
+}
+
+:80 {
+	root * /var/www/idp.amtgard.com/public
+	encode gzip
+
+	route {
+		@docsExact path /docs /docs/
+		rewrite @docsExact /index.php{query}
+
+		handle_path /docs/* {
+			try_files {path} /index.php{query}
+		}
+
+		@onDisk file
+		handle @onDisk {
+			@cachedImages path_regexp cachedImages \.(jpg|gif|png|jpeg)$
+			header @cachedImages Cache-Control "public, max-age=300, must-revalidate"
+			file_server
+		}
+
+		handle {
+			php_server {
+				try_files {path} {path}/ /index.php{query}
+				worker {
+					file /var/www/idp.amtgard.com/bin/http-worker.php
+					num {$FRANKENPHP_NUM:2}
+					watch /var/www/idp.amtgard.com/src/**/*.php
+					watch /var/www/idp.amtgard.com/config/**/*.php
+					watch /var/www/idp.amtgard.com/bin/**/*.php
+					watch /var/www/idp.amtgard.com/public/**/*.php
+				}
+			}
+		}
+	}
+}

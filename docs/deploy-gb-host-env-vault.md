@@ -40,9 +40,9 @@ Related docs:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Blue-green (production):** inactive slot (blue or green) is built and health-checked on ports **37080** / **37081**; host nginx switches to the new slot; the previous slot stays up for **`gb revert`**. Sessions Redis and the JWT PVH worker are **sidecars**, not slot-swapped.
+**Blue-green (production):** inactive slot (blue or green) is built and health-checked on ports **37080** / **37081**; host nginx switches to the new slot; the previous slot stays up for **`gb revert`**. Each slot image uses **FrankenPHP worker mode** (Caddy + `bin/http-worker.php`), not in-container nginx/php-fpm. Sessions Redis and the JWT PVH worker are **sidecars**, not slot-swapped (PVH stays plain `php` CLI).
 
-**Dev:** bind-mounted source, same three stacks (sessions, web, worker), HEV sync/render on **`gb deploy`** when enabled in `.greenblue.example.dev`.
+**Dev:** bind-mounted source, same three stacks (sessions, web, worker), HEV sync/render on **`gb deploy`** when enabled in `.greenblue.example.dev`. Default web image is **php-fpm** (`docker/Dockerfile.dev`); optional **`IDP_DEV_DOCKERFILE=docker/Dockerfile.frankenphp.dev`** in `.env` for FrankenPHP locally.
 
 ---
 

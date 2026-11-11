@@ -2,13 +2,7 @@
 
 declare(strict_types=1);
 
-use DI\Bridge\Slim\Bridge;
+require_once __DIR__ . '/../config/http-app.php';
 
-$container = require __DIR__ . '/../config/bootstrap.php';
-
-$app = Bridge::create($container);
-
-(require __DIR__ . '/../config/middleware.php')($app);
-(require __DIR__ . '/../config/routes.php')($app);
-
+$app = idp_create_http_app();
 $app->run();
