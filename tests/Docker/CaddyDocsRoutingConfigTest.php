@@ -18,10 +18,16 @@ final class CaddyDocsRoutingConfigTest extends TestCase
         // intact, so Slim sees /docs and serves the Docsify shell / markdown.
         $this->assertStringContainsString('@docs path /docs /docs/*', $config);
         $this->assertStringContainsString('handle @docs', $config);
-        // {query} carries no leading '?': the fallback must be /index.php?{query},
-        // or any request with a query string mangles to /index.php<query> and 404s.
-        $this->assertStringContainsString('try_files /index.php?{query}', $config);
+        // FrankenPHP's try_files checks the fallback as a file on disk, so
+        // any '{query}' suffix makes it a nonexistent path and Caddy 404s
+        // before the worker runs — '/index.php{query}' for requests with a
+        // query string, '/index.php?{query}' for every request. The worker
+        // receives the original URI, query string included, so the fallback
+        // is the bare file.
+        $this->assertStringContainsString('try_files /index.php', $config);
+        $this->assertStringContainsString('try_files {path} {path}/ /index.php', $config);
         $this->assertStringNotContainsString('/index.php{query}', $config);
+        $this->assertStringNotContainsString('/index.php?{query}', $config);
 
         // A rewrite to /index.php loses the /docs URI and lets the static
         // handle serve the front controller's source instead of executing it.

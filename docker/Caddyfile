@@ -24,10 +24,17 @@
 		# with the original URI intact, so Slim sees /docs, not /index.php.
 		# Do NOT rewrite to /index.php: a rewrite loses the /docs URI and, worse,
 		# lets the static-file handle serve the front controller's source.
+		# try_files fallbacks are bare file paths: FrankenPHP checks the
+		# fallback as a file on disk, so /index.php{query} mangles to a
+		# nonexistent path with a query string, and /index.php?{query}
+		# 404s every request (the trailing '?' is part of the path it
+		# checks). The worker receives the original request URI, query
+		# string included, so plain /index.php is correct — unlike
+		# php_fastcgi, nothing needs re-appending.
 		@docs path /docs /docs/*
 		handle @docs {
 			php_server {
-				try_files /index.php?{query}
+				try_files /index.php
 				worker {
 					file /var/www/idp.amtgard.com/bin/http-worker.php
 					num {$FRANKENPHP_NUM:2}
@@ -49,7 +56,7 @@
 
 		handle {
 			php_server {
-				try_files {path} {path}/ /index.php?{query}
+				try_files {path} {path}/ /index.php
 				worker {
 					file /var/www/idp.amtgard.com/bin/http-worker.php
 					num {$FRANKENPHP_NUM:2}
