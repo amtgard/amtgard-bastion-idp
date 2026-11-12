@@ -19,10 +19,10 @@
 
 	route {
 		@docsExact path /docs /docs/
-		rewrite @docsExact /index.php{query}
+		rewrite @docsExact /index.php?{query}
 
 		handle_path /docs/* {
-			try_files {path} /index.php{query}
+			try_files {path} /index.php?{query}
 		}
 
 		@onDisk file
@@ -34,7 +34,7 @@
 
 		handle {
 			php_server {
-				try_files {path} {path}/ /index.php{query}
+				try_files {path} {path}/ /index.php?{query}
 				worker {
 					file /var/www/idp.amtgard.com/bin/http-worker.php
 					num {$FRANKENPHP_NUM:2}
