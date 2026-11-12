@@ -18,7 +18,10 @@ final class CaddyDocsRoutingConfigTest extends TestCase
         // intact, so Slim sees /docs and serves the Docsify shell / markdown.
         $this->assertStringContainsString('@docs path /docs /docs/*', $config);
         $this->assertStringContainsString('handle @docs', $config);
-        $this->assertStringContainsString('try_files /index.php{query}', $config);
+        // {query} carries no leading '?': the fallback must be /index.php?{query},
+        // or any request with a query string mangles to /index.php<query> and 404s.
+        $this->assertStringContainsString('try_files /index.php?{query}', $config);
+        $this->assertStringNotContainsString('/index.php{query}', $config);
 
         // A rewrite to /index.php loses the /docs URI and lets the static
         // handle serve the front controller's source instead of executing it.

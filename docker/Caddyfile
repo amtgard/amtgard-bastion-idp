@@ -27,7 +27,7 @@
 		@docs path /docs /docs/*
 		handle @docs {
 			php_server {
-				try_files /index.php{query}
+				try_files /index.php?{query}
 				worker {
 					file /var/www/idp.amtgard.com/bin/http-worker.php
 					num {$FRANKENPHP_NUM:2}
@@ -49,7 +49,7 @@
 
 		handle {
 			php_server {
-				try_files {path} {path}/ /index.php{query}
+				try_files {path} {path}/ /index.php?{query}
 				worker {
 					file /var/www/idp.amtgard.com/bin/http-worker.php
 					num {$FRANKENPHP_NUM:2}
