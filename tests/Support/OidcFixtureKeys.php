@@ -31,6 +31,26 @@ final class OidcFixtureKeys
         return self::directory() . '/public.pem';
     }
 
+    public static function privateEcPem(): string
+    {
+        return self::read('private-ec.pem');
+    }
+
+    public static function publicEcPem(): string
+    {
+        return self::read('public-ec.pem');
+    }
+
+    public static function privateEcKeyPath(): string
+    {
+        return self::directory() . '/private-ec.pem';
+    }
+
+    public static function publicEcKeyPath(): string
+    {
+        return self::directory() . '/public-ec.pem';
+    }
+
     private static function read(string $filename): string
     {
         $contents = file_get_contents(self::directory() . '/' . $filename);

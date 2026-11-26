@@ -8,7 +8,8 @@ use Firebase\JWT\JWT as FirebaseJwt;
 use RuntimeException;
 
 /**
- * RS256 JWT builder for tests using firebase/php-jwt (dev-keys under /tmp).
+ * JWT builder for tests using firebase/php-jwt: RS256 (dev-keys under /tmp)
+ * and ES256 (OIDC EC fixtures in tests/fixtures/oidc).
  */
 final class FirebaseJwtTestFactory
 {
@@ -57,6 +58,28 @@ final class FirebaseJwtTestFactory
         }
 
         return FirebaseJwt::encode($claims, $privateKey, 'RS256');
+    }
+
+    /**
+     * Mint an ES256 token with a P-256 key. Defaults to the OIDC EC
+     * fixtures (tests/fixtures/oidc/private-ec.pem + public-ec.pem).
+     *
+     * @param array<string, mixed> $claims
+     */
+    public static function encodeEs256(
+        array $claims,
+        ?string $privateKeyPath = null,
+        ?string $publicKeyPath = null,
+    ): string {
+        $privateKeyPath ??= OidcFixtureKeys::privateEcKeyPath();
+        $publicKeyPath ??= OidcFixtureKeys::publicEcKeyPath();
+        self::assertKeysAvailable($privateKeyPath, $publicKeyPath);
+        $privateKey = file_get_contents($privateKeyPath);
+        if ($privateKey === false) {
+            throw new RuntimeException('Unable to read private key for JWT signing');
+        }
+
+        return FirebaseJwt::encode($claims, $privateKey, 'ES256');
     }
 
     public static function authorizationForUserAndClient(
