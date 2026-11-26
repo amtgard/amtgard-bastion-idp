@@ -262,6 +262,32 @@ class AuthorizationJwtValidatorTest extends TestCase
         }
     }
 
+    public function testFromEnvironmentReadsPreviousKeyFromServerEnvWhenPutenvIsUnset(): void
+    {
+        // $_ENV wins over getenv(): the previous key must still be picked
+        // up when it is set in $_ENV only (putenv cleared). Kills the
+        // coalesce mutant that swaps the ?? operands in
+        // CompositeAuthorizationJwtValidator::fromEnvironment() — the same
+        // mutant M6 killed in the bearer composite; the identical line
+        // survived here until M7.
+        FirebaseJwtTestFactory::ensureKeys();
+        $saved = $this->overrideOAuthEnv([
+            'OAUTH_PUBLIC_KEY' => OidcFixtureKeys::publicEcKeyPath(),
+            'OAUTH_PUBLIC_KEY_PREVIOUS' => '/tmp/public.key',
+        ]);
+        putenv('OAUTH_PUBLIC_KEY_PREVIOUS');
+
+        try {
+            $validator = CompositeAuthorizationJwtValidator::fromEnvironment();
+
+            $rs256 = FirebaseJwtTestFactory::authorizationForUserAndClient('user-1', 'client-1');
+
+            $this->assertSame($rs256, $validator->validateJwtSignature($rs256));
+        } finally {
+            $this->restoreOAuthEnv($saved);
+        }
+    }
+
     public function testValidatorFromPublicKeyPemThrowsForUnknownKeyTypes(): void
     {
         $this->expectException(\RuntimeException::class);

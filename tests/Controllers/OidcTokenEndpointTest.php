@@ -23,16 +23,18 @@ class OidcTokenEndpointTest extends TestCase
         $this->assertArrayHasKey('token_type', $body);
         $this->assertArrayHasKey('id_token', $body);
 
-        $publicKey = new Key(OidcFixtureKeys::publicPem(), 'RS256');
+        $publicKey = new Key(OidcFixtureKeys::publicEcPem(), 'ES256');
         $idToken = JWT::decode($body['id_token'], $publicKey);
         $accessToken = JWT::decode($body['access_token'], $publicKey);
-        $kid = JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicPem())->kid();
+        $kid = JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())->kid();
 
         $this->assertSame('https://idp.amtgard.com', $idToken->iss);
         $this->assertSame(OidcTokenExchangeHarness::CLIENT_ID, $this->audience($idToken->aud));
         $this->assertSame(OidcTokenExchangeHarness::USER_ID, $idToken->sub);
         $this->assertSame((int) $accessToken->exp, (int) $idToken->exp);
         $this->assertSame($kid, $this->header($body['id_token'])['kid']);
+        $this->assertSame('ES256', $this->header($body['id_token'])['alg']);
+        $this->assertSame('ES256', $this->header($body['access_token'])['alg']);
         $this->assertObjectNotHasProperty('nonce', $idToken);
     }
 
@@ -56,7 +58,7 @@ class OidcTokenEndpointTest extends TestCase
         $body = OidcTokenExchangeHarness::exchange('openid', 'rp-nonce-1');
 
         $this->assertArrayHasKey('id_token', $body);
-        $idToken = JWT::decode($body['id_token'], new Key(OidcFixtureKeys::publicPem(), 'RS256'));
+        $idToken = JWT::decode($body['id_token'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
         $this->assertSame('rp-nonce-1', $idToken->nonce);
     }
 
@@ -66,19 +68,19 @@ class OidcTokenEndpointTest extends TestCase
         $this->assertArrayHasKey('refresh_token', $codeBody);
         $this->assertSame(
             'rp-nonce-1',
-            JWT::decode($codeBody['id_token'], new Key(OidcFixtureKeys::publicPem(), 'RS256'))->nonce
+            JWT::decode($codeBody['id_token'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'))->nonce
         );
 
         $refreshBody = OidcTokenExchangeHarness::refresh($codeBody['refresh_token']);
         $this->assertArrayHasKey('id_token', $refreshBody);
-        $refreshToken = JWT::decode($refreshBody['id_token'], new Key(OidcFixtureKeys::publicPem(), 'RS256'));
+        $refreshToken = JWT::decode($refreshBody['id_token'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
         $this->assertObjectNotHasProperty('nonce', $refreshToken);
     }
 
     public function testIdTokenIssuerIsAppUrlWhenRequestHostDiffers(): void
     {
         $body = OidcTokenExchangeHarness::exchange('openid');
-        $idToken = JWT::decode($body['id_token'], new Key(OidcFixtureKeys::publicPem(), 'RS256'));
+        $idToken = JWT::decode($body['id_token'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
 
         $this->assertSame('https://idp.amtgard.com', $idToken->iss);
         $this->assertNotSame('https://evil.example', $idToken->iss);

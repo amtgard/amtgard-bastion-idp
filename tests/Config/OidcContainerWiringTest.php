@@ -113,6 +113,50 @@ class OidcContainerWiringTest extends TestCase
         }
     }
 
+    public function testJwksFactoryFactoryBindsPreviousKeyDuringOverlap(): void
+    {
+        $saved = [];
+        foreach (['OAUTH_PUBLIC_KEY', 'OAUTH_PUBLIC_KEY_PREVIOUS'] as $key) {
+            $saved[$key] = ['env' => $_ENV[$key] ?? null, 'putenv' => getenv($key)];
+        }
+        $_ENV['OAUTH_PUBLIC_KEY'] = OidcFixtureKeys::publicEcKeyPath();
+        $_ENV['OAUTH_PUBLIC_KEY_PREVIOUS'] = OidcFixtureKeys::publicKeyPath();
+        // $_ENV wins over getenv(): the previous key must still be picked
+        // up when it is set in $_ENV only (putenv cleared).
+        putenv('OAUTH_PUBLIC_KEY');
+        putenv('OAUTH_PUBLIC_KEY_PREVIOUS');
+
+        try {
+            $definitions = require __DIR__ . '/../../config/container.php';
+            $factory = $definitions[JwksFactory::class]();
+
+            $this->assertInstanceOf(JwksFactory::class, $factory);
+            $document = $factory->document();
+            $this->assertCount(2, $document['keys']);
+            $this->assertSame('EC', $document['keys'][0]['kty']);
+            $this->assertSame('ES256', $document['keys'][0]['alg']);
+            $this->assertSame('RSA', $document['keys'][1]['kty']);
+            $this->assertSame('RS256', $document['keys'][1]['alg']);
+            $this->assertSame(
+                JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())->kid(),
+                $factory->kid()
+            );
+        } finally {
+            foreach ($saved as $key => $previous) {
+                if ($previous['env'] === null) {
+                    unset($_ENV[$key]);
+                } else {
+                    $_ENV[$key] = $previous['env'];
+                }
+                if ($previous['putenv'] === false) {
+                    putenv($key);
+                } else {
+                    putenv($key . '=' . $previous['putenv']);
+                }
+            }
+        }
+    }
+
     public function testDiscoveryControllerFactoryUsesJwksFactoryAndAppUrl(): void
     {
         $jwks = JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicPem());

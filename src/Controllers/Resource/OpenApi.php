@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Amtgard\IdP\Controllers\Resource;
@@ -8,19 +9,26 @@ use OpenApi\Attributes as OA;
 #[OA\Info(
     title: "Amtgard Identity Provider API",
     version: "1.0.0",
-    description: "OAuth 2.0, OpenID Connect, and resource endpoints for Amtgard apps. Discovery, JWKS, and /oauth/userinfo are under OpenID Connect. ORK-specific server-to-server integration is under the ORK Integration tag; registered client IAM APIs under Client. See /docs for the code flow and the two-step JWT elevation flow."
+    description: "OAuth 2.0, OpenID Connect, and resource endpoints for Amtgard apps. Discovery, JWKS, and "
+        . "/oauth/userinfo are under OpenID Connect. ORK-specific server-to-server integration is under the ORK "
+        . "Integration tag; registered client IAM APIs under Client. See /docs for the code flow and the two-step JWT "
+        . "elevation flow."
 )]
 #[OA\Tag(
     name: 'OpenID Connect',
-    description: 'Authorization-code OpenID Provider. Discovery and JWKS are public. UserInfo takes the OAuth access token from POST /oauth/token when openid was granted. Not the Amtgard profile endpoint (GET /resources/userinfo).'
+    description: 'Authorization-code OpenID Provider. Discovery and JWKS are public. UserInfo takes the OAuth access '
+        . 'token from POST /oauth/token when openid was granted. Not the Amtgard profile endpoint (GET '
+        . '/resources/userinfo).'
 )]
 #[OA\Tag(
     name: 'ORK Integration',
-    description: 'Amtgard-specific coupling with ORK3. Not for general third-party OAuth clients. Browser handoff and profile forms are session or CSRF routes; the mirror is HTTP Basic. See /docs Section 7.'
+    description: 'Amtgard-specific coupling with ORK3. Not for general third-party OAuth clients. Browser handoff and '
+        . 'profile forms are session or CSRF routes; the mirror is HTTP Basic. See /docs Section 7.'
 )]
 #[OA\Tag(
     name: 'Client',
-    description: 'Server-to-server APIs for registered confidential OAuth clients with an assigned iam_service. See /docs Section 8.'
+    description: 'Server-to-server APIs for registered confidential OAuth clients with an assigned iam_service. See '
+        . '/docs Section 8.'
 )]
 #[OA\Server(
     url: "/",
@@ -33,13 +41,15 @@ use OpenApi\Attributes as OA;
     in: "header",
     scheme: "bearer",
     bearerFormat: "JWT",
-    description: "RS256 authorization JWT from GET /resources/jwt (used with /resources/userinfo and /resources/validate). Does not remint; 409 stale_token when pvh is one generation behind."
+    description: "ES256 authorization JWT from GET /resources/jwt (used with /resources/userinfo and "
+        . "/resources/validate). Does not remint; 409 stale_token when pvh is one generation behind."
 )]
 #[OA\SecurityScheme(
     securityScheme: 'oauthAccessToken',
     type: 'http',
     scheme: 'bearer',
-    description: 'OAuth 2.0 access token from POST /oauth/token (used to elevate to an authorization JWT at GET /resources/jwt)'
+    description: 'OAuth 2.0 access token from POST /oauth/token (used to elevate to an authorization JWT at GET '
+        . '/resources/jwt)'
 )]
 #[OA\SecurityScheme(
     securityScheme: 'orkConfidentialClient',
@@ -52,13 +62,15 @@ use OpenApi\Attributes as OA;
     type: 'apiKey',
     in: 'cookie',
     name: 'PHPSESSID',
-    description: 'Signed-in IDP browser session. Profile form posts also send the hidden _csrf_token field from the page.'
+    description: 'Signed-in IDP browser session. Profile form posts also send the hidden _csrf_token field from the '
+        . 'page.'
 )]
 #[OA\SecurityScheme(
     securityScheme: 'clientBasicAuth',
     type: 'http',
     scheme: 'basic',
-    description: 'Confidential OAuth client_id and client_secret for a client with a configured iam_service (HTTP Basic Auth)'
+    description: 'Confidential OAuth client_id and client_secret for a client with a configured iam_service (HTTP '
+        . 'Basic Auth)'
 )]
 class OpenApi
 {

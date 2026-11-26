@@ -7,7 +7,8 @@ namespace Amtgard\IdP\Tests\Support;
 // phpcs:disable PSR1.Classes.ClassDeclaration.MultipleClasses -- Pre-existing:
 // this test-support file defines the OIDC harness doubles in one file.
 // Splitting them into one file per class is out of scope for the ES256
-// milestones; the M4 change here only adds a signer helper to the harness.
+// milestones; the M7 change here switches the harness fixtures to EC and
+// mints access tokens through the production OAuthAccessToken entity.
 
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthFlowErrorRenderer;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthSessionAuthRequestStore;
@@ -20,13 +21,13 @@ use Lcobucci\JWT\Signer\Rsa\Sha256 as RsaSha256;
 use Amtgard\IdP\Models\Oidc\IdentityRepository;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAccessToken;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthUser;
 use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
 use League\OAuth2\Server\Entities\AuthCodeEntityInterface;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Entities\RefreshTokenEntityInterface;
 use League\OAuth2\Server\Entities\ScopeEntityInterface;
-use League\OAuth2\Server\Entities\Traits\AccessTokenTrait;
 use League\OAuth2\Server\Entities\Traits\AuthCodeTrait;
 use League\OAuth2\Server\Entities\Traits\ClientTrait;
 use League\OAuth2\Server\Entities\Traits\EntityTrait;
@@ -155,7 +156,7 @@ final class OidcTokenExchangeHarness
         return OAuthServerConfiguration::builder()
             ->clientRepository(new OidcHarnessClientRepository($client))
             ->scopeRepository(new OidcHarnessScopeRepository())
-            ->accessTokenRepository(new OidcHarnessAccessTokenRepository())
+            ->accessTokenRepository(new OidcHarnessAccessTokenRepository(self::signerFromEnvironment()))
             ->authCodeRepository(new OidcHarnessAuthCodeRepository())
             ->refreshTokenRepository(new OidcHarnessRefreshTokenRepository())
             ->identityProvider($identity)
@@ -169,9 +170,8 @@ final class OidcTokenExchangeHarness
      * with the same key → implementation mapping as the
      * container's Signer binding (ES256 design §5.1a). The harness
      * builds its server outside the container, so it resolves the
-     * signer itself; the endpoint tests keep minting with the
-     * configured key's algorithm (RSA until M7 switches the harness
-     * fixtures to EC).
+     * signer itself; the endpoint tests mint with the configured
+     * key's algorithm (EC since M7 switched the harness fixtures).
      */
     private static function signerFromEnvironment(): Signer
     {
@@ -271,8 +271,8 @@ final class OidcTokenExchangeHarness
     {
         $_ENV['APP_URL'] = 'https://idp.amtgard.com/';
         $_SERVER['HTTP_HOST'] = 'evil.example';
-        $_ENV['OAUTH_PRIVATE_KEY'] = OidcFixtureKeys::privateKeyPath();
-        $_ENV['OAUTH_PUBLIC_KEY'] = OidcFixtureKeys::publicKeyPath();
+        $_ENV['OAUTH_PRIVATE_KEY'] = OidcFixtureKeys::privateEcKeyPath();
+        $_ENV['OAUTH_PUBLIC_KEY'] = OidcFixtureKeys::publicEcKeyPath();
         $_ENV['AUTH_SERVER_DEFUSE_KEY'] = str_repeat('a', 64);
         $_ENV['OAUTH_AUTH_TOKEN_TTL'] = 'PT10M';
         $_ENV['OAUTH_REFRESH_TOKEN_TTL'] = 'P1M';
@@ -356,13 +356,6 @@ final class OidcHarnessScope implements ScopeEntityInterface
     use ScopeTrait;
 }
 
-final class OidcHarnessAccessToken implements AccessTokenEntityInterface
-{
-    use AccessTokenTrait;
-    use TokenEntityTrait;
-    use EntityTrait;
-}
-
 final class OidcHarnessAuthCode implements AuthCodeEntityInterface
 {
     use AuthCodeTrait;
@@ -420,19 +413,28 @@ final class OidcHarnessScopeRepository implements ScopeRepositoryInterface
 
 final class OidcHarnessAccessTokenRepository implements AccessTokenRepositoryInterface
 {
+    /**
+     * Signer resolved from the configured private key (ES256 design §5.1):
+     * passed to the production OAuthAccessToken entity builder so the
+     * harness mints through the real entity — including its signer
+     * override — instead of a test double that bypasses it. M7: the
+     * harness fixtures are EC, so the minted access token is ES256.
+     */
+    public function __construct(private ?Signer $signer = null)
+    {
+    }
+
     public function getNewToken(
         ClientEntityInterface $clientEntity,
         array $scopes,
         $userIdentifier = null
     ): AccessTokenEntityInterface {
-        $token = new OidcHarnessAccessToken();
-        $token->setClient($clientEntity);
-        $token->setUserIdentifier($userIdentifier);
-        foreach ($scopes as $scope) {
-            $token->addScope($scope);
-        }
-
-        return $token;
+        return OAuthAccessToken::builder()
+            ->client($clientEntity)
+            ->signer($this->signer)
+            ->scopes($scopes)
+            ->userIdentifier($userIdentifier)
+            ->build();
     }
 
     public function persistNewAccessToken(AccessTokenEntityInterface $accessTokenEntity): void

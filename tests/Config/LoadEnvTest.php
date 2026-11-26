@@ -89,6 +89,27 @@ final class LoadEnvTest extends TestCase
         $this->assertSame($filesDir . '/oauth-private.key', $_ENV['OAUTH_PRIVATE_KEY'] ?? '');
     }
 
+    public function testInjectFilePathsApplyPreviousPublicKeyWhenEnvKeyMissing(): void
+    {
+        $injectDir = $this->tmpdir . '/inject';
+        $filesDir = $injectDir . '/files';
+        mkdir($filesDir, 0700, true);
+        file_put_contents($injectDir . '/secrets.env', "DB_PASS=from-inject\n");
+        file_put_contents($filesDir . '/oauth-public.key.previous', "fake-previous-pem");
+        putenv('IDP_INJECT_SECRETS_DIR=' . $injectDir);
+        putenv('ENVIRONMENT=PROD');
+        putenv('OAUTH_PUBLIC_KEY_PREVIOUS');
+        unset($_ENV['OAUTH_PUBLIC_KEY_PREVIOUS'], $_SERVER['OAUTH_PUBLIC_KEY_PREVIOUS']);
+        $_SERVER['ENVIRONMENT'] = 'PROD';
+
+        idp_load_process_env($this->tmpdir);
+
+        $this->assertSame($filesDir . '/oauth-public.key.previous', $_ENV['OAUTH_PUBLIC_KEY_PREVIOUS'] ?? '');
+
+        putenv('OAUTH_PUBLIC_KEY_PREVIOUS');
+        unset($_ENV['OAUTH_PUBLIC_KEY_PREVIOUS'], $_SERVER['OAUTH_PUBLIC_KEY_PREVIOUS']);
+    }
+
     public function testDevIntegSkipsVaultInject(): void
     {
         $injectDir = $this->tmpdir . '/inject';

@@ -150,9 +150,9 @@ final class DiscoveryController
                             type: 'array',
                             items: new OA\Items(
                                 properties: [
-                                    new OA\Property(property: 'kty', type: 'string', example: 'RSA'),
+                                    new OA\Property(property: 'kty', type: 'string', example: 'EC'),
                                     new OA\Property(property: 'use', type: 'string', example: 'sig'),
-                                    new OA\Property(property: 'alg', type: 'string', example: 'RS256'),
+                                    new OA\Property(property: 'alg', type: 'string', example: 'ES256'),
                                     new OA\Property(property: 'kid', type: 'string'),
                                     new OA\Property(property: 'n', type: 'string'),
                                     new OA\Property(property: 'e', type: 'string'),

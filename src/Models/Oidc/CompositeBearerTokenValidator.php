@@ -37,11 +37,9 @@ final class CompositeBearerTokenValidator implements AuthorizationValidatorInter
     /**
      * Build the overlap composite from the environment (ES256 design
      * §5.3/§5.7): the current key from OAUTH_PUBLIC_KEY, plus the
-     * retiring key from OAUTH_PUBLIC_KEY_PREVIOUS when set. Absence of
-     * the previous key means single-key validation. The env mapping for
-     * OAUTH_PUBLIC_KEY_PREVIOUS lands in M7; until then the variable is
-     * read directly here — the same pattern M5 used for the
-     * authorization-JWT composite.
+     * retiring key from OAUTH_PUBLIC_KEY_PREVIOUS when set (mapped from
+     * oauth-public.key.previous in config/load-env.php). Absence of
+     * the previous key means single-key validation.
      */
     public static function fromEnvironment(
         AccessTokenRepositoryInterface $accessTokenRepository,

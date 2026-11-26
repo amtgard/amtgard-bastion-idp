@@ -78,13 +78,24 @@ return [
         throw new \RuntimeException('OAuth signing key must be RSA or prime256v1 EC.');
     },
 
-    // ES256 design §5.5: the container binds the JwkProvider list — the
-    // current key from OAUTH_PUBLIC_KEY, current first. The previous-key
-    // entry (OAUTH_PUBLIC_KEY_PREVIOUS) lands in M7 (§5.7), not here.
+    // ES256 design §5.5/§5.7: the container binds the JwkProvider list —
+    // the current key from OAUTH_PUBLIC_KEY, current first, plus the
+    // retiring key from OAUTH_PUBLIC_KEY_PREVIOUS when set (mapped from
+    // oauth-public.key.previous in config/load-env.php). Absence of the
+    // previous key means a single-key JWKS.
     JwksFactory::class => function () {
-        return JwksFactory::fromProviders(
-            JwksFactory::providerFromPublicKeyPem(OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY'))
-        );
+        $providers = [
+            JwksFactory::providerFromPublicKeyPem(OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY')),
+        ];
+
+        $previous = $_ENV['OAUTH_PUBLIC_KEY_PREVIOUS'] ?? getenv('OAUTH_PUBLIC_KEY_PREVIOUS');
+        if (is_string($previous) && $previous !== '') {
+            $providers[] = JwksFactory::providerFromPublicKeyPem(
+                OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY_PREVIOUS')
+            );
+        }
+
+        return JwksFactory::fromProviders(...$providers);
     },
 
     DiscoveryController::class => function (ContainerInterface $container) {
@@ -96,8 +107,9 @@ return [
 
     // ES256 design §5.4: the authorization-JWT validator composite, built
     // from the environment — current key from OAUTH_PUBLIC_KEY, retiring
-    // key from OAUTH_PUBLIC_KEY_PREVIOUS when set (env mapping lands in
-    // M7, §5.7). ES256 current first, then RS256 during overlap.
+    // key from OAUTH_PUBLIC_KEY_PREVIOUS when set (mapped from
+    // oauth-public.key.previous in config/load-env.php, §5.7). ES256
+    // current first, then RS256 during overlap.
     AuthorizationJwtValidator::class => function () {
         return CompositeAuthorizationJwtValidator::fromEnvironment();
     },
@@ -179,9 +191,8 @@ return [
     // ES256 design §5.3: the ResourceServer validates access tokens with
     // the composite bearer-token validator (current key from
     // OAUTH_PUBLIC_KEY, retiring key from OAUTH_PUBLIC_KEY_PREVIOUS when
-    // set — env mapping lands in M7, §5.7; until then the variable is
-    // read directly, the same pattern M5 used for the authorization-JWT
-    // composite). The CryptKey is still passed: League only calls
+    // set — mapped from oauth-public.key.previous in config/load-env.php,
+    // §5.7). The CryptKey is still passed: League only calls
     // setPublicKey() on BearerTokenValidator instances, so the composite
     // never receives it — it gets its keys through its own constructor.
     ResourceServer::class => function (ContainerInterface $container) {

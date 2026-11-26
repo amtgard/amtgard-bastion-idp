@@ -95,14 +95,39 @@ class OidcUserInfoEndpointTest extends TestCase
 
     /**
      * M6: the userinfo endpoint validates an ES256 access token through
-     * the composite (ES256 design §5.3/§8 M6). The RS256 half is covered
-     * by the harness-token tests above — the harness mints RS256.
+     * the composite (ES256 design §5.3/§8 M6). M7: the harness now mints
+     * ES256 too, so the RS256 half is covered by the explicit RS256
+     * test below (testRs256AccessTokenWithOpenidAndEmailReturnsSubAndEmail).
      */
     public function testEs256AccessTokenWithOpenidAndEmailReturnsSubAndEmail(): void
     {
         $response = $this->userinfo(
             'GET',
             $this->es256AccessToken(['openid', 'email']),
+            $this->harnessUser()
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+        $this->assertSame(
+            [
+                'sub' => OidcTokenExchangeHarness::USER_ID,
+                'email' => 'ada@example.com',
+            ],
+            $this->json($response)
+        );
+    }
+
+    /**
+     * M7: the userinfo endpoint still accepts a valid RS256 access token
+     * during the overlap (ES256 design §5.3/§8 M7). The harness now mints
+     * ES256, so the RS256 half needs its own explicit test.
+     */
+    public function testRs256AccessTokenWithOpenidAndEmailReturnsSubAndEmail(): void
+    {
+        $response = $this->userinfo(
+            'GET',
+            $this->rs256FixtureAccessToken(),
             $this->harnessUser()
         );
 
@@ -269,8 +294,9 @@ class OidcUserInfoEndpointTest extends TestCase
     }
 
     /**
-     * RS256 access token signed with the OIDC RSA fixture key (the key
-     * the harness mints with): validates against the fixture public key.
+     * RS256 access token signed with the retiring OIDC RSA fixture key:
+     * validates against the fixture public key through the composite's
+     * RS256 implementation during the overlap.
      */
     private function rs256FixtureAccessToken(int $ttlSeconds = 3600): string
     {
