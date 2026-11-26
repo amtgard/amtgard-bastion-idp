@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Utility;
 
 use Amtgard\IdP\Tests\Support\OidcFixtureKeys;
+use Amtgard\IdP\Utility\EcJwkProvider;
 use Amtgard\IdP\Utility\JwksFactory;
+use Amtgard\IdP\Utility\RsaJwkProvider;
 use PHPUnit\Framework\TestCase;
 
 class JwksFactoryTest extends TestCase
@@ -109,6 +111,35 @@ class JwksFactoryTest extends TestCase
         $this->expectExceptionMessage('OIDC signing key must be an RSA public key.');
 
         JwksFactory::fromPublicKeyPem($details['key']);
+    }
+
+    public function testAggregatorEmitsBoundProvidersCurrentFirst(): void
+    {
+        $rsa = new RsaJwkProvider(OidcFixtureKeys::publicPem());
+        $ec = new EcJwkProvider(OidcFixtureKeys::publicEcPem());
+        $factory = JwksFactory::fromProviders($rsa, $ec);
+
+        // kid()/jwk() describe the first (current) provider.
+        $this->assertSame($rsa->kid(), $factory->kid());
+        $this->assertSame($rsa->jwk(), $factory->jwk());
+
+        $document = $factory->document();
+        $this->assertSame(['keys'], array_keys($document));
+        $this->assertCount(2, $document['keys']);
+        $this->assertSame($rsa->jwk(), $document['keys'][0]);
+        $this->assertSame($ec->jwk(), $document['keys'][1]);
+        $this->assertSame('RSA', $document['keys'][0]['kty']);
+        $this->assertSame('EC', $document['keys'][1]['kty']);
+    }
+
+    public function testKidWithNoBoundProvidersThrows(): void
+    {
+        $factory = new JwksFactory([]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('JWKS has no bound JWK providers.');
+
+        $factory->kid();
     }
 
     private function expectedThumbprint(): string

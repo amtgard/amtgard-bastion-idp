@@ -19,6 +19,9 @@ use Amtgard\IdP\Utility\JwksFactory;
 use Amtgard\IdP\Utility\OAuthKeyMaterial;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
+use Lcobucci\JWT\Signer;
+use Lcobucci\JWT\Signer\Ecdsa\Sha256 as EcdsaSha256;
+use Lcobucci\JWT\Signer\Rsa\Sha256 as RsaSha256;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\CryptKey;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
@@ -43,6 +46,33 @@ return [
 
     OidcNonceContext::class => function () {
         return new OidcNonceContext();
+    },
+
+    // ES256 design §5.1a: the single place that maps key → signer
+    // implementation. Minting paths inject Signer and never know which
+    // algorithm is active. Any other key type or curve throws here, at
+    // container-build time.
+    Signer::class => function () {
+        $pem = OAuthKeyMaterial::readFromEnv('OAUTH_PRIVATE_KEY');
+        $key = openssl_pkey_get_private($pem);
+        if ($key === false) {
+            throw new \RuntimeException('Unable to parse OAuth private key for signer binding.');
+        }
+
+        $details = openssl_pkey_get_details($key);
+        if (\is_array($details) && isset($details['rsa'])) {
+            return new RsaSha256();
+        }
+
+        if (
+            \is_array($details)
+            && isset($details['ec']['curve_name'])
+            && $details['ec']['curve_name'] === 'prime256v1'
+        ) {
+            return new EcdsaSha256();
+        }
+
+        throw new \RuntimeException('OAuth signing key must be RSA or prime256v1 EC.');
     },
 
     JwksFactory::class => function () {
