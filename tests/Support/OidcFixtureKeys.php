@@ -36,6 +36,15 @@ final class OidcFixtureKeys
         return self::read('private-ec.pem');
     }
 
+    /**
+     * Passphrase-protected copy of the EC fixture private key
+     * (AES-256, passphrase 'test-passphrase'); test-only.
+     */
+    public static function privateEcEncryptedPem(): string
+    {
+        return self::read('private-ec-encrypted.pem');
+    }
+
     public static function publicEcPem(): string
     {
         return self::read('public-ec.pem');

@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace Amtgard\IdP\Persistence\Server\Repositories;
 
 use Amtgard\ActiveRecordOrm\Attribute\RepositoryOf;
@@ -12,6 +11,7 @@ use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AccessToken;
 use Amtgard\IdP\Utility\Log\UsesIdpLogging;
 use Amtgard\IdP\Utility\Utility;
+use Lcobucci\JWT\Signer;
 use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
@@ -22,7 +22,24 @@ class AccessTokenRepository extends Repository implements AccessTokenRepositoryI
 {
     use UsesIdpLogging;
 
-    static function getTableName()
+    /**
+     * Signer injected by the container factory wrapping the ORM
+     * construction (ES256 design §3.5, §5.1); passed to the entity
+     * builder in getNewToken(). Null until setSigner() is called.
+     */
+    private ?Signer $signer = null;
+
+    /**
+     * @psalm-suppress PossiblyUnusedMethod - called from the container
+     * factory in config/container/persistence.php, which Psalm does not
+     * analyse (src/ only); same pattern as the M1 validators.
+     */
+    public function setSigner(Signer $signer): void
+    {
+        $this->signer = $signer;
+    }
+
+    public static function getTableName()
     {
         return 'access_tokens';
     }
@@ -47,6 +64,7 @@ class AccessTokenRepository extends Repository implements AccessTokenRepositoryI
 
         $oauthAccessToken = OAuthAccessToken::builder()
             ->client($client)
+            ->signer($this->signer)
             ->identifier($tokenId)
             ->accessTokenEntity($accessToken)
             ->scopes($scopes)
@@ -107,5 +125,4 @@ class AccessTokenRepository extends Repository implements AccessTokenRepositoryI
             'job' => 'clean_tokens',
         ]);
     }
-
 }

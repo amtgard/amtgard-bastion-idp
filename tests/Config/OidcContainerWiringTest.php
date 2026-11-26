@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Config;
 
+use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Controllers\Server\OAuth\DiscoveryController;
 use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Models\Oidc\IdentityRepository;
 use Amtgard\IdP\Models\Oidc\OidcNonceContext;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\AccessTokenRepository;
 use Amtgard\IdP\Tests\Support\OidcFixtureKeys;
 use Amtgard\IdP\Utility\JwksFactory;
+use DI\ContainerBuilder;
+use Lcobucci\JWT\Signer;
+use Lcobucci\JWT\Signer\Ecdsa\Sha256 as EcdsaSha256;
 use League\OAuth2\Server\ResourceServer;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
@@ -186,6 +191,39 @@ class OidcContainerWiringTest extends TestCase
         $this->assertSame(
             $nonceContext,
             (new \ReflectionProperty(OAuthServerConfiguration::class, 'nonceContext'))->getValue($config)
+        );
+    }
+
+    /**
+     * ES256 design §3.5, §5.1: the AccessTokenRepositoryInterface factory
+     * wraps the ORM construction and injects the container-bound Signer
+     * via setSigner(). Resolving through a real PHP-DI container proves
+     * the two-argument factory (EntityManager + ContainerInterface)
+     * is invoked with both arguments.
+     */
+    public function testAccessTokenRepositoryFactoryInjectsContainerSigner(): void
+    {
+        $repository = new AccessTokenRepository();
+        $em = $this->createStub(EntityManager::class);
+        $em->method('getRepository')->willReturn($repository);
+        $signer = new EcdsaSha256();
+
+        $builder = new ContainerBuilder();
+        $builder->addDefinitions(require __DIR__ . '/../../config/container/persistence.php');
+        // Overrides AFTER the persistence definitions: later definitions
+        // win in PHP-DI, so these stubs must come second.
+        $builder->addDefinitions([
+            EntityManager::class => fn () => $em,
+            Signer::class => fn () => $signer,
+        ]);
+        $container = $builder->build();
+
+        $resolved = $container->get(AccessTokenRepositoryInterface::class);
+
+        $this->assertSame($repository, $resolved);
+        $this->assertSame(
+            $signer,
+            (new \ReflectionProperty(AccessTokenRepository::class, 'signer'))->getValue($resolved)
         );
     }
 

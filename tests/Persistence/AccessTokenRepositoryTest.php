@@ -8,34 +8,15 @@ use Amtgard\ActiveRecordOrm\Entity\Policy\RepositoryPolicy;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\ActiveRecordOrm\Interface\DataAccessPolicy;
 use Amtgard\ActiveRecordOrm\Repository\Database;
-use Amtgard\ActiveRecordOrm\Schema\FieldDefinition;
-use Amtgard\ActiveRecordOrm\Schema\FieldType;
-use Amtgard\ActiveRecordOrm\Schema\TableSchema;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthAccessToken;
 use Amtgard\IdP\Persistence\Server\Entities\OAuth\OAuthClient;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\AccessToken;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
 use Amtgard\IdP\Persistence\Server\Repositories\AccessTokenRepository;
+use Amtgard\IdP\Tests\Support\OidcFixtureKeys;
+use Lcobucci\JWT\Signer\Ecdsa\Sha256 as EcdsaSha256;
+use League\OAuth2\Server\CryptKey;
 use PHPUnit\Framework\TestCase;
-
-class AccessTokenRepositoryTestTableSchema extends TableSchema
-{
-    public function __construct()
-    {
-        $this->tableName = 'access_tokens';
-        $this->fields = [
-            'token_id' => FieldDefinition::builder()->name('token_id')->type(FieldType::STRING)->build(),
-            'client_id' => FieldDefinition::builder()->name('client_id')->type(FieldType::INTEGER)->build(),
-            'user_identifier' => FieldDefinition::builder()->name('user_identifier')->type(FieldType::STRING)->build(),
-            'expiry_date_time' => FieldDefinition::builder()->name('expiry_date_time')->type(FieldType::DATETIME)->build(),
-            'client_secret' => FieldDefinition::builder()->name('client_secret')->type(FieldType::STRING)->build(),
-            'name' => FieldDefinition::builder()->name('name')->type(FieldType::STRING)->build(),
-            'redirect_uri' => FieldDefinition::builder()->name('redirect_uri')->type(FieldType::STRING)->build(),
-            'is_confidential' => FieldDefinition::builder()->name('is_confidential')->type(FieldType::BOOL)->build(),
-        ];
-        $this->primaryKey = FieldDefinition::builder()->name('id')->type(FieldType::INTEGER)->build();
-    }
-}
 
 class AccessTokenRepositoryTest extends TestCase
 {
@@ -57,9 +38,14 @@ class AccessTokenRepositoryTest extends TestCase
     public function testGetNewTokenBuildsOAuthTokenWithRepositoryEntity(): void
     {
         $clientEntity = Client::builder()->identifier('client-id')->build();
-        $client = new class($clientEntity) extends OAuthClient {
-            public function __construct(private Client $testClientEntity) {}
-            public function getClientEntity(): Client { return $this->testClientEntity; }
+        $client = new class ($clientEntity) extends OAuthClient {
+            public function __construct(private Client $testClientEntity)
+            {
+            }
+            public function getClientEntity(): Client
+            {
+                return $this->testClientEntity;
+            }
         };
 
         $repository = new AccessTokenRepository();
@@ -74,12 +60,75 @@ class AccessTokenRepositoryTest extends TestCase
         $this->assertSame($clientEntity, $token->getAccessTokenEntity()->getClient());
     }
 
+    /**
+     * ES256 design §5.1: getNewToken() passes the repository's injected
+     * signer to the entity builder, so the minted token carries ES256.
+     */
+    public function testGetNewTokenPassesInjectedSignerToEntity(): void
+    {
+        $repository = new AccessTokenRepository();
+        $repository->setSigner(new EcdsaSha256());
+
+        $token = $repository->getNewToken($this->client(), [], 'user-uuid');
+        $token->setPrivateKey(new CryptKey(OidcFixtureKeys::privateEcPem(), null, false));
+
+        $this->assertSame('ES256', $this->jwtAlg((string) $token));
+    }
+
+    public function testGetNewTokenWithoutSignerThrowsOnMint(): void
+    {
+        $token = (new AccessTokenRepository())->getNewToken($this->client(), [], 'user-uuid');
+        $token->setPrivateKey(new CryptKey(OidcFixtureKeys::privateEcPem(), null, false));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('signer was not injected');
+
+        (string) $token;
+    }
+
+    private function client(): OAuthClient
+    {
+        $clientEntity = Client::builder()->identifier('client-1')->build();
+
+        $client = new class ($clientEntity) extends OAuthClient {
+            public function __construct(private Client $testClientEntity)
+            {
+            }
+            public function getClientEntity(): Client
+            {
+                return $this->testClientEntity;
+            }
+        };
+        // Minting calls permittedFor($client->getIdentifier()), so the
+        // OAuthClient identifier itself must be set, not just the
+        // repository Client entity's.
+        $client->setIdentifier('client-1');
+
+        return $client;
+    }
+
+    private function jwtAlg(string $jwt): string
+    {
+        $parts = explode('.', $jwt);
+        $this->assertCount(3, $parts);
+        $header = json_decode((string) base64_decode(strtr($parts[0], '-_', '+/')), true);
+        $this->assertIsArray($header);
+        $this->assertArrayHasKey('alg', $header);
+
+        return $header['alg'];
+    }
+
     public function testPersistNewAccessTokenCopiesOAuthFieldsToRepositoryEntity(): void
     {
         $clientEntity = Client::builder()->identifier('client-id')->build();
-        $client = new class($clientEntity) extends OAuthClient {
-            public function __construct(private Client $testClientEntity) {}
-            public function getClientEntity(): Client { return $this->testClientEntity; }
+        $client = new class ($clientEntity) extends OAuthClient {
+            public function __construct(private Client $testClientEntity)
+            {
+            }
+            public function getClientEntity(): Client
+            {
+                return $this->testClientEntity;
+            }
         };
         $accessToken = new class extends AccessToken {
             public ?Client $capturedClient = null;
@@ -88,12 +137,31 @@ class AccessTokenRepositoryTest extends TestCase
             public ?string $capturedUserIdentifier = null;
             public int $persistCalls = 0;
 
-            public function setClient(Client $client): void { $this->capturedClient = $client; }
-            public function setIdentifier(string $identifier): void { $this->capturedIdentifier = $identifier; }
-            public function setExpiryDateTime(\DateTimeInterface $expiry): void { $this->capturedExpiry = $expiry; }
-            public function setUserIdentifier(?string $userIdentifier): void { $this->capturedUserIdentifier = $userIdentifier; }
-            public function getMapper(): object { return new \stdClass(); }
-            public function persist($mapper = null): static { $this->persistCalls++; return $this; }
+            public function setClient(Client $client): void
+            {
+                $this->capturedClient = $client;
+            }
+            public function setIdentifier(string $identifier): void
+            {
+                $this->capturedIdentifier = $identifier;
+            }
+            public function setExpiryDateTime(\DateTimeInterface $expiry): void
+            {
+                $this->capturedExpiry = $expiry;
+            }
+            public function setUserIdentifier(?string $userIdentifier): void
+            {
+                $this->capturedUserIdentifier = $userIdentifier;
+            }
+            public function getMapper(): object
+            {
+                return new \stdClass();
+            }
+            public function persist($mapper = null): static
+            {
+                $this->persistCalls++;
+                return $this;
+            }
         };
         $expiry = new \DateTimeImmutable('+1 hour');
         $oauthAccessToken = OAuthAccessToken::builder()
@@ -119,16 +187,27 @@ class AccessTokenRepositoryTest extends TestCase
             public ?\DateTimeInterface $expiry = null;
             public int $persistCalls = 0;
 
-            public function setExpiryDateTime(\DateTimeInterface $expiry): void { $this->expiry = $expiry; }
-            public function getMapper(): object { return new \stdClass(); }
-            public function persist($mapper = null): static { $this->persistCalls++; return $this; }
+            public function setExpiryDateTime(\DateTimeInterface $expiry): void
+            {
+                $this->expiry = $expiry;
+            }
+            public function getMapper(): object
+            {
+                return new \stdClass();
+            }
+            public function persist($mapper = null): static
+            {
+                $this->persistCalls++;
+                return $this;
+            }
         };
 
         $repository = $this->getMockBuilder(AccessTokenRepository::class)
             ->onlyMethods(['fetchBy'])
             ->disableOriginalConstructor()
             ->getMock();
-        $repository->expects($this->once())->method('fetchBy')->with('identifier', 'token-id')->willReturn($accessToken);
+        $repository->expects($this->once())->method('fetchBy')
+            ->with('identifier', 'token-id')->willReturn($accessToken);
 
         $repository->revokeAccessToken('token-id');
 
@@ -139,10 +218,16 @@ class AccessTokenRepositoryTest extends TestCase
     public function testIsAccessTokenRevokedChecksExpiry(): void
     {
         $expired = new class extends AccessToken {
-            public function getExpiryDateTime(): \DateTimeInterface { return new \DateTimeImmutable('-1 minute'); }
+            public function getExpiryDateTime(): \DateTimeInterface
+            {
+                return new \DateTimeImmutable('-1 minute');
+            }
         };
         $active = new class extends AccessToken {
-            public function getExpiryDateTime(): \DateTimeInterface { return new \DateTimeImmutable('+1 minute'); }
+            public function getExpiryDateTime(): \DateTimeInterface
+            {
+                return new \DateTimeImmutable('+1 minute');
+            }
         };
 
         $repository = $this->getMockBuilder(AccessTokenRepository::class)
