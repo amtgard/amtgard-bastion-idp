@@ -14,6 +14,7 @@ use Amtgard\IdP\Models\AuthorizationJwtAssembler;
 use Amtgard\IdP\Models\AuthorizationJwtValidator;
 use Amtgard\IdP\Models\CompositeAuthorizationJwtValidator;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
+use Amtgard\IdP\Models\Oidc\CompositeBearerTokenValidator;
 use Amtgard\IdP\Models\Oidc\IdentityRepository;
 use Amtgard\IdP\Models\Oidc\OidcNonceContext;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
@@ -175,6 +176,14 @@ return [
             ->build();
     },
 
+    // ES256 design §5.3: the ResourceServer validates access tokens with
+    // the composite bearer-token validator (current key from
+    // OAUTH_PUBLIC_KEY, retiring key from OAUTH_PUBLIC_KEY_PREVIOUS when
+    // set — env mapping lands in M7, §5.7; until then the variable is
+    // read directly, the same pattern M5 used for the authorization-JWT
+    // composite). The CryptKey is still passed: League only calls
+    // setPublicKey() on BearerTokenValidator instances, so the composite
+    // never receives it — it gets its keys through its own constructor.
     ResourceServer::class => function (ContainerInterface $container) {
         $publicKey = new CryptKey(
             $_ENV['OAUTH_PUBLIC_KEY'],
@@ -182,9 +191,15 @@ return [
             false
         );
 
+        $accessTokenRepository = $container->get(AccessTokenRepositoryInterface::class);
+
         return new ResourceServer(
-            $container->get(AccessTokenRepositoryInterface::class),
-            $publicKey
+            $accessTokenRepository,
+            $publicKey,
+            CompositeBearerTokenValidator::fromEnvironment(
+                $accessTokenRepository,
+                $container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class)->oauth()
+            )
         );
     },
 ];

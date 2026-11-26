@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Models\Oidc;
 
+use Amtgard\IdP\Utility\JwksFactory;
 use DateTimeZone;
 use Lcobucci\Clock\SystemClock;
 use Lcobucci\JWT\Configuration;
@@ -24,16 +25,21 @@ use Psr\Log\LoggerInterface;
  * BearerTokenValidator::validateAuthorization() with a fixed Ecdsa\Sha256
  * signer and the P-256 public key; accepts ES256 tokens only. Do NOT
  * subclass League's BearerTokenValidator — it cannot work (design §3.2).
+ * A token carrying a kid must name this key (design §6/§8 M6); League
+ * access tokens carry no kid, so an absent kid is accepted.
  *
- * M1 only: no production consumers yet (wired in M6). Psalm analyses
- * src/ only, so construction from config/ and use from tests does not
- * count as use.
+ * Wired in M6: the ResourceServer container factory builds the composite
+ * from this implementation. Psalm analyses src/ only, so construction
+ * from config/ and use from tests does not count as use.
  *
  * @psalm-suppress UnusedClass
  */
 final class Es256BearerTokenValidator implements AuthorizationValidatorInterface
 {
     private readonly Configuration $jwtConfiguration;
+
+    /** RFC 7638 thumbprint kid of this implementation's public key. */
+    private readonly string $expectedKid;
 
     public function __construct(
         private readonly AccessTokenRepositoryInterface $accessTokenRepository,
@@ -52,6 +58,8 @@ final class Es256BearerTokenValidator implements AuthorizationValidatorInterface
             new LooseValidAt($clock, $jwtValidAtDateLeeway),
             new SignedWith($signer, InMemory::plainText($publicKeyPem, ''))
         );
+
+        $this->expectedKid = JwksFactory::providerFromPublicKeyPem($publicKeyPem)->kid();
     }
 
     /**
@@ -75,6 +83,14 @@ final class Es256BearerTokenValidator implements AuthorizationValidatorInterface
         }
 
         if (!$token instanceof Plain) {
+            throw OAuthServerException::accessDenied('Access token could not be verified');
+        }
+
+        // A token carrying a kid must name this key (ES256 design §6/§8 M6).
+        // League access tokens carry no kid, so an absent kid is accepted;
+        // a kid naming any other key is rejected before signature checks.
+        $kid = $token->headers()->get('kid');
+        if ($kid !== null && $kid !== $this->expectedKid) {
             throw OAuthServerException::accessDenied('Access token could not be verified');
         }
 

@@ -9,6 +9,7 @@ use Amtgard\IdP\Models\Oidc\Es256BearerTokenValidator;
 use Amtgard\IdP\Models\Oidc\Rs256BearerTokenValidator;
 use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
 use Amtgard\IdP\Tests\Support\OidcFixtureKeys;
+use Amtgard\IdP\Utility\JwksFactory;
 use Amtgard\IdP\Utility\OAuthKeyMaterial;
 use Firebase\JWT\JWT as FirebaseJwt;
 use League\OAuth2\Server\AuthorizationValidators\AuthorizationValidatorInterface;
@@ -373,6 +374,217 @@ class BearerTokenValidatorTest extends TestCase
         );
     }
 
+    public function testCompositeSetsRequestAttributes(): void
+    {
+        $composite = $this->composite();
+
+        $es256 = $composite->validateAuthorization($this->bearerRequest($this->es256AccessToken()));
+        $this->assertSame('jti-access-token', $es256->getAttribute('oauth_access_token_id'));
+        $this->assertSame('client-1', $es256->getAttribute('oauth_client_id'));
+        $this->assertSame('user-1', $es256->getAttribute('oauth_user_id'));
+        $this->assertSame(['profile', 'email'], $es256->getAttribute('oauth_scopes'));
+
+        $rs256 = $composite->validateAuthorization(
+            $this->bearerRequest(FirebaseJwtTestFactory::oauthAccessTokenForUserAndClient('user-1', 'client-1'))
+        );
+        $this->assertSame('jti-access-token', $rs256->getAttribute('oauth_access_token_id'));
+        $this->assertSame('client-1', $rs256->getAttribute('oauth_client_id'));
+        $this->assertSame('user-1', $rs256->getAttribute('oauth_user_id'));
+        $this->assertSame(['profile', 'email'], $rs256->getAttribute('oauth_scopes'));
+    }
+
+    public function testCompositeRejectsExpiredAndRevokedTokens(): void
+    {
+        $composite = $this->composite();
+
+        $this->assertAccessDenied(
+            fn () => $composite->validateAuthorization($this->bearerRequest($this->es256AccessToken(-60))),
+            'Access token could not be verified'
+        );
+        $this->assertAccessDenied(
+            fn () => $composite->validateAuthorization(
+                $this->bearerRequest(
+                    FirebaseJwtTestFactory::oauthAccessTokenForUserAndClient('user-1', 'client-1', -60)
+                )
+            ),
+            'Access token could not be verified'
+        );
+
+        // A revoked ES256 token: the ES256 implementation (first) rejects it
+        // as revoked, so that failure is the one surfaced.
+        $revoked = $this->compositeWithRepository($this->repository(true));
+        $this->assertAccessDenied(
+            fn () => $revoked->validateAuthorization($this->bearerRequest($this->es256AccessToken())),
+            'Access token has been revoked'
+        );
+        // A revoked RS256 token: the ES256 implementation (first) rejects it
+        // at the signature constraint, so the generic failure is surfaced.
+        $this->assertAccessDenied(
+            fn () => $revoked->validateAuthorization(
+                $this->bearerRequest(FirebaseJwtTestFactory::oauthAccessTokenForUserAndClient('user-1', 'client-1'))
+            ),
+            'Access token could not be verified'
+        );
+    }
+
+    public function testValidatorsRejectUnknownKidToken(): void
+    {
+        $unknownKidEs256 = $this->es256AccessTokenWithKid('unknown-kid');
+        $unknownKidRs256 = $this->rs256AccessTokenWithKid('unknown-kid');
+
+        $this->assertAccessDenied(
+            fn () => (new Es256BearerTokenValidator(
+                $this->repository(),
+                OidcFixtureKeys::publicEcPem()
+            ))->validateAuthorization($this->bearerRequest($unknownKidEs256)),
+            'Access token could not be verified'
+        );
+        $this->assertAccessDenied(
+            fn () => (new Rs256BearerTokenValidator(
+                $this->repository(),
+                OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY')
+            ))->validateAuthorization($this->bearerRequest($unknownKidRs256)),
+            'Access token could not be verified'
+        );
+    }
+
+    public function testValidatorsAcceptKnownKidToken(): void
+    {
+        $ecKid = JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())->kid();
+        $validatedEs256 = (new Es256BearerTokenValidator(
+            $this->repository(),
+            OidcFixtureKeys::publicEcPem()
+        ))->validateAuthorization($this->bearerRequest($this->es256AccessTokenWithKid($ecKid)));
+        $this->assertSame('user-1', $validatedEs256->getAttribute('oauth_user_id'));
+
+        $rsaKid = JwksFactory::fromPublicKeyPem(
+            OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY')
+        )->kid();
+        $validatedRs256 = (new Rs256BearerTokenValidator(
+            $this->repository(),
+            OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY')
+        ))->validateAuthorization($this->bearerRequest($this->rs256AccessTokenWithKid($rsaKid)));
+        $this->assertSame('user-1', $validatedRs256->getAttribute('oauth_user_id'));
+    }
+
+    public function testCompositeRejectsUnknownKidToken(): void
+    {
+        $composite = $this->composite();
+
+        $this->assertAccessDenied(
+            fn () => $composite->validateAuthorization(
+                $this->bearerRequest($this->es256AccessTokenWithKid('unknown-kid'))
+            ),
+            'Access token could not be verified'
+        );
+        $this->assertAccessDenied(
+            fn () => $composite->validateAuthorization(
+                $this->bearerRequest($this->rs256AccessTokenWithKid('unknown-kid'))
+            ),
+            'Access token could not be verified'
+        );
+    }
+
+    public function testFromEnvironmentBuildsOverlapComposite(): void
+    {
+        FirebaseJwtTestFactory::ensureKeys();
+        $saved = $this->overrideOAuthEnv([
+            'OAUTH_PUBLIC_KEY' => OidcFixtureKeys::publicEcKeyPath(),
+            'OAUTH_PUBLIC_KEY_PREVIOUS' => OidcFixtureKeys::publicKeyPath(),
+        ]);
+
+        try {
+            $handler = new TestHandler();
+            $logger = new Logger('test');
+            $logger->pushHandler($handler);
+            $composite = CompositeBearerTokenValidator::fromEnvironment($this->repository(), $logger);
+
+            $es256 = $composite->validateAuthorization($this->bearerRequest($this->es256AccessToken()));
+            $this->assertSame('user-1', $es256->getAttribute('oauth_user_id'));
+
+            $rs256 = $composite->validateAuthorization($this->bearerRequest($this->rs256FixtureAccessToken()));
+            $this->assertSame('user-1', $rs256->getAttribute('oauth_user_id'));
+
+            $records = $handler->getRecords();
+            $this->assertCount(2, $records);
+            $this->assertSame('ES256', $records[0]->context['alg']);
+            $this->assertSame('RS256', $records[1]->context['alg']);
+        } finally {
+            $this->restoreOAuthEnv($saved);
+        }
+    }
+
+    public function testFromEnvironmentWithoutPreviousKeyIsSingleKey(): void
+    {
+        FirebaseJwtTestFactory::ensureKeys();
+        $saved = $this->overrideOAuthEnv([
+            'OAUTH_PUBLIC_KEY' => OidcFixtureKeys::publicEcKeyPath(),
+            'OAUTH_PUBLIC_KEY_PREVIOUS' => null,
+        ]);
+
+        try {
+            $composite = CompositeBearerTokenValidator::fromEnvironment($this->repository());
+
+            $es256 = $composite->validateAuthorization($this->bearerRequest($this->es256AccessToken()));
+            $this->assertSame('user-1', $es256->getAttribute('oauth_user_id'));
+
+            $this->assertAccessDenied(
+                fn () => $composite->validateAuthorization($this->bearerRequest($this->rs256FixtureAccessToken())),
+                'Access token could not be verified'
+            );
+        } finally {
+            $this->restoreOAuthEnv($saved);
+        }
+    }
+
+    public function testFromEnvironmentReadsPreviousKeyFromServerEnvWhenPutenvIsUnset(): void
+    {
+        // $_ENV wins over getenv(): the previous key must still be picked
+        // up when it is set in $_ENV only (putenv cleared). Kills the
+        // coalesce mutant that swaps the ?? operands.
+        FirebaseJwtTestFactory::ensureKeys();
+        $saved = $this->overrideOAuthEnv([
+            'OAUTH_PUBLIC_KEY' => OidcFixtureKeys::publicEcKeyPath(),
+            'OAUTH_PUBLIC_KEY_PREVIOUS' => OidcFixtureKeys::publicKeyPath(),
+        ]);
+        putenv('OAUTH_PUBLIC_KEY_PREVIOUS');
+
+        try {
+            $composite = CompositeBearerTokenValidator::fromEnvironment($this->repository());
+
+            $rs256 = $composite->validateAuthorization($this->bearerRequest($this->rs256FixtureAccessToken()));
+            $this->assertSame('user-1', $rs256->getAttribute('oauth_user_id'));
+        } finally {
+            $this->restoreOAuthEnv($saved);
+        }
+    }
+
+    public function testValidatorFromPublicKeyPemRejectsUnsupportedKeys(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to parse public key for bearer token validation.');
+
+        CompositeBearerTokenValidator::validatorFromPublicKeyPem('not-a-key', $this->repository());
+    }
+
+    public function testValidatorFromPublicKeyPemRejectsNonP256Curve(): void
+    {
+        $key = openssl_pkey_new([
+            'private_key_type' => OPENSSL_KEYTYPE_EC,
+            'curve_name' => 'secp384r1',
+        ]);
+        $this->assertNotFalse($key);
+        $details = openssl_pkey_get_details($key);
+        $this->assertIsArray($details);
+        $publicPem = (string) ($details['key'] ?? '');
+        $this->assertNotSame('', $publicPem);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Bearer token signing key must be an RSA or P-256 EC public key.');
+
+        CompositeBearerTokenValidator::validatorFromPublicKeyPem($publicPem, $this->repository());
+    }
+
     public function testCompositeTriesValidatorsInOrder(): void
     {
         $request = $this->bearerRequest($this->es256AccessToken());
@@ -437,6 +649,14 @@ class BearerTokenValidatorTest extends TestCase
         );
     }
 
+    private function compositeWithRepository(AccessTokenRepositoryInterface $repository): CompositeBearerTokenValidator
+    {
+        return new CompositeBearerTokenValidator(
+            new Es256BearerTokenValidator($repository, OidcFixtureKeys::publicEcPem()),
+            new Rs256BearerTokenValidator($repository, OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY')),
+        );
+    }
+
     private function repository(bool $revoked = false): AccessTokenRepositoryInterface
     {
         $repository = $this->createStub(AccessTokenRepositoryInterface::class);
@@ -480,6 +700,95 @@ class BearerTokenValidatorTest extends TestCase
             'exp' => $now + $ttlSeconds,
             'scopes' => ['profile', 'email'],
         ]);
+    }
+
+    private function es256AccessTokenWithKid(string $kid, int $ttlSeconds = 3600): string
+    {
+        $now = time();
+
+        return FirebaseJwt::encode([
+            'aud' => 'client-1',
+            'jti' => 'jti-access-token',
+            'sub' => 'user-1',
+            'iat' => $now,
+            'nbf' => $now,
+            'exp' => $now + $ttlSeconds,
+            'scopes' => ['profile', 'email'],
+        ], OidcFixtureKeys::privateEcPem(), 'ES256', $kid);
+    }
+
+    private function rs256AccessTokenWithKid(string $kid, int $ttlSeconds = 3600): string
+    {
+        $now = time();
+        $privateKey = file_get_contents(FirebaseJwtTestFactory::DEFAULT_PRIVATE_KEY_PATH);
+        $this->assertNotFalse($privateKey);
+
+        return FirebaseJwt::encode([
+            'aud' => 'client-1',
+            'jti' => 'jti-access-token',
+            'sub' => 'user-1',
+            'iat' => $now,
+            'nbf' => $now,
+            'exp' => $now + $ttlSeconds,
+            'scopes' => ['profile', 'email'],
+        ], $privateKey, 'RS256', $kid);
+    }
+
+    /**
+     * RS256 access token signed with the OIDC RSA fixture key (not the
+     * dev-keys pair): validates against OidcFixtureKeys::publicPem().
+     */
+    private function rs256FixtureAccessToken(int $ttlSeconds = 3600): string
+    {
+        $now = time();
+
+        return FirebaseJwt::encode([
+            'aud' => 'client-1',
+            'jti' => 'jti-access-token',
+            'sub' => 'user-1',
+            'iat' => $now,
+            'nbf' => $now,
+            'exp' => $now + $ttlSeconds,
+            'scopes' => ['profile', 'email'],
+        ], OidcFixtureKeys::privatePem(), 'RS256');
+    }
+
+    /**
+     * @param array<string, string|null> $overrides
+     * @return array<string, array{env: mixed, putenv: mixed}>
+     */
+    private function overrideOAuthEnv(array $overrides): array
+    {
+        $saved = [];
+        foreach ($overrides as $key => $value) {
+            $saved[$key] = ['env' => $_ENV[$key] ?? null, 'putenv' => getenv($key)];
+            if ($value === null) {
+                unset($_ENV[$key]);
+                putenv($key);
+            } else {
+                $_ENV[$key] = $value;
+                putenv($key . '=' . $value);
+            }
+        }
+
+        return $saved;
+    }
+
+    /** @param array<string, array{env: mixed, putenv: mixed}> $saved */
+    private function restoreOAuthEnv(array $saved): void
+    {
+        foreach ($saved as $key => $previous) {
+            if ($previous['env'] === null) {
+                unset($_ENV[$key]);
+            } else {
+                $_ENV[$key] = $previous['env'];
+            }
+            if ($previous['putenv'] === false) {
+                putenv($key);
+            } else {
+                putenv($key . '=' . $previous['putenv']);
+            }
+        }
     }
 
     private function unknownKeyRs256Token(): string

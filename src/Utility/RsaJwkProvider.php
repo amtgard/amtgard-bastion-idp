@@ -17,7 +17,14 @@ namespace Amtgard\IdP\Utility;
  */
 final class RsaJwkProvider implements JwkProvider
 {
-    /** @var array{e: string, kty: string, n: string} */
+    /**
+     * @var array{e: string, kty: string, n: string}
+     *
+     * @psalm-suppress UnusedProperty Read by kid() and jwk() below; psalm
+     * flags this once M6 constructs the providers from analysed src
+     * (bearer-token validators) because the reads go through the
+     * JwkProvider interface, which its whole-program analysis cannot see.
+     */
     private readonly array $requiredMembers;
 
     public function __construct(string $publicKeyPem)

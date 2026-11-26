@@ -1,6 +1,6 @@
 {
-  "build_id": "2026-11-26.347",
+  "build_id": "2026-11-26.348",
   "date": "2026-11-26",
-  "revision": 347,
-  "branch": "stack/es256-m5-auth-jwt"
+  "revision": 348,
+  "branch": "stack/es256-m6-validator"
 }
