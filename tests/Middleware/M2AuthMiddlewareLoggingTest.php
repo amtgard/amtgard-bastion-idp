@@ -11,6 +11,7 @@ use Amtgard\IdP\Middleware\LocalAdminUserMiddleware;
 use Amtgard\IdP\Middleware\LocalIdpAuthMiddleware;
 use Amtgard\IdP\Middleware\ManagementMiddleware;
 use Amtgard\IdP\Middleware\OAuthAccessTokenElevationMiddleware;
+use Amtgard\IdP\Models\CompositeAuthorizationJwtValidator;
 use Amtgard\IdP\Models\AllowedLinkOrkProfileClientIds;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Persistence\Server\Entities\Repository\Client;
@@ -129,7 +130,10 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
         $userAuthority->method('isAdmin')->willReturn(false);
         $middleware = new LocalAdminUserMiddleware($userRepository, $userAuthority, $capture->idpLogging);
         $middleware->process($request, $handler);
-        $this->assertSame('not_admin', $capture->handler('security')->getRecords()[1]->context['failure_reason']);
+        $this->assertSame(
+            'not_admin',
+            $capture->handler('security')->getRecords()[1]->context['failure_reason']
+        );
 
         $request2 = $this->createMock(ServerRequestInterface::class);
         $request2->method('getAttribute')->willReturnMap([
@@ -138,7 +142,10 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
             [RouteContext::ROUTE_PARSER, null, $routeParser],
         ]);
         $middleware->process($request2, $handler);
-        $this->assertSame('unauthenticated', $capture->handler('security')->getRecords()[2]->context['failure_reason']);
+        $this->assertSame(
+            'unauthenticated',
+            $capture->handler('security')->getRecords()[2]->context['failure_reason']
+        );
     }
 
     public function testLocalIdpAuthMiddlewareLogsSecurityAndOAuthBranches(): void
@@ -159,7 +166,10 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
             $middleware->process($request, $this->createMock(RequestHandlerInterface::class));
         } catch (HttpUnauthorizedException) {
         }
-        $this->assertSame('bearer_not_allowed', $capture->handler('security')->getRecords()[0]->context['failure_reason']);
+        $this->assertSame(
+            'bearer_not_allowed',
+            $capture->handler('security')->getRecords()[0]->context['failure_reason']
+        );
 
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getHeaderLine')->willReturn('');
@@ -168,11 +178,15 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
             $middleware->process($request, $this->createMock(RequestHandlerInterface::class));
         } catch (HttpUnauthorizedException) {
         }
-        $this->assertSame('client_not_authorized', $capture->handler('security')->getRecords()[1]->context['failure_reason']);
+        $this->assertSame(
+            'client_not_authorized',
+            $capture->handler('security')->getRecords()[1]->context['failure_reason']
+        );
 
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getHeaderLine')->willReturn('');
-        $request->method('getAttribute')->with('session')->willReturn(['client_id' => 'valid-client', 'user_id' => 'u1']);
+        $request->method('getAttribute')->with('session')
+            ->willReturn(['client_id' => 'valid-client', 'user_id' => 'u1']);
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($this->createMock(ResponseInterface::class));
         $middleware->process($request, $handler);
@@ -243,6 +257,7 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
             $capture->idpLogging,
             $authorized,
             $this->createMock(ResourceServer::class),
+            CompositeAuthorizationJwtValidator::fromEnvironment(),
         );
 
         $jwt = $this->generateAuthorizationJwt('u1', 'valid-client');
@@ -253,7 +268,10 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
             $middleware->process($request, $this->createMock(RequestHandlerInterface::class));
         } catch (HttpUnauthorizedException) {
         }
-        $this->assertSame('authorization_jwt_on_elevation', $capture->handler('security')->getRecords()[0]->context['failure_reason']);
+        $this->assertSame(
+            'authorization_jwt_on_elevation',
+            $capture->handler('security')->getRecords()[0]->context['failure_reason']
+        );
 
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getHeaderLine')->willReturn('');
@@ -262,11 +280,15 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
             $middleware->process($request, $this->createMock(RequestHandlerInterface::class));
         } catch (HttpUnauthorizedException) {
         }
-        $this->assertSame('client_not_authorized', $capture->handler('security')->getRecords()[1]->context['failure_reason']);
+        $this->assertSame(
+            'client_not_authorized',
+            $capture->handler('security')->getRecords()[1]->context['failure_reason']
+        );
 
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getHeaderLine')->willReturn('');
-        $request->method('getAttribute')->with('session')->willReturn(['client_id' => 'valid-client', 'user_id' => 'u1']);
+        $request->method('getAttribute')->with('session')
+            ->willReturn(['client_id' => 'valid-client', 'user_id' => 'u1']);
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($this->createMock(ResponseInterface::class));
         $middleware->process($request, $handler);
@@ -279,7 +301,10 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
             $middleware->process($request, $this->createMock(RequestHandlerInterface::class));
         } catch (HttpUnauthorizedException) {
         }
-        $this->assertSame('missing_access_token', $capture->handler('security')->getRecords()[3]->context['failure_reason']);
+        $this->assertSame(
+            'missing_access_token',
+            $capture->handler('security')->getRecords()[3]->context['failure_reason']
+        );
 
         $resourceServer = $this->createMock(ResourceServer::class);
         $resourceServer->method('validateAuthenticatedRequest')->willThrowException(
@@ -289,6 +314,7 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
             $capture->idpLogging,
             $authorized,
             $resourceServer,
+            CompositeAuthorizationJwtValidator::fromEnvironment(),
         );
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getHeaderLine')->willReturn('Bearer access-token');
@@ -297,7 +323,10 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
             $middleware->process($request, $this->createMock(RequestHandlerInterface::class));
         } catch (HttpUnauthorizedException) {
         }
-        $this->assertSame('invalid_access_token', $capture->handler('security')->getRecords()[4]->context['failure_reason']);
+        $this->assertSame(
+            'invalid_access_token',
+            $capture->handler('security')->getRecords()[4]->context['failure_reason']
+        );
         $this->assertSame(Level::Error, $capture->handler('security')->getRecords()[4]->level);
     }
 
@@ -313,7 +342,10 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
             $authenticator->authenticate($request, ConfidentialClientAuthMode::CredentialsOnly);
         } catch (HttpUnauthorizedException) {
         }
-        $this->assertSame('missing_basic', $capture->handler('security')->getRecords()[0]->context['failure_reason']);
+        $this->assertSame(
+            'missing_basic',
+            $capture->handler('security')->getRecords()[0]->context['failure_reason']
+        );
 
         $capture2 = CapturedIdpLogging::create();
         $repo2 = $this->createMock(ClientRepository::class);
@@ -325,7 +357,10 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
             $authenticator2->authenticate($request2, ConfidentialClientAuthMode::CredentialsOnly);
         } catch (HttpUnauthorizedException) {
         }
-        $this->assertSame('invalid_credentials', $capture2->handler('security')->getRecords()[0]->context['failure_reason']);
+        $this->assertSame(
+            'invalid_credentials',
+            $capture2->handler('security')->getRecords()[0]->context['failure_reason']
+        );
     }
 
     public function testAllowListedAuthenticatorUsesErrorAndAlert(): void
@@ -365,9 +400,18 @@ final class M2AuthMiddlewareLoggingTest extends TestCase
     {
         $capture = CapturedIdpLogging::create();
         $client = new class extends Client {
-            public function getIsConfidential(): bool { return true; }
-            public function getIamService(): ?string { return 'Skbc'; }
-            public function getIdentifier(): string { return 'app-client'; }
+            public function getIsConfidential(): bool
+            {
+                return true;
+            }
+            public function getIamService(): ?string
+            {
+                return 'Skbc';
+            }
+            public function getIdentifier(): string
+            {
+                return 'app-client';
+            }
         };
         $repo = $this->createMock(ClientRepository::class);
         $repo->method('validateClient')->willReturn(true);

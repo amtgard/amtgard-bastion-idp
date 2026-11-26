@@ -11,6 +11,8 @@ use Amtgard\IdP\Controllers\Server\OAuth\OAuthTokenAction;
 use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
+use Amtgard\IdP\Models\AuthorizationJwtValidator;
+use Amtgard\IdP\Models\CompositeAuthorizationJwtValidator;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Models\Oidc\IdentityRepository;
 use Amtgard\IdP\Models\Oidc\OidcNonceContext;
@@ -91,10 +93,19 @@ return [
         );
     },
 
+    // ES256 design §5.4: the authorization-JWT validator composite, built
+    // from the environment — current key from OAUTH_PUBLIC_KEY, retiring
+    // key from OAUTH_PUBLIC_KEY_PREVIOUS when set (env mapping lands in
+    // M7, §5.7). ES256 current first, then RS256 during overlap.
+    AuthorizationJwtValidator::class => function () {
+        return CompositeAuthorizationJwtValidator::fromEnvironment();
+    },
+
     OidcUserInfoController::class => function (ContainerInterface $container) {
         return new OidcUserInfoController(
             $container->get(ResourceServer::class),
             $container->get(UserRepository::class),
+            $container->get(AuthorizationJwtValidator::class),
         );
     },
 
@@ -103,6 +114,7 @@ return [
             ->assembler($container->get(AuthorizationJwtAssembler::class))
             ->redisCacheRepository($container->get(RedisCacheRepository::class))
             ->idpLogging($container->get(\Amtgard\IdP\Utility\Log\IdpLogging::class))
+            ->signer($container->get(Signer::class))
             ->build();
     },
 

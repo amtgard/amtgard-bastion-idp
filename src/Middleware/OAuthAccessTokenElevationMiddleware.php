@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Middleware;
 
+use Amtgard\IdP\Models\AuthorizationJwtValidator;
 use Amtgard\IdP\Utility\AuthorizedClients;
 use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\Jwt;
@@ -19,7 +20,7 @@ use Slim\Exception\HttpUnauthorizedException;
 
 /**
  * Auth for GET /resources/jwt — elevate an OAuth access token (or browser session)
- * to a signed authorization JWT. Does not accept RS256 authorization JWTs; those
+ * to a signed authorization JWT. Does not accept authorization JWTs; those
  * belong on /resources/userinfo.
  */
 class OAuthAccessTokenElevationMiddleware implements MiddlewareInterface
@@ -28,12 +29,14 @@ class OAuthAccessTokenElevationMiddleware implements MiddlewareInterface
         private IdpLogging $logging,
         private AuthorizedClients $authorizedClients,
         private ResourceServer $resourceServer,
-    ) {}
+        private AuthorizationJwtValidator $authorizationJwtValidator,
+    ) {
+    }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $bearer = Jwt::getBearerJwt($request);
-        if ($bearer !== null && Jwt::validateJwtSignature($bearer) !== null) {
+        if ($bearer !== null && $this->authorizationJwtValidator->validateJwtSignature($bearer) !== null) {
             $payload = Jwt::parseJwt($bearer);
             if (is_array($payload) && Jwt::isAuthorizationPayload($payload)) {
                 $this->logging->security()->error('jwt elevation rejected', [
@@ -41,16 +44,19 @@ class OAuthAccessTokenElevationMiddleware implements MiddlewareInterface
                 ]);
                 throw new HttpUnauthorizedException(
                     $request,
-                    'Authorization JWTs are used with /resources/userinfo. Present an OAuth access token or session here.'
+                    'Authorization JWTs are used with /resources/userinfo. '
+                    . 'Present an OAuth access token or session here.'
                 );
             }
         }
 
         $session = $request->getAttribute('session');
 
-        if (Optional::ofNullable($session['client_id'] ?? null)
+        if (
+            Optional::ofNullable($session['client_id'] ?? null)
             ->map(fn($clientId) => !in_array($clientId, $this->authorizedClients->getClientIds(), true))
-            ->orElse(false)) {
+            ->orElse(false)
+        ) {
             $this->logging->security()->error('jwt elevation rejected', [
                 'client_id' => $session['client_id'],
                 'failure_reason' => 'client_not_authorized',

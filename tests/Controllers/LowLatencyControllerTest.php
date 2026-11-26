@@ -1,11 +1,14 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Controllers;
 
 use Amtgard\IdP\Controllers\Resource\LowLatencyController;
 use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
+use Amtgard\IdP\Tests\Support\OidcFixtureKeys;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
+use Amtgard\IdP\Models\CompositeAuthorizationJwtValidator;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\Pvh;
 use Amtgard\IdP\Utility\Pvh\PvhAuthorizationGate;
@@ -63,7 +66,8 @@ class LowLatencyControllerTest extends TestCase
             $this->redisPubSubQueue,
             $this->pubSubQueueHandle,
             $pvhAuthorizationGate,
-            $this->createStub(LoggerInterface::class)
+            $this->createStub(LoggerInterface::class),
+            CompositeAuthorizationJwtValidator::fromEnvironment()
         );
     }
 
@@ -98,6 +102,93 @@ class LowLatencyControllerTest extends TestCase
 
         $result = $this->controller->validate($this->request, $this->response);
         $this->assertSame($this->response, $result);
+    }
+
+    public function testValidateSucceedsWithEs256Jwt(): void
+    {
+        // M5: an ES256 authorization JWT validates through the injected
+        // composite when the EC key is current and the RSA key previous.
+        $_SESSION = [];
+        $saved = $this->overrideOAuthEnv([
+            'OAUTH_PUBLIC_KEY' => OidcFixtureKeys::publicEcKeyPath(),
+            'OAUTH_PUBLIC_KEY_PREVIOUS' => '/tmp/public.key',
+        ]);
+
+        try {
+            $pvhAuthorizationGate = PvhAuthorizationGate::builder()
+                ->redisCacheRepository($this->redisCacheRepository)
+                ->build();
+            $controller = new LowLatencyController(
+                $this->redisCacheRepository,
+                $this->redisPubSubQueue,
+                $this->pubSubQueueHandle,
+                $pvhAuthorizationGate,
+                $this->createStub(LoggerInterface::class),
+                CompositeAuthorizationJwtValidator::fromEnvironment()
+            );
+
+            $pvh = $this->samplePvh();
+            $jwt = FirebaseJwtTestFactory::encodeEs256([
+                'iss' => AuthorizationJwtAssembler::ISSUER,
+                'aud' => self::AUD,
+                'exp' => time() + 3600,
+                'email' => self::EMAIL,
+                'policy' => self::POLICY,
+                'sub' => self::USER_UUID,
+                'pvh' => $pvh,
+            ]);
+
+            $this->withBearer($jwt);
+            $this->redisCacheRepository->expects($this->once())
+                ->method('getPvhRecord')
+                ->with(self::USER_UUID, self::AUD)
+                ->willReturn(new PvhCacheRecord(self::USER_UUID, self::AUD, self::EMAIL, $pvh, null));
+            $this->expectSuccessSideEffects();
+            $this->expectSuccessBody();
+
+            $result = $controller->validate($this->request, $this->response);
+            $this->assertSame($this->response, $result);
+        } finally {
+            $this->restoreOAuthEnv($saved);
+        }
+    }
+
+    /**
+     * @param array<string, string|null> $overrides
+     * @return array<string, array{env: mixed, putenv: mixed}>
+     */
+    private function overrideOAuthEnv(array $overrides): array
+    {
+        $saved = [];
+        foreach ($overrides as $key => $value) {
+            $saved[$key] = ['env' => $_ENV[$key] ?? null, 'putenv' => getenv($key)];
+            if ($value === null) {
+                unset($_ENV[$key]);
+                putenv($key);
+            } else {
+                $_ENV[$key] = $value;
+                putenv($key . '=' . $value);
+            }
+        }
+
+        return $saved;
+    }
+
+    /** @param array<string, array{env: mixed, putenv: mixed}> $saved */
+    private function restoreOAuthEnv(array $saved): void
+    {
+        foreach ($saved as $key => $previous) {
+            if ($previous['env'] === null) {
+                unset($_ENV[$key]);
+            } else {
+                $_ENV[$key] = $previous['env'];
+            }
+            if ($previous['putenv'] === false) {
+                putenv($key);
+            } else {
+                putenv($key . '=' . $previous['putenv']);
+            }
+        }
     }
 
     public function testValidateThrowsUnauthorizedWhenInvalidSignature(): void
@@ -281,7 +372,8 @@ class LowLatencyControllerTest extends TestCase
             ->with($this->callback(function (PvhCacheRecord $record) use ($hash): bool {
                 return $record->getPrevPvh() === null
                     && $record->getUserUuid() === self::USER_UUID
-                    && Pvh::hashPrefixHex($record->getPvh()) === bin2hex(substr($hash, 0, Pvh::HASH_PREFIX_BYTE_LENGTH));
+                    && Pvh::hashPrefixHex($record->getPvh())
+                        === bin2hex(substr($hash, 0, Pvh::HASH_PREFIX_BYTE_LENGTH));
             }));
         $this->expectSuccessSideEffects();
         $this->expectSuccessBody();

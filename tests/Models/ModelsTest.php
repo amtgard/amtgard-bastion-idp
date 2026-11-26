@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Models;
@@ -6,6 +7,7 @@ namespace Amtgard\IdP\Tests\Models;
 use Amtgard\ActiveRecordOrm\Interface\EntityInterface;
 use Amtgard\IdP\Models\AmtgardIdpJwt;
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
+use Amtgard\IdP\Models\CompositeAuthorizationJwtValidator;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Models\Oidc\OidcAuthCodeGrant;
 use Amtgard\IdP\Models\Oidc\OidcIdTokenResponse;
@@ -19,9 +21,17 @@ use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
 use Amtgard\IdP\Persistence\Common\Repositories\UserPolicy;
+use Amtgard\IdP\Tests\Support\OidcFixtureKeys;
+use Amtgard\IdP\Utility\EcJwkProvider;
 use Amtgard\IdP\Utility\LoginSession;
 use Amtgard\IdP\Utility\Pvh;
 use Amtgard\IdP\Utility\PvhCacheRecord;
+use Amtgard\IdP\Utility\RsaJwkProvider;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use Lcobucci\JWT\Signer;
+use Lcobucci\JWT\Signer\Ecdsa\Sha256 as EcdsaSha256;
+use Lcobucci\JWT\Signer\Rsa\Sha256 as RsaSha256;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -50,6 +60,134 @@ class ModelsTest extends TestCase
     }
 
     public function testAmtgardIdpJwt(): void
+    {
+        $setup = $this->mintSetup(new RsaSha256());
+
+        $setup['generationRepository']->expects($this->once())
+            ->method('saveForPolicyHash')
+            ->with(
+                7,
+                'user-123',
+                99,
+                'client-123',
+                $setup['expectedHash'],
+                $this->isType('int')
+            )
+            ->willReturn($setup['generation']);
+
+        $setup['redis']->expects($this->once())
+            ->method('setPvhRecord')
+            ->with($this->callback(function (PvhCacheRecord $record) use ($setup): bool {
+                return $record->getUserUuid() === 'user-123'
+                    && $record->getAud() === 'client-123'
+                    && $record->getEmail() === 'test@example.com'
+                    && $record->getPvh() === $setup['expectedPvh']
+                    && $record->getPrevPvh() === null;
+            }));
+
+        $tokens = $setup['idpJwt']->buildAuthorizationTokens($setup['user']);
+        $jwtString = $tokens['jwt'];
+        $compactString = $tokens['compact_jwt'];
+
+        $this->assertIsString($jwtString);
+        $this->assertIsString($compactString);
+        $payload = json_decode(base64_decode(strtr(explode('.', $jwtString)[1], '-_', '+/')), true);
+        $this->assertSame(['tier' => 'gold'], $payload['client_metadata']);
+        $this->assertSame($setup['expectedPvh'], $payload['pvh']);
+
+        $compactPayload = json_decode(base64_decode(strtr(explode('.', $compactString)[1], '-_', '+/')), true);
+        $this->assertSame($payload['sub'], $compactPayload['sub']);
+        $this->assertSame($payload['aud'], $compactPayload['aud']);
+        $this->assertSame($payload['iss'], $compactPayload['iss']);
+        $this->assertSame($payload['exp'], $compactPayload['exp']);
+        $this->assertSame($payload['pvh'], $compactPayload['pvh']);
+        $this->assertSame($payload['iat'], $compactPayload['iat']);
+        $this->assertArrayNotHasKey('policy', $compactPayload);
+        $this->assertArrayNotHasKey('email', $compactPayload);
+        $this->assertArrayNotHasKey('orkid', $compactPayload);
+        $this->assertArrayNotHasKey('challenge', $compactPayload);
+        $this->assertArrayNotHasKey('client_metadata', $compactPayload);
+        $this->assertSame(
+            ['sub', 'aud', 'iss', 'exp', 'pvh', 'iat'],
+            array_keys($compactPayload)
+        );
+
+        // M5: minted tokens carry the alg + kid of the signing key.
+        $publicKey = file_get_contents('/tmp/public.key');
+        $this->assertIsString($publicKey);
+        $rsaKid = (new RsaJwkProvider($publicKey))->kid();
+        $this->assertSame('RS256', $this->jwtHeader($jwtString)['alg']);
+        $this->assertSame($rsaKid, $this->jwtHeader($jwtString)['kid']);
+        $this->assertSame('RS256', $this->jwtHeader($compactString)['alg']);
+        $this->assertSame($rsaKid, $this->jwtHeader($compactString)['kid']);
+
+        // test validate
+        $setup['jwtChallenge']->expects($this->once())
+            ->method('validateChallenge')
+            ->with('some-jwt-string')
+            ->willReturn(true);
+
+        $this->assertTrue($setup['idpJwt']->validateJwtChallenge('some-jwt-string'));
+    }
+
+    public function testAmtgardIdpJwtEs256(): void
+    {
+        $saved = $this->overrideOAuthEnv([
+            'OAUTH_PRIVATE_KEY' => OidcFixtureKeys::privateEcKeyPath(),
+            'OAUTH_PUBLIC_KEY' => OidcFixtureKeys::publicEcKeyPath(),
+            'OAUTH_PUBLIC_KEY_PREVIOUS' => '/tmp/public.key',
+        ]);
+
+        try {
+            $setup = $this->mintSetup(new EcdsaSha256());
+            $setup['generationRepository']->method('saveForPolicyHash')->willReturn($setup['generation']);
+            $tokens = $setup['idpJwt']->buildAuthorizationTokens($setup['user']);
+
+            $ecKid = (new EcJwkProvider(OidcFixtureKeys::publicEcPem()))->kid();
+            $this->assertSame('ES256', $this->jwtHeader($tokens['jwt'])['alg']);
+            $this->assertSame($ecKid, $this->jwtHeader($tokens['jwt'])['kid']);
+            $this->assertSame('ES256', $this->jwtHeader($tokens['compact_jwt'])['alg']);
+            $this->assertSame($ecKid, $this->jwtHeader($tokens['compact_jwt'])['kid']);
+
+            $decoded = JWT::decode($tokens['jwt'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
+            $this->assertSame('user-123', $decoded->sub);
+            $this->assertSame($setup['expectedPvh'], $decoded->pvh);
+
+            $compactDecoded = JWT::decode($tokens['compact_jwt'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
+            $this->assertSame('user-123', $compactDecoded->sub);
+            $this->assertSame($setup['expectedPvh'], $compactDecoded->pvh);
+
+            // Overlap: the ES256 mint validates through the composite built
+            // from the environment (EC current + RSA previous).
+            $validator = CompositeAuthorizationJwtValidator::fromEnvironment();
+            $this->assertSame($tokens['jwt'], $validator->validateJwtSignature($tokens['jwt']));
+            $this->assertSame($tokens['compact_jwt'], $validator->validateJwtSignature($tokens['compact_jwt']));
+        } finally {
+            $this->restoreOAuthEnv($saved);
+        }
+    }
+
+    public function testAmtgardIdpJwtWithoutSignerThrows(): void
+    {
+        $setup = $this->mintSetup(null);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Authorization JWT signer was not injected.');
+
+        $setup['idpJwt']->buildAuthorizationTokens($setup['user']);
+    }
+
+    /**
+     * Shared mint fixture: the real assembler with stubbed repositories,
+     * mirroring the pre-M5 testAmtgardIdpJwt setup. The signer is injected
+     * (or omitted, for the fail-fast test); strict mock expectations are
+     * set by the caller, after this returns and before minting.
+     *
+     * @return array{idpJwt: AmtgardIdpJwt, user: EntityInterface, jwtChallenge: JwtChallenge,
+     *     expectedPvh: string, expectedHash: string, generation: UserJwtGeneration,
+     *     generationRepository: UserJwtGenerationRepository, redis: RedisCacheRepository}
+     */
+    private function mintSetup(?Signer $signer): array
     {
         $userPolicy = $this->createMock(UserPolicy::class);
         $userPolicy->method('toPolicyJson')->willReturn('{"foo":"bar"}');
@@ -96,28 +234,8 @@ class ModelsTest extends TestCase
         ]);
 
         $generationRepository = $this->createMock(UserJwtGenerationRepository::class);
-        $generationRepository->expects($this->once())
-            ->method('saveForPolicyHash')
-            ->with(
-                7,
-                'user-123',
-                99,
-                'client-123',
-                $expectedHash,
-                $this->isType('int')
-            )
-            ->willReturn($generation);
 
         $redis = $this->createMock(RedisCacheRepository::class);
-        $redis->expects($this->once())
-            ->method('setPvhRecord')
-            ->with($this->callback(function (PvhCacheRecord $record) use ($expectedPvh): bool {
-                return $record->getUserUuid() === 'user-123'
-                    && $record->getAud() === 'client-123'
-                    && $record->getEmail() === 'test@example.com'
-                    && $record->getPvh() === $expectedPvh
-                    && $record->getPrevPvh() === null;
-            }));
 
         $assembler = new AuthorizationJwtAssembler(
             $userPolicy,
@@ -128,45 +246,73 @@ class ModelsTest extends TestCase
             \Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create(),
             $generationRepository,
         );
-        $idpJwt = AmtgardIdpJwt::builder()
+        $builder = AmtgardIdpJwt::builder()
             ->assembler($assembler)
             ->redisCacheRepository($redis)
-            ->idpLogging(\Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create())
-            ->build();
-        $tokens = $idpJwt->buildAuthorizationTokens($user);
-        $jwtString = $tokens['jwt'];
-        $compactString = $tokens['compact_jwt'];
+            ->idpLogging(\Amtgard\IdP\Tests\Utility\Log\IdpLoggingTestFactory::create());
+        if ($signer !== null) {
+            $builder->signer($signer);
+        }
 
-        $this->assertIsString($jwtString);
-        $this->assertIsString($compactString);
-        $payload = json_decode(base64_decode(strtr(explode('.', $jwtString)[1], '-_', '+/')), true);
-        $this->assertSame(['tier' => 'gold'], $payload['client_metadata']);
-        $this->assertSame($expectedPvh, $payload['pvh']);
+        return [
+            'idpJwt' => $builder->build(),
+            'user' => $user,
+            'jwtChallenge' => $jwtChallenge,
+            'expectedPvh' => $expectedPvh,
+            'expectedHash' => $expectedHash,
+            'generation' => $generation,
+            'generationRepository' => $generationRepository,
+            'redis' => $redis,
+        ];
+    }
 
-        $compactPayload = json_decode(base64_decode(strtr(explode('.', $compactString)[1], '-_', '+/')), true);
-        $this->assertSame($payload['sub'], $compactPayload['sub']);
-        $this->assertSame($payload['aud'], $compactPayload['aud']);
-        $this->assertSame($payload['iss'], $compactPayload['iss']);
-        $this->assertSame($payload['exp'], $compactPayload['exp']);
-        $this->assertSame($payload['pvh'], $compactPayload['pvh']);
-        $this->assertSame($payload['iat'], $compactPayload['iat']);
-        $this->assertArrayNotHasKey('policy', $compactPayload);
-        $this->assertArrayNotHasKey('email', $compactPayload);
-        $this->assertArrayNotHasKey('orkid', $compactPayload);
-        $this->assertArrayNotHasKey('challenge', $compactPayload);
-        $this->assertArrayNotHasKey('client_metadata', $compactPayload);
-        $this->assertSame(
-            ['sub', 'aud', 'iss', 'exp', 'pvh', 'iat'],
-            array_keys($compactPayload)
-        );
+    /**
+     * @return array<string, mixed>
+     */
+    private function jwtHeader(string $jwt): array
+    {
+        $header = json_decode(base64_decode(strtr(explode('.', $jwt)[0], '-_', '+/')), true);
+        $this->assertIsArray($header);
 
-        // test validate
-        $jwtChallenge->expects($this->once())
-            ->method('validateChallenge')
-            ->with('some-jwt-string')
-            ->willReturn(true);
+        return $header;
+    }
 
-        $this->assertTrue($idpJwt->validateJwtChallenge('some-jwt-string'));
+    /**
+     * @param array<string, string|null> $overrides
+     * @return array<string, array{env: mixed, putenv: mixed}>
+     */
+    private function overrideOAuthEnv(array $overrides): array
+    {
+        $saved = [];
+        foreach ($overrides as $key => $value) {
+            $saved[$key] = ['env' => $_ENV[$key] ?? null, 'putenv' => getenv($key)];
+            if ($value === null) {
+                unset($_ENV[$key]);
+                putenv($key);
+            } else {
+                $_ENV[$key] = $value;
+                putenv($key . '=' . $value);
+            }
+        }
+
+        return $saved;
+    }
+
+    /** @param array<string, array{env: mixed, putenv: mixed}> $saved */
+    private function restoreOAuthEnv(array $saved): void
+    {
+        foreach ($saved as $key => $previous) {
+            if ($previous['env'] === null) {
+                unset($_ENV[$key]);
+            } else {
+                $_ENV[$key] = $previous['env'];
+            }
+            if ($previous['putenv'] === false) {
+                putenv($key);
+            } else {
+                putenv($key . '=' . $previous['putenv']);
+            }
+        }
     }
 
     public function testCompactClaimsOmitsFatOnlyFields(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Controllers;
 
 use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
+use Amtgard\IdP\Models\CompositeAuthorizationJwtValidator;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
@@ -107,12 +108,15 @@ class OidcUserInfoEndpointTest extends TestCase
             ->with(OidcTokenExchangeHarness::USER_ID)
             ->willReturn($user);
 
+        FirebaseJwtTestFactory::ensureKeys();
+
         return new OidcUserInfoController(
             new ResourceServer(
                 $tokens,
                 new CryptKey(OidcFixtureKeys::publicKeyPath(), null, false)
             ),
-            $users
+            $users,
+            CompositeAuthorizationJwtValidator::fromEnvironment()
         );
     }
 

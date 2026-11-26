@@ -7,6 +7,7 @@ namespace Amtgard\IdP\Tests\Config;
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Controllers\Server\OAuth\DiscoveryController;
 use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
+use Amtgard\IdP\Models\AuthorizationJwtValidator;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Models\Oidc\IdentityRepository;
 use Amtgard\IdP\Models\Oidc\OidcNonceContext;
@@ -147,9 +148,11 @@ class OidcContainerWiringTest extends TestCase
     {
         $resourceServer = $this->createStub(ResourceServer::class);
         $users = $this->createStub(UserRepository::class);
+        $validator = $this->createStub(AuthorizationJwtValidator::class);
         $container = $this->containerReturning([
             ResourceServer::class => $resourceServer,
             UserRepository::class => $users,
+            AuthorizationJwtValidator::class => $validator,
         ]);
 
         $definitions = require __DIR__ . '/../../config/container.php';
@@ -163,6 +166,10 @@ class OidcContainerWiringTest extends TestCase
         $this->assertSame(
             $users,
             (new \ReflectionProperty(OidcUserInfoController::class, 'userRepository'))->getValue($controller)
+        );
+        $this->assertSame(
+            $validator,
+            (new \ReflectionProperty(OidcUserInfoController::class, 'authorizationJwtValidator'))->getValue($controller)
         );
     }
 

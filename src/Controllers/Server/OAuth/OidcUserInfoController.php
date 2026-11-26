@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Controllers\Server\OAuth;
 
+use Amtgard\IdP\Models\AuthorizationJwtValidator;
 use Amtgard\IdP\Models\Oidc\OidcClaimFactory;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Utility\JsonResponseBody;
@@ -23,6 +24,7 @@ final class OidcUserInfoController
     public function __construct(
         private readonly ResourceServer $resourceServer,
         private readonly UserRepository $userRepository,
+        private readonly AuthorizationJwtValidator $authorizationJwtValidator,
     ) {
     }
 
@@ -31,7 +33,11 @@ final class OidcUserInfoController
         operationId: 'oidcUserInfo',
         tags: ['OpenID Connect'],
         summary: 'OpenID UserInfo',
-        description: 'Identity claims for the access token from POST /oauth/token. Requires the openid scope. Returns sub plus scoped email, name, preferred_username, and updated_at. Does not return iss, aud, exp, iat, nonce, ORK profile, or IAM policy. An authorization JWT is rejected. POST accepts access_token in the form body when the Authorization header is absent; the header wins when both are present.',
+        description: 'Identity claims for the access token from POST /oauth/token. Requires the openid scope. '
+            . 'Returns sub plus scoped email, name, preferred_username, and updated_at. Does not return '
+            . 'iss, aud, exp, iat, nonce, ORK profile, or IAM policy. An authorization JWT is rejected. POST accepts '
+            . 'access_token in the form body when the Authorization header is absent; '
+            . 'the header wins when both are present.',
         security: [['oauthAccessToken' => []]],
         responses: [
             new OA\Response(
@@ -50,7 +56,10 @@ final class OidcUserInfoController
                     ]
                 )
             ),
-            new OA\Response(response: 401, description: 'Missing or invalid access token, or an authorization JWT was presented'),
+            new OA\Response(
+                response: 401,
+                description: 'Missing or invalid access token, or an authorization JWT was presented'
+            ),
             new OA\Response(response: 403, description: 'Access token does not include the openid scope'),
         ]
     )]
@@ -59,7 +68,8 @@ final class OidcUserInfoController
         operationId: 'oidcUserInfoPost',
         tags: ['OpenID Connect'],
         summary: 'OpenID UserInfo (POST)',
-        description: 'Same contract as GET /oauth/userinfo. The access token may be sent as the form field access_token when the Authorization header is absent.',
+        description: 'Same contract as GET /oauth/userinfo. The access token may be sent as the form field '
+            . 'access_token when the Authorization header is absent.',
         security: [['oauthAccessToken' => []]],
         requestBody: new OA\RequestBody(
             required: false,
@@ -74,7 +84,10 @@ final class OidcUserInfoController
         ),
         responses: [
             new OA\Response(response: 200, description: 'Scoped identity claims'),
-            new OA\Response(response: 401, description: 'Missing or invalid access token, or an authorization JWT was presented'),
+            new OA\Response(
+                response: 401,
+                description: 'Missing or invalid access token, or an authorization JWT was presented'
+            ),
             new OA\Response(response: 403, description: 'Access token does not include the openid scope'),
         ]
     )]
@@ -158,7 +171,7 @@ final class OidcUserInfoController
 
     private function isAuthorizationJwt(string $token): bool
     {
-        if (Jwt::validateJwtSignature($token) === null) {
+        if ($this->authorizationJwtValidator->validateJwtSignature($token) === null) {
             return false;
         }
 

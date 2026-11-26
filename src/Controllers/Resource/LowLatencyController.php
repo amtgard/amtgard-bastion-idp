@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-
 namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\IdP\Models\AuthorizationJwtAssembler;
+use Amtgard\IdP\Models\AuthorizationJwtValidator;
 use Amtgard\IdP\Persistence\Server\Repositories\RedisCacheRepository;
 use Amtgard\IdP\Utility\JsonResponseBody;
 use Amtgard\IdP\Utility\Jwt;
@@ -28,6 +28,7 @@ final class LowLatencyController
         private PubSubQueueHandle $pubSubQueueHandle,
         private PvhAuthorizationGate $pvhAuthorizationGate,
         private LoggerInterface $logger,
+        private AuthorizationJwtValidator $authorizationJwtValidator,
     ) {
     }
 
@@ -110,7 +111,7 @@ final class LowLatencyController
             return $this->rejectValidate($response, 'missing_bearer');
         }
 
-        if (Jwt::validateJwtSignature($challengeJwt, $this->logger) === null) {
+        if ($this->authorizationJwtValidator->validateJwtSignature($challengeJwt, $this->logger) === null) {
             return $this->rejectValidate($response, 'invalid_signature');
         }
 
@@ -198,7 +199,8 @@ final class LowLatencyController
 
         if ($outcome === PvhGateOutcome::StaleToken) {
             $this->logger->error(
-                'jwt validate stale_token', [
+                'jwt validate stale_token',
+                [
                 'user_uuid' => $tokenUserId,
                 'aud' => $aud,
                 'client_id' => $aud,
@@ -212,7 +214,8 @@ final class LowLatencyController
         }
 
         $this->logger->error(
-            'jwt validate unknown pvh', [
+            'jwt validate unknown pvh',
+            [
             'user_uuid' => $tokenUserId,
             'aud' => $aud,
             'client_id' => $aud,
@@ -243,7 +246,8 @@ final class LowLatencyController
         $resolved = $this->pvhAuthorizationGate->lastResolvedRecord();
         if ($access === PvhAccess::Current && $resolved !== null) {
             $this->logger->info(
-                'jwt validate current', [
+                'jwt validate current',
+                [
                 'user_uuid' => $tokenUserId,
                 'aud' => $aud,
                 'client_id' => $aud,
@@ -262,7 +266,8 @@ final class LowLatencyController
         }
 
         $this->logger->info(
-            'jwt validate cache miss seeded', [
+            'jwt validate cache miss seeded',
+            [
             'user_uuid' => $tokenUserId,
             'aud' => $aud,
             'client_id' => $aud,

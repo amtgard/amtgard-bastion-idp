@@ -206,6 +206,127 @@ class AuthorizationJwtValidatorTest extends TestCase
         $this->assertNull($composite->validateJwtSignature($this->noneToken()));
     }
 
+    public function testFromEnvironmentOverlapAcceptsEs256AndLegacyRs256(): void
+    {
+        FirebaseJwtTestFactory::ensureKeys();
+        $saved = $this->overrideOAuthEnv([
+            'OAUTH_PUBLIC_KEY' => OidcFixtureKeys::publicEcKeyPath(),
+            'OAUTH_PUBLIC_KEY_PREVIOUS' => '/tmp/public.key',
+        ]);
+
+        try {
+            $validator = CompositeAuthorizationJwtValidator::fromEnvironment();
+
+            $es256 = FirebaseJwtTestFactory::encodeEs256([
+                'iss' => 'http://localhost',
+                'aud' => 'client-1',
+                'sub' => 'user-1',
+                'exp' => time() + 3600,
+            ]);
+            $rs256 = FirebaseJwtTestFactory::authorizationForUserAndClient('user-1', 'client-1');
+
+            $this->assertSame($es256, $validator->validateJwtSignature($es256));
+            $this->assertSame($rs256, $validator->validateJwtSignature($rs256));
+            $this->assertNull($validator->validateJwtSignature($this->unknownKeyRs256Token()));
+            $this->assertNull($validator->validateJwtSignature($this->unknownKeyEs256Token()));
+            $this->assertNull($validator->validateJwtSignature($this->noneToken()));
+            $this->assertNull($validator->validateJwtSignature($es256 . 'tampered'));
+        } finally {
+            $this->restoreOAuthEnv($saved);
+        }
+    }
+
+    public function testFromEnvironmentSingleKeyRejectsLegacyRs256(): void
+    {
+        FirebaseJwtTestFactory::ensureKeys();
+        $saved = $this->overrideOAuthEnv([
+            'OAUTH_PUBLIC_KEY' => OidcFixtureKeys::publicEcKeyPath(),
+            'OAUTH_PUBLIC_KEY_PREVIOUS' => null,
+        ]);
+
+        try {
+            $validator = CompositeAuthorizationJwtValidator::fromEnvironment();
+
+            $es256 = FirebaseJwtTestFactory::encodeEs256([
+                'iss' => 'http://localhost',
+                'aud' => 'client-1',
+                'sub' => 'user-1',
+                'exp' => time() + 3600,
+            ]);
+            $rs256 = FirebaseJwtTestFactory::authorizationForUserAndClient('user-1', 'client-1');
+
+            $this->assertSame($es256, $validator->validateJwtSignature($es256));
+            $this->assertNull($validator->validateJwtSignature($rs256));
+        } finally {
+            $this->restoreOAuthEnv($saved);
+        }
+    }
+
+    public function testValidatorFromPublicKeyPemThrowsForUnknownKeyTypes(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to parse public key for authorization JWT validation.');
+
+        CompositeAuthorizationJwtValidator::validatorFromPublicKeyPem(
+            "-----BEGIN PUBLIC KEY-----\nZ2FyYmFnZQ==\n-----END PUBLIC KEY-----\n"
+        );
+    }
+
+    public function testValidatorFromPublicKeyPemThrowsForP384(): void
+    {
+        $key = openssl_pkey_new([
+            'private_key_type' => OPENSSL_KEYTYPE_EC,
+            'curve_name' => 'secp384r1',
+        ]);
+        $this->assertNotFalse($key);
+        $details = openssl_pkey_get_details($key);
+        $this->assertIsArray($details);
+        $publicPem = $details['key'];
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Authorization JWT signing key must be an RSA or P-256 EC public key.');
+
+        CompositeAuthorizationJwtValidator::validatorFromPublicKeyPem($publicPem);
+    }
+
+    /**
+     * @param array<string, string|null> $overrides
+     * @return array<string, array{env: mixed, putenv: mixed}>
+     */
+    private function overrideOAuthEnv(array $overrides): array
+    {
+        $saved = [];
+        foreach ($overrides as $key => $value) {
+            $saved[$key] = ['env' => $_ENV[$key] ?? null, 'putenv' => getenv($key)];
+            if ($value === null) {
+                unset($_ENV[$key]);
+                putenv($key);
+            } else {
+                $_ENV[$key] = $value;
+                putenv($key . '=' . $value);
+            }
+        }
+
+        return $saved;
+    }
+
+    /** @param array<string, array{env: mixed, putenv: mixed}> $saved */
+    private function restoreOAuthEnv(array $saved): void
+    {
+        foreach ($saved as $key => $previous) {
+            if ($previous['env'] === null) {
+                unset($_ENV[$key]);
+            } else {
+                $_ENV[$key] = $previous['env'];
+            }
+            if ($previous['putenv'] === false) {
+                putenv($key);
+            } else {
+                putenv($key . '=' . $previous['putenv']);
+            }
+        }
+    }
+
     public function testCompositeTriesValidatorsInOrder(): void
     {
         $token = FirebaseJwtTestFactory::authorizationForUserAndClient('user-1', 'client-1');
