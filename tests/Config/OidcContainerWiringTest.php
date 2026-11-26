@@ -170,7 +170,9 @@ class OidcContainerWiringTest extends TestCase
     {
         $identity = new IdentityRepository($this->createStub(UserRepository::class));
         $nonceContext = new OidcNonceContext();
+        $signer = new EcdsaSha256();
         $container = $this->containerReturning([
+            Signer::class => $signer,
             ClientRepositoryInterface::class => $this->createStub(ClientRepositoryInterface::class),
             ScopeRepositoryInterface::class => $this->createStub(ScopeRepositoryInterface::class),
             AccessTokenRepositoryInterface::class => $this->createStub(AccessTokenRepositoryInterface::class),
@@ -191,6 +193,10 @@ class OidcContainerWiringTest extends TestCase
         $this->assertSame(
             $nonceContext,
             (new \ReflectionProperty(OAuthServerConfiguration::class, 'nonceContext'))->getValue($config)
+        );
+        $this->assertSame(
+            $signer,
+            (new \ReflectionProperty(OAuthServerConfiguration::class, 'signer'))->getValue($config)
         );
     }
 

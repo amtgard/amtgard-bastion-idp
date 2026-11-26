@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace Amtgard\IdP\Models;
 
 use Amtgard\IdP\Models\Oidc\OidcAuthCodeGrant;
@@ -11,6 +10,7 @@ use Amtgard\IdP\Models\Oidc\OidcNonceContext;
 use Amtgard\IdP\Utility\JwksFactory;
 use Amtgard\IdP\Utility\OAuthKeyMaterial;
 use Amtgard\Traits\Builder\Builder;
+use Lcobucci\JWT\Signer;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\CryptKey;
 use League\OAuth2\Server\Grant\RefreshTokenGrant;
@@ -34,7 +34,17 @@ class OAuthServerConfiguration
     private IdentityProviderInterface $identityProvider;
     private ?OidcNonceContext $nonceContext = null;
 
-    public function build(): AuthorizationServer {
+    /**
+     * Signer injected from the container-bound Signer (§5.1a),
+     * passed to the OIDC ID-token response type (ES256 design
+     * §5.2). Null until the builder sets it; build() then leaves
+     * the response type without a signer and getExtraParams()
+     * fails fast (D7).
+     */
+    private ?Signer $signer = null;
+
+    public function build(): AuthorizationServer
+    {
         $nonceContext = $this->nonceContext ?? new OidcNonceContext();
 
         $privateKeyPath = OAuthKeyMaterial::pathFromEnv('OAUTH_PRIVATE_KEY');
@@ -46,6 +56,16 @@ class OAuthServerConfiguration
 
         $kid = JwksFactory::fromPublicKeyPem(OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY'))->kid();
 
+        $idTokenResponse = new OidcIdTokenResponse(
+            $this->identityProvider,
+            new ClaimExtractor(),
+            $kid,
+            $nonceContext
+        );
+        if ($this->signer !== null) {
+            $idTokenResponse->setSigner($this->signer);
+        }
+
         // Setup the authorization server
         $server = new AuthorizationServer(
             $this->clientRepository,
@@ -53,12 +73,7 @@ class OAuthServerConfiguration
             $this->scopeRepository,
             $privateKey,
             $_ENV['AUTH_SERVER_DEFUSE_KEY'],
-            new OidcIdTokenResponse(
-                $this->identityProvider,
-                new ClaimExtractor(),
-                $kid,
-                $nonceContext
-            )
+            $idTokenResponse
         );
 
         // Enable the authentication code grant on the server with a token TTL of 1 hour
@@ -68,11 +83,13 @@ class OAuthServerConfiguration
             new \DateInterval($_ENV['OAUTH_AUTH_TOKEN_TTL']), // Authorization codes will expire after 10 minutes
             $nonceContext
         );
-        $authCodeGrant->setRefreshTokenTTL(new \DateInterval($_ENV['OAUTH_REFRESH_TOKEN_TTL'])); // Refresh tokens will expire after 1 month
+        // Refresh tokens will expire after 1 month
+        $authCodeGrant->setRefreshTokenTTL(new \DateInterval($_ENV['OAUTH_REFRESH_TOKEN_TTL']));
 
         // Enable the refresh token grant on the server
         $refreshTokenGrant = new RefreshTokenGrant($this->refreshTokenRepository);
-        $refreshTokenGrant->setRefreshTokenTTL(new \DateInterval($_ENV['OAUTH_REFRESH_TOKEN_TTL'])); // Refresh tokens will expire after 1 month
+        // Refresh tokens will expire after 1 month
+        $refreshTokenGrant->setRefreshTokenTTL(new \DateInterval($_ENV['OAUTH_REFRESH_TOKEN_TTL']));
 
         $server->enableGrantType(
             $authCodeGrant,

@@ -11,6 +11,8 @@ use Amtgard\IdP\Models\Oidc\OidcNonceContext;
 use Amtgard\IdP\Tests\Support\OidcFixtureKeys;
 use Amtgard\IdP\Utility\JwksFactory;
 use DateInterval;
+use Lcobucci\JWT\Signer;
+use Lcobucci\JWT\Signer\Ecdsa\Sha256 as EcdsaSha256;
 use League\OAuth2\Server\AuthorizationServer;
 use League\OAuth2\Server\Grant\RefreshTokenGrant;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
@@ -151,6 +153,27 @@ class OAuthServerConfigurationTest extends TestCase
         );
     }
 
+    public function testBuildPassesSignerToIdTokenResponse(): void
+    {
+        $signer = new EcdsaSha256();
+        set_error_handler(static function (int $severity, string $message): bool {
+            if (str_contains($message, 'permissions are not correct')) {
+                throw new \ErrorException($message, 0, $severity);
+            }
+
+            return false;
+        });
+        try {
+            $server = $this->configuration(null, $signer)->build();
+        } finally {
+            restore_error_handler();
+        }
+
+        $responseType = (new \ReflectionProperty($server, 'responseType'))->getValue($server);
+        $signerProperty = new \ReflectionProperty(OidcIdTokenResponse::class, 'signer');
+        $this->assertSame($signer, $signerProperty->getValue($responseType));
+    }
+
     public function testBuildUsesInjectedNonceContextOnGrantAndResponse(): void
     {
         $nonceContext = new OidcNonceContext();
@@ -179,8 +202,10 @@ class OAuthServerConfigurationTest extends TestCase
         );
     }
 
-    private function configuration(?OidcNonceContext $nonceContext = null): OAuthServerConfiguration
-    {
+    private function configuration(
+        ?OidcNonceContext $nonceContext = null,
+        ?Signer $signer = null
+    ): OAuthServerConfiguration {
         $builder = OAuthServerConfiguration::builder()
             ->clientRepository($this->createStub(ClientRepositoryInterface::class))
             ->scopeRepository($this->createStub(ScopeRepositoryInterface::class))
@@ -190,6 +215,9 @@ class OAuthServerConfigurationTest extends TestCase
             ->identityProvider($this->createStub(IdentityProviderInterface::class));
         if ($nonceContext !== null) {
             $builder->nonceContext($nonceContext);
+        }
+        if ($signer !== null) {
+            $builder->signer($signer);
         }
 
         return $builder->build();

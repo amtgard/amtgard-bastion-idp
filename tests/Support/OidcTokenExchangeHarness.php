@@ -4,10 +4,19 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Support;
 
+// phpcs:disable PSR1.Classes.ClassDeclaration.MultipleClasses -- Pre-existing:
+// this test-support file defines the OIDC harness doubles in one file.
+// Splitting them into one file per class is out of scope for the ES256
+// milestones; the M4 change here only adds a signer helper to the harness.
+
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthFlowErrorRenderer;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthSessionAuthRequestStore;
 use Amtgard\IdP\Controllers\Server\OAuth\OAuthTokenAction;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
+use Amtgard\IdP\Utility\OAuthKeyMaterial;
+use Lcobucci\JWT\Signer;
+use Lcobucci\JWT\Signer\Ecdsa\Sha256 as EcdsaSha256;
+use Lcobucci\JWT\Signer\Rsa\Sha256 as RsaSha256;
 use Amtgard\IdP\Models\Oidc\IdentityRepository;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
@@ -150,8 +159,42 @@ final class OidcTokenExchangeHarness
             ->authCodeRepository(new OidcHarnessAuthCodeRepository())
             ->refreshTokenRepository(new OidcHarnessRefreshTokenRepository())
             ->identityProvider($identity)
+            ->signer(self::signerFromEnvironment())
             ->build()
             ->build();
+    }
+
+    /**
+     * Resolve the lcobucci Signer for the configured private key,
+     * with the same key → implementation mapping as the
+     * container's Signer binding (ES256 design §5.1a). The harness
+     * builds its server outside the container, so it resolves the
+     * signer itself; the endpoint tests keep minting with the
+     * configured key's algorithm (RSA until M7 switches the harness
+     * fixtures to EC).
+     */
+    private static function signerFromEnvironment(): Signer
+    {
+        $pem = OAuthKeyMaterial::readFromEnv('OAUTH_PRIVATE_KEY');
+        $key = openssl_pkey_get_private($pem);
+        if ($key === false) {
+            throw new \RuntimeException('Unable to parse OAuth private key for signer binding.');
+        }
+
+        $details = openssl_pkey_get_details($key);
+        if (\is_array($details) && isset($details['rsa'])) {
+            return new RsaSha256();
+        }
+
+        if (
+            \is_array($details)
+            && isset($details['ec']['curve_name'])
+            && $details['ec']['curve_name'] === 'prime256v1'
+        ) {
+            return new EcdsaSha256();
+        }
+
+        throw new \RuntimeException('OAuth signing key must be RSA or prime256v1 EC.');
     }
 
     private static function handleTokenRequest(
@@ -377,8 +420,11 @@ final class OidcHarnessScopeRepository implements ScopeRepositoryInterface
 
 final class OidcHarnessAccessTokenRepository implements AccessTokenRepositoryInterface
 {
-    public function getNewToken(ClientEntityInterface $clientEntity, array $scopes, $userIdentifier = null): AccessTokenEntityInterface
-    {
+    public function getNewToken(
+        ClientEntityInterface $clientEntity,
+        array $scopes,
+        $userIdentifier = null
+    ): AccessTokenEntityInterface {
         $token = new OidcHarnessAccessToken();
         $token->setClient($clientEntity);
         $token->setUserIdentifier($userIdentifier);

@@ -115,6 +115,7 @@ return [
             ->refreshTokenRepository($container->get(RefreshTokenRepositoryInterface::class))
             ->identityProvider($container->get(IdentityProviderInterface::class))
             ->nonceContext($container->get(OidcNonceContext::class))
+            ->signer($container->get(Signer::class))
             ->build();
     },
 
