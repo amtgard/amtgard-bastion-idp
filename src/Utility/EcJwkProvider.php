@@ -9,9 +9,9 @@ namespace Amtgard\IdP\Utility;
  * {kty: 'EC', crv: 'P-256', x, y, use: 'sig', alg: 'ES256', kid}. Any other
  * curve is rejected, so a future curve addition is a deliberate change.
  *
- * M1 only: no production consumers yet (wired in M2). Psalm analyses
- * src/ only, so construction from config/ and use from tests does not
- * count as use.
+ * Wired in M2 via JwksFactory::providerFromPublicKeyPem() and the
+ * container JWKS factory. Psalm analyses src/ only, so construction from
+ * config/ and use from tests does not count as use.
  *
  * @psalm-suppress UnusedClass
  */

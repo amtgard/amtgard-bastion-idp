@@ -9,9 +9,9 @@ namespace Amtgard\IdP\Utility;
  * {kty: 'RSA', n, e, use: 'sig', alg: 'RS256', kid}. The kid is
  * byte-identical to the pre-migration JwksFactory kid for the same key.
  *
- * M1 only: no production consumers yet (wired in M2). Psalm analyses
- * src/ only, so construction from config/ and use from tests does not
- * count as use.
+ * Wired in M2 via JwksFactory::providerFromPublicKeyPem() and the
+ * container JWKS factory. Psalm analyses src/ only, so construction from
+ * config/ and use from tests does not count as use.
  *
  * @psalm-suppress UnusedClass
  */

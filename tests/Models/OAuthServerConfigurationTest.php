@@ -30,14 +30,16 @@ class OAuthServerConfigurationTest extends TestCase
 
     protected function setUp(): void
     {
-        foreach ([
+        foreach (
+            [
             'OAUTH_PRIVATE_KEY',
             'OAUTH_PUBLIC_KEY',
             'AUTH_SERVER_DEFUSE_KEY',
             'OAUTH_AUTH_TOKEN_TTL',
             'OAUTH_REFRESH_TOKEN_TTL',
             'OAUTH_ACCESS_TOKEN_TTL',
-        ] as $key) {
+            ] as $key
+        ) {
             $this->previousEnv[$key] = $_ENV[$key] ?? null;
         }
 
@@ -106,11 +108,46 @@ class OAuthServerConfigurationTest extends TestCase
 
         $this->assertEquals(
             new DateInterval('P2M'),
-            (new \ReflectionProperty($grants['authorization_code'], 'refreshTokenTTL'))->getValue($grants['authorization_code'])
+            (new \ReflectionProperty($grants['authorization_code'], 'refreshTokenTTL'))
+                ->getValue($grants['authorization_code'])
         );
         $this->assertEquals(
             new DateInterval('P2M'),
             (new \ReflectionProperty($grants['refresh_token'], 'refreshTokenTTL'))->getValue($grants['refresh_token'])
+        );
+    }
+
+    public function testBuildUsesEcKidWhenPublicKeyIsEc(): void
+    {
+        $looseEcPrivateKey = tempnam(sys_get_temp_dir(), 'oidc-priv-ec-');
+        $this->assertNotFalse($looseEcPrivateKey);
+        $this->assertNotFalse(file_put_contents($looseEcPrivateKey, OidcFixtureKeys::privateEcPem()));
+        chmod($looseEcPrivateKey, 0644);
+
+        $_ENV['OAUTH_PRIVATE_KEY'] = $looseEcPrivateKey;
+        $_ENV['OAUTH_PUBLIC_KEY'] = OidcFixtureKeys::publicEcKeyPath();
+
+        set_error_handler(static function (int $severity, string $message): bool {
+            if (str_contains($message, 'permissions are not correct')) {
+                throw new \ErrorException($message, 0, $severity);
+            }
+
+            return false;
+        });
+        try {
+            $server = $this->configuration()->build();
+        } finally {
+            restore_error_handler();
+            unlink($looseEcPrivateKey);
+        }
+
+        $this->assertInstanceOf(AuthorizationServer::class, $server);
+
+        $responseType = (new \ReflectionProperty($server, 'responseType'))->getValue($server);
+        $this->assertInstanceOf(OidcIdTokenResponse::class, $responseType);
+        $this->assertSame(
+            JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())->kid(),
+            (new \ReflectionProperty($responseType, 'keyIdentifier'))->getValue($responseType)
         );
     }
 

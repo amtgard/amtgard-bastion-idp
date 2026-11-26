@@ -80,6 +80,33 @@ class OidcContainerWiringTest extends TestCase
         }
     }
 
+    public function testJwksFactoryFactoryReadsEcOauthPublicKey(): void
+    {
+        $previous = $_ENV['OAUTH_PUBLIC_KEY'] ?? null;
+        $_ENV['OAUTH_PUBLIC_KEY'] = OidcFixtureKeys::publicEcKeyPath();
+
+        try {
+            $definitions = require __DIR__ . '/../../config/container.php';
+            $factory = $definitions[JwksFactory::class]();
+
+            $this->assertInstanceOf(JwksFactory::class, $factory);
+            $this->assertSame(
+                JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())->kid(),
+                $factory->kid()
+            );
+            $document = $factory->document();
+            $this->assertCount(1, $document['keys']);
+            $this->assertSame('EC', $document['keys'][0]['kty']);
+            $this->assertSame('ES256', $document['keys'][0]['alg']);
+        } finally {
+            if ($previous === null) {
+                unset($_ENV['OAUTH_PUBLIC_KEY']);
+            } else {
+                $_ENV['OAUTH_PUBLIC_KEY'] = $previous;
+            }
+        }
+    }
+
     public function testDiscoveryControllerFactoryUsesJwksFactoryAndAppUrl(): void
     {
         $jwks = JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicPem());

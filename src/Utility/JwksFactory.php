@@ -10,6 +10,11 @@ namespace Amtgard\IdP\Utility;
  * kid()/jwk() describe the first (current) provider, preserving the
  * pre-migration single-key behaviour for the existing container path.
  *
+ * M2: fromPublicKeyPem() dispatches on the PEM's key type (RSA or P-256 EC)
+ * and builds the matching provider; the container factory binds the
+ * provider list via fromProviders() (§5.5), with the previous-key entry
+ * landing in M7 (§5.7).
+ *
  * Psalm analyses src/ only, so construction from config/ and use from
  * tests does not count as use for the providers list (the constructor,
  * fromProviders(), and firstProvider() carry their own suppressions).
@@ -29,7 +34,37 @@ final class JwksFactory
 
     public static function fromPublicKeyPem(string $pem): self
     {
-        return new self([new RsaJwkProvider($pem)]);
+        return new self([self::providerFromPublicKeyPem($pem)]);
+    }
+
+    /**
+     * Provider construction (ES256 design §5.5): the single place that maps
+     * a public-key PEM to its JwkProvider implementation. RSA details build
+     * an RsaJwkProvider; EC details build an EcJwkProvider, which rejects
+     * any curve other than P-256. Anything else throws at container-build
+     * time. M7 reuses this for the previous key.
+     *
+     * @psalm-suppress PossiblyUnusedMethod
+     */
+    public static function providerFromPublicKeyPem(string $pem): JwkProvider
+    {
+        $key = openssl_pkey_get_public($pem);
+        if ($key === false) {
+            throw new \RuntimeException('Unable to parse public key for JWKS.');
+        }
+
+        $details = openssl_pkey_get_details($key);
+        $rsa = \is_array($details) ? ($details['rsa'] ?? null) : null;
+        if (\is_array($rsa)) {
+            return new RsaJwkProvider($pem);
+        }
+
+        $ec = \is_array($details) ? ($details['ec'] ?? null) : null;
+        if (\is_array($ec)) {
+            return new EcJwkProvider($pem);
+        }
+
+        throw new \RuntimeException('OIDC signing key must be an RSA or P-256 EC public key.');
     }
 
     /** @psalm-suppress PossiblyUnusedMethod */

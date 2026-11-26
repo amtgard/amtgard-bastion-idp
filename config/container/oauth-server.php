@@ -75,8 +75,13 @@ return [
         throw new \RuntimeException('OAuth signing key must be RSA or prime256v1 EC.');
     },
 
+    // ES256 design §5.5: the container binds the JwkProvider list — the
+    // current key from OAUTH_PUBLIC_KEY, current first. The previous-key
+    // entry (OAUTH_PUBLIC_KEY_PREVIOUS) lands in M7 (§5.7), not here.
     JwksFactory::class => function () {
-        return JwksFactory::fromPublicKeyPem(OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY'));
+        return JwksFactory::fromProviders(
+            JwksFactory::providerFromPublicKeyPem(OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY'))
+        );
     },
 
     DiscoveryController::class => function (ContainerInterface $container) {

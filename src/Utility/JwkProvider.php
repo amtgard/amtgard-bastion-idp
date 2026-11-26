@@ -8,9 +8,9 @@ namespace Amtgard\IdP\Utility;
  * One signing key's JWKS entry (ES256 design §5.5). Each implementation
  * parses its own PEM and computes its own RFC 7638 thumbprint kid.
  *
- * M1 only: no production consumers yet (wired in later milestones).
- * Psalm analyses src/ only, so construction from config/ and use from
- * tests does not count as use.
+ * Wired in M2: the container JWKS factory binds the provider list
+ * (ES256 design §5.5). Psalm analyses src/ only, so construction from
+ * config/ and use from tests does not count as use.
  */
 interface JwkProvider
 {
