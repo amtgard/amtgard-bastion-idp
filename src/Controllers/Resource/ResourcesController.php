@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace Amtgard\IdP\Controllers\Resource;
 
 use Amtgard\ActiveRecordOrm\Repository\Database;
@@ -112,7 +111,10 @@ class ResourcesController
         path: '/resources/jwt',
         operationId: 'getJwt',
         summary: 'Elevate to an authorization JWT',
-        description: 'Remint well: exchange an OAuth access token (or browser session) for a signed RS256 authorization JWT containing IAM policy and optional client_metadata, plus a compact heartbeat JWT (sub, aud, iss, exp, pvh). Does not accept authorization JWTs. Use jwt or compact_jwt as Bearer on GET /resources/userinfo and GET /resources/validate.',
+        description: 'Remint well: exchange an OAuth access token (or browser session) for a signed ES256 '
+            . 'authorization JWT containing IAM policy and optional client_metadata, plus a compact heartbeat JWT '
+            . '(sub, aud, iss, exp, pvh). Does not accept authorization JWTs. Use jwt or compact_jwt as Bearer on GET '
+            . '/resources/userinfo and GET /resources/validate.',
         security: [
             ['oauthAccessToken' => []],
         ],
@@ -124,8 +126,10 @@ class ResourcesController
                     mediaType: 'application/json',
                     schema: new OA\Schema(
                         properties: [
-                            new OA\Property(property: 'jwt', type: 'string', description: 'Fat RS256 authorization JWT (policy, identity, pvh). Integrator default.'),
-                            new OA\Property(property: 'compact_jwt', type: 'string', description: 'Compact RS256 heartbeat JWT (sub, aud, iss, exp, pvh). Same keys and exp as jwt.'),
+                            new OA\Property(property: 'jwt', type: 'string', description: 'Fat ES256 authorization '
+                                . 'JWT (policy, identity, pvh). Integrator default.'),
+                            new OA\Property(property: 'compact_jwt', type: 'string', description: 'Compact ES256 '
+                                . 'heartbeat JWT (sub, aud, iss, exp, pvh). Same keys and exp as jwt.'),
                         ]
                     )
                 )
@@ -159,7 +163,9 @@ class ResourcesController
         path: '/resources/userinfo',
         operationId: 'userinfo',
         summary: 'Get user information',
-        description: 'Accepts an RS256 authorization JWT (pvh/policy) or a League OAuth access token. Authorization JWT cache miss seeds Redis for that aud; one generation behind is 409 stale_token. OAuth access tokens are validated by the resource server. Does not remint.',
+        description: 'Accepts an authorization JWT (pvh/policy) or a League OAuth access token. Authorization JWT '
+            . 'cache miss seeds Redis for that aud; one generation behind is 409 stale_token. OAuth access tokens are '
+            . 'validated by the resource server. Does not remint.',
         security: [['bearerAuth' => []]],
         responses: [
             new OA\Response(
@@ -329,7 +335,8 @@ class ResourcesController
         path: '/resources/profile/link-ork',
         operationId: 'linkOrkAccount',
         summary: 'Link the signed-in IDP user to ORK with username and password',
-        description: 'Current ORK contract. The profile form posts ORK username and password. The IDP calls ORK authorize and stores the profile. Possession claims use POST /resources/profile/link-ork-code instead.',
+        description: 'Current ORK contract. The profile form posts ORK username and password. The IDP calls ORK '
+            . 'authorize and stores the profile. Possession claims use POST /resources/profile/link-ork-code instead.',
         tags: ['ORK Integration'],
         security: [['idpSession' => []]],
         requestBody: new OA\RequestBody(
@@ -347,7 +354,8 @@ class ResourcesController
             )
         ),
         responses: [
-            new OA\Response(response: 302, description: 'Redirect to the profile, or to a pending OAuth URL after a successful link. Unauthenticated requests redirect to /auth/login.'),
+            new OA\Response(response: 302, description: 'Redirect to the profile, or to a pending OAuth URL after a '
+                . 'successful link. Unauthenticated requests redirect to /auth/login.'),
         ]
     )]
     public function linkOrkAccount(Request $request, Response $response): Response
@@ -371,7 +379,8 @@ class ResourcesController
         }
 
         if ($password === '') {
-            return $response->withHeader('Location', '/resources/profile?error=ork_credentials_required')->withStatus(302);
+            return $response->withHeader('Location', '/resources/profile?error=ork_credentials_required')
+                ->withStatus(302);
         }
 
         $authData = $this->orkService->authorize($username, $password);
@@ -431,7 +440,8 @@ class ResourcesController
             new OA\QueryParameter(name: 'q', required: true, schema: new OA\Schema(type: 'string')),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'JSON list of username matches. Fewer than two characters returns an empty list.'),
+            new OA\Response(response: 200, description: 'JSON list of username matches. Fewer than two characters '
+                . 'returns an empty list.'),
             new OA\Response(response: 401, description: 'Not signed in.'),
         ]
     )]
@@ -454,11 +464,14 @@ class ResourcesController
         path: '/resources/profile/link-ork-code-mail',
         operationId: 'sendOrkLinkCode',
         summary: 'Mail a link code to the ORK address on record',
-        description: 'Looks up the ORK username. When ORK_CLAIM_MAIL_VIA_ORK is enabled, ORK mails the code after validating a send nonce with POST /resources/ork/validate-send-nonce. Otherwise the IDP mails locally (legacy). The redirect does not reveal whether the username or mailbox exists.',
+        description: 'Looks up the ORK username. When ORK_CLAIM_MAIL_VIA_ORK is enabled, ORK mails the code after '
+            . 'validating a send nonce with POST /resources/ork/validate-send-nonce. Otherwise the IDP mails locally '
+            . '(legacy). The redirect does not reveal whether the username or mailbox exists.',
         tags: ['ORK Integration'],
         security: [['idpSession' => []]],
         responses: [
-            new OA\Response(response: 302, description: 'Redirect to the profile. success=ork_code_sent when the request was accepted.'),
+            new OA\Response(response: 302, description: 'Redirect to the profile. success=ork_code_sent when the '
+                . 'request was accepted.'),
         ]
     )]
     public function sendOrkLinkCode(Request $request, Response $response): Response
@@ -498,7 +511,8 @@ class ResourcesController
             new OA\QueryParameter(name: 't', required: true, schema: new OA\Schema(type: 'string')),
         ],
         responses: [
-            new OA\Response(response: 302, description: 'Redirect to the profile after the link, or to login when signed out.'),
+            new OA\Response(response: 302, description: 'Redirect to the profile after the link, or to login when '
+                . 'signed out.'),
         ]
     )]
     public function completeOrkMagicLink(Request $request, Response $response): Response
@@ -510,7 +524,10 @@ class ResourcesController
 
         $token = trim((string) ($request->getQueryParams()['t'] ?? ''));
         $claims = $token === '' ? null : $this->orkLinkTokenService->peekMailboxMagicLink($token);
-        if ($claims === null || $claims['idp_user_id'] !== $user->getUserId() || !$this->orkLinkTokenService->consumeJti($claims['jti'])) {
+        if (
+            $claims === null || $claims['idp_user_id'] !== $user->getUserId()
+            || !$this->orkLinkTokenService->consumeJti($claims['jti'])
+        ) {
             return $response->withHeader('Location', '/resources/profile?error=ork_code_failed')->withStatus(302);
         }
 
@@ -575,7 +592,11 @@ class ResourcesController
         }
 
         try {
-            $this->orkProfileRepository->linkExistingUserToMundane($user->getId(), $pending['mundane_id'], 'claim_ork_code');
+            $this->orkProfileRepository->linkExistingUserToMundane(
+                $user->getId(),
+                $pending['mundane_id'],
+                'claim_ork_code'
+            );
         } catch (\RuntimeException $e) {
             if (str_contains($e->getMessage(), 'conflict')) {
                 return $response->withHeader('Location', '/resources/profile?error=ork_link_conflict')->withStatus(302);
@@ -596,8 +617,12 @@ class ResourcesController
         return $this->redirectAfterOrkLink($user, $response);
     }
 
-    private function finishOrkCodeLink(UserEntity $user, string $challengeId, int $mundaneId, Response $response): Response
-    {
+    private function finishOrkCodeLink(
+        UserEntity $user,
+        string $challengeId,
+        int $mundaneId,
+        Response $response
+    ): Response {
         try {
             $this->orkProfileRepository->linkExistingUserToMundane($user->getId(), $mundaneId, 'claim_ork_code');
         } catch (\RuntimeException $e) {
@@ -775,7 +800,8 @@ class ResourcesController
         path: '/resources/profile/link-ork-code',
         operationId: 'startOrkCodeClaim',
         summary: 'Start an IDP-claims-ORK possession flow',
-        description: 'Reserves a claim_ork challenge and redirects to ORK Login/claim_ork with an IDP-signed handoff JWT. Does not accept an ORK password. Unused until ORK implements that route.',
+        description: 'Reserves a claim_ork challenge and redirects to ORK Login/claim_ork with an IDP-signed handoff '
+            . 'JWT. Does not accept an ORK password. Unused until ORK implements that route.',
         tags: ['ORK Integration'],
         security: [['idpSession' => []]],
         requestBody: new OA\RequestBody(
@@ -785,14 +811,16 @@ class ResourcesController
                 schema: new OA\Schema(
                     required: ['username', '_csrf_token'],
                     properties: [
-                        new OA\Property(property: 'username', type: 'string', description: 'ORK persona username. ORK mails the code to that mundane.'),
+                        new OA\Property(property: 'username', type: 'string', description: 'ORK persona username. ORK '
+                            . 'mails the code to that mundane.'),
                         new OA\Property(property: '_csrf_token', type: 'string'),
                     ]
                 )
             )
         ),
         responses: [
-            new OA\Response(response: 302, description: 'Redirect to ORK Login/claim_ork, back to the profile when username is empty, or to /auth/login when signed out.'),
+            new OA\Response(response: 302, description: 'Redirect to ORK Login/claim_ork, back to the profile when '
+                . 'username is empty, or to /auth/login when signed out.'),
         ]
     )]
     public function startOrkCodeClaim(Request $request, Response $response): Response
@@ -801,7 +829,8 @@ class ResourcesController
             ->map(function (UserEntity $user) use ($request, $response) {
                 $username = trim((string) (((array) $request->getParsedBody())['username'] ?? ''));
                 if ($username === '') {
-                    return $response->withHeader('Location', '/resources/profile?error=ork_username_required')->withStatus(302);
+                    return $response->withHeader('Location', '/resources/profile?error=ork_username_required')
+                        ->withStatus(302);
                 }
 
                 $challenge = $this->mailboxChallenges->reserve(
@@ -825,14 +854,21 @@ class ResourcesController
         path: '/auth/connect/complete',
         operationId: 'completeOrkClaim',
         summary: 'Finish an IDP-claims-ORK possession handoff',
-        description: 'ORK redirects the signed-in browser here with a completion JWT (purpose claim_ork). The IDP links only when the JWT mundane id and idp user id match the consumed challenge row.',
+        description: 'ORK redirects the signed-in browser here with a completion JWT (purpose claim_ork). The IDP '
+            . 'links only when the JWT mundane id and idp user id match the consumed challenge row.',
         tags: ['ORK Integration'],
         security: [['idpSession' => []]],
         parameters: [
-            new OA\QueryParameter(name: 't', required: true, schema: new OA\Schema(type: 'string'), description: 'ORK-signed completion JWT'),
+            new OA\QueryParameter(
+                name: 't',
+                required: true,
+                schema: new OA\Schema(type: 'string'),
+                description: 'ORK-signed completion JWT'
+            ),
         ],
         responses: [
-            new OA\Response(response: 302, description: 'Redirect to the profile or a pending OAuth URL. Failures use a profile error query. Signed-out requests redirect to /auth/login.'),
+            new OA\Response(response: 302, description: 'Redirect to the profile or a pending OAuth URL. Failures use '
+                . 'a profile error query. Signed-out requests redirect to /auth/login.'),
         ]
     )]
     public function completeOrkClaim(Request $request, Response $response): Response
@@ -846,7 +882,8 @@ class ResourcesController
         path: '/resources/profile/email/start',
         operationId: 'startEmailMigration',
         summary: 'Mail a code to the current IDP address',
-        description: 'First step of an IDP email change. The code goes to the address already stored on the user, not to new_email.',
+        description: 'First step of an IDP email change. The code goes to the address already stored on the user, not '
+            . 'to new_email.',
         tags: ['ORK Integration'],
         security: [['idpSession' => []]],
         requestBody: new OA\RequestBody(
@@ -863,7 +900,8 @@ class ResourcesController
             )
         ),
         responses: [
-            new OA\Response(response: 302, description: 'Redirect to the profile. success=email_code_sent or error=email_invalid.'),
+            new OA\Response(response: 302, description: 'Redirect to the profile. success=email_code_sent or '
+                . 'error=email_invalid.'),
         ]
     )]
     public function startEmailMigration(Request $request, Response $response): Response
@@ -896,14 +934,16 @@ class ResourcesController
                 schema: new OA\Schema(
                     required: ['code', '_csrf_token'],
                     properties: [
-                        new OA\Property(property: 'code', type: 'string', description: '6-digit code sent to the current IDP email'),
+                        new OA\Property(property: 'code', type: 'string', description: '6-digit code sent to the '
+                            . 'current IDP email'),
                         new OA\Property(property: '_csrf_token', type: 'string'),
                     ]
                 )
             )
         ),
         responses: [
-            new OA\Response(response: 302, description: 'Redirect to the profile. A valid code mails the proposed address.'),
+            new OA\Response(response: 302, description: 'Redirect to the profile. A valid code mails the proposed '
+                . 'address.'),
         ]
     )]
     public function confirmEmailMigration(Request $request, Response $response): Response
@@ -934,14 +974,16 @@ class ResourcesController
                 schema: new OA\Schema(
                     required: ['code', '_csrf_token'],
                     properties: [
-                        new OA\Property(property: 'code', type: 'string', description: '6-digit code sent to the proposed IDP email'),
+                        new OA\Property(property: 'code', type: 'string', description: '6-digit code sent to the '
+                            . 'proposed IDP email'),
                         new OA\Property(property: '_csrf_token', type: 'string'),
                     ]
                 )
             )
         ),
         responses: [
-            new OA\Response(response: 302, description: 'Redirect to the profile. users.email changes only after this code succeeds.'),
+            new OA\Response(response: 302, description: 'Redirect to the profile. users.email changes only after this '
+                . 'code succeeds.'),
         ]
     )]
     public function commitEmailMigration(Request $request, Response $response): Response
@@ -1024,7 +1066,9 @@ class ResourcesController
         path: '/resources/link-ork-profile',
         operationId: 'linkOrkProfile',
         summary: 'Mirror an ORK account link into the IDP (ORK server-to-server)',
-        description: 'ORK server-to-server mirror. `{idp_user_id, mundane_id}` is the current contract. When `challenge_id` is sent it must be a consumed mailbox challenge. Restricted to confidential clients listed in `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS`.',
+        description: 'ORK server-to-server mirror. `{idp_user_id, mundane_id}` is the current contract. When '
+            . '`challenge_id` is sent it must be a consumed mailbox challenge. Restricted to confidential clients '
+            . 'listed in `LINK_ORK_PROFILE_ALLOWED_CLIENT_IDS`.',
         tags: ['ORK Integration'],
         security: [['orkConfidentialClient' => []]],
         requestBody: new OA\RequestBody(
@@ -1034,9 +1078,25 @@ class ResourcesController
                 schema: new OA\Schema(
                     required: ['idp_user_id', 'mundane_id'],
                     properties: [
-                        new OA\Property(property: 'idp_user_id', type: 'string', format: 'uuid', description: 'IDP user UUID'),
-                        new OA\Property(property: 'mundane_id', type: 'integer', minimum: 1, description: 'ORK mundane player ID'),
-                        new OA\Property(property: 'challenge_id', type: 'string', format: 'uuid', description: 'Optional. When present, must be a consumed mailbox challenge. Omitted by the current ORK mirror.'),
+                        new OA\Property(
+                            property: 'idp_user_id',
+                            type: 'string',
+                            format: 'uuid',
+                            description: 'IDP user UUID'
+                        ),
+                        new OA\Property(
+                            property: 'mundane_id',
+                            type: 'integer',
+                            minimum: 1,
+                            description: 'ORK mundane player ID'
+                        ),
+                        new OA\Property(
+                            property: 'challenge_id',
+                            type: 'string',
+                            format: 'uuid',
+                            description: 'Optional. When present, must be a consumed mailbox challenge. '
+                                . 'Omitted by the current ORK mirror.'
+                        ),
                     ]
                 )
             )
@@ -1059,7 +1119,8 @@ class ResourcesController
             ),
             new OA\Response(
                 response: 409,
-                description: 'This IDP user is already linked to another mundane, or this mundane is already linked to a different Amtgard account.',
+                description: 'This IDP user is already linked to another mundane, or this mundane is already linked to '
+                    . 'a different Amtgard account.',
                 content: new OA\JsonContent(
                     properties: [new OA\Property(property: 'error', type: 'string')]
                 )
@@ -1088,7 +1149,9 @@ class ResourcesController
             $this->idpLogging->app()->error('link ork profile rejected', [
                 'reason' => 'invalid_body',
             ]);
-            $response->getBody()->write(json_encode(['error' => 'idp_user_id (string) and mundane_id (positive int) are required']));
+            $response->getBody()->write(json_encode([
+                'error' => 'idp_user_id (string) and mundane_id (positive int) are required',
+            ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
 
@@ -1100,7 +1163,9 @@ class ResourcesController
                 'challenge_id' => $challengeId,
                 'idp_user_id' => $idpUserId,
             ]);
-            $response->getBody()->write(json_encode(['error' => 'challenge_id is missing, unknown, expired, unconsumed, or for another user']));
+            $response->getBody()->write(json_encode([
+                'error' => 'challenge_id is missing, unknown, expired, unconsumed, or for another user',
+            ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
 
@@ -1159,14 +1224,22 @@ class ResourcesController
                                 'msg' => $e->getMessage(),
                             ]);
 
-                            return $response->withHeader('Location', '/resources/profile?error=ork_complete_failed')->withStatus(302);
+                            return $response
+                                ->withHeader('Location', '/resources/profile?error=ork_complete_failed')
+                                ->withStatus(302);
                         }
                         if (!$consumedJti) {
-                            return $response->withHeader('Location', '/resources/profile?error=ork_complete_replay')->withStatus(302);
+                            return $response
+                                ->withHeader('Location', '/resources/profile?error=ork_complete_replay')
+                                ->withStatus(302);
                         }
 
                         try {
-                            $this->orkProfileRepository->linkExistingUserToMundane($user->getId(), $claims['mundane_id'], 'ork_handoff');
+                            $this->orkProfileRepository->linkExistingUserToMundane(
+                                $user->getId(),
+                                $claims['mundane_id'],
+                                'ork_handoff'
+                            );
                         } catch (\RuntimeException $e) {
                             if (str_contains($e->getMessage(), 'conflict')) {
                                 $this->logger->warning('completeOrkClaim conflict', [
@@ -1174,7 +1247,9 @@ class ResourcesController
                                     'msg' => $e->getMessage(),
                                 ]);
 
-                                return $response->withHeader('Location', '/resources/profile?error=ork_link_conflict')->withStatus(302);
+                                return $response
+                                    ->withHeader('Location', '/resources/profile?error=ork_link_conflict')
+                                    ->withStatus(302);
                             }
                             throw $e;
                         }
@@ -1193,11 +1268,17 @@ class ResourcesController
 
                                 return $response->withHeader('Location', $redirect . "?jwt=$jwt")->withStatus(302);
                             })
-                            ->orElseGet(fn () => $response->withHeader('Location', '/resources/profile?success=linked')->withStatus(302));
+                            ->orElseGet(fn () => $response
+                                ->withHeader('Location', '/resources/profile?success=linked')
+                                ->withStatus(302));
                     })
-                    ->orElseGet(fn () => $response->withHeader('Location', '/resources/profile?error=ork_complete_failed')->withStatus(302));
+                    ->orElseGet(fn () => $response
+                        ->withHeader('Location', '/resources/profile?error=ork_complete_failed')
+                        ->withStatus(302));
             })
-            ->orElseGet(fn () => $response->withHeader('Location', '/resources/profile?error=ork_complete_failed')->withStatus(302));
+            ->orElseGet(fn () => $response
+                ->withHeader('Location', '/resources/profile?error=ork_complete_failed')
+                ->withStatus(302));
     }
 
     public function revokeAuthorization(Request $request, Response $response): Response
@@ -1231,7 +1312,7 @@ class ResourcesController
             'client_db_id' => $clientId,
         ]);
 
-        // Also revoke access tokens for this client/user combo if needed, 
+        // Also revoke access tokens for this client/user combo if needed,
         // but for now removing the authorization record prevents future token issuance.
         // Implementing full token revocation would require AccessTokenRepository method.
 
@@ -1275,5 +1356,4 @@ class ResourcesController
 
         return is_array($payload) ? ($payload['aud'] ?? null) : null;
     }
-
 }

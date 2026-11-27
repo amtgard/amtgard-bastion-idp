@@ -22,6 +22,7 @@ use Amtgard\IdP\Persistence\Server\Repositories\ScopeRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserClientAuthorizationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserJwtGenerationRepository;
 use Amtgard\IdP\Persistence\Server\Repositories\UserLoginClientRepository;
+use Lcobucci\JWT\Signer;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
 use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
@@ -101,8 +102,13 @@ return [
         return $em->getRepository(ScopeRepository::class);
     },
 
-    AccessTokenRepositoryInterface::class => function (EntityManager $em) {
-        return $em->getRepository(AccessTokenRepository::class);
+    // ES256 design §3.5, §5.1: the repository is ORM-built, not
+    // container-built, so the factory wraps the $em->getRepository()
+    // call and injects the container-bound Signer via setSigner().
+    AccessTokenRepositoryInterface::class => function (EntityManager $em, ContainerInterface $container) {
+        $repository = $em->getRepository(AccessTokenRepository::class);
+        $repository->setSigner($container->get(Signer::class));
+        return $repository;
     },
 
     AuthCodeRepositoryInterface::class => function (EntityManager $em) {

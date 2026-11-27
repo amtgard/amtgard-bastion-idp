@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Tests\Controllers;
 
 use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
+use Amtgard\IdP\Models\CompositeAuthorizationJwtValidator;
+use Amtgard\IdP\Models\Oidc\CompositeBearerTokenValidator;
+use Amtgard\IdP\Models\Oidc\Es256BearerTokenValidator;
+use Amtgard\IdP\Models\Oidc\Rs256BearerTokenValidator;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
 use Amtgard\IdP\Tests\Support\OidcFixtureKeys;
 use Amtgard\IdP\Tests\Support\OidcTokenExchangeHarness;
+use Firebase\JWT\JWT as FirebaseJwt;
 use League\OAuth2\Server\CryptKey;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\ResourceServer;
@@ -88,6 +93,144 @@ class OidcUserInfoEndpointTest extends TestCase
         $this->assertSame(['error' => 'invalid_token'], $this->json($response));
     }
 
+    /**
+     * M6: the userinfo endpoint validates an ES256 access token through
+     * the composite (ES256 design §5.3/§8 M6). M7: the harness now mints
+     * ES256 too, so the RS256 half is covered by the explicit RS256
+     * test below (testRs256AccessTokenWithOpenidAndEmailReturnsSubAndEmail).
+     */
+    public function testEs256AccessTokenWithOpenidAndEmailReturnsSubAndEmail(): void
+    {
+        $response = $this->userinfo(
+            'GET',
+            $this->es256AccessToken(['openid', 'email']),
+            $this->harnessUser()
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+        $this->assertSame(
+            [
+                'sub' => OidcTokenExchangeHarness::USER_ID,
+                'email' => 'ada@example.com',
+            ],
+            $this->json($response)
+        );
+    }
+
+    /**
+     * M7: the userinfo endpoint still accepts a valid RS256 access token
+     * during the overlap (ES256 design §5.3/§8 M7). The harness now mints
+     * ES256, so the RS256 half needs its own explicit test.
+     */
+    public function testRs256AccessTokenWithOpenidAndEmailReturnsSubAndEmail(): void
+    {
+        $response = $this->userinfo(
+            'GET',
+            $this->rs256FixtureAccessToken(),
+            $this->harnessUser()
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+        $this->assertSame(
+            [
+                'sub' => OidcTokenExchangeHarness::USER_ID,
+                'email' => 'ada@example.com',
+            ],
+            $this->json($response)
+        );
+    }
+
+    public function testEs256AccessTokenWithoutOpenidReturns403(): void
+    {
+        $response = $this->userinfo(
+            'GET',
+            $this->es256AccessToken(['profile', 'email']),
+            $this->harnessUser()
+        );
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('Bearer error="insufficient_scope"', $response->getHeaderLine('WWW-Authenticate'));
+        $this->assertSame(['error' => 'insufficient_scope'], $this->json($response));
+    }
+
+    /**
+     * M6: failure cases keep the endpoint's HTTP behaviour identical to
+     * the League validator's (401 invalid_token) for both algorithms.
+     */
+    public function testExpiredEs256AccessTokenIsRejectedWith401(): void
+    {
+        $response = $this->userinfo(
+            'GET',
+            $this->es256AccessToken(['openid', 'email'], -60),
+            $this->harnessUser()
+        );
+
+        $this->assertUnauthorized($response);
+    }
+
+    public function testRevokedEs256AccessTokenIsRejectedWith401(): void
+    {
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('GET', '/oauth/userinfo')
+            ->withHeader('Authorization', 'Bearer ' . $this->es256AccessToken(['openid', 'email']));
+
+        $response = $this->controller($this->harnessUser(), true)->userinfo(
+            $request,
+            (new ResponseFactory())->createResponse()
+        );
+
+        $this->assertUnauthorized($response);
+    }
+
+    public function testUnknownKidEs256AccessTokenIsRejectedWith401(): void
+    {
+        $response = $this->userinfo(
+            'GET',
+            $this->es256AccessToken(['openid', 'email'], 3600, 'unknown-kid'),
+            $this->harnessUser()
+        );
+
+        $this->assertUnauthorized($response);
+    }
+
+    public function testNoneAccessTokenIsRejectedWith401(): void
+    {
+        $response = $this->userinfo('GET', $this->noneToken(), $this->harnessUser());
+
+        $this->assertUnauthorized($response);
+    }
+
+    public function testWrongKeyEs256AccessTokenIsRejectedWith401(): void
+    {
+        $response = $this->userinfo(
+            'GET',
+            $this->unknownKeyEs256Token(),
+            $this->harnessUser()
+        );
+
+        $this->assertUnauthorized($response);
+    }
+
+    public function testExpiredRs256AccessTokenIsRejectedWith401(): void
+    {
+        $response = $this->userinfo(
+            'GET',
+            $this->rs256FixtureAccessToken(-60),
+            $this->harnessUser()
+        );
+
+        $this->assertUnauthorized($response);
+    }
+
+    private function assertUnauthorized(\Psr\Http\Message\ResponseInterface $response): void
+    {
+        $this->assertSame(401, $response->getStatusCode());
+        $this->assertSame('Bearer error="invalid_token"', $response->getHeaderLine('WWW-Authenticate'));
+        $this->assertSame(['error' => 'invalid_token'], $this->json($response));
+    }
+
     private function userinfo(string $method, string $token, UserEntity $user): \Psr\Http\Message\ResponseInterface
     {
         $request = (new ServerRequestFactory())
@@ -97,23 +240,121 @@ class OidcUserInfoEndpointTest extends TestCase
         return $this->controller($user)->userinfo($request, (new ResponseFactory())->createResponse());
     }
 
-    private function controller(UserEntity $user): OidcUserInfoController
+    private function controller(UserEntity $user, bool $revoked = false): OidcUserInfoController
     {
         $tokens = $this->createStub(AccessTokenRepositoryInterface::class);
-        $tokens->method('isAccessTokenRevoked')->willReturn(false);
+        $tokens->method('isAccessTokenRevoked')->willReturn($revoked);
 
         $users = $this->createMock(UserRepository::class);
         $users->method('findUserByUserId')
             ->with(OidcTokenExchangeHarness::USER_ID)
             ->willReturn($user);
 
+        FirebaseJwtTestFactory::ensureKeys();
+
         return new OidcUserInfoController(
             new ResourceServer(
                 $tokens,
-                new CryptKey(OidcFixtureKeys::publicKeyPath(), null, false)
+                new CryptKey(OidcFixtureKeys::publicKeyPath(), null, false),
+                // M6: the endpoint validates through the composite, ES256
+                // current first, RS256 retiring second, with the harness
+                // fixture keys — the same shape the container factory
+                // builds from the environment.
+                new CompositeBearerTokenValidator(
+                    new Es256BearerTokenValidator($tokens, OidcFixtureKeys::publicEcPem()),
+                    new Rs256BearerTokenValidator($tokens, OidcFixtureKeys::publicPem()),
+                )
             ),
-            $users
+            $users,
+            CompositeAuthorizationJwtValidator::fromEnvironment()
         );
+    }
+
+    /**
+     * @param list<string> $scopes
+     */
+    private function es256AccessToken(array $scopes, int $ttlSeconds = 3600, ?string $kid = null): string
+    {
+        $now = time();
+        $claims = [
+            'aud' => OidcTokenExchangeHarness::CLIENT_ID,
+            'jti' => 'jti-access-token',
+            'sub' => OidcTokenExchangeHarness::USER_ID,
+            'iat' => $now,
+            'nbf' => $now,
+            'exp' => $now + $ttlSeconds,
+            'scopes' => $scopes,
+        ];
+
+        if ($kid !== null) {
+            return FirebaseJwt::encode($claims, OidcFixtureKeys::privateEcPem(), 'ES256', $kid);
+        }
+
+        return FirebaseJwtTestFactory::encodeEs256($claims);
+    }
+
+    /**
+     * RS256 access token signed with the retiring OIDC RSA fixture key:
+     * validates against the fixture public key through the composite's
+     * RS256 implementation during the overlap.
+     */
+    private function rs256FixtureAccessToken(int $ttlSeconds = 3600): string
+    {
+        $now = time();
+
+        return FirebaseJwt::encode([
+            'aud' => OidcTokenExchangeHarness::CLIENT_ID,
+            'jti' => 'jti-access-token',
+            'sub' => OidcTokenExchangeHarness::USER_ID,
+            'iat' => $now,
+            'nbf' => $now,
+            'exp' => $now + $ttlSeconds,
+            'scopes' => ['openid', 'email'],
+        ], OidcFixtureKeys::privatePem(), 'RS256');
+    }
+
+    private function unknownKeyEs256Token(): string
+    {
+        $key = openssl_pkey_new([
+            'private_key_type' => OPENSSL_KEYTYPE_EC,
+            'curve_name' => 'prime256v1',
+        ]);
+        $this->assertNotFalse($key);
+        $pem = '';
+        $this->assertTrue(openssl_pkey_export($key, $pem));
+        $now = time();
+
+        return FirebaseJwt::encode([
+            'aud' => OidcTokenExchangeHarness::CLIENT_ID,
+            'jti' => 'jti-access-token',
+            'sub' => OidcTokenExchangeHarness::USER_ID,
+            'iat' => $now,
+            'nbf' => $now,
+            'exp' => $now + 3600,
+            'scopes' => ['openid', 'email'],
+        ], $pem, 'ES256');
+    }
+
+    private function noneToken(): string
+    {
+        $now = time();
+
+        return $this->base64Url((string) json_encode(['alg' => 'none', 'typ' => 'JWT']))
+            . '.' . $this->base64Url((string) json_encode([
+                'aud' => OidcTokenExchangeHarness::CLIENT_ID,
+                'jti' => 'jti-access-token',
+                'sub' => OidcTokenExchangeHarness::USER_ID,
+                'iat' => $now,
+                'nbf' => $now,
+                'exp' => $now + 3600,
+                'scopes' => ['openid', 'email'],
+            ]))
+            . '.';
+    }
+
+    private function base64Url(string $raw): string
+    {
+        return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
     }
 
     /**

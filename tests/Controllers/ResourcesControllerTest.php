@@ -502,6 +502,116 @@ class ResourcesControllerTest extends TestCase
         $this->assertSame($this->response, $this->controller->linkOrkAccount($this->request, $this->response));
     }
 
+    /**
+     * M7: covers the empty-password/empty-code branch of linkOrkAccount
+     * (reflowed for the PSR-12 gate; previously a single >120-char line).
+     */
+    public function testLinkOrkAccountRedirectsWhenNoPasswordAndNoCode(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getParsedBody')->willReturn([
+            'username' => 'ork-user',
+            'password' => '',
+            'code' => '',
+        ]);
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=ork_credentials_required')
+            ->willReturnSelf();
+        $this->response->expects($this->once())->method('withStatus')->with(302)->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->linkOrkAccount($this->request, $this->response));
+    }
+
+    /**
+     * M7: covers the ORK-mailed-code link path (linkOrkAccountByOrkMailedCode),
+     * reached from linkOrkAccount when ORK_CLAIM_MAIL_VIA_ORK is enabled.
+     */
+    public function testLinkOrkAccountByOrkMailedCodeLinksAndRedirects(): void
+    {
+        $previous = $_ENV['ORK_CLAIM_MAIL_VIA_ORK'] ?? null;
+        $_ENV['ORK_CLAIM_MAIL_VIA_ORK'] = '1';
+
+        try {
+            $_SESSION['user_id'] = 123;
+            $this->request->method('getParsedBody')->willReturn([
+                'username' => 'ork-user',
+                'password' => '',
+                'code' => '123456',
+            ]);
+            $this->orkClaimSendNonces->method('findOpenPendingClaim')
+                ->with('123')
+                ->willReturn(['id' => 'pend-1', 'mundane_id' => 55, 'username' => 'ork-user']);
+            $this->orkService->method('validateClaimOrkCode')
+                ->with('123', 55, '123456')
+                ->willReturn(['email' => 'a@b.c', 'mundaneId' => 55]);
+            $this->orkProfileRepository->expects($this->once())
+                ->method('linkExistingUserToMundane')
+                ->with(123, 55, 'claim_ork_code');
+            $this->orkClaimSendNonces->expects($this->once())
+                ->method('completePendingClaim')
+                ->with('pend-1');
+            $this->orkService->method('getPlayerByMundaneId')->with(55)->willReturn(null);
+            $this->response->expects($this->once())
+                ->method('withHeader')
+                ->with('Location', '/resources/profile?success=linked')
+                ->willReturnSelf();
+            $this->response->expects($this->once())->method('withStatus')->with(302)->willReturnSelf();
+
+            $this->assertSame($this->response, $this->controller->linkOrkAccount($this->request, $this->response));
+        } finally {
+            if ($previous === null) {
+                unset($_ENV['ORK_CLAIM_MAIL_VIA_ORK']);
+            } else {
+                $_ENV['ORK_CLAIM_MAIL_VIA_ORK'] = $previous;
+            }
+        }
+    }
+
+    /**
+     * M7: covers the completeOrkMagicLink guard (reflowed for the PSR-12
+     * gate) on the missing-token path.
+     */
+    public function testCompleteOrkMagicLinkRedirectsWhenTokenMissing(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getQueryParams')->willReturn([]);
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=ork_code_failed')
+            ->willReturnSelf();
+        $this->response->expects($this->once())->method('withStatus')->with(302)->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->completeOrkMagicLink($this->request, $this->response));
+    }
+
+    /**
+     * M7: covers the consumeJti operand of the completeOrkMagicLink guard —
+     * a token whose claims validate, but whose challenge is gone.
+     */
+    public function testCompleteOrkMagicLinkRedirectsWhenChallengeMissing(): void
+    {
+        $_SESSION['user_id'] = 123;
+        $this->request->method('getQueryParams')->willReturn(['t' => 'tok-1']);
+        $this->orkLinkTokenService->method('peekMailboxMagicLink')
+            ->with('tok-1')
+            ->willReturn([
+                'idp_user_id' => '123',
+                'jti' => 'jti-1',
+                'challenge_id' => 'chal-1',
+                'mundane_id' => 55,
+            ]);
+        $this->orkLinkTokenService->method('consumeJti')->with('jti-1')->willReturn(true);
+        $this->mailboxChallenges->method('findById')->with('chal-1')->willReturn(null);
+        $this->response->expects($this->once())
+            ->method('withHeader')
+            ->with('Location', '/resources/profile?error=ork_code_failed')
+            ->willReturnSelf();
+        $this->response->expects($this->once())->method('withStatus')->with(302)->willReturnSelf();
+
+        $this->assertSame($this->response, $this->controller->completeOrkMagicLink($this->request, $this->response));
+    }
+
     public function testLinkOrkAccountLogsWhenMundaneIsAlreadyLinked(): void
     {
         $_SESSION['user_id'] = 123;

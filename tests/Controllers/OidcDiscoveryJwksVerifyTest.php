@@ -16,12 +16,12 @@ use Slim\Psr7\Factory\ServerRequestFactory;
 
 class OidcDiscoveryJwksVerifyTest extends TestCase
 {
-    public function testIdTokenKidMatchesJwksAndVerifiesWithJwkModulus(): void
+    public function testIdTokenKidMatchesJwksAndVerifiesWithJwk(): void
     {
         $body = OidcTokenExchangeHarness::exchange('openid');
         $this->assertArrayHasKey('id_token', $body);
 
-        $factory = JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicPem());
+        $factory = JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem());
         $jwksResponse = (new DiscoveryController($factory, 'https://idp.amtgard.com'))->jwks(
             (new ServerRequestFactory())->createServerRequest('GET', '/.well-known/jwks.json'),
             (new ResponseFactory())->createResponse()
@@ -34,9 +34,10 @@ class OidcDiscoveryJwksVerifyTest extends TestCase
         $header = $this->header($body['id_token']);
         $this->assertSame($jwks['keys'][0]['kid'], $header['kid']);
         $this->assertSame($factory->kid(), $header['kid']);
-        $this->assertSame('RS256', $header['alg']);
-        $this->assertArrayHasKey('n', $jwks['keys'][0]);
-        $this->assertArrayHasKey('e', $jwks['keys'][0]);
+        $this->assertSame('ES256', $header['alg']);
+        $this->assertSame('EC', $jwks['keys'][0]['kty']);
+        $this->assertArrayHasKey('x', $jwks['keys'][0]);
+        $this->assertArrayHasKey('y', $jwks['keys'][0]);
 
         $verified = JWT::decode($body['id_token'], JWK::parseKeySet($jwks));
         $this->assertSame('https://idp.amtgard.com', $verified->iss);

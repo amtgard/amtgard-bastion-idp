@@ -78,10 +78,13 @@ final class JwtLoggingTest extends TestCase
         $this->assertSame('missing_bearer', $this->handler->getRecords()[0]['context']['reason']);
     }
 
-    public function testValidateJwtSignatureLogsExceptionClass(): void
+    public function testValidateJwtRequestLogsExceptionClass(): void
     {
         $jwt = FirebaseJwtTestFactory::encode(['exp' => time() + 3600]);
-        $this->assertNull(Jwt::validateJwtSignature($jwt . 'tampered', $this->logger));
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getHeaderLine')->with('Authorization')->willReturn('Bearer ' . $jwt . 'tampered');
+
+        $this->assertNull(Jwt::validateJwtRequest($request, $this->logger));
         $this->assertArrayHasKey('exception_class', $this->handler->getRecords()[0]['context']);
     }
 }

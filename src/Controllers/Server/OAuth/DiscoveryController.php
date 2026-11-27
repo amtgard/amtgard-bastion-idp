@@ -25,13 +25,17 @@ final class DiscoveryController
         operationId: 'openidConfiguration',
         tags: ['OpenID Connect'],
         summary: 'OpenID Provider discovery',
-        description: 'Public metadata. issuer is APP_URL with no trailing slash. response_types_supported is code. code_challenge_methods_supported is S256.',
+        description: 'Public metadata. issuer is APP_URL with no trailing slash. '
+            . 'response_types_supported is code. code_challenge_methods_supported is S256.',
         responses: [
             new OA\Response(
                 response: 200,
                 description: 'OpenID Provider configuration',
                 headers: [
-                    new OA\Header(header: 'Cache-Control', schema: new OA\Schema(type: 'string', example: 'public, max-age=3600')),
+                    new OA\Header(
+                        header: 'Cache-Control',
+                        schema: new OA\Schema(type: 'string', example: 'public, max-age=3600')
+                    ),
                 ],
                 content: new OA\JsonContent(
                     properties: [
@@ -40,14 +44,47 @@ final class DiscoveryController
                         new OA\Property(property: 'token_endpoint', type: 'string'),
                         new OA\Property(property: 'userinfo_endpoint', type: 'string'),
                         new OA\Property(property: 'jwks_uri', type: 'string'),
-                        new OA\Property(property: 'response_types_supported', type: 'array', items: new OA\Items(type: 'string')),
-                        new OA\Property(property: 'grant_types_supported', type: 'array', items: new OA\Items(type: 'string')),
-                        new OA\Property(property: 'subject_types_supported', type: 'array', items: new OA\Items(type: 'string')),
-                        new OA\Property(property: 'id_token_signing_alg_values_supported', type: 'array', items: new OA\Items(type: 'string')),
-                        new OA\Property(property: 'scopes_supported', type: 'array', items: new OA\Items(type: 'string'), example: ['openid', 'profile', 'email']),
-                        new OA\Property(property: 'token_endpoint_auth_methods_supported', type: 'array', items: new OA\Items(type: 'string')),
-                        new OA\Property(property: 'code_challenge_methods_supported', type: 'array', items: new OA\Items(type: 'string')),
-                        new OA\Property(property: 'claims_supported', type: 'array', items: new OA\Items(type: 'string')),
+                        new OA\Property(
+                            property: 'response_types_supported',
+                            type: 'array',
+                            items: new OA\Items(type: 'string')
+                        ),
+                        new OA\Property(
+                            property: 'grant_types_supported',
+                            type: 'array',
+                            items: new OA\Items(type: 'string')
+                        ),
+                        new OA\Property(
+                            property: 'subject_types_supported',
+                            type: 'array',
+                            items: new OA\Items(type: 'string')
+                        ),
+                        new OA\Property(
+                            property: 'id_token_signing_alg_values_supported',
+                            type: 'array',
+                            items: new OA\Items(type: 'string')
+                        ),
+                        new OA\Property(
+                            property: 'scopes_supported',
+                            type: 'array',
+                            items: new OA\Items(type: 'string'),
+                            example: ['openid', 'profile', 'email']
+                        ),
+                        new OA\Property(
+                            property: 'token_endpoint_auth_methods_supported',
+                            type: 'array',
+                            items: new OA\Items(type: 'string')
+                        ),
+                        new OA\Property(
+                            property: 'code_challenge_methods_supported',
+                            type: 'array',
+                            items: new OA\Items(type: 'string')
+                        ),
+                        new OA\Property(
+                            property: 'claims_supported',
+                            type: 'array',
+                            items: new OA\Items(type: 'string')
+                        ),
                     ]
                 )
             ),
@@ -66,7 +103,7 @@ final class DiscoveryController
             'response_types_supported' => ['code'],
             'grant_types_supported' => ['authorization_code', 'refresh_token'],
             'subject_types_supported' => ['public'],
-            'id_token_signing_alg_values_supported' => ['RS256'],
+            'id_token_signing_alg_values_supported' => $this->signingAlgorithms(),
             'scopes_supported' => ['openid', 'profile', 'email'],
             'token_endpoint_auth_methods_supported' => [
                 'client_secret_basic',
@@ -94,13 +131,17 @@ final class DiscoveryController
         operationId: 'jwks',
         tags: ['OpenID Connect'],
         summary: 'JSON Web Key Set',
-        description: 'Public RSA key used to verify id_token signatures. kid is the RFC 7638 SHA-256 thumbprint. No private key material.',
+        description: 'Public signing key used to verify id_token signatures. '
+            . 'kid is the RFC 7638 SHA-256 thumbprint. No private key material.',
         responses: [
             new OA\Response(
                 response: 200,
                 description: 'JWKS',
                 headers: [
-                    new OA\Header(header: 'Cache-Control', schema: new OA\Schema(type: 'string', example: 'public, max-age=3600')),
+                    new OA\Header(
+                        header: 'Cache-Control',
+                        schema: new OA\Schema(type: 'string', example: 'public, max-age=3600')
+                    ),
                 ],
                 content: new OA\JsonContent(
                     properties: [
@@ -109,12 +150,15 @@ final class DiscoveryController
                             type: 'array',
                             items: new OA\Items(
                                 properties: [
-                                    new OA\Property(property: 'kty', type: 'string', example: 'RSA'),
+                                    new OA\Property(property: 'kty', type: 'string', example: 'EC'),
                                     new OA\Property(property: 'use', type: 'string', example: 'sig'),
-                                    new OA\Property(property: 'alg', type: 'string', example: 'RS256'),
+                                    new OA\Property(property: 'alg', type: 'string', example: 'ES256'),
                                     new OA\Property(property: 'kid', type: 'string'),
                                     new OA\Property(property: 'n', type: 'string'),
                                     new OA\Property(property: 'e', type: 'string'),
+                                    new OA\Property(property: 'crv', type: 'string', example: 'P-256'),
+                                    new OA\Property(property: 'x', type: 'string'),
+                                    new OA\Property(property: 'y', type: 'string'),
                                 ]
                             )
                         ),
@@ -126,6 +170,22 @@ final class DiscoveryController
     public function jwks(Request $request, Response $response): Response
     {
         return $this->cachedJson($response, $this->jwksFactory->document());
+    }
+
+    /**
+     * The algs of the published JWKS keys, current first (ES256 design
+     * §5.6). Derived from the JWKS document itself so the two can never
+     * drift apart: ['ES256', 'RS256'] during overlap, ['ES256'] after
+     * retirement.
+     *
+     * @return list<string>
+     */
+    private function signingAlgorithms(): array
+    {
+        return array_map(
+            static fn (array $jwk): string => $jwk['alg'],
+            $this->jwksFactory->document()['keys']
+        );
     }
 
     private function issuer(): string

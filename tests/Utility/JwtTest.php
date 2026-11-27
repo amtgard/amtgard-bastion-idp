@@ -1,9 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Utility;
 
 use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
+use Amtgard\IdP\Tests\Support\OidcFixtureKeys;
 use Amtgard\IdP\Utility\Jwt;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
@@ -38,7 +40,8 @@ class JwtTest extends TestCase
     {
         // A dummy JWT string: header.payload.signature
         // payload = {"sub":"123","aud":"test-aud","iss":"test-iss","exp":9999999999}
-        // base64url of payload is eyJzdWIiOiIxMjMiLCJhdWQiOiJ0ZXN0LWF1ZCIsImlzcyI6InRlc3QtaXNzIiwiZXhwIjo5OTk5OTk5OTk5fQ
+        // base64url of payload is
+        // eyJzdWIiOiIxMjMiLCJhdWQiOiJ0ZXN0LWF1ZCIsImlzcyI6InRlc3QtaXNzIiwiZXhwIjo5OTk5OTk5OTk5fQ
         $payload = 'eyJzdWIiOiIxMjMiLCJhdWQiOiJ0ZXN0LWF1ZCIsImlzcyI6InRlc3QtaXNzIiwiZXhwIjo5OTk5OTk5OTk5fQ';
         $jwt = "header.{$payload}.signature";
 
@@ -131,10 +134,12 @@ class JwtTest extends TestCase
     {
         // Policy JSON is different (one allows EditClient, one allows something else)
         // {"aud":"aud-1","iss":"iss-1","exp":9999999999,"policy":"[\"Idp:0::::IDP/EditClient\"]"}
-        $payload1 = 'eyJhdWQiOiJhdWQtMSIsImlzcyI6Imlzcy0xIiwiZXhwIjo5OTk5OTk5OTk5LCJwb2xpY3kiOiJbXCJJZHA6MDo6OjpJRFAvRWRpdENsaWVudFwiXSJ9';
+        $payload1 = 'eyJhdWQiOiJhdWQtMSIsImlzcyI6Imlzcy0xIiwiZXhwIjo5OTk5OTk5OTk5LCJwb2xpY3kiOiJb'
+            . 'XCJJZHA6MDo6OjpJRFAvRWRpdENsaWVudFwiXSJ9';
 
         // {"aud":"aud-1","iss":"iss-1","exp":9999999999,"policy":"[\"Idp:0::::IDP/EditIdentity\"]"}
-        $payload2 = 'eyJhdWQiOiJhdWQtMSIsImlzcyI6Imlzcy0xIiwiZXhwIjo5OTk5OTk5OTk5LCJwb2xpY3kiOiJbXCJJZHA6MDo6OjpJRFAvRWRpdElkZW50aXR5XCJdIn0';
+        $payload2 = 'eyJhdWQiOiJhdWQtMSIsImlzcyI6Imlzcy0xIiwiZXhwIjo5OTk5OTk5OTk5LCJwb2xpY3kiOiJb'
+            . 'XCJJZHA6MDo6OjpJRFAvRWRpdElkZW50aXR5XCJdIn0';
 
         $jwt1 = "header.{$payload1}.signature";
         $jwt2 = "header.{$payload2}.signature";
@@ -147,7 +152,14 @@ class JwtTest extends TestCase
         $this->assertFalse(Jwt::validateJwt('invalid', 'invalid'));
     }
 
-    public function testValidateJwtSignatureAndRequest(): void
+    public function testValidateJwtSignatureStaticIsGone(): void
+    {
+        // M5 (§8): the static Jwt::validateJwtSignature() is deleted; the
+        // injected AuthorizationJwtValidator owns signature validation now.
+        $this->assertFalse(method_exists(Jwt::class, 'validateJwtSignature'));
+    }
+
+    public function testValidateJwtRequest(): void
     {
         try {
             FirebaseJwtTestFactory::assertKeysAvailable();
@@ -163,12 +175,6 @@ class JwtTest extends TestCase
             ]
         );
 
-        $this->assertSame($jwtStr, Jwt::validateJwtSignature($jwtStr));
-
-        // Invalid signature / modified JWT
-        $this->assertNull(Jwt::validateJwtSignature($jwtStr . 'invalid'));
-
-        // Test validateJwtRequest
         $request = $this->createMock(ServerRequestInterface::class);
         $request->expects($this->once())
             ->method('getHeaderLine')
@@ -177,6 +183,11 @@ class JwtTest extends TestCase
 
         $this->assertSame($jwtStr, Jwt::validateJwtRequest($request));
 
+        // Invalid signature / modified JWT
+        $tampered = $this->createMock(ServerRequestInterface::class);
+        $tampered->method('getHeaderLine')->with('Authorization')->willReturn('Bearer ' . $jwtStr . 'invalid');
+        $this->assertNull(Jwt::validateJwtRequest($tampered));
+
         // Test validateJwtRequest with missing header
         $request2 = $this->createMock(ServerRequestInterface::class);
         $request2->expects($this->once())
@@ -184,6 +195,83 @@ class JwtTest extends TestCase
             ->with('Authorization')
             ->willReturn('');
         $this->assertNull(Jwt::validateJwtRequest($request2));
+    }
+
+    public function testValidateJwtRequestAcceptsEs256AndLegacyRs256DuringOverlap(): void
+    {
+        FirebaseJwtTestFactory::ensureKeys();
+        $savedEnv = $_ENV['OAUTH_PUBLIC_KEY'] ?? null;
+        $savedPrevious = $_ENV['OAUTH_PUBLIC_KEY_PREVIOUS'] ?? null;
+        $savedPutenv = getenv('OAUTH_PUBLIC_KEY');
+        $savedPutenvPrevious = getenv('OAUTH_PUBLIC_KEY_PREVIOUS');
+        $_ENV['OAUTH_PUBLIC_KEY'] = OidcFixtureKeys::publicEcKeyPath();
+        $_ENV['OAUTH_PUBLIC_KEY_PREVIOUS'] = '/tmp/public.key';
+        putenv('OAUTH_PUBLIC_KEY=' . OidcFixtureKeys::publicEcKeyPath());
+        putenv('OAUTH_PUBLIC_KEY_PREVIOUS=/tmp/public.key');
+
+        try {
+            $es256 = FirebaseJwtTestFactory::encodeEs256([
+                'iss' => FirebaseJwtTestFactory::DEFAULT_ISSUER,
+                'aud' => 'client-1',
+                'exp' => time() + 3600,
+            ]);
+            $rs256 = FirebaseJwtTestFactory::encode([
+                'iss' => FirebaseJwtTestFactory::DEFAULT_ISSUER,
+                'aud' => 'client-1',
+                'exp' => time() + 3600,
+            ]);
+
+            $this->assertSame($es256, Jwt::validateJwtRequest($this->bearerRequest($es256)));
+            $this->assertSame($rs256, Jwt::validateJwtRequest($this->bearerRequest($rs256)));
+            $this->assertNull(Jwt::validateJwtRequest($this->bearerRequest($es256 . 'tampered')));
+            $this->assertNull(Jwt::validateJwtRequest($this->bearerRequest($this->noneToken())));
+        } finally {
+            if ($savedEnv === null) {
+                unset($_ENV['OAUTH_PUBLIC_KEY']);
+            } else {
+                $_ENV['OAUTH_PUBLIC_KEY'] = $savedEnv;
+            }
+            if ($savedPrevious === null) {
+                unset($_ENV['OAUTH_PUBLIC_KEY_PREVIOUS']);
+            } else {
+                $_ENV['OAUTH_PUBLIC_KEY_PREVIOUS'] = $savedPrevious;
+            }
+            if ($savedPutenv === false) {
+                putenv('OAUTH_PUBLIC_KEY');
+            } else {
+                putenv('OAUTH_PUBLIC_KEY=' . $savedPutenv);
+            }
+            if ($savedPutenvPrevious === false) {
+                putenv('OAUTH_PUBLIC_KEY_PREVIOUS');
+            } else {
+                putenv('OAUTH_PUBLIC_KEY_PREVIOUS=' . $savedPutenvPrevious);
+            }
+        }
+    }
+
+    private function bearerRequest(string $jwt): ServerRequestInterface
+    {
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getHeaderLine')->with('Authorization')->willReturn('Bearer ' . $jwt);
+
+        return $request;
+    }
+
+    private function noneToken(): string
+    {
+        return $this->base64Url((string) json_encode(['alg' => 'none', 'typ' => 'JWT']))
+            . '.' . $this->base64Url((string) json_encode([
+                'iss' => FirebaseJwtTestFactory::DEFAULT_ISSUER,
+                'aud' => 'client-1',
+                'sub' => 'user-1',
+                'exp' => time() + 3600,
+            ]))
+            . '.';
+    }
+
+    private function base64Url(string $raw): string
+    {
+        return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
     }
 
     public function testIsAuthorizationPayload(): void

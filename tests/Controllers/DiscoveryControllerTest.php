@@ -6,7 +6,9 @@ namespace Amtgard\IdP\Tests\Controllers;
 
 use Amtgard\IdP\Controllers\Server\OAuth\DiscoveryController;
 use Amtgard\IdP\Tests\Support\OidcFixtureKeys;
+use Amtgard\IdP\Utility\EcJwkProvider;
 use Amtgard\IdP\Utility\JwksFactory;
+use Amtgard\IdP\Utility\RsaJwkProvider;
 use DI\Bridge\Slim\Bridge;
 use DI\ContainerBuilder;
 use PHPUnit\Framework\TestCase;
@@ -79,6 +81,89 @@ class DiscoveryControllerTest extends TestCase
         }
     }
 
+    public function testJwksReturnsOnePublicEcKeyWhenCurrentKeyIsEc(): void
+    {
+        $factory = JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem());
+        $response = $this->controller('https://idp.amtgard.com', $factory)->jwks(
+            (new ServerRequestFactory())->createServerRequest('GET', '/.well-known/jwks.json'),
+            (new ResponseFactory())->createResponse()
+        );
+
+        $body = $this->json($response);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        $this->assertSame(self::CACHE_CONTROL, $response->getHeaderLine('Cache-Control'));
+        $this->assertSame($factory->document(), $body);
+        $this->assertCount(1, $body['keys']);
+        $this->assertSame(
+            ['kty', 'crv', 'use', 'alg', 'kid', 'x', 'y'],
+            array_keys($body['keys'][0])
+        );
+        $this->assertSame('EC', $body['keys'][0]['kty']);
+        $this->assertSame('P-256', $body['keys'][0]['crv']);
+        $this->assertSame('sig', $body['keys'][0]['use']);
+        $this->assertSame('ES256', $body['keys'][0]['alg']);
+        $this->assertSame($factory->kid(), $body['keys'][0]['kid']);
+        $this->assertArrayHasKey('x', $body['keys'][0]);
+        $this->assertArrayHasKey('y', $body['keys'][0]);
+        $this->assertArrayNotHasKey('d', $body['keys'][0]);
+    }
+
+    public function testOpenidConfigurationListsEs256WhenCurrentKeyIsEc(): void
+    {
+        $response = $this->controller(
+            'https://idp.amtgard.com',
+            JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())
+        )->openidConfiguration(
+            (new ServerRequestFactory())->createServerRequest('GET', '/.well-known/openid-configuration'),
+            (new ResponseFactory())->createResponse()
+        );
+
+        $this->assertSame(
+            $this->expectedDiscovery('https://idp.amtgard.com', ['ES256']),
+            $this->json($response)
+        );
+    }
+
+    public function testJwksAndDiscoveryShowBothKeysDuringOverlap(): void
+    {
+        $factory = JwksFactory::fromProviders(
+            new EcJwkProvider(OidcFixtureKeys::publicEcPem()),
+            new RsaJwkProvider(OidcFixtureKeys::publicPem())
+        );
+        $controller = $this->controller('https://idp.amtgard.com', $factory);
+
+        $jwksResponse = $controller->jwks(
+            (new ServerRequestFactory())->createServerRequest('GET', '/.well-known/jwks.json'),
+            (new ResponseFactory())->createResponse()
+        );
+        $body = $this->json($jwksResponse);
+
+        $this->assertSame(200, $jwksResponse->getStatusCode());
+        $this->assertSame('application/json', $jwksResponse->getHeaderLine('Content-Type'));
+        $this->assertSame(self::CACHE_CONTROL, $jwksResponse->getHeaderLine('Cache-Control'));
+        $this->assertSame($factory->document(), $body);
+        $this->assertCount(2, $body['keys']);
+        $this->assertSame('EC', $body['keys'][0]['kty']);
+        $this->assertSame('P-256', $body['keys'][0]['crv']);
+        $this->assertSame('ES256', $body['keys'][0]['alg']);
+        $this->assertArrayHasKey('x', $body['keys'][0]);
+        $this->assertArrayHasKey('y', $body['keys'][0]);
+        $this->assertSame('RSA', $body['keys'][1]['kty']);
+        $this->assertSame('RS256', $body['keys'][1]['alg']);
+
+        $discoveryResponse = $controller->openidConfiguration(
+            (new ServerRequestFactory())->createServerRequest('GET', '/.well-known/openid-configuration'),
+            (new ResponseFactory())->createResponse()
+        );
+        $this->assertSame(self::CACHE_CONTROL, $discoveryResponse->getHeaderLine('Cache-Control'));
+        $this->assertSame(
+            $this->expectedDiscovery('https://idp.amtgard.com', ['ES256', 'RS256']),
+            $this->json($discoveryResponse)
+        );
+    }
+
     public function testWellKnownRoutesArePublicGets(): void
     {
         $app = AppFactory::create();
@@ -132,9 +217,11 @@ class DiscoveryControllerTest extends TestCase
     }
 
     /**
+     * @param list<string> $algs
+     *
      * @return array<string, mixed>
      */
-    private function expectedDiscovery(string $issuer): array
+    private function expectedDiscovery(string $issuer, array $algs = ['RS256']): array
     {
         return [
             'issuer' => $issuer,
@@ -145,7 +232,7 @@ class DiscoveryControllerTest extends TestCase
             'response_types_supported' => ['code'],
             'grant_types_supported' => ['authorization_code', 'refresh_token'],
             'subject_types_supported' => ['public'],
-            'id_token_signing_alg_values_supported' => ['RS256'],
+            'id_token_signing_alg_values_supported' => $algs,
             'scopes_supported' => ['openid', 'profile', 'email'],
             'token_endpoint_auth_methods_supported' => [
                 'client_secret_basic',

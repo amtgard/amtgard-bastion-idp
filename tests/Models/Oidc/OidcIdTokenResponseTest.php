@@ -15,6 +15,7 @@ use Amtgard\IdP\Utility\JwksFactory;
 use DateTimeImmutable;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Lcobucci\JWT\Signer\Ecdsa\Sha256 as EcdsaSha256;
 use League\OAuth2\Server\CryptKey;
 use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
@@ -54,21 +55,21 @@ class OidcIdTokenResponseTest extends TestCase
     public function testIdTokenVerifiesIssuerAudienceSubjectAndExpiry(): void
     {
         $expiry = (new DateTimeImmutable())->add(new \DateInterval('PT1H'));
-        $kid = JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicPem())->kid();
+        $kid = JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())->kid();
         $params = $this->extraParams(
             $this->accessToken(['openid', 'profile', 'email'], $expiry),
             $kid
         );
 
         $this->assertArrayHasKey('id_token', $params);
-        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicPem(), 'RS256'));
+        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
 
         $this->assertSame('https://idp.amtgard.com', $decoded->iss);
         $this->assertSame('test-client', $this->audience($decoded->aud));
         $this->assertSame('uuid-1', $decoded->sub);
         $this->assertSame($expiry->getTimestamp(), $decoded->exp);
         $this->assertSame($kid, $this->header($params['id_token'])['kid']);
-        $this->assertSame('RS256', $this->header($params['id_token'])['alg']);
+        $this->assertSame('ES256', $this->header($params['id_token'])['alg']);
         $this->assertObjectHasProperty('iat', $decoded);
         $this->assertSame('user@example.com', $decoded->email);
         $this->assertSame('Ada Lovelace', $decoded->name);
@@ -81,7 +82,7 @@ class OidcIdTokenResponseTest extends TestCase
         $_SERVER['HTTP_HOST'] = 'other-host.example';
 
         $params = $this->extraParams($this->accessToken(['openid']));
-        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicPem(), 'RS256'));
+        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
 
         $this->assertSame('https://idp.amtgard.com', $decoded->iss);
         $this->assertNotSame('https://other-host.example', $decoded->iss);
@@ -92,7 +93,7 @@ class OidcIdTokenResponseTest extends TestCase
         unset($_ENV['APP_URL']);
 
         $params = $this->extraParams($this->accessToken(['openid']));
-        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicPem(), 'RS256'));
+        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
 
         $this->assertSame('', $decoded->iss);
     }
@@ -105,13 +106,73 @@ class OidcIdTokenResponseTest extends TestCase
         $this->assertArrayNotHasKey('id_token', $params);
     }
 
+    public function testGetExtraParamsWithoutSignerThrows(): void
+    {
+        $users = $this->createMock(UserRepository::class);
+        $users->method('getUserEntityById')->with('uuid-1')->willReturn($this->oauthUser());
+
+        $response = new OidcIdTokenResponse(
+            new IdentityRepository($users),
+            new ClaimExtractor(),
+            JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())->kid()
+        );
+        $response->setPrivateKey(new CryptKey(OidcFixtureKeys::privateEcPem(), null, false));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('OIDC ID token signer was not injected.');
+
+        $method = new ReflectionMethod(OidcIdTokenResponse::class, 'getExtraParams');
+        $method->invoke($response, $this->accessToken(['openid']));
+    }
+
+    public function testGetExtraParamsReadsKeyFileWhenContentsAreEmpty(): void
+    {
+        $users = $this->createMock(UserRepository::class);
+        $users->method('getUserEntityById')->with('uuid-1')->willReturn($this->oauthUser());
+
+        $response = new OidcIdTokenResponse(
+            new IdentityRepository($users),
+            new ClaimExtractor(),
+            JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())->kid()
+        );
+        // League's CryptKey always populates contents from a file, so
+        // the file-path branch is only reachable with empty contents;
+        // the double below simulates that (its path still points at
+        // the real key file). It is built from inline PEM on purpose:
+        // CryptKey's file-path constructor checks
+        // is_readable('file://...'), which the BypassFinals stream
+        // wrapper enabled by the test bootstrap reports as false.
+        $key = new class (OidcFixtureKeys::privateEcPem(), null, false) extends CryptKey {
+            public function getKeyContents(): string
+            {
+                return '';
+            }
+
+            public function getKeyPath(): string
+            {
+                return OidcFixtureKeys::privateEcKeyPath();
+            }
+        };
+        $response->setPrivateKey($key);
+        $response->setSigner(new EcdsaSha256());
+
+        $method = new ReflectionMethod(OidcIdTokenResponse::class, 'getExtraParams');
+        $params = $method->invoke($response, $this->accessToken(['openid', 'profile', 'email']));
+        $this->assertIsArray($params);
+        $this->assertArrayHasKey('id_token', $params);
+
+        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
+        $this->assertSame('ES256', $this->header($params['id_token'])['alg']);
+        $this->assertSame('uuid-1', $decoded->sub);
+    }
+
     public function testIdTokenIncludesNonceFromContextAndThenClearsIt(): void
     {
         $context = new OidcNonceContext();
         $context->set('rp-nonce-value');
 
         $params = $this->extraParams($this->accessToken(['openid']), null, $context);
-        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicPem(), 'RS256'));
+        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
 
         $this->assertSame('rp-nonce-value', $decoded->nonce);
         $this->assertNull($context->get());
@@ -121,7 +182,7 @@ class OidcIdTokenResponseTest extends TestCase
     {
         $context = new OidcNonceContext();
         $params = $this->extraParams($this->accessToken(['openid']), null, $context);
-        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicPem(), 'RS256'));
+        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
 
         $this->assertObjectNotHasProperty('nonce', $decoded);
         $this->assertNull($context->get());
@@ -132,7 +193,7 @@ class OidcIdTokenResponseTest extends TestCase
         $context = new OidcNonceContext();
         $context->set('');
         $params = $this->extraParams($this->accessToken(['openid']), null, $context);
-        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicPem(), 'RS256'));
+        $decoded = JWT::decode($params['id_token'], new Key(OidcFixtureKeys::publicEcPem(), 'ES256'));
 
         $this->assertObjectNotHasProperty('nonce', $decoded);
         $this->assertNull($context->get());
@@ -152,10 +213,11 @@ class OidcIdTokenResponseTest extends TestCase
         $response = new OidcIdTokenResponse(
             new IdentityRepository($users),
             new ClaimExtractor(),
-            $kid ?? JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicPem())->kid(),
+            $kid ?? JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())->kid(),
             $nonceContext
         );
-        $response->setPrivateKey(new CryptKey(OidcFixtureKeys::privatePem(), null, false));
+        $response->setPrivateKey(new CryptKey(OidcFixtureKeys::privateEcPem(), null, false));
+        $response->setSigner(new EcdsaSha256());
 
         $method = new ReflectionMethod(OidcIdTokenResponse::class, 'getExtraParams');
 
@@ -181,7 +243,9 @@ class OidcIdTokenResponseTest extends TestCase
         $accessToken->method('getScopes')->willReturn($scopes);
         $accessToken->method('getClient')->willReturn($client);
         $accessToken->method('getUserIdentifier')->willReturn('uuid-1');
-        $accessToken->method('getExpiryDateTime')->willReturn($expiry ?? (new DateTimeImmutable())->add(new \DateInterval('PT1H')));
+        $accessToken->method('getExpiryDateTime')->willReturn(
+            $expiry ?? (new DateTimeImmutable())->add(new \DateInterval('PT1H'))
+        );
 
         return $accessToken;
     }

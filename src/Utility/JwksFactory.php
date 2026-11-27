@@ -5,18 +5,48 @@ declare(strict_types=1);
 namespace Amtgard\IdP\Utility;
 
 /**
- * PEM → RFC 7638 thumbprint kid (and the matching RSA JWK). One key in v1.
+ * JWKS document aggregator (ES256 design §5.5). Constructed with the bound
+ * JwkProviders, current first; document() emits one entry per provider.
+ * kid()/jwk() describe the first (current) provider, preserving the
+ * pre-migration single-key behaviour for the existing container path.
+ *
+ * M2: fromPublicKeyPem() dispatches on the PEM's key type (RSA or P-256 EC)
+ * and builds the matching provider; the container factory binds the
+ * provider list via fromProviders() (§5.5), with the previous-key entry
+ * landing in M7 (§5.7).
+ *
+ * Psalm analyses src/ only, so construction from config/ and use from
+ * tests does not count as use for the providers list (the constructor,
+ * fromProviders(), and firstProvider() carry their own suppressions).
+ *
+ * @psalm-suppress UnusedProperty
  */
 final class JwksFactory
 {
     /**
-     * @param array{e: string, kty: string, n: string} $requiredMembers
+     * @param list<JwkProvider> $providers bound providers, current first
+     *
+     * @psalm-suppress PossiblyUnusedMethod
      */
-    private function __construct(private readonly array $requiredMembers)
+    public function __construct(private readonly array $providers)
     {
     }
 
     public static function fromPublicKeyPem(string $pem): self
+    {
+        return new self([self::providerFromPublicKeyPem($pem)]);
+    }
+
+    /**
+     * Provider construction (ES256 design §5.5): the single place that maps
+     * a public-key PEM to its JwkProvider implementation. RSA details build
+     * an RsaJwkProvider; EC details build an EcJwkProvider, which rejects
+     * any curve other than P-256. Anything else throws at container-build
+     * time. M7 reuses this for the previous key.
+     *
+     * @psalm-suppress PossiblyUnusedMethod
+     */
+    public static function providerFromPublicKeyPem(string $pem): JwkProvider
     {
         $key = openssl_pkey_get_public($pem);
         if ($key === false) {
@@ -24,56 +54,59 @@ final class JwksFactory
         }
 
         $details = openssl_pkey_get_details($key);
-        if (!isset($details['rsa']['n'], $details['rsa']['e'])) {
-            throw new \RuntimeException('OIDC signing key must be an RSA public key.');
+        $rsa = \is_array($details) ? ($details['rsa'] ?? null) : null;
+        if (\is_array($rsa)) {
+            return new RsaJwkProvider($pem);
         }
 
-        $members = [
-            'e' => self::base64UrlEncode($details['rsa']['e']),
-            'kty' => 'RSA',
-            'n' => self::base64UrlEncode($details['rsa']['n']),
-        ];
+        $ec = \is_array($details) ? ($details['ec'] ?? null) : null;
+        if (\is_array($ec)) {
+            return new EcJwkProvider($pem);
+        }
 
-        return new self($members);
+        throw new \RuntimeException('OIDC signing key must be an RSA or P-256 EC public key.');
+    }
+
+    /** @psalm-suppress PossiblyUnusedMethod */
+    public static function fromProviders(JwkProvider ...$providers): self
+    {
+        return new self($providers);
     }
 
     public function kid(): string
     {
-        // RFC 7638: lexicographic members e, kty, n with no insignificant whitespace.
-        $canonical = '{"e":"' . $this->requiredMembers['e']
-            . '","kty":"' . $this->requiredMembers['kty']
-            . '","n":"' . $this->requiredMembers['n'] . '"}';
-
-        return self::base64UrlEncode(hash('sha256', $canonical, true));
+        return $this->firstProvider()->kid();
     }
 
     /**
-     * @return array{kty: string, use: string, alg: string, kid: string, n: string, e: string}
+     * @return array<string, string>
      */
     public function jwk(): array
     {
-        return [
-            'kty' => 'RSA',
-            'use' => 'sig',
-            'alg' => 'RS256',
-            'kid' => $this->kid(),
-            'n' => $this->requiredMembers['n'],
-            'e' => $this->requiredMembers['e'],
-        ];
+        return $this->firstProvider()->jwk();
     }
 
     /**
-     * @return array{keys: list<array{kty: string, use: string, alg: string, kid: string, n: string, e: string}>}
+     * @return array{keys: list<array<string, string>>}
      */
     public function document(): array
     {
         return [
-            'keys' => [$this->jwk()],
+            'keys' => array_map(
+                static fn (JwkProvider $provider): array => $provider->jwk(),
+                $this->providers
+            ),
         ];
     }
 
-    private static function base64UrlEncode(string $raw): string
+    /** @psalm-suppress UnusedMethod */
+    private function firstProvider(): JwkProvider
     {
-        return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
+        $first = $this->providers[0] ?? null;
+        if ($first === null) {
+            throw new \RuntimeException('JWKS has no bound JWK providers.');
+        }
+
+        return $first;
     }
 }

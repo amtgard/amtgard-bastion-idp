@@ -26,8 +26,15 @@ final class CaddyDocsRoutingConfigTest extends TestCase
         // is the bare file.
         $this->assertStringContainsString('try_files /index.php', $config);
         $this->assertStringContainsString('try_files {path} {path}/ /index.php', $config);
-        $this->assertStringNotContainsString('/index.php{query}', $config);
-        $this->assertStringNotContainsString('/index.php?{query}', $config);
+        // The Caddyfile's explanatory comments mention these fallbacks;
+        // strip '#' comment lines so the assertions check the live
+        // directives only, not the prose describing them.
+        $directives = implode("\n", array_filter(
+            explode("\n", $config),
+            static fn (string $line): bool => !str_starts_with(ltrim($line), '#'),
+        ));
+        $this->assertStringNotContainsString('/index.php{query}', $directives);
+        $this->assertStringNotContainsString('/index.php?{query}', $directives);
 
         // A rewrite to /index.php loses the /docs URI and lets the static
         // handle serve the front controller's source instead of executing it.

@@ -2,20 +2,18 @@
 
 declare(strict_types=1);
 
-
 namespace Amtgard\IdP\Utility;
 
 use Amtgard\IAM\PolicyFactory;
-use Firebase\JWT\JWT as FirebaseJwt;
-use Firebase\JWT\Key;
+use Amtgard\IdP\Models\CompositeAuthorizationJwtValidator;
 use Optional\Optional;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
 
 final class Jwt
 {
-
-    public static function getBearerJwt(ServerRequestInterface $request): ?string {
+    public static function getBearerJwt(ServerRequestInterface $request): ?string
+    {
         $authHeader = $request->getHeaderLine('Authorization');
 
         if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
@@ -29,8 +27,7 @@ final class Jwt
         string $challengeJwt,
         string $userJwt,
         ?LoggerInterface $logger = null,
-    ): bool
-    {
+    ): bool {
         $challenge = self::parseJwt($challengeJwt, $logger);
         $userData = self::parseJwt($userJwt, $logger);
 
@@ -97,29 +94,13 @@ final class Jwt
         return true;
     }
 
-    public static function validateJwtSignature(string $putativeJwt, ?LoggerInterface $logger = null): ?string {
-        $failureReason = null;
-        $exceptionClass = null;
-        try {
-            $publicKey = OAuthKeyMaterial::readFromEnv('OAUTH_PUBLIC_KEY');
-            FirebaseJwt::decode($putativeJwt, new Key($publicKey, 'RS256'));
-        } catch (\Throwable $e) {
-            $failureReason = $e->getMessage();
-            $exceptionClass = $e::class;
-        }
-
-        if ($failureReason !== null) {
-            $logger?->debug('jwt signature validation failed', [
-                'reason' => $failureReason,
-                'exception_class' => $exceptionClass,
-            ]);
-
-            return null;
-        }
-
-        return $putativeJwt;
-    }
-
+    /**
+     * Bearer JWT from the request, validated against the authorization-JWT
+     * composite (ES256 design §5.4). Reworked in M5: the deleted static
+     * Jwt::validateJwtSignature() is replaced by the composite built from
+     * the environment, so the static call sites that cannot take injected
+     * dependencies (auth middleware, LogsController) keep working.
+     */
     public static function validateJwtRequest(
         ServerRequestInterface $request,
         ?LoggerInterface $logger = null,
@@ -134,15 +115,20 @@ final class Jwt
         }
 
         return Optional::ofNullable($bearer)
-            ->map(fn (string $putativeJwt) => self::validateJwtSignature($putativeJwt, $logger))
+            ->map(
+                fn (string $putativeJwt) => CompositeAuthorizationJwtValidator::fromEnvironment()
+                    ->validateJwtSignature($putativeJwt, $logger)
+            )
             ->orElse(null);
     }
 
     /**
      * Payload extraction without signature verification (used for challenge compare and post-verify reads).
-     * Verified Bearer tokens should use validateJwtSignature before trusting claims.
+     * Verified Bearer tokens should be validated with the injected AuthorizationJwtValidator
+     * before trusting claims.
      */
-    public static function parseJwt(string $jwt, ?LoggerInterface $logger = null): ?array {
+    public static function parseJwt(string $jwt, ?LoggerInterface $logger = null): ?array
+    {
         // Remove Bearer prefix if present for parsing
         if (preg_match('/Bearer\s+(.*)$/i', $jwt, $matches)) {
             $jwt = $matches[1];
@@ -173,7 +159,7 @@ final class Jwt
 
     /**
      * Authorization JWT (fat or compact) vs a League OAuth access token JWT.
-     * Access tokens share the RS256 keys but have no `pvh` and no `policy`.
+     * Access tokens share the signing keys but have no `pvh` and no `policy`.
      *
      * @param array<string, mixed> $payload
      */
@@ -241,5 +227,4 @@ final class Jwt
 
         return self::policyHashFromFatClaims($payload);
     }
-
 }

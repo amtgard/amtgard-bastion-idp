@@ -6,6 +6,7 @@ namespace Amtgard\IdP\Tests\Middleware;
 
 use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Middleware\OAuthAccessTokenElevationMiddleware;
+use Amtgard\IdP\Models\CompositeAuthorizationJwtValidator;
 use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
 use Amtgard\IdP\Utility\Pvh;
 use Amtgard\IdP\Utility\AuthorizedClients;
@@ -76,7 +77,8 @@ class OAuthAccessTokenElevationMiddlewareTest extends TestCase
         $resourceServer->method('validateAuthenticatedRequest')->willReturn($validated);
 
         $handler = $this->createMock(RequestHandlerInterface::class);
-        $handler->expects($this->once())->method('handle')->with($validated)->willReturn($this->createMock(ResponseInterface::class));
+        $handler->expects($this->once())->method('handle')->with($validated)
+            ->willReturn($this->createMock(ResponseInterface::class));
 
         $this->makeMiddleware($resourceServer)->process($request, $handler);
 
@@ -132,7 +134,8 @@ class OAuthAccessTokenElevationMiddlewareTest extends TestCase
             ->willReturn($validated);
 
         $handler = $this->createMock(RequestHandlerInterface::class);
-        $handler->expects($this->once())->method('handle')->with($validated)->willReturn($this->createMock(ResponseInterface::class));
+        $handler->expects($this->once())->method('handle')->with($validated)
+            ->willReturn($this->createMock(ResponseInterface::class));
 
         $this->makeMiddleware($resourceServer)->process($request, $handler);
 
@@ -166,6 +169,7 @@ class OAuthAccessTokenElevationMiddlewareTest extends TestCase
             IdpLoggingTestFactory::create(),
             AuthorizedClients::builder()->clientIds(['valid-client'])->build(),
             $resourceServer ?? $this->createMock(ResourceServer::class),
+            CompositeAuthorizationJwtValidator::fromEnvironment(),
         );
     }
 

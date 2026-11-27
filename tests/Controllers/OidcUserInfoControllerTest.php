@@ -6,6 +6,7 @@ namespace Amtgard\IdP\Tests\Controllers;
 
 use Amtgard\IdP\Controllers\Resource\ResourcesController;
 use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
+use Amtgard\IdP\Models\CompositeAuthorizationJwtValidator;
 use Amtgard\IdP\Persistence\Client\Entities\UserEntity;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
 use Amtgard\IdP\Tests\Support\FirebaseJwtTestFactory;
@@ -98,7 +99,7 @@ class OidcUserInfoControllerTest extends TestCase
             ->with(self::USER_ID)
             ->willReturn($this->user());
 
-        $response = (new OidcUserInfoController($resourceServer, $users))
+        $response = (new OidcUserInfoController($resourceServer, $users, $this->validator()))
             ->userinfo($this->bearerRequest('GET', 'access-token'), (new ResponseFactory())->createResponse());
 
         $this->assertUserInfoOk($response, ['sub' => self::USER_ID]);
@@ -154,7 +155,9 @@ class OidcUserInfoControllerTest extends TestCase
             ->with($this->callback(function (ServerRequestInterface $request): bool {
                 return $request->getHeaderLine('Authorization') === 'Bearer form-token';
             }))
-            ->willReturnCallback(fn (ServerRequestInterface $request) => $this->validated($request, ['openid', 'email']));
+            ->willReturnCallback(
+                fn (ServerRequestInterface $request) => $this->validated($request, ['openid', 'email'])
+            );
 
         $users = $this->createMock(UserRepository::class);
         $users->method('findUserByUserId')->with(self::USER_ID)->willReturn($this->user());
@@ -163,7 +166,7 @@ class OidcUserInfoControllerTest extends TestCase
             ->createServerRequest('POST', '/oauth/userinfo')
             ->withParsedBody(['access_token' => 'form-token']);
 
-        $response = (new OidcUserInfoController($resourceServer, $users))
+        $response = (new OidcUserInfoController($resourceServer, $users, $this->validator()))
             ->userinfo($request, (new ResponseFactory())->createResponse());
 
         $this->assertUserInfoOk($response, [
@@ -190,7 +193,7 @@ class OidcUserInfoControllerTest extends TestCase
             ->withHeader('Authorization', 'Bearer header-token')
             ->withParsedBody(['access_token' => 'form-token']);
 
-        $response = (new OidcUserInfoController($resourceServer, $users))
+        $response = (new OidcUserInfoController($resourceServer, $users, $this->validator()))
             ->userinfo($request, (new ResponseFactory())->createResponse());
 
         $this->assertUserInfoOk($response, ['sub' => self::USER_ID]);
@@ -201,7 +204,11 @@ class OidcUserInfoControllerTest extends TestCase
         $resourceServer = $this->createMock(ResourceServer::class);
         $resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
 
-        $response = (new OidcUserInfoController($resourceServer, $this->createStub(UserRepository::class)))
+        $response = (new OidcUserInfoController(
+            $resourceServer,
+            $this->createStub(UserRepository::class),
+            $this->validator()
+        ))
             ->userinfo(
                 (new ServerRequestFactory())
                     ->createServerRequest('GET', '/oauth/userinfo')
@@ -281,7 +288,11 @@ class OidcUserInfoControllerTest extends TestCase
         $resourceServer->method('validateAuthenticatedRequest')
             ->willReturnCallback(fn (ServerRequestInterface $request) => $this->validated($request, ['profile']));
 
-        $response = (new OidcUserInfoController($resourceServer, $this->createStub(UserRepository::class)))
+        $response = (new OidcUserInfoController(
+            $resourceServer,
+            $this->createStub(UserRepository::class),
+            $this->validator()
+        ))
             ->userinfo($this->bearerRequest('GET', $jwt), (new ResponseFactory())->createResponse());
 
         $this->assertUnauthorized($response);
@@ -300,7 +311,11 @@ class OidcUserInfoControllerTest extends TestCase
         $resourceServer = $this->createMock(ResourceServer::class);
         $resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
 
-        $response = (new OidcUserInfoController($resourceServer, $this->createStub(UserRepository::class)))
+        $response = (new OidcUserInfoController(
+            $resourceServer,
+            $this->createStub(UserRepository::class),
+            $this->validator()
+        ))
             ->userinfo($this->bearerRequest('GET', $jwt . '   '), (new ResponseFactory())->createResponse());
 
         $this->assertUnauthorized($response);
@@ -353,7 +368,11 @@ class OidcUserInfoControllerTest extends TestCase
             ->createServerRequest('POST', '/oauth/userinfo')
             ->withParsedBody(['access_token' => $jwt]);
 
-        $response = (new OidcUserInfoController($resourceServer, $this->createStub(UserRepository::class)))
+        $response = (new OidcUserInfoController(
+            $resourceServer,
+            $this->createStub(UserRepository::class),
+            $this->validator()
+        ))
             ->userinfo($request, (new ResponseFactory())->createResponse());
 
         $this->assertUnauthorized($response);
@@ -364,7 +383,11 @@ class OidcUserInfoControllerTest extends TestCase
         $resourceServer = $this->createMock(ResourceServer::class);
         $resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
 
-        $response = (new OidcUserInfoController($resourceServer, $this->createStub(UserRepository::class)))
+        $response = (new OidcUserInfoController(
+            $resourceServer,
+            $this->createStub(UserRepository::class),
+            $this->validator()
+        ))
             ->userinfo(
                 (new ServerRequestFactory())->createServerRequest('GET', '/oauth/userinfo'),
                 (new ResponseFactory())->createResponse()
@@ -378,7 +401,11 @@ class OidcUserInfoControllerTest extends TestCase
         $resourceServer = $this->createMock(ResourceServer::class);
         $resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
 
-        $response = (new OidcUserInfoController($resourceServer, $this->createStub(UserRepository::class)))
+        $response = (new OidcUserInfoController(
+            $resourceServer,
+            $this->createStub(UserRepository::class),
+            $this->validator()
+        ))
             ->userinfo(
                 (new ServerRequestFactory())
                     ->createServerRequest('POST', '/oauth/userinfo')
@@ -394,7 +421,11 @@ class OidcUserInfoControllerTest extends TestCase
     {
         $resourceServer = $this->createMock(ResourceServer::class);
         $resourceServer->expects($this->never())->method('validateAuthenticatedRequest');
-        $controller = new OidcUserInfoController($resourceServer, $this->createStub(UserRepository::class));
+        $controller = new OidcUserInfoController(
+            $resourceServer,
+            $this->createStub(UserRepository::class),
+            $this->validator()
+        );
 
         $emptyBearer = $controller->userinfo(
             (new ServerRequestFactory())
@@ -433,7 +464,11 @@ class OidcUserInfoControllerTest extends TestCase
         $resourceServer->method('validateAuthenticatedRequest')
             ->willThrowException(OAuthServerException::accessDenied('bad token'));
 
-        $response = (new OidcUserInfoController($resourceServer, $this->createStub(UserRepository::class)))
+        $response = (new OidcUserInfoController(
+            $resourceServer,
+            $this->createStub(UserRepository::class),
+            $this->validator()
+        ))
             ->userinfo($this->bearerRequest('GET', 'access-token'), (new ResponseFactory())->createResponse());
 
         $this->assertUnauthorized($response);
@@ -448,7 +483,7 @@ class OidcUserInfoControllerTest extends TestCase
         $users = $this->createMock(UserRepository::class);
         $users->method('findUserByUserId')->with(self::USER_ID)->willReturn(null);
 
-        $response = (new OidcUserInfoController($resourceServer, $users))
+        $response = (new OidcUserInfoController($resourceServer, $users, $this->validator()))
             ->userinfo($this->bearerRequest('GET', 'access-token'), (new ResponseFactory())->createResponse());
 
         $this->assertUnauthorized($response);
@@ -480,14 +515,16 @@ class OidcUserInfoControllerTest extends TestCase
     {
         $resourceServer = $this->createMock(ResourceServer::class);
         $resourceServer->method('validateAuthenticatedRequest')
-            ->willReturnCallback(fn (ServerRequestInterface $request) => $this->validated($request, ['openid', 'email']));
+            ->willReturnCallback(
+                fn (ServerRequestInterface $request) => $this->validated($request, ['openid', 'email'])
+            );
         $users = $this->createMock(UserRepository::class);
         $users->method('findUserByUserId')->willReturn($this->user());
 
         $builder = new ContainerBuilder();
         $builder->useAutowiring(false);
         $builder->addDefinitions([
-            OidcUserInfoController::class => new OidcUserInfoController($resourceServer, $users),
+            OidcUserInfoController::class => new OidcUserInfoController($resourceServer, $users, $this->validator()),
         ]);
         $app = Bridge::create($builder->build());
         (require dirname(__DIR__, 2) . '/config/routes.php')($app);
@@ -505,6 +542,13 @@ class OidcUserInfoControllerTest extends TestCase
         ]);
     }
 
+    private function validator(): CompositeAuthorizationJwtValidator
+    {
+        FirebaseJwtTestFactory::ensureKeys();
+
+        return CompositeAuthorizationJwtValidator::fromEnvironment();
+    }
+
     /**
      * @param list<mixed>|null $scopes
      */
@@ -517,7 +561,7 @@ class OidcUserInfoControllerTest extends TestCase
         $users = $this->createMock(UserRepository::class);
         $users->method('findUserByUserId')->willReturn($user);
 
-        return (new OidcUserInfoController($resourceServer, $users))
+        return (new OidcUserInfoController($resourceServer, $users, $this->validator()))
             ->userinfo($request, (new ResponseFactory())->createResponse());
     }
 
@@ -599,7 +643,7 @@ class OidcUserInfoControllerTest extends TestCase
         ?string $username = 'ada',
         ?DateTime $updatedAt = null,
     ): UserEntity {
-        return new class($userId, $email, $firstName, $lastName, $username, $updatedAt) extends UserEntity {
+        return new class ($userId, $email, $firstName, $lastName, $username, $updatedAt) extends UserEntity {
             public function __construct(
                 private ?string $testUserId,
                 private ?string $testEmail,

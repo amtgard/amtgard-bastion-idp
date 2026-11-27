@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace Amtgard\IdP\Tests\Config;
 
+use Amtgard\ActiveRecordOrm\EntityManager;
 use Amtgard\IdP\Controllers\Server\OAuth\DiscoveryController;
 use Amtgard\IdP\Controllers\Server\OAuth\OidcUserInfoController;
+use Amtgard\IdP\Models\AuthorizationJwtValidator;
 use Amtgard\IdP\Models\OAuthServerConfiguration;
 use Amtgard\IdP\Models\Oidc\IdentityRepository;
 use Amtgard\IdP\Models\Oidc\OidcNonceContext;
 use Amtgard\IdP\Persistence\Client\Repositories\UserRepository;
+use Amtgard\IdP\Persistence\Server\Repositories\AccessTokenRepository;
 use Amtgard\IdP\Tests\Support\OidcFixtureKeys;
 use Amtgard\IdP\Utility\JwksFactory;
+use DI\ContainerBuilder;
+use Lcobucci\JWT\Signer;
+use Lcobucci\JWT\Signer\Ecdsa\Sha256 as EcdsaSha256;
 use League\OAuth2\Server\ResourceServer;
 use League\OAuth2\Server\Repositories\AccessTokenRepositoryInterface;
 use League\OAuth2\Server\Repositories\AuthCodeRepositoryInterface;
@@ -80,6 +86,77 @@ class OidcContainerWiringTest extends TestCase
         }
     }
 
+    public function testJwksFactoryFactoryReadsEcOauthPublicKey(): void
+    {
+        $previous = $_ENV['OAUTH_PUBLIC_KEY'] ?? null;
+        $_ENV['OAUTH_PUBLIC_KEY'] = OidcFixtureKeys::publicEcKeyPath();
+
+        try {
+            $definitions = require __DIR__ . '/../../config/container.php';
+            $factory = $definitions[JwksFactory::class]();
+
+            $this->assertInstanceOf(JwksFactory::class, $factory);
+            $this->assertSame(
+                JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())->kid(),
+                $factory->kid()
+            );
+            $document = $factory->document();
+            $this->assertCount(1, $document['keys']);
+            $this->assertSame('EC', $document['keys'][0]['kty']);
+            $this->assertSame('ES256', $document['keys'][0]['alg']);
+        } finally {
+            if ($previous === null) {
+                unset($_ENV['OAUTH_PUBLIC_KEY']);
+            } else {
+                $_ENV['OAUTH_PUBLIC_KEY'] = $previous;
+            }
+        }
+    }
+
+    public function testJwksFactoryFactoryBindsPreviousKeyDuringOverlap(): void
+    {
+        $saved = [];
+        foreach (['OAUTH_PUBLIC_KEY', 'OAUTH_PUBLIC_KEY_PREVIOUS'] as $key) {
+            $saved[$key] = ['env' => $_ENV[$key] ?? null, 'putenv' => getenv($key)];
+        }
+        $_ENV['OAUTH_PUBLIC_KEY'] = OidcFixtureKeys::publicEcKeyPath();
+        $_ENV['OAUTH_PUBLIC_KEY_PREVIOUS'] = OidcFixtureKeys::publicKeyPath();
+        // $_ENV wins over getenv(): the previous key must still be picked
+        // up when it is set in $_ENV only (putenv cleared).
+        putenv('OAUTH_PUBLIC_KEY');
+        putenv('OAUTH_PUBLIC_KEY_PREVIOUS');
+
+        try {
+            $definitions = require __DIR__ . '/../../config/container.php';
+            $factory = $definitions[JwksFactory::class]();
+
+            $this->assertInstanceOf(JwksFactory::class, $factory);
+            $document = $factory->document();
+            $this->assertCount(2, $document['keys']);
+            $this->assertSame('EC', $document['keys'][0]['kty']);
+            $this->assertSame('ES256', $document['keys'][0]['alg']);
+            $this->assertSame('RSA', $document['keys'][1]['kty']);
+            $this->assertSame('RS256', $document['keys'][1]['alg']);
+            $this->assertSame(
+                JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicEcPem())->kid(),
+                $factory->kid()
+            );
+        } finally {
+            foreach ($saved as $key => $previous) {
+                if ($previous['env'] === null) {
+                    unset($_ENV[$key]);
+                } else {
+                    $_ENV[$key] = $previous['env'];
+                }
+                if ($previous['putenv'] === false) {
+                    putenv($key);
+                } else {
+                    putenv($key . '=' . $previous['putenv']);
+                }
+            }
+        }
+    }
+
     public function testDiscoveryControllerFactoryUsesJwksFactoryAndAppUrl(): void
     {
         $jwks = JwksFactory::fromPublicKeyPem(OidcFixtureKeys::publicPem());
@@ -115,9 +192,11 @@ class OidcContainerWiringTest extends TestCase
     {
         $resourceServer = $this->createStub(ResourceServer::class);
         $users = $this->createStub(UserRepository::class);
+        $validator = $this->createStub(AuthorizationJwtValidator::class);
         $container = $this->containerReturning([
             ResourceServer::class => $resourceServer,
             UserRepository::class => $users,
+            AuthorizationJwtValidator::class => $validator,
         ]);
 
         $definitions = require __DIR__ . '/../../config/container.php';
@@ -132,13 +211,19 @@ class OidcContainerWiringTest extends TestCase
             $users,
             (new \ReflectionProperty(OidcUserInfoController::class, 'userRepository'))->getValue($controller)
         );
+        $this->assertSame(
+            $validator,
+            (new \ReflectionProperty(OidcUserInfoController::class, 'authorizationJwtValidator'))->getValue($controller)
+        );
     }
 
     public function testOAuthServerConfigurationFactoryReceivesIdentityProvider(): void
     {
         $identity = new IdentityRepository($this->createStub(UserRepository::class));
         $nonceContext = new OidcNonceContext();
+        $signer = new EcdsaSha256();
         $container = $this->containerReturning([
+            Signer::class => $signer,
             ClientRepositoryInterface::class => $this->createStub(ClientRepositoryInterface::class),
             ScopeRepositoryInterface::class => $this->createStub(ScopeRepositoryInterface::class),
             AccessTokenRepositoryInterface::class => $this->createStub(AccessTokenRepositoryInterface::class),
@@ -159,6 +244,43 @@ class OidcContainerWiringTest extends TestCase
         $this->assertSame(
             $nonceContext,
             (new \ReflectionProperty(OAuthServerConfiguration::class, 'nonceContext'))->getValue($config)
+        );
+        $this->assertSame(
+            $signer,
+            (new \ReflectionProperty(OAuthServerConfiguration::class, 'signer'))->getValue($config)
+        );
+    }
+
+    /**
+     * ES256 design §3.5, §5.1: the AccessTokenRepositoryInterface factory
+     * wraps the ORM construction and injects the container-bound Signer
+     * via setSigner(). Resolving through a real PHP-DI container proves
+     * the two-argument factory (EntityManager + ContainerInterface)
+     * is invoked with both arguments.
+     */
+    public function testAccessTokenRepositoryFactoryInjectsContainerSigner(): void
+    {
+        $repository = new AccessTokenRepository();
+        $em = $this->createStub(EntityManager::class);
+        $em->method('getRepository')->willReturn($repository);
+        $signer = new EcdsaSha256();
+
+        $builder = new ContainerBuilder();
+        $builder->addDefinitions(require __DIR__ . '/../../config/container/persistence.php');
+        // Overrides AFTER the persistence definitions: later definitions
+        // win in PHP-DI, so these stubs must come second.
+        $builder->addDefinitions([
+            EntityManager::class => fn () => $em,
+            Signer::class => fn () => $signer,
+        ]);
+        $container = $builder->build();
+
+        $resolved = $container->get(AccessTokenRepositoryInterface::class);
+
+        $this->assertSame($repository, $resolved);
+        $this->assertSame(
+            $signer,
+            (new \ReflectionProperty(AccessTokenRepository::class, 'signer'))->getValue($resolved)
         );
     }
 

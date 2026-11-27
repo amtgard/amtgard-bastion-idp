@@ -1,8 +1,10 @@
 <?php
 
+// phpcs:disable PSR1.Files.SideEffects.FoundWithSymbols -- load-env.php must both
+// declare the loader functions and pull in idp-environment.php, whose helpers
+// those functions call; the require is load-bearing (bootstrap.php, phinx.php
+// and phpstan-bootstrap.php all include this file expecting the helpers to exist).
 declare(strict_types=1);
-
-require_once __DIR__ . '/idp-environment.php';
 
 /**
  * Application `.env` (non-secrets) then vault inject `secrets.env` on `/run/secrets`.
@@ -16,7 +18,8 @@ function idp_load_process_env(string $projectRoot): void
     Dotenv\Dotenv::createImmutable($projectRoot)->safeLoad();
 
     if (idp_is_dev_integ_environment()) {
-        // Laptop `.env` often points ORK JSON at a local ORK3 container; integ uses DevIntegHttpClient stubs on ork.amtgard.com.
+        // Laptop `.env` often points ORK JSON at a local ORK3 container; integ uses
+        // DevIntegHttpClient stubs on ork.amtgard.com.
         idp_clear_process_env_key('ORK_JSON_API_BASE_URL');
         idp_clear_process_env_key('ORK_CLAIM_MAIL_VIA_ORK');
 
@@ -47,6 +50,7 @@ function idp_apply_inject_file_paths_when_unset(string $injectDir): void
     $pairs = [
         'OAUTH_PRIVATE_KEY' => 'oauth-private.key',
         'OAUTH_PUBLIC_KEY' => 'oauth-public.key',
+        'OAUTH_PUBLIC_KEY_PREVIOUS' => 'oauth-public.key.previous',
         'APPLE_KEY_FILE_PATH' => 'apple.p8',
     ];
 
@@ -124,3 +128,5 @@ function idp_repo_dotenv_environment(string $projectRoot): ?string
 
     return null;
 }
+
+require_once __DIR__ . '/idp-environment.php';
